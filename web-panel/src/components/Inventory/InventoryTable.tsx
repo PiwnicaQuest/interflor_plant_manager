@@ -166,6 +166,9 @@ export function InventoryTable({
   const [hoveredImage, setHoveredImage] = useState<{ url: string; name: string } | null>(null);
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>(loadColumnWidths);
   const [resizing, setResizing] = useState<string | null>(null);
+  const [resizePreviewX, setResizePreviewX] = useState<number | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const pendingWidth = useRef<number>(0);
   const startX = useRef(0);
   const startWidth = useRef(0);
   const tableRef = useRef<HTMLTableElement>(null);
@@ -205,35 +208,66 @@ export function InventoryTable({
     }
   }, [selectedCell, products, onProductFocused]);
 
-  // Column resize handlers
+  // Column resize handlers - improved with requestAnimationFrame
   const handleMouseDown = useCallback((e: React.MouseEvent, columnKey: string) => {
     e.preventDefault();
+    e.stopPropagation();
     setResizing(columnKey);
     startX.current = e.clientX;
     startWidth.current = columnWidths[columnKey] || DEFAULT_COLUMN_WIDTHS[columnKey];
+    pendingWidth.current = startWidth.current;
+    setResizePreviewX(e.clientX);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
   }, [columnWidths]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!resizing) return;
+    
+    // Update preview line position
+    setResizePreviewX(e.clientX);
+    
     const diff = e.clientX - startX.current;
-    const newWidth = Math.max(30, startWidth.current + diff);
-    setColumnWidths(prev => ({ ...prev, [resizing]: newWidth }));
+    const minWidth = DEFAULT_COLUMN_WIDTHS[resizing] ? Math.max(30, DEFAULT_COLUMN_WIDTHS[resizing] * 0.5) : 30;
+    const newWidth = Math.max(minWidth, Math.min(500, startWidth.current + diff));
+    pendingWidth.current = newWidth;
+    
+    // Use requestAnimationFrame for smooth updates
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+    }
+    rafRef.current = requestAnimationFrame(() => {
+      setColumnWidths(prev => ({ ...prev, [resizing]: pendingWidth.current }));
+    });
   }, [resizing]);
 
   const handleMouseUp = useCallback(() => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+    }
+    // Apply final width
+    if (resizing) {
+      setColumnWidths(prev => ({ ...prev, [resizing]: pendingWidth.current }));
+    }
     setResizing(null);
-  }, []);
+    setResizePreviewX(null);
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  }, [resizing]);
 
   useEffect(() => {
     if (resizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
       return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
       };
     }
   }, [resizing, handleMouseMove, handleMouseUp]);
+
 
   // Reset column widths
   const resetColumnWidths = () => {
@@ -761,14 +795,24 @@ export function InventoryTable({
     >
       <div className="truncate pr-2">{children}</div>
       <div
-        className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-blue-400/50 active:bg-blue-500/50"
+        className="absolute right-[-6px] top-0 h-full w-4 cursor-col-resize group z-10"
         onMouseDown={(e) => handleMouseDown(e, columnKey)}
-      />
+      >
+        <div className="absolute right-[5px] top-0 w-[2px] h-full bg-transparent group-hover:bg-blue-400 group-active:bg-blue-600 transition-colors" />
+      </div>
     </th>
   );
 
   return (
     <>
+      {/* Resize preview line */}
+      {resizing && resizePreviewX !== null && (
+        <div
+          className="fixed top-0 bottom-0 w-0.5 bg-blue-500 z-50 pointer-events-none shadow-lg"
+          style={{ left: resizePreviewX }}
+        />
+      )}
+
       {hoveredImage && (
         <div className="fixed z-50 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}>
           <div className="bg-white rounded-lg shadow-2xl p-2 border border-gray-200">
