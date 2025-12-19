@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PlantManager - Panel Administracyjny</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+      #loader {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+      .spinner {
+        border: 4px solid rgba(255,255,255,0.3);
+        border-top: 4px solid white;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      .loader-text {
+        color: white;
+        font-size: 20px;
+        font-weight: 500;
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index-BMsk_v-B.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-B464tvbB.css">
+  </head>
+  <body>
+    <div id="loader">
+      <div class="spinner"></div>
+      <div class="loader-text">Ładowanie PlantManager...</div>
+    </div>
+    <div id="root"></div>
+    
+    <script>
+      // Automatyczne przekierowanie na /login jeśli React się nie załaduje
+      (function() {
+        var redirectTimer = setTimeout(function() {
+          var root = document.getElementById('root');
+          // Jeśli po 1.5s React się nie załadował i nie jesteśmy na /login, przekieruj
+          if (root && root.children.length === 0 && window.location.pathname !== '/login') {
+            console.log('React not loaded, redirecting to /login');
+            window.location.href = '/login';
+          }
+        }, 1500);
+        
+        // Obserwuj zmiany w #root
+        var observer = new MutationObserver(function(mutations) {
+          var root = document.getElementById('root');
+          if (root && root.children.length > 0) {
+            console.log('React loaded successfully');
+            clearTimeout(redirectTimer);
+            // Usuń loader
+            setTimeout(function() {
+              var loader = document.getElementById('loader');
+              if (loader) loader.remove();
+            }, 300);
+            observer.disconnect();
+          }
+        });
+        
+        // Rozpocznij obserwację po załadowaniu DOM
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', function() {
+            var root = document.getElementById('root');
+            if (root) {
+              observer.observe(root, { childList: true, subtree: true });
+            }
+          });
+        } else {
+          var root = document.getElementById('root');
+          if (root) {
+            observer.observe(root, { childList: true, subtree: true });
+          }
+        }
+      })();
+    </script>
+  </body>
+</html>

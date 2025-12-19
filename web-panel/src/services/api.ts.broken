@@ -1,0 +1,747 @@
+import axios, { AxiosInstance } from 'axios';
+import type { AuthResponse, Product, Order, OrderWithItems, Customer, Invoice, Receipt, ReceiptWithItems, InventoryMovement, OrderStatusHistoryItem, SalesReport, TopProduct, RevenueSummary, User, CreateUserRequest, UpdateUserRequest, ChangePasswordRequest, PriceGroup, CreatePriceGroupRequest, UpdatePriceGroupRequest, MovementType, PrintTemplate } from '../types';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+
+// Helper to convert snake_case to camelCase
+function snakeToCamel(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+
+  // Convert numeric strings to numbers, but NOT:
+  // - integer strings starting with 0 (like barcodes "02399...")
+  // - integer strings longer than 15 chars (would lose precision as JS numbers)
+  // Note: decimals like "0.50" or "123.45" should always be converted
+  if (typeof obj === 'string' && /^\d+\.?\d*$/.test(obj)) {
+    const hasDecimal = obj.includes('.');
+    // Keep as string only if it's an INTEGER that:
+    // - starts with 0 and has more than 1 digit (like "02399...")
+    // - OR is longer than 15 chars (precision loss)
+    if (!hasDecimal && ((obj.startsWith('0') && obj.length > 1) || obj.length > 15)) {
+      return obj;
+    }
+    const num = parseFloat(obj);
+    if (!isNaN(num)) return num;
+  }
+
+  if (typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(snakeToCamel);
+
+  const camelObj: any = {};
+  for (const key in obj) {
+    // Updated regex to handle both letters and digits after underscore
+    const camelKey = key.replace(/_([a-z0-9])/g, (_, char) => char.toUpperCase());
+    camelObj[camelKey] = snakeToCamel(obj[key]);
+  }
+  return camelObj;
+
+
+  // ============================================
+  // PRODUCT MERGING
+  // ============================================
+
+  async getSimilarProducts(): Promise<{ groups: Array<{ products: Product[]; matchCriteria: { plantName: string; potSize: string; heightRange: { min: number; max: number } } }> }> {
+    const response = await this.client.get("/inventory/similar-products");
+    return response.data;
+  }
+
+  async getSimilarToProduct(productId: number): Promise<{ products: Product[]; matchCriteria: { plantName: string; potSize: string; heightRange: { min: number; max: number } } }> {
+    const response = await this.client.get("/inventory/" + productId + "/similar");
+    return response.data;
+  }
+
+  async getMergedProducts(masterId: number): Promise<{ masterProduct: Product; mergedProducts: Product[] }> {
+    const response = await this.client.get("/inventory/" + masterId + "/merged");
+    return response.data;
+  }
+
+  async mergeProducts(masterId: number, productIds: number[]): Promise<{ message: string; masterProduct: Product; mergedProductIds: number[] }> {
+    const response = await this.client.post("/inventory/merge", { masterId, productIds });
+    return response.data;
+  }
+
+  async unmergeProduct(productId: number): Promise<{ message: string; unmergedProduct: Product; masterProduct: Product }> {
+    const response = await this.client.post("/inventory/" + productId + "/unmerge");
+    return response.data;
+  }
+
+  async scanBarcodeWithMerged(barcode: string): Promise<{ product: Product; recentMovements: InventoryMovement[]; wasMergedLookup?: boolean; originalBarcode?: string }> {
+    const response = await this.client.post("/inventory/scan-barcode", { barcode });
+    return response.data;
+  }
+
+// Helper to convert camelCase to snake_case
+function camelToSnake(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(camelToSnake);
+
+  const snakeObj: any = {};
+  for (const key in obj) {
+    const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+    snakeObj[snakeKey] = camelToSnake(obj[key]);
+  }
+  return snakeObj;
+
+
+  // ============================================
+  // PRODUCT MERGING
+  // ============================================
+
+  async getSimilarProducts(): Promise<{ groups: Array<{ products: Product[]; matchCriteria: { plantName: string; potSize: string; heightRange: { min: number; max: number } } }> }> {
+    const response = await this.client.get("/inventory/similar-products");
+    return response.data;
+  }
+
+  async getSimilarToProduct(productId: number): Promise<{ products: Product[]; matchCriteria: { plantName: string; potSize: string; heightRange: { min: number; max: number } } }> {
+    const response = await this.client.get("/inventory/" + productId + "/similar");
+    return response.data;
+  }
+
+  async getMergedProducts(masterId: number): Promise<{ masterProduct: Product; mergedProducts: Product[] }> {
+    const response = await this.client.get("/inventory/" + masterId + "/merged");
+    return response.data;
+  }
+
+  async mergeProducts(masterId: number, productIds: number[]): Promise<{ message: string; masterProduct: Product; mergedProductIds: number[] }> {
+    const response = await this.client.post("/inventory/merge", { masterId, productIds });
+    return response.data;
+  }
+
+  async unmergeProduct(productId: number): Promise<{ message: string; unmergedProduct: Product; masterProduct: Product }> {
+    const response = await this.client.post("/inventory/" + productId + "/unmerge");
+    return response.data;
+  }
+
+  async scanBarcodeWithMerged(barcode: string): Promise<{ product: Product; recentMovements: InventoryMovement[]; wasMergedLookup?: boolean; originalBarcode?: string }> {
+    const response = await this.client.post("/inventory/scan-barcode", { barcode });
+    return response.data;
+  }
+
+class ApiClient {
+  private client: AxiosInstance;
+
+  constructor() {
+    this.client = axios.create({
+      baseURL: API_URL,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    // Add auth token to requests
+    this.client.interceptors.request.use((config) => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      // Convert request data from camelCase to snake_case
+      // Skip conversion for FormData (file uploads)
+      if (config.data && !(config.data instanceof FormData)) {
+        config.data = camelToSnake(config.data);
+      }
+      return config;
+    });
+
+    // Handle 401 errors and convert response from snake_case to camelCase
+    this.client.interceptors.response.use(
+      (response) => {
+        // Convert response data from snake_case to camelCase
+        if (response.data) {
+          response.data = snakeToCamel(response.data);
+        }
+        return response;
+      },
+      (error) => {
+        if (error.response?.status === 401) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+        }
+        return Promise.reject(error);
+      }
+    );
+  }
+
+  // ============================================
+  // AUTH
+  // ============================================
+
+  async login(email: string, password: string): Promise<AuthResponse> {
+    const response = await this.client.post<AuthResponse>('/auth/login', { email, password });
+    return response.data;
+  }
+
+  async register(data: any): Promise<any> {
+    const response = await this.client.post('/auth/register', data);
+    return response.data;
+  }
+
+  async me(): Promise<{ user: any; customer?: Customer }> {
+    const response = await this.client.get('/auth/me');
+    return response.data;
+  }
+
+  // ============================================
+  // INVENTORY
+  // ============================================
+
+  async getInventory(filters?: { status?: string; visibleInShop?: boolean; search?: string; sortBy?: string; sortOrder?: string; isArchived?: boolean }): Promise<{ products: Product[]; counts?: { active: number; archived: number } }> {
+    const response = await this.client.get('/inventory', { params: filters });
+    return response.data;
+  }
+
+  async getProduct(id: number): Promise<{ product: Product; movements: InventoryMovement[] }> {
+    const response = await this.client.get(`/inventory/${id}`);
+    return response.data;
+  }
+
+  async createProduct(data: Partial<Product>): Promise<{ message: string; productId: number; product: Product }> {
+    const response = await this.client.post('/inventory', data);
+    return response.data;
+  }
+
+  async updateProduct(id: number, data: Partial<Product>): Promise<{ message: string; product: Product }> {
+    const response = await this.client.put(`/inventory/${id}`, data);
+    return response.data;
+  }
+
+  async deleteProduct(id: number): Promise<{ message: string }> {
+    const response = await this.client.delete(`/inventory/${id}`);
+    return response.data;
+  }
+
+  async toggleProductVisibility(id: number): Promise<{ message: string; visibleInShop: boolean; product: Product }> {
+    const response = await this.client.patch(`/inventory/${id}/toggle-visibility`);
+    return response.data;
+  }
+
+  async archiveProduct(id: number): Promise<{ message: string; product: Product }> {
+    const response = await this.client.patch(`/inventory/${id}/archive`);
+    return response.data;
+  }
+
+  async restoreProduct(id: number): Promise<{ message: string; product: Product }> {
+    const response = await this.client.patch(`/inventory/${id}/restore`);
+    return response.data;
+  }
+
+  async getLowStockProducts(): Promise<{ products: Product[]; counts?: { active: number; archived: number } }> {
+    const response = await this.client.get('/inventory/low-stock');
+    return response.data;
+  }
+
+  async importCSV(file: File): Promise<{ message: string; result: { success: number; failed: number; errors: Array<{ row: number; error: string; data?: any }> } }> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await this.client.post('/inventory/import-csv', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
+
+  async downloadCSVTemplate(): Promise<Blob> {
+    const response = await this.client.get('/inventory/csv-template', {
+      responseType: 'blob',
+    });
+    return response.data;
+  }
+
+  async importExcel(file: File): Promise<{ message: string; result: { success: number; failed: number; errors: Array<{ row: number; error: string; data?: any }> } }> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await this.client.post('/inventory/import-excel', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
+
+  // ============================================
+  // ORDERS (TODO: implement on backend)
+  // ============================================
+
+  async getOrders(filters?: { status?: string; customerId?: number }): Promise<{ orders: Order[] }> {
+    const response = await this.client.get('/orders', { params: filters });
+    return response.data;
+  }
+
+  async getOrder(id: number): Promise<{ order: OrderWithItems }> {
+    const response = await this.client.get(`/orders/${id}`);
+    return response.data;
+  }
+
+  async createOrder(data: {
+    customerId: number;
+    items: Array<{ productId: number; quantity: number }>;
+    customerNotes?: string;
+  }): Promise<{ message: string; orderNumber: string; orderId: number }> {
+    const response = await this.client.post('/orders', data);
+    return response.data;
+  }
+
+  async updateOrderStatus(id: number, status: string, notes?: string): Promise<{ message: string; order: Order }> {
+    const response = await this.client.patch(`/orders/${id}/status`, { status, notes });
+    return response.data;
+  }
+
+  async updateOrder(id: number, data: { items: Array<{ productId: number; quantity: number }> }): Promise<{ message: string; order: OrderWithItems }> {
+    const response = await this.client.put(`/orders/${id}`, data);
+    return response.data;
+  }
+
+  async getOrderStatusHistory(id: number): Promise<{ history: OrderStatusHistoryItem[] }> {
+    const response = await this.client.get(`/orders/${id}/status-history`);
+    return response.data;
+  }
+
+  async cancelOrder(id: number, reason: string): Promise<{ message: string; order: Order }> {
+    const response = await this.client.patch(`/orders/${id}/cancel`, { reason });
+    return response.data;
+  }
+
+  // ============================================
+  // CUSTOMERS (TODO: implement on backend)
+  // ============================================
+
+  async getCustomers(): Promise<{ customers: Customer[] }> {
+    const response = await this.client.get('/customers');
+    return response.data;
+  }
+
+  async getCustomer(id: number): Promise<{ customer: Customer }> {
+    const response = await this.client.get(`/customers/${id}`);
+    return response.data;
+  }
+
+  async createCustomer(data: Partial<Customer>): Promise<{ message: string; customerId: number }> {
+    const response = await this.client.post('/customers', data);
+    return response.data;
+  }
+
+  async updateCustomer(id: number, data: Partial<Customer>): Promise<{ message: string; customer: Customer }> {
+    const response = await this.client.put(`/customers/${id}`, data);
+    return response.data;
+  }
+
+  async lookupNIP(nip: string): Promise<any> {
+    const response = await this.client.post('/customers/lookup-nip', { nip });
+    return response.data;
+  }
+
+  // ============================================
+  // INVOICES (TODO: implement on backend)
+  // ============================================
+
+  async getInvoices(filters?: { startDate?: string; endDate?: string; customerId?: number }): Promise<{ invoices: Invoice[] }> {
+    const response = await this.client.get('/invoices', { params: filters });
+    return response.data;
+  }
+
+  async getInvoice(id: number): Promise<{ invoice: Invoice }> {
+    const response = await this.client.get(`/invoices/${id}`);
+    return response.data;
+  }
+
+  async createInvoice(data: {
+    orderId: number;
+    paymentMethod: string;
+    paymentDeadline: string;
+  }): Promise<{ message: string; invoiceNumber: string; invoiceId: number }> {
+    const response = await this.client.post('/invoices', data);
+    return response.data;
+  }
+
+  async updateInvoicePaymentStatus(id: number, paidAmount: number): Promise<{ message: string; invoice: Invoice }> {
+    const response = await this.client.patch(`/invoices/${id}/payment-status`, { paidAmount });
+    return response.data;
+  }
+
+  // ============================================
+  // RECEIPTS
+  // ============================================
+
+  async getReceipts(filters?: { startDate?: string; endDate?: string }): Promise<{ receipts: Receipt[] }> {
+    const response = await this.client.get('/receipts', { params: filters });
+    return response.data;
+  }
+
+  async getReceipt(id: number): Promise<{ receipt: ReceiptWithItems }> {
+    const response = await this.client.get("/receipts/" + id);
+    return response.data;
+  }
+
+  async updateReceipt(id: number, data: { paymentMethod?: string; totalAmount?: number; notes?: string }): Promise<{ message: string; receipt: Receipt }> {
+    const response = await this.client.put("/receipts/" + id, data);
+    return response.data;
+  }
+
+  async deleteReceipt(id: number): Promise<{ message: string }> {
+    const response = await this.client.delete("/receipts/" + id);
+    return response.data;
+  }
+
+  // ============================================
+  // POS (TODO: implement on backend)
+  // ============================================
+
+  async checkout(data: {
+    orderId: number;
+    paymentMethod: string;
+    documentType: string;
+    items?: Array<{ productId: number; quantity: number }>;
+  }): Promise<{
+    message: string;
+    documentType: string;
+    documentNumber: string;
+    documentId: number;
+    totalAmount: number;
+  }> {
+    const response = await this.client.post('/pos/checkout', data);
+    return response.data;
+  }
+
+  // ============================================
+  // NIP LOOKUP
+  // ============================================
+
+  async lookupNip(nip: string): Promise<{
+    nip: string;
+    name: string;
+    regon?: string;
+    street?: string;
+    houseNumber?: string;
+    apartmentNumber?: string;
+    city?: string;
+    postalCode?: string;
+    country?: string;
+    accountNumbers?: string[];
+    statusVat: string;
+    hasVirtualAccounts: boolean;
+  }> {
+    const response = await this.client.get(`/nip/lookup/${nip}`);
+    return response.data;
+  }
+
+  // ============================================
+  // MOBILE
+  // ============================================
+
+  async scanBarcode(barcode: string): Promise<{ product: Product; recentMovements: InventoryMovement[] }> {
+    const response = await this.client.post('/mobile/scan-barcode', { barcode });
+    return response.data;
+  }
+
+  // ============================================
+  // REPORTS
+  // ============================================
+
+  async getSalesReport(startDate: string, endDate: string): Promise<SalesReport> {
+    const response = await this.client.get('/reports/sales', {
+      params: { startDate, endDate }
+    });
+    return response.data;
+  }
+
+  async getTopProducts(startDate: string, endDate: string, limit: number = 10): Promise<{ products: TopProduct[] }> {
+    const response = await this.client.get('/reports/top-products', {
+      params: { startDate, endDate, limit }
+    });
+    return response.data;
+  }
+
+  async getRevenueSummary(startDate: string, endDate: string): Promise<RevenueSummary> {
+    const response = await this.client.get('/reports/revenue', {
+      params: { startDate, endDate }
+    });
+    return response.data;
+  }
+
+  // ============================================
+  // USERS
+  // ============================================
+
+  async getUsers(): Promise<{ users: User[] }> {
+    const response = await this.client.get('/users');
+    return response.data;
+  }
+
+  async getUser(id: number): Promise<{ user: User }> {
+    const response = await this.client.get(`/users/${id}`);
+    return response.data;
+  }
+
+  async createUser(data: CreateUserRequest): Promise<{ message: string; userId: number; user: User }> {
+    const response = await this.client.post('/users', data);
+    return response.data;
+  }
+
+  async updateUser(id: number, data: UpdateUserRequest): Promise<{ message: string; user: User }> {
+    const response = await this.client.put(`/users/${id}`, data);
+    return response.data;
+  }
+
+  async deleteUser(id: number): Promise<{ message: string }> {
+    const response = await this.client.delete(`/users/${id}`);
+    return response.data;
+  }
+
+  async toggleUserActive(id: number): Promise<{ message: string; isActive: boolean; user: User }> {
+    const response = await this.client.patch(`/users/${id}/toggle-active`);
+    return response.data;
+  }
+
+  async changeUserPassword(id: number, data: ChangePasswordRequest): Promise<{ message: string }> {
+    const response = await this.client.patch(`/users/${id}/change-password`, data);
+    return response.data;
+  }
+
+  // ============================================
+  // PRICE GROUPS
+  // ============================================
+
+  async getPriceGroups(): Promise<{ priceGroups: PriceGroup[] }> {
+    const response = await this.client.get('/price-groups');
+    return response.data;
+  }
+
+  async getPriceGroup(id: number): Promise<{ priceGroup: PriceGroup }> {
+    const response = await this.client.get(`/price-groups/${id}`);
+    return response.data;
+  }
+
+  async getPriceGroupCustomers(id: number): Promise<{ customers: Customer[] }> {
+    const response = await this.client.get(`/price-groups/${id}/customers`);
+    return response.data;
+  }
+
+  async createPriceGroup(data: CreatePriceGroupRequest): Promise<{ message: string; priceGroup: PriceGroup }> {
+    const response = await this.client.post('/price-groups', data);
+    return response.data;
+  }
+
+  async updatePriceGroup(id: number, data: UpdatePriceGroupRequest): Promise<{ message: string; priceGroup: PriceGroup }> {
+    const response = await this.client.put(`/price-groups/${id}`, data);
+    return response.data;
+  }
+
+  async deletePriceGroup(id: number): Promise<{ message: string }> {
+    const response = await this.client.delete(`/price-groups/${id}`);
+    return response.data;
+  }
+
+  // ============================================
+  // INVENTORY MOVEMENTS
+  // ============================================
+
+  async getInventoryMovements(filters?: {
+    productId?: number;
+    userId?: number;
+    type?: MovementType;
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    movements: InventoryMovement[];
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  }> {
+    const response = await this.client.get('/inventory-movements', { params: filters });
+    return response.data;
+  }
+
+  async getProductMovements(productId: number, limit = 50): Promise<{ movements: InventoryMovement[] }> {
+    const response = await this.client.get(`/inventory-movements/product/${productId}`, {
+      params: { limit }
+    });
+    return response.data;
+  }
+
+  async getInventoryMovementStatistics(filters?: {
+    startDate?: string;
+    endDate?: string;
+    productId?: number;
+  }): Promise<{
+    totalMovements: number;
+    totalUnitsIn: number;
+    totalUnitsOut: number;
+    totalPalletsIn: number;
+    totalPalletsOut: number;
+    byType: Array<{ movementType: string; count: number; totalUnits: number }>;
+  }> {
+    const response = await this.client.get('/inventory-movements/statistics', { params: filters });
+    return response.data;
+  }
+
+  // ============================================
+  // SETTINGS
+  // ============================================
+
+  async getPricingSettings(): Promise<{ costPercentage: number; marginPercentage: number; eurToPlnRate: number }> {
+    const response = await this.client.get('/settings/pricing');
+    return response.data;
+  }
+
+  async getCompanySettings(): Promise<{ companyName: string; nip: string; regon: string; street: string; postalCode: string; city: string; country: string; phone: string; email: string; website: string; bankName: string; bankAccount: string; bankSwift: string }> {
+    const response = await this.client.get("/settings/company");
+    return response.data;
+  }
+
+  async updateCompanySettings(settings: { companyName: string; nip: string; regon?: string; street: string; postalCode: string; city: string; country?: string; phone?: string; email?: string; website?: string; bankName?: string; bankAccount?: string; bankSwift?: string }): Promise<void> {
+    await this.client.put("/settings/company", settings);
+  }
+
+  async updatePricingSettings(settings: { costPercentage: number; marginPercentage: number; eurToPlnRate: number }): Promise<void> {
+    await this.client.put('/settings/pricing', settings);
+  }
+
+  async getEmailImportSettings(): Promise<{ emailAddress: string; emailPassword: string; imapServer: string; imapPort: number; smtpServer: string; smtpPort: number; smtpSecurity: string; enabled: boolean }> {
+    const response = await this.client.get("/settings/email-import");
+    return response.data;
+  }
+
+  async updateEmailImportSettings(settings: { emailAddress: string; emailPassword: string; imapServer: string; imapPort: number; smtpServer: string; smtpPort: number; smtpSecurity: string; enabled: boolean }): Promise<void> {
+    await this.client.put("/settings/email-import", settings);
+  }
+
+  async getAllSettings(): Promise<Record<string, any>> {
+    const response = await this.client.get('/settings');
+    return response.data;
+  }
+
+  // ============================================
+  // PRINT TEMPLATES
+  // ============================================
+  
+  async getPrintTemplates(type?: string): Promise<PrintTemplate[]> {
+    const params = type ? { type } : {};
+    const response = await this.client.get('/print-templates', { params });
+    return response.data.templates || response.data;
+  }
+
+  async getPrintTemplate(id: number): Promise<PrintTemplate> {
+    const response = await this.client.get(`/print-templates/${id}`);
+    return response.data;
+  }
+
+  async getDefaultTemplate(type: string): Promise<PrintTemplate | null> {
+    try {
+      const response = await this.client.get(`/print-templates/default/${type}`);
+      return response.data;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  async createPrintTemplate(data: Omit<PrintTemplate, 'id' | 'createdAt' | 'updatedAt'>): Promise<PrintTemplate> {
+    const response = await this.client.post('/print-templates', data);
+    return response.data.template;
+  }
+
+  async updatePrintTemplate(id: number, data: Partial<PrintTemplate>): Promise<PrintTemplate> {
+    const response = await this.client.put(`/print-templates/${id}`, data);
+    return response.data.template;
+  }
+
+  async deletePrintTemplate(id: number): Promise<void> {
+    await this.client.delete(`/print-templates/${id}`);
+  }
+
+  async setTemplateAsDefault(id: number): Promise<void> {
+    await this.client.post(`/print-templates/${id}/set-default`);
+  }
+
+  async duplicatePrintTemplate(id: number): Promise<PrintTemplate> {
+    const response = await this.client.post(`/print-templates/${id}/duplicate`);
+    return response.data.template;
+  }
+
+  async renderTemplate(id: number, data: Record<string, any>): Promise<Blob> {
+    const response = await this.client.post(`/print-templates/${id}/render`, { data }, {
+      responseType: 'blob'
+    });
+    return response.data;
+  }
+
+
+  // ============================================
+  // PRODUCT MERGING
+  // ============================================
+
+  async getSimilarProducts(): Promise<{ groups: Array<{ products: Product[]; matchCriteria: { plantName: string; potSize: string; heightRange: { min: number; max: number } } }> }> {
+    const response = await this.client.get("/inventory/similar-products");
+    return response.data;
+  }
+
+  async getSimilarToProduct(productId: number): Promise<{ products: Product[]; matchCriteria: { plantName: string; potSize: string; heightRange: { min: number; max: number } } }> {
+    const response = await this.client.get("/inventory/" + productId + "/similar");
+    return response.data;
+  }
+
+  async getMergedProducts(masterId: number): Promise<{ masterProduct: Product; mergedProducts: Product[] }> {
+    const response = await this.client.get("/inventory/" + masterId + "/merged");
+    return response.data;
+  }
+
+  async mergeProducts(masterId: number, productIds: number[]): Promise<{ message: string; masterProduct: Product; mergedProductIds: number[] }> {
+    const response = await this.client.post("/inventory/merge", { masterId, productIds });
+    return response.data;
+  }
+
+  async unmergeProduct(productId: number): Promise<{ message: string; unmergedProduct: Product; masterProduct: Product }> {
+    const response = await this.client.post("/inventory/" + productId + "/unmerge");
+    return response.data;
+  }
+
+  async scanBarcodeWithMerged(barcode: string): Promise<{ product: Product; recentMovements: InventoryMovement[]; wasMergedLookup?: boolean; originalBarcode?: string }> {
+    const response = await this.client.post("/inventory/scan-barcode", { barcode });
+    return response.data;
+  }
+
+export const API = new ApiClient();
+export const api = API;
+  // ============================================
+  // PRODUCT MERGING
+  // ============================================
+  // PRODUCT MERGING
+  // ============================================
+
+  async getSimilarProducts(): Promise<{ groups: Array<{ products: Product[]; matchCriteria: { plantName: string; potSize: string; heightRange: { min: number; max: number } } }> }> {
+    const response = await this.client.get("/inventory/similar-products");
+    return response.data;
+  }
+
+  async getSimilarToProduct(productId: number): Promise<{ products: Product[]; matchCriteria: { plantName: string; potSize: string; heightRange: { min: number; max: number } } }> {
+    const response = await this.client.get("/inventory/" + productId + "/similar");
+    return response.data;
+  }
+
+  async getMergedProducts(masterId: number): Promise<{ masterProduct: Product; mergedProducts: Product[] }> {
+    const response = await this.client.get("/inventory/" + masterId + "/merged");
+    return response.data;
+  }
+
+  async mergeProducts(masterId: number, productIds: number[]): Promise<{ message: string; masterProduct: Product; mergedProductIds: number[] }> {
+    const response = await this.client.post("/inventory/merge", { masterId, productIds });
+    return response.data;
+  }
+
+  async unmergeProduct(productId: number): Promise<{ message: string; unmergedProduct: Product; masterProduct: Product }> {
+    const response = await this.client.post("/inventory/" + productId + "/unmerge");
+    return response.data;
+  }
+
+  async scanBarcodeWithMerged(barcode: string): Promise<{ product: Product; recentMovements: InventoryMovement[]; wasMergedLookup?: boolean; originalBarcode?: string }> {
+    const response = await this.client.post("/inventory/scan-barcode", { barcode });
+    return response.data;
+  }
+}
+
+export const API = new ApiClient();
+export const api = API;

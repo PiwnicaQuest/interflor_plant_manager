@@ -1,0 +1,255 @@
+import { query } from './database';
+
+export interface Setting {
+  id: number;
+  settingKey: string;
+  settingValue: string;
+  description?: string;
+  updatedAt: string;
+  createdAt: string;
+}
+
+export interface PricingSettings {
+  costPercentage: number;  // % kosztów (np. 15)
+  marginPercentage: number; // % marży (np. 30)
+  eurToPlnRate: number;    // kurs EUR/PLN do importu (np. 4.30)
+}
+
+export interface CompanySettings {
+  companyName: string;
+  nip: string;
+  regon?: string;
+  street: string;
+  postalCode: string;
+  city: string;
+  country: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  bankName?: string;
+  bankAccount?: string;
+  bankSwift?: string;
+}
+
+export interface EmailImportSettings {
+  emailAddress: string;
+  emailPassword: string;
+  imapServer: string;
+  imapPort: number;
+  smtpServer: string;
+  smtpPort: number;
+  smtpSecurity: 'none' | 'ssl' | 'starttls';
+  enabled: boolean;
+}
+
+export class SettingsModel {
+  /**
+   * Get a specific setting by key
+   */
+  static async getSetting(key: string): Promise<string | null> {
+    const result = await query<Setting>(
+      'SELECT * FROM settings WHERE setting_key = $1',
+      [key]
+    );
+    return result.rows[0]?.settingValue || null;
+  }
+
+  /**
+   * Get all settings
+   */
+  static async getAllSettings(): Promise<Setting[]> {
+    const result = await query<Setting>('SELECT * FROM settings ORDER BY setting_key');
+    return result.rows;
+  }
+
+  /**
+   * Update a setting value
+   */
+  static async updateSetting(key: string, value: string): Promise<Setting | null> {
+    const result = await query<Setting>(
+      `UPDATE settings
+       SET setting_value = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE setting_key = $2
+       RETURNING *`,
+      [value, key]
+    );
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Create or update a setting
+   */
+  static async upsertSetting(key: string, value: string, description?: string): Promise<Setting> {
+    const result = await query<Setting>(
+      `INSERT INTO settings (setting_key, setting_value, description)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (setting_key)
+       DO UPDATE SET setting_value = $2, description = $3, updated_at = CURRENT_TIMESTAMP
+       RETURNING *`,
+      [key, value, description || null]
+    );
+    return result.rows[0];
+  }
+
+  /**
+   * Get pricing settings (cost %, margin %, EUR/PLN rate)
+   */
+  static async getPricingSettings(): Promise<PricingSettings> {
+    const costPercentage = await this.getSetting('cost_percentage');
+    const marginPercentage = await this.getSetting('margin_percentage');
+    const eurToPlnRate = await this.getSetting('eur_to_pln_rate');
+
+    return {
+      costPercentage: parseFloat(costPercentage || '0'),
+      marginPercentage: parseFloat(marginPercentage || '100'),
+      eurToPlnRate: parseFloat(eurToPlnRate || '4.30'),
+    };
+  }
+
+  /**
+   * Update pricing settings
+   */
+  static async updatePricingSettings(costPercentage: number, marginPercentage: number, eurToPlnRate?: number): Promise<PricingSettings> {
+    await this.updateSetting('cost_percentage', costPercentage.toString());
+    await this.updateSetting('margin_percentage', marginPercentage.toString());
+
+    // Aktualizuj kurs EUR/PLN jeśli podany
+    if (eurToPlnRate !== undefined) {
+      await this.upsertSetting('eur_to_pln_rate', eurToPlnRate.toString(), 'Kurs EUR/PLN do importu');
+    }
+
+    const currentRate = eurToPlnRate ?? parseFloat((await this.getSetting('eur_to_pln_rate')) || '4.30');
+
+    return {
+      costPercentage,
+      marginPercentage,
+      eurToPlnRate: currentRate,
+    };
+  }
+
+  /**
+   * Get company settings
+   */
+  static async getCompanySettings(): Promise<CompanySettings> {
+    const companyName = await this.getSetting('company_name');
+    const nip = await this.getSetting('company_nip');
+    const regon = await this.getSetting('company_regon');
+    const street = await this.getSetting('company_street');
+    const postalCode = await this.getSetting('company_postal_code');
+    const city = await this.getSetting('company_city');
+    const country = await this.getSetting('company_country');
+    const phone = await this.getSetting('company_phone');
+    const email = await this.getSetting('company_email');
+    const website = await this.getSetting('company_website');
+    const bankName = await this.getSetting('company_bank_name');
+    const bankAccount = await this.getSetting('company_bank_account');
+    const bankSwift = await this.getSetting('company_bank_swift');
+
+    return {
+      companyName: companyName || '',
+      nip: nip || '',
+      regon: regon || '',
+      street: street || '',
+      postalCode: postalCode || '',
+      city: city || '',
+      country: country || 'Polska',
+      phone: phone || '',
+      email: email || '',
+      website: website || '',
+      bankName: bankName || '',
+      bankAccount: bankAccount || '',
+      bankSwift: bankSwift || '',
+    };
+  }
+
+  /**
+   * Update company settings
+   */
+  static async updateCompanySettings(settings: CompanySettings): Promise<CompanySettings> {
+    await this.upsertSetting('company_name', settings.companyName, 'Nazwa firmy');
+    await this.upsertSetting('company_nip', settings.nip, 'NIP firmy');
+    await this.upsertSetting('company_regon', settings.regon || '', 'REGON firmy');
+    await this.upsertSetting('company_street', settings.street, 'Ulica i numer');
+    await this.upsertSetting('company_postal_code', settings.postalCode, 'Kod pocztowy');
+    await this.upsertSetting('company_city', settings.city, 'Miasto');
+    await this.upsertSetting('company_country', settings.country, 'Kraj');
+    await this.upsertSetting('company_phone', settings.phone || '', 'Telefon kontaktowy');
+    await this.upsertSetting('company_email', settings.email || '', 'Email kontaktowy');
+    await this.upsertSetting('company_website', settings.website || '', 'Strona internetowa');
+    await this.upsertSetting('company_bank_name', settings.bankName || '', 'Nazwa banku');
+    await this.upsertSetting('company_bank_account', settings.bankAccount || '', 'Numer konta bankowego');
+    await this.upsertSetting('company_bank_swift', settings.bankSwift || '', 'Kod SWIFT/BIC');
+
+    return settings;
+  }
+
+  /**
+   * Get email import settings
+   */
+  static async getEmailImportSettings(): Promise<EmailImportSettings> {
+    const emailAddress = await this.getSetting('email_import_address');
+    const emailPassword = await this.getSetting('email_import_password');
+    const imapServer = await this.getSetting('email_import_imap_server');
+    const imapPort = await this.getSetting('email_import_imap_port');
+    const smtpServer = await this.getSetting('email_import_smtp_server');
+    const smtpPort = await this.getSetting('email_import_smtp_port');
+    const smtpSecurity = await this.getSetting('email_import_smtp_security');
+    const enabled = await this.getSetting('email_import_enabled');
+
+    return {
+      emailAddress: emailAddress || '',
+      emailPassword: emailPassword || '',
+      imapServer: imapServer || '',
+      imapPort: parseInt(imapPort || '993'),
+      smtpServer: smtpServer || '',
+      smtpPort: parseInt(smtpPort || '587'),
+      smtpSecurity: (smtpSecurity as 'none' | 'ssl' | 'starttls') || 'starttls',
+      enabled: enabled === 'true',
+    };
+  }
+
+  /**
+   * Update email import settings
+   */
+  static async updateEmailImportSettings(settings: EmailImportSettings): Promise<EmailImportSettings> {
+    await this.upsertSetting('email_import_address', settings.emailAddress, 'Adres email do importu');
+    await this.upsertSetting('email_import_password', settings.emailPassword, 'Hasło do konta email');
+    await this.upsertSetting('email_import_imap_server', settings.imapServer, 'Serwer IMAP');
+    await this.upsertSetting('email_import_imap_port', settings.imapPort.toString(), 'Port IMAP');
+    await this.upsertSetting('email_import_smtp_server', settings.smtpServer, 'Serwer SMTP');
+    await this.upsertSetting('email_import_smtp_port', settings.smtpPort.toString(), 'Port SMTP');
+    await this.upsertSetting('email_import_smtp_security', settings.smtpSecurity, 'Zabezpieczenie SMTP');
+    await this.upsertSetting('email_import_enabled', settings.enabled.toString(), 'Import email włączony');
+
+    return settings;
+  }
+
+  /**
+   * Calculate prices based on purchase price and current settings
+   * This is used during import and when creating new products
+   */
+  static calculatePrices(purchasePriceNet: number, costPercentage: number, marginPercentage: number) {
+    // 1. Cena+ = Cena zakupu × (1 + % kosztów / 100)
+    const pricePlus = purchasePriceNet * (1 + costPercentage / 100);
+
+    // 2. Cena podstawowa = Cena+ × 1.08 (VAT 8%) × (1 + % marży / 100)
+    const basePriceGross = pricePlus * 1.08 * (1 + marginPercentage / 100);
+
+    // 3. Ceny rabatowe = Cena podstawowa × procent
+    const priceDiscount10 = basePriceGross * 0.90;
+    const priceDiscount12 = basePriceGross * 0.88;
+    const priceDiscount15 = basePriceGross * 0.85;
+    const priceDiscount20 = basePriceGross * 0.80;
+    const priceDiscount25 = basePriceGross * 0.75;
+
+    return {
+      pricePlus: parseFloat(pricePlus.toFixed(2)),
+      basePriceGross: parseFloat(basePriceGross.toFixed(2)),
+      priceDiscount10: parseFloat(priceDiscount10.toFixed(2)),
+      priceDiscount12: parseFloat(priceDiscount12.toFixed(2)),
+      priceDiscount15: parseFloat(priceDiscount15.toFixed(2)),
+      priceDiscount20: parseFloat(priceDiscount20.toFixed(2)),
+      priceDiscount25: parseFloat(priceDiscount25.toFixed(2)),
+    };
+  }
+}

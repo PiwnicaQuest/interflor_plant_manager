@@ -1,0 +1,667 @@
+import { useState, useEffect } from 'react';
+import { OrderWithItems, OrderStatus, OrderStatusHistoryItem, PaymentMethod, DocumentType } from '../../types';
+import { api } from '../../services/api';
+import { CancelOrderModal } from './CancelOrderModal';
+import { ProductDetailsModal } from './ProductDetailsModal';
+import { OrderItem } from '../../types';
+import { TransferProductsModal } from './TransferProductsModal';
+
+interface OrderDetailsProps {
+  order: OrderWithItems;
+  onClose: () => void;
+  onOrderUpdated?: () => void;
+  onEdit?: () => void;
+}
+
+const statusConfig: Record<OrderStatus, { label: string; class: string }> = {
+  [OrderStatus.PENDING]: { label: 'Oczekuje', class: 'badge-info' },
+  [OrderStatus.IN_PROGRESS]: { label: 'W realizacji', class: 'badge-warning' },
+  [OrderStatus.READY_FOR_PICKUP]: { label: 'Gotowe do odbioru', class: 'badge-success' },
+  [OrderStatus.COMPLETED]: { label: 'Zakończone', class: 'badge-success' },
+  [OrderStatus.CANCELLED]: { label: 'Anulowane', class: 'badge-danger' },
+};
+
+export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDetailsProps) {
+  const [statusHistory, setStatusHistory] = useState<OrderStatusHistoryItem[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isCreatingDocument, setIsCreatingDocument] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<OrderItem | null>(null);
+
+  // Document generation state
+  const [documentType, setDocumentType] = useState<'invoice' | 'receipt'>('receipt');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
+  const [paymentDeadline, setPaymentDeadline] = useState('');
+
+  useEffect(() => {
+    loadStatusHistory();
+    // Set default payment deadline to 14 days from now
+    const deadline = new Date();
+    deadline.setDate(deadline.getDate() + 14);
+    setPaymentDeadline(deadline.toISOString().split('T')[0]);
+  }, [order.id]);
+
+  const loadStatusHistory = async () => {
+    try {
+      setIsLoadingHistory(true);
+      const response = await api.getOrderStatusHistory(order.id);
+      setStatusHistory(response.history);
+    } catch (error) {
+      console.error('Błąd podczas pobierania historii statusów:', error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pl-PL', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const handleCancelOrder = async (reason: string) => {
+    try {
+      setIsCancelling(true);
+      setError(null);
+
+      await api.cancelOrder(order.id, reason);
+
+      setSuccessMessage('Zamówienie zostało anulowane. Stany magazynowe zostały przywrócone.');
+      setShowCancelModal(false);
+
+      await loadStatusHistory();
+
+      if (onOrderUpdated) {
+        onOrderUpdated();
+      }
+
+      setTimeout(() => {
+        onClose();
+      }, 2000);
+    } catch (err: any) {
+      console.error('Błąd podczas anulowania zamówienia:', err);
+
+      if (err.response?.status === 400) {
+        setError(err.response.data?.error || 'Nie można anulować tego zamówienia');
+      } else if (err.response?.status === 404) {
+        setError('Zamówienie nie zostało znalezione');
+      } else {
+        setError('Wystąpił błąd podczas anulowania zamówienia');
+      }
+
+      setShowCancelModal(false);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const handleDeleteOrder = async () => {
+    try {
+      setIsDeleting(true);
+      setError(null);
+
+      await api.deleteOrder(order.id);
+
+      setSuccessMessage('Zamówienie zostało trwale usunięte.');
+      setShowDeleteModal(false);
+
+      if (onOrderUpdated) {
+        onOrderUpdated();
+      }
+
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+    } catch (err: any) {
+      console.error('Błąd podczas usuwania zamówienia:', err);
+
+      if (err.response?.status === 400) {
+        setError(err.response.data?.error || 'Nie można usunąć tego zamówienia');
+      } else if (err.response?.status === 404) {
+        setError('Zamówienie nie zostało znalezione');
+      } else {
+        setError('Wystąpił błąd podczas usuwania zamówienia');
+      }
+
+      setShowDeleteModal(false);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleCreateDocument = async () => {
+    try {
+      setIsCreatingDocument(true);
+      setError(null);
+
+      const result = await api.checkout({
+        orderId: order.id,
+        paymentMethod,
+        documentType: documentType === 'invoice' ? 'invoice' : 'receipt',
+      });
+
+      setSuccessMessage(
+        documentType === 'invoice'
+          ? `Faktura ${result.documentNumber} została utworzona`
+          : `Paragon ${result.documentNumber} został utworzony`
+      );
+      setShowDocumentModal(false);
+
+      if (onOrderUpdated) {
+        onOrderUpdated();
+      }
+
+      // Open print page in new tab
+      if (documentType === 'invoice') {
+        window.open(`/print/invoice/${result.documentId}`, '_blank');
+      } else {
+        window.open(`/print/receipt-a4/${result.documentId}`, '_blank');
+      }
+
+      setTimeout(() => {
+        onClose();
+      }, 2000);
+    } catch (err: any) {
+      console.error('Błąd podczas tworzenia dokumentu:', err);
+      setError(err.response?.data?.error || 'Wystąpił błąd podczas tworzenia dokumentu');
+      setShowDocumentModal(false);
+    } finally {
+      setIsCreatingDocument(false);
+    }
+  };
+
+  const canCancelOrder = () => {
+    return order.status !== OrderStatus.COMPLETED && order.status !== OrderStatus.CANCELLED;
+  };
+
+  const canEditOrder = () => {
+    return order.status !== OrderStatus.COMPLETED && order.status !== OrderStatus.CANCELLED;
+  };
+
+  const canTransferProducts = () => {
+    return order.status !== OrderStatus.COMPLETED && order.status !== OrderStatus.CANCELLED && order.items && order.items.length > 0;
+  };
+
+  const canCreateDocument = () => {
+    return order.status === OrderStatus.READY_FOR_PICKUP || order.status === OrderStatus.IN_PROGRESS || order.status === OrderStatus.PENDING;
+  };
+
+  const handleTransferSuccess = () => {
+    setSuccessMessage('Produkty zostały pomyślnie przeniesione!');
+    setShowTransferModal(false);
+
+    if (onOrderUpdated) {
+      onOrderUpdated();
+    }
+
+    setTimeout(() => {
+      onClose();
+    }, 2000);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Zamówienie {order.orderNumber}
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Utworzono: {formatDate(order.createdAt)}
+              </p>
+            </div>
+            <span className={`badge ${statusConfig[order.status].class} text-lg px-4 py-2`}>
+              {statusConfig[order.status].label}
+            </span>
+          </div>
+
+          {/* Komunikat sukcesu */}
+          {successMessage && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <svg
+                  className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <p className="text-sm text-green-800">{successMessage}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Komunikat błędu */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <svg
+                  className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <p className="text-sm text-red-800">{error}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Klient */}
+          <div className="card p-4 mb-6">
+            <h3 className="font-semibold text-gray-900 mb-2">Dane klienta</h3>
+            <div className="text-sm text-gray-700">
+              <p><strong>Nazwa:</strong> {order.customerName || 'Brak danych'}</p>
+            </div>
+          </div>
+
+          {/* Produkty */}
+          <div className="mb-6">
+            <h3 className="font-semibold text-gray-900 mb-3">Produkty</h3>
+            <div className="card overflow-hidden">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th className="py-2 px-3">Produkt</th>
+                    <th className="py-2 px-2 text-center">Data przyj.</th>
+                    <th className="py-2 px-2 text-center">Palety</th>
+                    <th className="py-2 px-2 text-center">Szt/pal</th>
+                    <th className="py-2 px-2 text-center">Lacznie szt.</th>
+                    <th className="py-2 px-3 text-right">Cena jedn.</th>
+                    <th className="py-2 px-3 text-right">Wartosc</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.items && order.items.length > 0 ? (
+                    order.items.map((item) => (
+                      <tr key={item.id} onClick={() => setSelectedProduct(item)} className="cursor-pointer hover:bg-gray-50 transition-colors">
+                        <td className="py-2 px-3">
+                          <div>{item.productSnapshot?.plantName || item.productName || `Produkt #${item.productId}`}</div>
+                          <div className="text-xs text-gray-500">{item.productSnapshot?.potSize || '-'} | Wys: {item.productSnapshot?.plantHeightCm ? `${item.productSnapshot.plantHeightCm}cm` : '-'}</div>
+                        </td>
+                        <td className="py-2 px-2 text-center text-xs">{item.productSnapshot?.createdAt ? new Date(item.productSnapshot.createdAt).toLocaleDateString("pl-PL") : "-"}</td>
+                        <td className="py-2 px-2 text-center font-semibold">{item.palletCount || 0}</td>
+                        <td className="py-2 px-2 text-center text-sm">{item.unitsPerPallet || 1}</td>
+                        <td className="py-2 px-2 text-center font-semibold">{item.quantity}</td>
+                        <td className="py-2 px-3 text-right">{(item.unitPriceGross || 0).toFixed(2)} PLN</td>
+                        <td className="py-2 px-3 text-right font-semibold">{(item.totalPrice || 0).toFixed(2)} PLN</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={7} className="text-center text-gray-500 py-4">Brak produktow</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Podsumowanie */}
+          <div className="bg-gray-50 p-4 rounded-lg mb-6">
+            <div className="flex justify-between text-sm text-gray-600 mb-2">
+              <span>Lacznie palet:</span>
+              <span className="font-semibold">{order.items?.reduce((sum, item) => sum + (item.palletCount || 0), 0) || 0}</span>
+            </div>
+            <div className="flex justify-between text-sm text-gray-600 mb-2">
+              <span>Lacznie sztuk:</span>
+              <span className="font-semibold">{order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0}</span>
+            </div>
+            <div className="flex justify-between text-xl font-bold border-t pt-2">
+              <span>Suma zamowienia:</span>
+              <span>{(order.totalAmount || 0).toFixed(2)} PLN</span>
+            </div>
+          </div>
+
+          {order.customerNotes && (
+            <div className="card p-4 mb-6">
+              <h3 className="font-semibold text-gray-900 mb-2">Notatki klienta</h3>
+              <p className="text-sm text-gray-700">{order.customerNotes}</p>
+            </div>
+          )}
+
+          {order.notes && (
+            <div className="card p-4 mb-6">
+              <h3 className="font-semibold text-gray-900 mb-2">Notatki wewnętrzne</h3>
+              <p className="text-sm text-gray-700">{order.notes}</p>
+            </div>
+          )}
+
+          {/* Historia statusów */}
+          <div className="card p-4 mb-6">
+            <h3 className="font-semibold text-gray-900 mb-4">Historia statusów</h3>
+
+            {isLoadingHistory ? (
+              <div className="text-center py-4">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                <p className="text-sm text-gray-500 mt-2">Ładowanie historii...</p>
+              </div>
+            ) : statusHistory.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-4">Brak historii zmian statusu</p>
+            ) : (
+              <div className="relative">
+                <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+
+                <div className="space-y-4">
+                  {statusHistory.map((item, index) => (
+                    <div key={item.id} className="relative pl-10">
+                      <div className={`absolute left-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                        statusConfig[item.statusTo]?.class === 'badge-success' ? 'bg-green-500' :
+                        statusConfig[item.statusTo]?.class === 'badge-warning' ? 'bg-yellow-500' :
+                        statusConfig[item.statusTo]?.class === 'badge-danger' ? 'bg-red-500' :
+                        statusConfig[item.statusTo]?.class === 'badge-info' ? 'bg-blue-500' :
+                        'bg-gray-500'
+                      }`}>
+                        <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          {item.statusTo === OrderStatus.COMPLETED ? (
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          ) : item.statusTo === OrderStatus.CANCELLED ? (
+                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                          ) : (
+                            <circle cx="10" cy="10" r="3" />
+                          )}
+                        </svg>
+                      </div>
+
+                      <div className={`bg-white border rounded-lg p-3 shadow-sm ${
+                        index === 0 ? 'border-l-4 ' + (
+                          statusConfig[item.statusTo]?.class === 'badge-success' ? 'border-l-green-500' :
+                          statusConfig[item.statusTo]?.class === 'badge-warning' ? 'border-l-yellow-500' :
+                          statusConfig[item.statusTo]?.class === 'badge-danger' ? 'border-l-red-500' :
+                          statusConfig[item.statusTo]?.class === 'badge-info' ? 'border-l-blue-500' :
+                          'border-l-gray-500'
+                        ) : 'border-gray-200'
+                      }`}>
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            {item.statusFrom && (
+                              <>
+                                <span className={`badge ${statusConfig[item.statusFrom]?.class || 'badge-secondary'} text-xs`}>
+                                  {statusConfig[item.statusFrom]?.label || item.statusFrom}
+                                </span>
+                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </>
+                            )}
+                            <span className={`badge ${statusConfig[item.statusTo]?.class || 'badge-secondary'} text-xs font-semibold`}>
+                              {statusConfig[item.statusTo]?.label || item.statusTo}
+                            </span>
+                          </div>
+                          <span className="text-xs text-gray-500">
+                            {formatDate(item.createdAt)}
+                          </span>
+                        </div>
+
+                        <div className="text-xs text-gray-600 mb-1">
+                          Zmienione przez: <span className="font-medium">{item.changedByEmail || `Użytkownik #${item.changedBy}`}</span>
+                        </div>
+
+                        {item.notes && (
+                          <div className="mt-2 text-sm text-gray-700 bg-gray-50 rounded p-2">
+                            <span className="font-medium text-gray-600">Notatka: </span>
+                            {item.notes}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Przyciski */}
+          <div className="flex flex-wrap gap-3">
+            <button onClick={onClose} className="btn btn-secondary flex-1 min-w-[120px]">
+              Zamknij
+            </button>
+            <button
+              onClick={() => window.open("/print/order/" + order.id, "_blank")}
+              className="btn btn-outline flex-1 min-w-[120px]"
+            >
+              Drukuj zamówienie
+            </button>
+            {canCreateDocument() && (
+              <button
+                onClick={() => setShowDocumentModal(true)}
+                className="btn flex-1 min-w-[120px] bg-green-600 hover:bg-green-700 text-white border-green-600"
+              >
+                Wystaw dokument
+              </button>
+            )}
+            {canTransferProducts() && (
+              <button
+                onClick={() => setShowTransferModal(true)}
+                className="btn btn-info flex-1 min-w-[120px]"
+              >
+                Przenieś produkty
+              </button>
+            )}
+            {canEditOrder() && onEdit && (
+              <button
+                onClick={onEdit}
+                className="btn btn-primary flex-1 min-w-[120px]"
+              >
+                Edytuj zamówienie
+              </button>
+            )}
+            {canCancelOrder() && (
+              <button
+                onClick={() => setShowCancelModal(true)}
+                className="btn btn-danger flex-1 min-w-[120px]"
+                disabled={isCancelling}
+              >
+                Anuluj zamówienie
+              </button>
+            )}
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="btn flex-1 min-w-[120px] bg-red-700 hover:bg-red-800 text-white border-red-700"
+              disabled={isDeleting}
+            >
+              Usuń zamówienie
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal szczegółów produktu */}
+      {selectedProduct && (
+        <ProductDetailsModal
+          productId={selectedProduct.productId!}
+          quantity={selectedProduct.quantity}
+          unitPrice={selectedProduct.unitPriceGross}
+          totalPrice={selectedProduct.totalPrice}
+          onClose={() => setSelectedProduct(null)}
+        />
+      )}
+
+      {/* Modal anulowania zamówienia */}
+      {showCancelModal && (
+        <CancelOrderModal
+          orderNumber={order.orderNumber}
+          onConfirm={handleCancelOrder}
+          onClose={() => setShowCancelModal(false)}
+          isLoading={isCancelling}
+        />
+      )}
+
+      {/* Modal przenoszenia produktów */}
+      {showTransferModal && (
+        <TransferProductsModal
+          sourceOrder={order}
+          onClose={() => setShowTransferModal(false)}
+          onSuccess={handleTransferSuccess}
+        />
+      )}
+
+      {/* Modal potwierdzenia usuwania */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-red-700 mb-4">
+              Potwierdź usunięcie zamówienia
+            </h3>
+            <p className="text-gray-700 mb-2">
+              Czy na pewno chcesz <strong>trwale usunąć</strong> zamówienie{' '}
+              <span className="font-semibold">{order.orderNumber}</span>?
+            </p>
+            <p className="text-sm text-red-600 mb-6">
+              Ta operacja jest nieodwracalna. Wszystkie dane zamówienia zostaną usunięte.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="btn btn-secondary flex-1"
+                disabled={isDeleting}
+              >
+                Anuluj
+              </button>
+              <button
+                onClick={handleDeleteOrder}
+                className="btn flex-1 bg-red-700 hover:bg-red-800 text-white border-red-700"
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Usuwanie...' : 'Tak, usuń zamówienie'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal wystawiania dokumentu */}
+      {showDocumentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">
+              Wystaw dokument sprzedaży
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Zamówienie: <strong>{order.orderNumber}</strong>
+              <br />
+              Klient: <strong>{order.customerName || 'Brak danych'}</strong>
+              <br />
+              Kwota: <strong>{(order.totalAmount || 0).toFixed(2)} PLN</strong>
+            </p>
+
+            <div className="space-y-4">
+              {/* Document Type Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Typ dokumentu
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setDocumentType('receipt')}
+                    className={`p-4 border-2 rounded-lg text-center transition-all ${
+                      documentType === 'receipt'
+                        ? 'border-green-500 bg-green-50 text-green-700'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="text-2xl mb-1">🧾</div>
+                    <div className="font-semibold">Paragon</div>
+                    <div className="text-xs text-gray-500">Format A4</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDocumentType('invoice')}
+                    className={`p-4 border-2 rounded-lg text-center transition-all ${
+                      documentType === 'invoice'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="text-2xl mb-1">📄</div>
+                    <div className="font-semibold">Faktura VAT</div>
+                    <div className="text-xs text-gray-500">Format A4</div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Payment Method */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Metoda płatności
+                </label>
+                <select
+                  className="input w-full"
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                >
+                  <option value={PaymentMethod.CASH}>💵 Gotówka</option>
+                  <option value={PaymentMethod.CARD}>💳 Karta</option>
+                  <option value={PaymentMethod.TRANSFER}>🏦 Przelew</option>
+                </select>
+              </div>
+
+              {/* Payment Deadline (only for invoice) */}
+              {documentType === 'invoice' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Termin płatności
+                  </label>
+                  <input
+                    type="date"
+                    className="input w-full"
+                    value={paymentDeadline}
+                    onChange={(e) => setPaymentDeadline(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowDocumentModal(false)}
+                className="btn btn-secondary flex-1"
+                disabled={isCreatingDocument}
+              >
+                Anuluj
+              </button>
+              <button
+                onClick={handleCreateDocument}
+                className={`btn flex-1 text-white ${
+                  documentType === 'receipt'
+                    ? 'bg-green-600 hover:bg-green-700 border-green-600'
+                    : 'bg-blue-600 hover:bg-blue-700 border-blue-600'
+                }`}
+                disabled={isCreatingDocument}
+              >
+                {isCreatingDocument
+                  ? 'Tworzenie...'
+                  : documentType === 'receipt'
+                  ? 'Wystaw paragon'
+                  : 'Wystaw fakturę'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

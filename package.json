@@ -1,0 +1,34 @@
+{
+  "name": "plantmanager-monorepo",
+  "version": "1.0.0",
+  "description": "PlantManager - System zarządzania magazynem i sprzedażą roślin",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "web-panel",
+    "web-shop",
+    "mobile-scanner"
+  ],
+  "scripts": {
+    "install:all": "npm install && npm install --workspace=backend && npm install --workspace=web-panel && npm install --workspace=web-shop && npm install --workspace=mobile-scanner",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:panel": "npm run dev --workspace=web-panel",
+    "dev:shop": "npm run dev --workspace=web-shop",
+    "dev:mobile": "npm run start --workspace=mobile-scanner",
+    "build:backend": "npm run build --workspace=backend",
+    "build:panel": "npm run build --workspace=web-panel",
+    "build:shop": "npm run build --workspace=web-shop",
+    "db:migrate": "cd backend && npm run db:migrate"
+  },
+  "keywords": [
+    "plantmanager",
+    "inventory",
+    "ecommerce",
+    "plants"
+  ],
+  "author": "PlantManager Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
