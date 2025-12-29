@@ -589,13 +589,15 @@ export function InventoryTable({
   const renderHeaderContent = (columnKey: string) => {
     if (columnKey === "checkbox") {
       return (
-        <input
-          type="checkbox"
-          checked={allSelected}
-          ref={(el) => { if (el) el.indeterminate = someSelected; }}
-          onChange={onSelectAll}
-          className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-        />
+        <div className="flex items-center justify-center w-full">
+          <input
+            type="checkbox"
+            checked={allSelected}
+            ref={(el) => { if (el) el.indeterminate = someSelected; }}
+            onChange={onSelectAll}
+            className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          />
+        </div>
       );
     }
     return headerConfigs[columnKey]?.label || "";
@@ -648,7 +650,9 @@ export function InventoryTable({
     switch (columnKey) {
       case "checkbox":
         return (
-          <input type="checkbox" checked={isRowSelected} onChange={() => onSelectProduct(product.id)} className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+          <div className="flex items-center justify-center w-full">
+            <input type="checkbox" checked={isRowSelected} onChange={() => onSelectProduct(product.id)} className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+          </div>
         );
       case "image":
         return product.imageUrl ? (
