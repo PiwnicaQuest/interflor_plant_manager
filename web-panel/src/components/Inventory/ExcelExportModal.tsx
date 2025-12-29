@@ -5,6 +5,24 @@ import { Product } from '../../types';
 const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
 const BASE_URL = API_URL.replace(/\/api$/, '');
 
+// Lista dostępnych tagów - taka sama jak w BulkTagsModal i InventoryTable
+const AVAILABLE_TAGS = [
+  'Anthurium',
+  'Bonsai',
+  'Bromelia',
+  'Cebulowe',
+  'Ceramika',
+  'Cytrusy',
+  'Doniczki',
+  'Kwitnące',
+  'Ogrodowe',
+  'Palmy',
+  'Rośliny Mini',
+  'Spathiphyllum',
+  'Sukulenty',
+  'Zielone',
+];
+
 interface ExcelExportModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -12,6 +30,7 @@ interface ExcelExportModalProps {
 }
 
 type PriceGroup = 'base' | 'discount10' | 'discount12' | 'discount15' | 'discount20' | 'discount25' | 'auchan8';
+type TagFilterMode = 'all' | 'selected';
 
 const PRICE_GROUP_OPTIONS: { value: PriceGroup; label: string }[] = [
   { value: 'base', label: 'Cena podstawowa' },
@@ -58,33 +77,89 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState<string>('');
 
-  // Filter products by date range
+  // Tag filtering state
+  const [tagFilterMode, setTagFilterMode] = useState<TagFilterMode>('all');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [showTagsDropdown, setShowTagsDropdown] = useState(false);
+
+  // Get unique tags from products for display
+  const availableTagsInProducts = useMemo(() => {
+    const tagsSet = new Set<string>();
+    products.forEach(p => {
+      if (p.tags && Array.isArray(p.tags)) {
+        p.tags.forEach(tag => tagsSet.add(tag));
+      }
+    });
+    // Combine with AVAILABLE_TAGS to show all options
+    AVAILABLE_TAGS.forEach(tag => tagsSet.add(tag));
+    return Array.from(tagsSet).sort();
+  }, [products]);
+
+  // Filter products by date range AND tags
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
-      if (!product.createdAt) return false;
-      const productDate = new Date(product.createdAt);
+      // Date filter
+      if (dateFrom || dateTo) {
+        if (!product.createdAt) return false;
+        const productDate = new Date(product.createdAt);
 
-      if (dateFrom) {
-        const fromDate = new Date(dateFrom);
-        fromDate.setHours(0, 0, 0, 0);
-        if (productDate < fromDate) return false;
+        if (dateFrom) {
+          const fromDate = new Date(dateFrom);
+          fromDate.setHours(0, 0, 0, 0);
+          if (productDate < fromDate) return false;
+        }
+
+        if (dateTo) {
+          const toDate = new Date(dateTo);
+          toDate.setHours(23, 59, 59, 999);
+          if (productDate > toDate) return false;
+        }
       }
 
-      if (dateTo) {
-        const toDate = new Date(dateTo);
-        toDate.setHours(23, 59, 59, 999);
-        if (productDate > toDate) return false;
+      // Tag filter
+      if (tagFilterMode === 'selected' && selectedTags.length > 0) {
+        const productTags = product.tags || [];
+        // Product must have at least one of the selected tags
+        const hasMatchingTag = selectedTags.some(tag => productTags.includes(tag));
+        if (!hasMatchingTag) return false;
       }
 
       return true;
     });
-  }, [products, dateFrom, dateTo]);
+  }, [products, dateFrom, dateTo, tagFilterMode, selectedTags]);
+
+  // Toggle tag selection
+  const handleTagToggle = (tag: string) => {
+    setSelectedTags(prev =>
+      prev.includes(tag)
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
+    );
+  };
+
+  // Select all tags
+  const handleSelectAllTags = () => {
+    setSelectedTags([...availableTagsInProducts]);
+  };
+
+  // Clear all tags
+  const handleClearTags = () => {
+    setSelectedTags([]);
+  };
 
   // Fetch image as base64
   const fetchImageAsBase64 = async (imageUrl: string): Promise<{ base64: string; extension: 'jpeg' | 'png' | 'gif' } | null> => {
     try {
-      const response = await fetch(imageUrl);
-      if (!response.ok) return null;
+      // Get auth token from localStorage for authenticated requests
+      const token = localStorage.getItem('token');
+
+      const response = await fetch(imageUrl, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (!response.ok) {
+        console.warn(`Failed to fetch image: ${imageUrl}, status: ${response.status}`);
+        return null;
+      }
 
       const blob = await response.blob();
       const arrayBuffer = await blob.arrayBuffer();
@@ -106,7 +181,7 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
 
   const exportToExcel = async () => {
     if (filteredProducts.length === 0) {
-      alert('Brak produktow do eksportu w wybranym zakresie dat');
+      alert('Brak produktow do eksportu w wybranym zakresie');
       return;
     }
 
@@ -122,7 +197,7 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
         views: [{ state: 'frozen', ySplit: 1 }]
       });
 
-      // Define columns
+      // Define columns - dodana kolumna Tagi
       worksheet.columns = [
         { header: 'Zdjecie', key: 'image', width: 12 },
         { header: 'Nazwa rosliny', key: 'plantName', width: 35 },
@@ -132,6 +207,7 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
         { header: 'Szt/paleta', key: 'unitsPerPallet', width: 12 },
         { header: 'Razem szt.', key: 'totalUnits', width: 12 },
         { header: getPriceLabel(priceGroup), key: 'price', width: 15 },
+        { header: 'Kategorie', key: 'tags', width: 25 },  // Nowa kolumna
       ];
 
       // Style header row
@@ -162,6 +238,9 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
 
         const rowIndex = i + 2; // +2 because header is row 1
 
+        // Format tags as comma-separated string
+        const tagsString = (product.tags || []).join(', ');
+
         // Add row data
         const row = worksheet.addRow({
           image: '',
@@ -172,11 +251,16 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
           unitsPerPallet: product.unitsPerPallet || 0,
           totalUnits: product.totalUnits || 0,
           price: getPrice(product, priceGroup),
+          tags: tagsString,  // Dodane tagi
         });
 
         row.height = ROW_HEIGHT;
         row.eachCell((cell, colNumber) => {
-          cell.alignment = { vertical: 'middle', horizontal: colNumber === 2 ? 'left' : 'center' };
+          cell.alignment = {
+            vertical: 'middle',
+            horizontal: colNumber === 2 || colNumber === 9 ? 'left' : 'center',
+            wrapText: colNumber === 9  // Zawijanie tekstu dla kolumny tagów
+          };
           cell.border = {
             top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
             left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
@@ -222,6 +306,13 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
         }
       }
 
+      // Włącz autofiltry dla wszystkich kolumn (A1 do I + liczba wierszy)
+      const lastRow = filteredProducts.length + 1;
+      worksheet.autoFilter = {
+        from: { row: 1, column: 1 },
+        to: { row: lastRow, column: 9 }
+      };
+
       setExportProgress('Generowanie pliku...');
 
       // Generate file
@@ -233,10 +324,13 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
       const a = document.createElement('a');
       a.href = url;
 
-      // Generate filename
+      // Generate filename with tag info
       const dateStr = new Date().toISOString().split('T')[0];
       const priceLabel = getPriceLabel(priceGroup).replace(/[^a-zA-Z0-9]/g, '_');
-      a.download = `oferta_${priceLabel}_${dateStr}.xlsx`;
+      const tagSuffix = tagFilterMode === 'selected' && selectedTags.length > 0
+        ? `_${selectedTags.length}kategorii`
+        : '';
+      a.download = `oferta_${priceLabel}${tagSuffix}_${dateStr}.xlsx`;
 
       document.body.appendChild(a);
       a.click();
@@ -272,15 +366,15 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white z-10">
           <h2 className="text-lg font-semibold text-gray-800">Eksport oferty do Excel</h2>
           <button
             onClick={onClose}
             disabled={isExporting}
             className="text-gray-400 hover:text-gray-600 text-xl"
           >
-            x
+            ×
           </button>
         </div>
 
@@ -332,19 +426,156 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
             </div>
           </div>
 
+          {/* Tag filter section - NOWA SEKCJA */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Filtruj po kategoriach (tagach)
+            </label>
+
+            {/* Mode selection */}
+            <div className="flex gap-2 mb-3">
+              <label
+                className={`flex-1 flex items-center justify-center p-2 rounded cursor-pointer transition-colors border ${
+                  tagFilterMode === 'all'
+                    ? 'bg-green-50 border-green-300 text-green-800'
+                    : 'hover:bg-gray-50 border-gray-200'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="tagFilterMode"
+                  value="all"
+                  checked={tagFilterMode === 'all'}
+                  onChange={() => setTagFilterMode('all')}
+                  className="sr-only"
+                />
+                <span className="text-sm font-medium">Wszystkie produkty</span>
+              </label>
+              <label
+                className={`flex-1 flex items-center justify-center p-2 rounded cursor-pointer transition-colors border ${
+                  tagFilterMode === 'selected'
+                    ? 'bg-pink-50 border-pink-300 text-pink-800'
+                    : 'hover:bg-gray-50 border-gray-200'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="tagFilterMode"
+                  value="selected"
+                  checked={tagFilterMode === 'selected'}
+                  onChange={() => setTagFilterMode('selected')}
+                  className="sr-only"
+                />
+                <span className="text-sm font-medium">Tylko wybrane kategorie</span>
+              </label>
+            </div>
+
+            {/* Tags dropdown - only show when 'selected' mode */}
+            {tagFilterMode === 'selected' && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowTagsDropdown(!showTagsDropdown)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-left flex items-center justify-between bg-white hover:bg-gray-50"
+                >
+                  <span className={selectedTags.length > 0 ? 'text-gray-900' : 'text-gray-500'}>
+                    {selectedTags.length > 0
+                      ? `Wybrano: ${selectedTags.length} ${selectedTags.length === 1 ? 'kategoria' : selectedTags.length < 5 ? 'kategorie' : 'kategorii'}`
+                      : 'Wybierz kategorie...'}
+                  </span>
+                  <span className={`transform transition-transform ${showTagsDropdown ? 'rotate-180' : ''}`}>▼</span>
+                </button>
+
+                {showTagsDropdown && (
+                  <div className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    <div className="p-2 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white">
+                      <span className="text-sm text-gray-600">
+                        {selectedTags.length} wybrano
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleSelectAllTags}
+                          className="text-xs text-blue-600 hover:text-blue-800"
+                        >
+                          Wszystkie
+                        </button>
+                        <span className="text-gray-300">|</span>
+                        <button
+                          onClick={handleClearTags}
+                          className="text-xs text-red-600 hover:text-red-800"
+                        >
+                          Wyczysc
+                        </button>
+                      </div>
+                    </div>
+                    <div className="p-2 grid grid-cols-2 gap-1">
+                      {availableTagsInProducts.map(tag => {
+                        const isSelected = selectedTags.includes(tag);
+                        return (
+                          <label
+                            key={tag}
+                            className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-sm transition-colors ${
+                              isSelected
+                                ? 'bg-pink-100 text-pink-800 hover:bg-pink-200'
+                                : 'hover:bg-gray-100'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleTagToggle(tag)}
+                              className="rounded border-gray-300 text-pink-600 focus:ring-pink-500"
+                            />
+                            <span>{tag}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Selected tags display */}
+                {selectedTags.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {selectedTags.map(tag => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-pink-100 text-pink-800 text-xs rounded-full"
+                      >
+                        {tag}
+                        <button
+                          onClick={() => handleTagToggle(tag)}
+                          className="hover:text-pink-600"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {tagFilterMode === 'selected' && selectedTags.length === 0 && (
+                  <p className="mt-2 text-xs text-amber-600">
+                    Wybierz przynajmniej jedną kategorię lub przełącz na "Wszystkie produkty"
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Price group selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Grupa cenowa
             </label>
-            <div className="space-y-2 max-h-48 overflow-y-auto">
+            <div className="grid grid-cols-2 gap-2">
               {PRICE_GROUP_OPTIONS.map((option) => (
                 <label
                   key={option.value}
                   className={`flex items-center p-2 rounded cursor-pointer transition-colors ${
                     priceGroup === option.value
                       ? 'bg-green-50 border border-green-300'
-                      : 'hover:bg-gray-50 border border-transparent'
+                      : 'hover:bg-gray-50 border border-gray-200'
                   }`}
                 >
                   <input
@@ -369,9 +600,14 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
                 {filteredProducts.length}
               </span>
             </div>
+            {tagFilterMode === 'selected' && selectedTags.length > 0 && (
+              <p className="text-xs text-pink-600 mt-1">
+                Filtrowanie po: {selectedTags.join(', ')}
+              </p>
+            )}
             {filteredProducts.length > 0 && (
               <p className="text-xs text-gray-500 mt-1">
-                Eksport moze potrwac kilka sekund ze wzgledu na pobieranie zdjec.
+                Eksport zawiera kolumne "Kategorie" z autofiltrami w Excelu.
               </p>
             )}
           </div>
@@ -390,7 +626,7 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
           )}
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+        <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0 bg-white">
           <button
             onClick={onClose}
             disabled={isExporting}
@@ -400,7 +636,7 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
           </button>
           <button
             onClick={exportToExcel}
-            disabled={isExporting || filteredProducts.length === 0}
+            disabled={isExporting || filteredProducts.length === 0 || (tagFilterMode === 'selected' && selectedTags.length === 0)}
             className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {isExporting ? (
@@ -412,7 +648,7 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
                 Eksportowanie...
               </>
             ) : (
-              <>Eksportuj</>
+              <>Eksportuj do Excel</>
             )}
           </button>
         </div>

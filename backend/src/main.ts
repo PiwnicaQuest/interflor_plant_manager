@@ -334,6 +334,60 @@ app.get('/mobile/orders', requireAuth, requireRole([UserRole.ADMIN, UserRole.WAR
 app.get("/mobile/search-products", requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE]), InventoryController.getAll);
 
 // ============================================
+// IMAGE PROXY (for Excel export)
+// ============================================
+
+app.get("/image-proxy", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const imageUrl = req.query.url as string;
+    if (!imageUrl) {
+      res.status(400).json({ error: "Brak parametru url" });
+      return;
+    }
+
+    // Only allow specific domains for security
+    const allowedDomains = [
+      "beeldbankfotos.royalfloraholland.com",
+      "p2.1ps.nl"
+    ];
+
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(imageUrl);
+    } catch {
+      res.status(400).json({ error: "Nieprawidłowy URL" });
+      return;
+    }
+
+    if (!allowedDomains.some(domain => parsedUrl.hostname.includes(domain))) {
+      res.status(403).json({ error: "Domena nie jest dozwolona" });
+      return;
+    }
+
+    // Fetch the image using native https/http
+    const https = await import("https");
+    const http = await import("http");
+    const protocol = parsedUrl.protocol === "https:" ? https : http;
+
+    protocol.get(imageUrl, (imageRes) => {
+      if (imageRes.statusCode !== 200) {
+        res.status(imageRes.statusCode || 500).json({ error: "Nie udalo sie pobrac obrazka" });
+        return;
+      }
+      res.set("Content-Type", imageRes.headers["content-type"] || "image/jpeg");
+      res.set("Cache-Control", "public, max-age=86400");
+      imageRes.pipe(res);
+    }).on("error", (err) => {
+      console.error("Image proxy error:", err);
+      res.status(500).json({ error: "Blad pobierania obrazka" });
+    });
+  } catch (error) {
+    console.error("Image proxy error:", error);
+    res.status(500).json({ error: "Blad proxy obrazka" });
+  }
+});
+
+// ============================================
 // PRINT SYSTEM ROUTES
 // ============================================
 
