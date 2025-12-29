@@ -100,9 +100,19 @@ export class POSController {
             throw new Error('Klient nie znaleziony - faktura wymaga danych klienta');
           }
 
-          // Calculate payment deadline (14 days from now)
-          const paymentDeadline = new Date();
-          paymentDeadline.setDate(paymentDeadline.getDate() + 14);
+          // Payment deadline ONLY for transfer payments
+          // For cash and card payments, deadline is null (immediate payment)
+          let paymentDeadline: Date | null = null;
+
+          // Check if payment is transfer (single or dominant in split)
+          const isTransferPayment = paymentMethod === PaymentMethod.TRANSFER;
+
+          if (isTransferPayment) {
+            // Use provided days or default to 14 days
+            const deadlineDays = data.paymentDeadlineDays || 14;
+            paymentDeadline = new Date();
+            paymentDeadline.setDate(paymentDeadline.getDate() + deadlineDays);
+          }
 
           const invoice = await InvoiceModel.createFromOrder(
             order.id,
@@ -112,6 +122,7 @@ export class POSController {
             paymentDeadline,
             req.user?.userId,
             paymentSplits,
+            order.recipientSnapshot,
           );
 
           documentNumber = invoice.invoiceNumber;
@@ -125,8 +136,10 @@ export class POSController {
             req.user?.userId,
             undefined, // notes
             paymentSplits,
+            
             order.customerId || undefined,
             buyerSnapshot || undefined,
+            order.recipientSnapshot,
             documentItems,
           );
 
@@ -151,6 +164,70 @@ export class POSController {
       });
     } catch (error: any) {
       console.error('Checkout error:', error);
+      return res.status(500).json({ error: error.message || 'Błąd serwera' });
+    }
+  }
+
+  static async getTodayCompleted(req: AuthRequest, res: Response) {
+    try {
+      const orders = await OrderModel.getCompletedToday();
+
+      // Calculate summary by payment method
+      let cashTotal = 0;
+      let cardTotal = 0;
+      let transferTotal = 0;
+      let grandTotal = 0;
+
+      orders.forEach((order: any) => {
+        const amount = Number(order.totalAmount) || 0;
+        grandTotal += amount;
+
+        // Check payment method from document
+        if (order.document) {
+          // Handle split payments
+          if (order.document.paymentSplits && Array.isArray(order.document.paymentSplits)) {
+            order.document.paymentSplits.forEach((split: any) => {
+              const splitAmount = Number(split.amount) || 0;
+              switch (split.paymentMethod) {
+                case 'cash':
+                  cashTotal += splitAmount;
+                  break;
+                case 'card':
+                  cardTotal += splitAmount;
+                  break;
+                case 'transfer':
+                  transferTotal += splitAmount;
+                  break;
+              }
+            });
+          } else {
+            // Single payment method
+            switch (order.document.paymentMethod) {
+              case 'cash':
+                cashTotal += amount;
+                break;
+              case 'card':
+                cardTotal += amount;
+                break;
+              case 'transfer':
+                transferTotal += amount;
+                break;
+            }
+          }
+        }
+      });
+
+      const summary = {
+        totalTransactions: orders.length,
+        cashTotal,
+        cardTotal,
+        transferTotal,
+        grandTotal,
+      };
+
+      return res.json({ orders, summary });
+    } catch (error: any) {
+      console.error('Get today completed orders error:', error);
       return res.status(500).json({ error: error.message || 'Błąd serwera' });
     }
   }

@@ -8,7 +8,7 @@ export class ProductModel {
     search?: string;
     sortBy?: string;
     sortOrder?: string;
-    isArchived?: boolean;
+    isArchived?: boolean | string;  // 'all' = show all, true = archived, false = active
   }): Promise<Product[]> {
     // Query with LEFT JOINs:
     // - order_items: to get total sold quantity
@@ -16,19 +16,31 @@ export class ProductModel {
     let sql = `
       SELECT p.*,
              COALESCE(SUM(oi.quantity), 0)::integer as total_sold,
-             gp.passport_number as grower_passport
+             COALESCE(gp_sub.grower, p.grower) as grower,
+             gp_sub.passport_number as grower_passport
       FROM products p
       LEFT JOIN order_items oi ON p.id = oi.product_id
-      LEFT JOIN grower_passports gp ON p.grower = gp.grower_name
+      LEFT JOIN LATERAL (
+        SELECT gp.grower_name as grower, gp.passport_number
+        FROM grower_passports gp
+        WHERE LTRIM(p.grower, '0') = gp.floricode
+           OR p.grower = gp.floricode
+           OR LOWER(p.grower) = LOWER(gp.grower_name)
+        ORDER BY gp.id
+        LIMIT 1
+      ) gp_sub ON true
       WHERE 1=1
     `;
     const params: any[] = [];
     let paramIndex = 1;
 
     // Filter by archived status (default: show only non-archived)
-    if (filters?.isArchived !== undefined) {
+    // 'all' = show all products, true = archived only, false = active only
+    if (filters?.isArchived === 'all') {
+      // No filter - show all products (active and archived)
+    } else if (filters?.isArchived !== undefined) {
       sql += ` AND p.is_archived = $${paramIndex}`;
-      params.push(filters.isArchived);
+      params.push(filters.isArchived === true || filters.isArchived === 'true');
       paramIndex++;
     } else {
       // By default, show only active (non-archived) products
@@ -54,7 +66,7 @@ export class ProductModel {
     }
 
     // GROUP BY all product columns and grower_passport
-    sql += ` GROUP BY p.id, gp.passport_number`;
+    sql += ` GROUP BY p.id, gp_sub.grower, gp_sub.passport_number`;
 
     // Sortowanie
     const sortBy = filters?.sortBy || 'plant_name';
@@ -78,9 +90,18 @@ export class ProductModel {
 
   static async getById(id: number): Promise<Product | null> {
     const result = await query<Product>(
-      `SELECT p.*, gp.passport_number as grower_passport
+      `SELECT p.*, COALESCE(gp_sub.grower, p.grower) as grower,
+             gp_sub.passport_number as grower_passport
        FROM products p
-       LEFT JOIN grower_passports gp ON p.grower = gp.grower_name
+       LEFT JOIN LATERAL (
+         SELECT gp.grower_name as grower, gp.passport_number
+         FROM grower_passports gp
+         WHERE LTRIM(p.grower, '0') = gp.floricode
+            OR p.grower = gp.floricode
+            OR LOWER(p.grower) = LOWER(gp.grower_name)
+         ORDER BY gp.id
+         LIMIT 1
+       ) gp_sub ON true
        WHERE p.id = $1`,
       [id]
     );
@@ -112,6 +133,7 @@ export class ProductModel {
       priceDiscount15,
       priceDiscount20,
       priceDiscount25,
+      priceAuchan8,
       visibleInShop,
       imageUrl,
       deliveryDate,
@@ -125,9 +147,9 @@ export class ProductModel {
         barcode, plant_name, pot_size, plant_height_cm, plant_passport,
         pallet_count, units_per_pallet, purchase_price_pln, price_plus,
         base_price_gross, price_discount_10, price_discount_12, price_discount_15,
-        price_discount_20, price_discount_25,
+        price_discount_20, price_discount_25, price_auchan8,
         visible_in_shop, image_url, delivery_date, vat_rate, grower, is_archived, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, false, COALESCE($21, NOW()))
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, false, COALESCE($22, NOW()))
       RETURNING *`,
       [
         barcode,
@@ -145,6 +167,7 @@ export class ProductModel {
         priceDiscount15,
         priceDiscount20,
         priceDiscount25,
+        priceAuchan8,
         visibleInShop || false,
         imageUrl,
         deliveryDate,
@@ -178,6 +201,7 @@ export class ProductModel {
       'priceDiscount15',
       'priceDiscount20',
       'priceDiscount25',
+      'priceAuchan8',
       'visibleInShop',
       'imageUrl',
       'deliveryDate',
@@ -201,6 +225,7 @@ export class ProductModel {
       priceDiscount15: 'price_discount_15',
       priceDiscount20: 'price_discount_20',
       priceDiscount25: 'price_discount_25',
+      priceAuchan8: 'price_auchan8',
       visibleInShop: 'visible_in_shop',
       imageUrl: 'image_url',
       deliveryDate: 'delivery_date',
@@ -290,16 +315,18 @@ export class ProductModel {
   }
 
   // Get counts for active and archived products
-  static async getCounts(): Promise<{ active: number; archived: number }> {
-    const result = await query<{ active: string; archived: string }>(
+  static async getCounts(): Promise<{ active: number; archived: number; total: number }> {
+    const result = await query<{ active: string; archived: string; total: string }>(
       `SELECT 
         COUNT(*) FILTER (WHERE is_archived = false OR is_archived IS NULL) as active,
-        COUNT(*) FILTER (WHERE is_archived = true) as archived
+        COUNT(*) FILTER (WHERE is_archived = true) as archived,
+        COUNT(*) as total
       FROM products`
     );
     return {
       active: parseInt(result.rows[0].active) || 0,
       archived: parseInt(result.rows[0].archived) || 0,
+      total: parseInt(result.rows[0].total) || 0,
     };
   }
 
@@ -694,5 +721,56 @@ export class ProductModel {
       [masterId]
     );
     return result.rows;
+  }
+
+  // Bulk update tags for multiple products
+  static async bulkUpdateTags(
+    productIds: number[],
+    tags: string[],
+    mode: 'add' | 'replace' | 'remove'
+  ): Promise<{ updated: number; failed: number }> {
+    let updated = 0;
+    let failed = 0;
+
+    for (const productId of productIds) {
+      try {
+        const product = await this.getById(productId);
+        if (!product) {
+          failed++;
+          continue;
+        }
+
+        let newTags: string[];
+        const currentTags = product.tags || [];
+
+        switch (mode) {
+          case 'add':
+            // Add tags that don't exist yet
+            newTags = [...new Set([...currentTags, ...tags])];
+            break;
+          case 'replace':
+            // Replace all tags
+            newTags = [...tags];
+            break;
+          case 'remove':
+            // Remove specified tags
+            newTags = currentTags.filter(t => !tags.includes(t));
+            break;
+          default:
+            newTags = currentTags;
+        }
+
+        await query(
+          'UPDATE products SET tags = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+          [newTags, productId]
+        );
+        updated++;
+      } catch (error) {
+        console.error(`Error updating tags for product ${productId}:`, error);
+        failed++;
+      }
+    }
+
+    return { updated, failed };
   }
 }

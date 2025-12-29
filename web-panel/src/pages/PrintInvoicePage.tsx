@@ -93,6 +93,17 @@ export function PrintInvoicePage() {
     postalCode: invoice.buyerSnapshot.postalCode,
   } : undefined;
 
+  // Map recipient info from recipientSnapshot (if different delivery address)
+  const recipientInfo = invoice.recipientSnapshot ? {
+    companyName: invoice.recipientSnapshot.companyName,
+    firstName: invoice.recipientSnapshot.firstName,
+    lastName: invoice.recipientSnapshot.lastName,
+    address: invoice.recipientSnapshot.street,
+    city: invoice.recipientSnapshot.city,
+    postalCode: invoice.recipientSnapshot.postalCode,
+    phone: invoice.recipientSnapshot.phone,
+  } : undefined;
+
   // Build invoice data for template
   const invoiceData = {
     id: invoice.id,
@@ -102,6 +113,7 @@ export function PrintInvoicePage() {
     saleDate: invoice.saleDate,
     paymentDeadline: invoice.paymentDeadline,
     paymentMethod: invoice.paymentMethod,
+    paymentSplits: invoice.paymentSplits,
     paymentStatus: invoice.paymentStatus,
     items: mappedItems,
     subtotalNet: invoice.subtotalNet,
@@ -110,6 +122,7 @@ export function PrintInvoicePage() {
     paidAmount: invoice.paidAmount,
     notes: invoice.notes,
     buyerInfo,
+    recipientInfo,
   };
 
   // Map seller info from company settings

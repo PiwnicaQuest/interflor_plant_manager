@@ -110,7 +110,7 @@ CREATE TABLE products (
     -- Dodatkowe informacje
     image_url TEXT,
     delivery_date DATE,
-    vat_rate DECIMAL(5,2) DEFAULT 23.00,
+    vat_rate DECIMAL(5,2) DEFAULT 8.00,
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -259,7 +259,7 @@ CREATE TABLE invoice_items (
     description TEXT NOT NULL,
     quantity INTEGER NOT NULL,
     unit_price_net DECIMAL(10,2) NOT NULL,
-    vat_rate DECIMAL(5,2) NOT NULL DEFAULT 23.00,
+    vat_rate DECIMAL(5,2) NOT NULL DEFAULT 8.00,
 
     total_net DECIMAL(10,2) GENERATED ALWAYS AS (quantity * unit_price_net) STORED,
     total_vat DECIMAL(10,2) GENERATED ALWAYS AS (quantity * unit_price_net * vat_rate / 100) STORED,

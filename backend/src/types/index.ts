@@ -142,12 +142,14 @@ export interface Product {
   priceDiscount15: number; // generated column
   priceDiscount20: number; // generated column
   priceDiscount25: number; // generated column
+  priceAuchan8?: number;
   inventoryStatus: InventoryStatus;
   visibleInShop: boolean;
   imageUrl?: string;
   deliveryDate?: Date;
   vatRate: number;
   grower?: string;
+  growerName?: string; // resolved from grower_passports.floricode
   createdAt: Date;
   updatedAt: Date;
   totalSold?: number; // calculated from order_items
@@ -193,8 +195,17 @@ export interface Order {
   createdByUserId?: number;
   status: OrderStatus;
   customerSnapshot?: CustomerSnapshot;
+  recipientSnapshot?: CustomerSnapshot;
   notes?: string;
   customerNotes?: string;
+  useCustomRecipient?: boolean;
+  recipientCompanyName?: string;
+  recipientFirstName?: string;
+  recipientLastName?: string;
+  recipientStreet?: string;
+  recipientPostalCode?: string;
+  recipientCity?: string;
+  recipientPhone?: string;
   totalAmount: number;
   createdAt: Date;
   updatedAt: Date;
@@ -228,6 +239,7 @@ export interface Invoice {
   orderId?: number;
   customerId?: number;
   buyerSnapshot: CustomerSnapshot;
+  recipientSnapshot?: CustomerSnapshot;
   issueDate: Date;
   saleDate: Date;
   paymentDeadline?: Date;
@@ -383,6 +395,7 @@ export interface CreateProductRequest {
   imageUrl?: string;
   createdAt?: Date;
   deliveryDate?: Date;
+  vatRate?: number;
 }
 
 export interface UpdateProductRequest {
@@ -393,6 +406,7 @@ export interface UpdateProductRequest {
   priceDiscount15?: number;
   priceDiscount20?: number;
   priceDiscount25?: number;
+  priceAuchan8?: number;
   barcode?: string;
   plantName?: string;
   potSize?: string;
@@ -406,6 +420,7 @@ export interface UpdateProductRequest {
   imageUrl?: string;
   createdAt?: Date;
   deliveryDate?: Date;
+  vatRate?: number;
 }
 
 export interface CreateOrderRequest {
@@ -415,6 +430,14 @@ export interface CreateOrderRequest {
     quantity: number;
   }>;
   customerNotes?: string;
+  useCustomRecipient?: boolean;
+  recipientCompanyName?: string;
+  recipientFirstName?: string;
+  recipientLastName?: string;
+  recipientStreet?: string;
+  recipientPostalCode?: string;
+  recipientCity?: string;
+  recipientPhone?: string;
 }
 
 export interface UpdateOrderStatusRequest {
@@ -432,6 +455,7 @@ export interface PaymentSplit {
 }
 
 export interface CheckoutRequest {
+  paymentDeadlineDays?: number; // For transfer payments - number of days for payment deadline
   orderId: number;
   paymentMethod?: PaymentMethod; // Single payment (legacy)
   paymentSplits?: PaymentSplit[]; // Split payment (new)
@@ -517,4 +541,16 @@ export interface WSInventoryLowStockMessage extends WSMessage {
 // Express Request with User
 export interface AuthRequest extends Request {
   user?: JWTPayload;
+}
+
+// Order with document info (for POS completed orders view)
+export interface OrderWithDocument extends Order {
+  customerName?: string;
+  itemCount?: number;
+  document?: {
+    type: 'invoice' | 'receipt';
+    id: number;
+    number: string;
+    paymentMethod?: string;
+  };
 }

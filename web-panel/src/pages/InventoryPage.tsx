@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { ExcelExportModal } from '../components/Inventory/ExcelExportModal';
 import { api } from '../services/api';
 import { Product, InventoryMovement } from '../types';
 import { InventoryTable, ColumnFilters } from '../components/Inventory/InventoryTable';
@@ -11,6 +12,7 @@ import { BatchBarcodeModal } from '../components/Inventory/BatchBarcodeModal';
 import { InventoryFilters, InventoryFilterValues } from '../components/Inventory/InventoryFilters';
 import { ProductDistributionPanel } from '../components/Inventory/ProductDistributionPanel';
 import { SimilarProductsModal } from '../components/Inventory/SimilarProductsModal';
+import { BulkTagsModal } from '../components/Inventory/BulkTagsModal';
 import { useColumnPreferences } from '../hooks/useColumnPreferences';
 import { ColumnConfigModal } from '../components/Inventory/ColumnConfigModal';
 
@@ -37,6 +39,7 @@ export function InventoryPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showExcelImportModal, setShowExcelImportModal] = useState(false);
+  const [showExcelExportModal, setShowExcelExportModal] = useState(false);
   const [barcodeProduct, setBarcodeProduct] = useState<Product | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
   const [showBatchBarcodeModal, setShowBatchBarcodeModal] = useState(false);
@@ -46,7 +49,7 @@ export function InventoryPage() {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [bulkActionInProgress, setBulkActionInProgress] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'archived' | 'all'>('active');
   const [counts, setCounts] = useState<{ active: number; archived: number }>({ active: 0, archived: 0 });
   const [focusedProduct, setFocusedProduct] = useState<Product | null>(null);
   const [distributionPanelEnabled, setDistributionPanelEnabled] = useState<boolean>(() => {
@@ -54,12 +57,18 @@ export function InventoryPage() {
     return saved !== null ? saved === 'true' : true; // domyślnie włączony
   });
   const [showSimilarProductsModal, setShowSimilarProductsModal] = useState(false);
+  const [showBulkTagsModal, setShowBulkTagsModal] = useState(false);
   const [lossProduct, setLossProduct] = useState<Product | null>(null);
   const [lossQuantity, setLossQuantity] = useState<string>("");
   const [lossNotes, setLossNotes] = useState<string>("");
   const [submittingLoss, setSubmittingLoss] = useState(false);
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
   const [showColumnConfig, setShowColumnConfig] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+  // Pagination state
+  const ITEMS_PER_PAGE = 200;
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Column preferences hook
   const {
@@ -68,7 +77,6 @@ export function InventoryPage() {
     toggleColumnVisibility,
     reorderColumns,
     resetToDefaults,
-    preferences
   } = useColumnPreferences();
 
   // Zapisz ustawienie do localStorage
@@ -95,7 +103,9 @@ export function InventoryPage() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const data = await api.getInventory({ isArchived: activeTab === 'archived' });
+      // 'all' shows everything, 'archived' shows archived, 'active' shows active
+      const isArchivedParam = activeTab === 'all' ? 'all' : activeTab === 'archived';
+      const data = await api.getInventory({ isArchived: isArchivedParam });
       setAllProducts(data.products);
       if (data.counts) {
         setCounts(data.counts);
@@ -210,16 +220,16 @@ export function InventoryPage() {
     if (columnFilters.colBasePrice) {
       result = result.filter(p => String(p.basePriceGross || '').includes(columnFilters.colBasePrice!));
     }
-    if (columnFilters.colStatus) {
-      result = result.filter(p => p.inventoryStatus === columnFilters.colStatus);
-    }
     if (columnFilters.colVisible) {
       const isVisible = columnFilters.colVisible === 'true';
       result = result.filter(p => p.visibleInShop === isVisible);
     }
     if (columnFilters.colGrower) {
       const searchLower = columnFilters.colGrower.toLowerCase();
-      result = result.filter(p => p.grower?.toLowerCase().includes(searchLower));
+      result = result.filter(p => 
+        p.grower?.toLowerCase().includes(searchLower) ||
+        p.grower?.toLowerCase().includes(searchLower)
+      );
     }
     if (columnFilters.colPassport) {
       const searchLower = columnFilters.colPassport.toLowerCase();
@@ -280,6 +290,21 @@ export function InventoryPage() {
     return result;
   }, [allProducts, filters, columnFilters]);
 
+  // Paginated products - show only current page
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return filteredProducts.slice(startIndex, endIndex);
+  }, [filteredProducts, currentPage, ITEMS_PER_PAGE]);
+
+  // Total pages calculation
+  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters, columnFilters, activeTab]);
+
   const handleToggleVisibility = async (productId: number) => {
     try {
       setAllProducts(prevProducts =>
@@ -311,16 +336,10 @@ export function InventoryPage() {
       ];
 
       if (field === 'pricePlus' && typeof value === 'number') {
-        updateData = {
-          pricePlus: value,
-          basePriceGross: value,
-          priceDiscount10: parseFloat((value * 0.90).toFixed(2)),
-          priceDiscount12: parseFloat((value * 0.88).toFixed(2)),
-          priceDiscount15: parseFloat((value * 0.85).toFixed(2)),
-          priceDiscount20: parseFloat((value * 0.80).toFixed(2)),
-          priceDiscount25: parseFloat((value * 0.75).toFixed(2)),
-        };
-        optimisticUpdates = updateData;
+        // Tylko wysylamy pricePlus - backend sam przeliczy pozostale ceny
+        // wedlug wzoru: basePriceGross = pricePlus * 1.08 * (1 + marza%)
+        updateData = { pricePlus: value };
+        optimisticUpdates = { pricePlus: value };
 
         setAllProducts(prevProducts =>
           prevProducts.map(p =>
@@ -652,6 +671,25 @@ export function InventoryPage() {
     }
   };
 
+  const handleBulkUpdateTags = async (tags: string[], mode: "add" | "replace" | "remove") => {
+    if (selectedProducts.length === 0) return;
+
+    try {
+      setBulkActionInProgress(true);
+      const result = await api.bulkUpdateTags(selectedProducts, tags, mode);
+      if (result.success) {
+        setSelectedProducts([]);
+        await fetchProducts();
+        alert(result.message);
+      }
+    } catch (error) {
+      console.error("Error during bulk tags update:", error);
+      alert("Wystąpił błąd podczas aktualizacji tagów.");
+    } finally {
+      setBulkActionInProgress(false);
+    }
+  };
+
   // Handle quick add to order from distribution panel
   const handleAddToOrder = async (product: Product, quantity: number, customerId: number) => {
     try {
@@ -715,6 +753,7 @@ export function InventoryPage() {
           <h1 className="text-xl font-bold text-gray-900">Magazyn</h1>
           <p className="text-xs text-gray-500">
             {filteredProducts.length} z {allProducts.length} produktów
+            {totalPages > 1 && ` (strona ${currentPage} z ${totalPages})`}
           </p>
         </div>
         <div className="flex gap-3 items-center">
@@ -744,7 +783,7 @@ export function InventoryPage() {
             </button>
           )}
           <button
-            className="btn btn-secondary flex items-center gap-1"
+            className="btn btn-secondary btn-sm flex items-center gap-1"
             onClick={() => setShowColumnConfig(true)}
             title="Konfiguracja kolumn"
           >
@@ -753,26 +792,53 @@ export function InventoryPage() {
             </svg>
             Kolumny
           </button>
+          {/* Dropdown Więcej akcji */}
+          <div className="relative">
+            <button
+              className="btn btn-secondary btn-sm flex items-center gap-1"
+              onClick={() => setShowMoreMenu(!showMoreMenu)}
+              onBlur={() => setTimeout(() => setShowMoreMenu(false), 150)}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+              </svg>
+              Więcej
+              <svg xmlns="http://www.w3.org/2000/svg" className={`h-3 w-3 transition-transform ${showMoreMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {showMoreMenu && (
+              <div className="absolute right-0 mt-1 w-44 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                <button
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+                  onClick={() => { setShowSimilarProductsModal(true); setShowMoreMenu(false); }}
+                >
+                  Połącz podobne
+                </button>
+                <button
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+                  onClick={() => { setShowImportModal(true); setShowMoreMenu(false); }}
+                >
+                  Import CSV
+                </button>
+                <button
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+                  onClick={() => { setShowExcelImportModal(true); setShowMoreMenu(false); }}
+                >
+                  Import Excel
+                </button>
+                <hr className="my-1 border-gray-200" />
+                <button
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-green-50 text-green-700 flex items-center gap-2 font-medium"
+                  onClick={() => { setShowExcelExportModal(true); setShowMoreMenu(false); }}
+                >
+                  📥 Eksport oferty (Excel)
+                </button>
+              </div>
+            )}
+          </div>
           <button
-            className="btn btn-secondary"
-            onClick={() => setShowSimilarProductsModal(true)}
-          >
-            Połącz podobne
-          </button>
-          <button
-            className="btn btn-secondary"
-            onClick={() => setShowImportModal(true)}
-          >
-            Import CSV
-          </button>
-          <button
-            className="btn btn-secondary"
-            onClick={() => setShowExcelImportModal(true)}
-          >
-            Import Excel
-          </button>
-          <button
-            className="btn btn-primary"
+            className="btn btn-primary btn-sm"
             onClick={() => {
               setEditingProduct(null);
               setShowAddForm(true);
@@ -783,7 +849,7 @@ export function InventoryPage() {
         </div>
         </div>
 
-        {/* Tabs for Active/Archived */}
+        {/* Tabs for Active/Archived/All */}
         <div className="border-b border-gray-200 mt-2">
         <nav className="flex space-x-8" aria-label="Tabs">
           <button
@@ -814,6 +880,21 @@ export function InventoryPage() {
               activeTab === 'archived' ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 text-gray-900'
             }`}>
               {counts.archived}
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'all'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Wszystko
+            <span className={`ml-2 py-0.5 px-2.5 rounded-full text-xs ${
+              activeTab === 'all' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-900'
+            }`}>
+              {counts.active + counts.archived}
             </span>
           </button>
         </nav>
@@ -868,7 +949,7 @@ export function InventoryPage() {
               🙈 Ukryj w sklepie
             </button>
 
-            {activeTab === 'active' ? (
+            {activeTab !== 'archived' && (
               <button
                 onClick={handleBulkArchive}
                 disabled={bulkActionInProgress}
@@ -876,7 +957,8 @@ export function InventoryPage() {
               >
                 📦 Archiwizuj zaznaczone
               </button>
-            ) : (
+            )}
+            {activeTab !== 'active' && (
               <button
                 onClick={handleBulkRestore}
                 disabled={bulkActionInProgress}
@@ -886,6 +968,14 @@ export function InventoryPage() {
               </button>
             )}
 
+
+            <button
+              onClick={() => setShowBulkTagsModal(true)}
+              disabled={bulkActionInProgress}
+              className="btn text-sm py-1 px-3 flex items-center gap-1 bg-purple-100 hover:bg-purple-200 text-purple-800 border border-purple-300"
+            >
+              🏷️ Tagi
+            </button>
             <button
               onClick={handleBulkDelete}
               disabled={bulkActionInProgress}
@@ -910,7 +1000,7 @@ export function InventoryPage() {
         </div>
       ) : (
         <InventoryTable
-          products={filteredProducts}
+          products={paginatedProducts}
           selectedProducts={selectedProducts}
           onToggleVisibility={handleToggleVisibility}
           onViewDetails={handleViewDetails}
@@ -928,8 +1018,75 @@ export function InventoryPage() {
           columnFilters={columnFilters}
           onColumnFilterChange={handleColumnFilterChange}
           visibleColumns={visibleColumns}
-          columnOrder={columnOrder}
         />
+      )}
+
+      {/* Pagination Controls */}
+      {!loading && totalPages > 1 && (
+        <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 mt-2 rounded-b-lg">
+          <div className="text-sm text-gray-700">
+            Pokazuję {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredProducts.length)} z {filteredProducts.length} produktów
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              « Pierwsza
+            </button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ‹ Poprzednia
+            </button>
+
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(page => {
+                  // Show first, last, current, and pages around current
+                  return page === 1 ||
+                         page === totalPages ||
+                         Math.abs(page - currentPage) <= 1;
+                })
+                .map((page, idx, arr) => (
+                  <span key={page} className="flex items-center">
+                    {idx > 0 && arr[idx - 1] !== page - 1 && (
+                      <span className="px-1 text-gray-400">...</span>
+                    )}
+                    <button
+                      onClick={() => setCurrentPage(page)}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-md ${
+                        page === currentPage
+                          ? 'bg-primary-600 text-white'
+                          : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  </span>
+                ))
+              }
+            </div>
+
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Następna ›
+            </button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Ostatnia »
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Product Distribution Panel - tylko gdy włączony */}
@@ -1005,6 +1162,13 @@ export function InventoryPage() {
           }}
         />
       )}
+
+      {/* Excel Export Modal */}
+      <ExcelExportModal
+        isOpen={showExcelExportModal}
+        onClose={() => setShowExcelExportModal(false)}
+        products={filteredProducts}
+      />
 
       {/* Barcode Modal */}
       {barcodeProduct && (
@@ -1099,6 +1263,15 @@ export function InventoryPage() {
         onProductsMerged={fetchProducts}
       />
 
+      {/* Bulk Tags Modal */}
+      {showBulkTagsModal && (
+        <BulkTagsModal
+          selectedCount={selectedProducts.length}
+          onClose={() => setShowBulkTagsModal(false)}
+          onSubmit={handleBulkUpdateTags}
+        />
+      )}
+
       {/* Loss Modal */}
       {lossProduct && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -1164,8 +1337,8 @@ export function InventoryPage() {
           onClose={() => setShowColumnConfig(false)}
           visibleColumns={visibleColumns}
           columnOrder={columnOrder}
-          onToggleVisibility={toggleColumnVisibility}
           onReorder={reorderColumns}
+          onToggleVisibility={toggleColumnVisibility}
           onReset={resetToDefaults}
         />
       )}

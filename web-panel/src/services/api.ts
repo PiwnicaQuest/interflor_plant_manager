@@ -105,7 +105,7 @@ class ApiClient {
   // INVENTORY
   // ============================================
 
-  async getInventory(filters?: { status?: string; visibleInShop?: boolean; search?: string; sortBy?: string; sortOrder?: string; isArchived?: boolean }): Promise<{ products: Product[]; counts?: { active: number; archived: number; total: number } }> {
+  async getInventory(filters?: { status?: string; visibleInShop?: boolean; search?: string; sortBy?: string; sortOrder?: string; isArchived?: boolean | 'all' }): Promise<{ products: Product[]; counts?: { active: number; archived: number; total: number } }> {
     const response = await this.client.get('/inventory', { params: filters });
     return response.data;
   }
@@ -122,6 +122,11 @@ class ApiClient {
 
   async updateProduct(id: number, data: Partial<Product>): Promise<{ message: string; product: Product }> {
     const response = await this.client.put(`/inventory/${id}`, data);
+    return response.data;
+  }
+
+  async bulkUpdateTags(productIds: number[], tags: string[], mode: "add" | "replace" | "remove"): Promise<{ success: boolean; message: string; updated: number }> {
+    const response = await this.client.post("/inventory/bulk-tags", { productIds, tags, mode });
     return response.data;
   }
 
@@ -181,10 +186,18 @@ class ApiClient {
 
   async createOrder(data: {
     customerId: number;
-    items: Array<{ productId: number; quantity: number }>;
+    items: Array<{ productId: number; quantity: number; palletCount?: number; unitsPerPallet?: number }>;
     customerNotes?: string;
+    useCustomRecipient?: boolean;
+    recipientCompanyName?: string;
+    recipientFirstName?: string;
+    recipientLastName?: string;
+    recipientStreet?: string;
+    recipientPostalCode?: string;
+    recipientCity?: string;
+    recipientPhone?: string;
   }): Promise<{ message: string; orderNumber: string; orderId: number }> {
-    const response = await this.client.post('/orders', data);
+    const response = await this.client.post("/orders", data);
     return response.data;
   }
 
@@ -353,15 +366,31 @@ class ApiClient {
     paymentMethod?: string;
     paymentSplits?: Array<{ paymentMethod: string; amount: number }>;
     documentType: string;
+    paymentDeadlineDays?: number;
     items?: Array<{ productId: number; quantity: number }>;
   }): Promise<{
     message: string;
     documentType: string;
+    paymentDeadlineDays?: number;
     documentNumber: string;
     documentId: number;
     totalAmount: number;
   }> {
     const response = await this.client.post('/pos/checkout', data);
+    return response.data;
+  }
+
+  async getTodayCompletedOrders(): Promise<{
+    orders: any[];
+    summary: {
+      totalTransactions: number;
+      cashTotal: number;
+      cardTotal: number;
+      transferTotal: number;
+      grandTotal: number;
+    };
+  }> {
+    const response = await this.client.get('/pos/today-completed');
     return response.data;
   }
 
@@ -683,6 +712,7 @@ class ApiClient {
 
   async createPrintJob(job: {
     documentType: string;
+    paymentDeadlineDays?: number;
     contentType: string;
     content: string;
     title?: string;

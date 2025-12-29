@@ -72,7 +72,7 @@ export class InventoryController {
       };
 
       if (data.purchasePricePln > 0) {
-        calculatedPrices = SettingsModel.calculatePrices(data.purchasePricePln, costPercentage, marginPercentage, data.vatRate ?? 8.0);
+        calculatedPrices = SettingsModel.calculatePrices(data.purchasePricePln, costPercentage, marginPercentage);
       }
 
       const productData = {
@@ -145,10 +145,9 @@ export class InventoryController {
         const pricingSettings = await SettingsModel.getPricingSettings();
         const { marginPercentage } = pricingSettings;
         const newPricePlus = data.pricePlus!;
-        const vatRate = data.vatRate ?? existingProduct.vatRate ?? 8.0;
 
-        // basePriceGross = pricePlus × (1 + vatRate%) × (1 + marża%)
-        const newBasePrice = Math.round(newPricePlus * (1 + vatRate / 100) * (1 + marginPercentage / 100) * 100) / 100;
+        // basePriceGross = pricePlus × 1.08 (VAT 8%) × (1 + marża%)
+        const newBasePrice = Math.round(newPricePlus * 1.08 * (1 + marginPercentage / 100) * 100) / 100;
 
         updatedData = {
           ...updatedData,
@@ -182,7 +181,7 @@ export class InventoryController {
         const { costPercentage, marginPercentage } = pricingSettings;
 
         if (data.purchasePricePln > 0) {
-          const calculatedPrices = SettingsModel.calculatePrices(data.purchasePricePln, costPercentage, marginPercentage, data.vatRate ?? 8.0);
+          const calculatedPrices = SettingsModel.calculatePrices(data.purchasePricePln, costPercentage, marginPercentage);
           updatedData = {
             ...updatedData,
             pricePlus: calculatedPrices.pricePlus,
@@ -374,8 +373,7 @@ export class InventoryController {
           const calculatedPrices = SettingsModel.calculatePrices(
             product.purchasePricePln,
             costPercentage,
-            marginPercentage,
-            product.vatRate ?? 8.0
+            marginPercentage
           );
 
           await ProductModel.update(product.id, {

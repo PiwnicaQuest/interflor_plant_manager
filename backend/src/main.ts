@@ -191,6 +191,7 @@ app.post("/customers/:id/shop-account/send-credentials", requireAuth, requireRol
 // ============================================
 
 app.post('/pos/checkout', requireAuth, requireRole([UserRole.ADMIN, UserRole.POS]), POSController.checkout);
+app.get('/pos/today-completed', requireAuth, requireRole([UserRole.ADMIN, UserRole.POS]), POSController.getTodayCompleted);
 
 // ============================================
 // RECEIPTS ROUTES

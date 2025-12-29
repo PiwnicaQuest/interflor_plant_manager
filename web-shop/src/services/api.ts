@@ -119,6 +119,16 @@ class ApiService {
     });
     return this.handleResponse(response);
   }
+
+  // Change password
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
+    const response = await fetch(API_URL + '/shop/change-password', {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    return this.handleResponse(response);
+  }
 }
 
 export const api = new ApiService();

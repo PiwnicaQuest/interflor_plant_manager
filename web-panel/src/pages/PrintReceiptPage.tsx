@@ -69,6 +69,7 @@ export function PrintReceiptPage() {
     items: order?.items || [],
     totalAmount: receipt.totalAmount,
     paymentMethod: receipt.paymentMethod,
+    paymentSplits: receipt.paymentSplits,
     createdAt: receipt.createdAt,
   };
 

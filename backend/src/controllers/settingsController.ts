@@ -88,7 +88,7 @@ export async function updateCompanySettings(req: Request, res: Response) {
   try {
     const {
       companyName, nip, regon, street, postalCode, city, country,
-      phone, email, website, bankName, bankAccount, bankSwift
+      phone, email, website, bankName, bankAccount, bankSwift, invoiceComment
     } = req.body;
 
     // Validation
@@ -126,6 +126,7 @@ export async function updateCompanySettings(req: Request, res: Response) {
       bankName: bankName || '',
       bankAccount: bankAccount || '',
       bankSwift: bankSwift || '',
+      invoiceComment: invoiceComment || '',
     });
 
     return res.json(settings);

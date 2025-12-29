@@ -125,7 +125,8 @@ export class OrderModel {
     items: Array<{ productId: number; quantity: number; unitPriceGross: number; palletCount?: number; unitsPerPallet?: number }>,
     customerSnapshot: CustomerSnapshot,
     createdByUserId?: number,
-    customerNotes?: string
+    customerNotes?: string,
+    recipientSnapshot?: CustomerSnapshot
   ): Promise<OrderWithItems> {
     return transaction(async (client) => {
       // Generate order number
@@ -144,8 +145,8 @@ export class OrderModel {
       const orderResult = await client.query<Order>(
         `INSERT INTO orders (
           order_number, customer_id, created_by_user_id, customer_snapshot,
-          customer_notes, total_amount, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+          customer_notes, recipient_snapshot, total_amount, status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *`,
         [
           orderNumber,
@@ -153,6 +154,7 @@ export class OrderModel {
           createdByUserId,
           JSON.stringify(customerSnapshot),
           customerNotes,
+          recipientSnapshot ? JSON.stringify(recipientSnapshot) : null,
           totalAmount,
           'pending',
         ]
@@ -463,6 +465,23 @@ export class OrderModel {
         }
       }
 
+      // Save existing items snapshots before deleting (for products that may have been deleted)
+      // Cast to any because PostgreSQL returns snake_case but TypeScript type uses camelCase
+      const existingSnapshotsMap = new Map<number, { snapshot: any; quantity: number; unitsPerPallet: number }>();
+      for (const existItem of existingItemsResult.rows as any[]) {
+        const productSnapshot = existItem.product_snapshot || existItem.productSnapshot;
+        const productId = existItem.product_id || existItem.productId || (productSnapshot && (productSnapshot.id || productSnapshot.product_id));
+        const qty = existItem.quantity;
+        const upp = existItem.units_per_pallet || existItem.unitsPerPallet || 1;
+        if (productId && productSnapshot) {
+          existingSnapshotsMap.set(productId, {
+            snapshot: productSnapshot,
+            quantity: qty,
+            unitsPerPallet: upp,
+          });
+        }
+      }
+
       // Delete existing items
       await client.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
 
@@ -475,27 +494,55 @@ export class OrderModel {
           [item.productId]
         );
 
+        let product: any = null;
+        let productSnapshot: any = null;
+        let skipStockUpdate = false;
+
         if (productResult.rows.length === 0) {
-          throw new Error(`Produkt o ID ${item.productId} nie istnieje`);
+          // Product doesn't exist - try to use existing snapshot
+          const existing = existingSnapshotsMap.get(item.productId);
+          if (existing && existing.snapshot) {
+            // Cannot increase quantity for deleted products
+            if (item.quantity > existing.quantity) {
+              throw new Error(`Nie można zwiększyć ilości dla produktu, który już nie istnieje w magazynie`);
+            }
+            // Use existing snapshot
+            const snap = existing.snapshot;
+            product = {
+              id: item.productId,
+              plantName: snap.plantName || snap.plant_name,
+              potSize: snap.potSize || snap.pot_size,
+              plantHeightCm: snap.plantHeightCm || snap.plant_height_cm,
+              barcode: snap.barcode,
+              imageUrl: snap.imageUrl || snap.image_url,
+              createdAt: snap.createdAt || snap.created_at,
+              unitsPerPallet: snap.unitsPerPallet || snap.units_per_pallet || 1,
+              totalUnits: 0, // Product deleted, no stock
+            };
+            productSnapshot = snap;
+            skipStockUpdate = true;
+          } else {
+            throw new Error(`Produkt o ID ${item.productId} nie istnieje`);
+          }
+        } else {
+          product = productResult.rows[0];
+
+          // Check if there's enough stock
+          if (product.totalUnits < item.quantity) {
+            throw new Error(`Niewystarczający stan magazynowy dla produktu "${product.plantName}". Dostępne: ${product.totalUnits} szt., zamówiono: ${item.quantity} szt.`);
+          }
+
+          productSnapshot = {
+            id: product.id,
+            plant_name: product.plantName,
+            pot_size: product.potSize,
+            plant_height_cm: product.plantHeightCm,
+            barcode: product.barcode,
+            image_url: product.imageUrl,
+            created_at: product.createdAt,
+            units_per_pallet: product.unitsPerPallet,
+          };
         }
-
-        const product = productResult.rows[0];
-
-        // Check if there's enough stock
-        if (product.totalUnits < item.quantity) {
-          throw new Error(`Niewystarczający stan magazynowy dla produktu "${product.plantName}". Dostępne: ${product.totalUnits} szt., zamówiono: ${item.quantity} szt.`);
-        }
-
-        const productSnapshot = {
-          id: product.id,
-          plant_name: product.plantName,
-          pot_size: product.potSize,
-          plant_height_cm: product.plantHeightCm,
-          barcode: product.barcode,
-          image_url: product.imageUrl,
-          created_at: product.createdAt,
-          units_per_pallet: product.unitsPerPallet,
-        };
 
         const unitsPerPallet = item.unitsPerPallet || product.unitsPerPallet || 1;
         const palletCount = item.palletCount !== undefined ? item.palletCount : Math.floor(item.quantity / unitsPerPallet);
@@ -503,11 +550,11 @@ export class OrderModel {
         const itemResult = await client.query<OrderItem>(
           `INSERT INTO order_items (
             order_id, product_id, product_snapshot, quantity, unit_price_gross, pallet_count, units_per_pallet
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           RETURNING *`,
           [
             orderId,
-            item.productId,
+            skipStockUpdate ? null : item.productId,  // Use NULL for deleted products to avoid FK constraint violation
             JSON.stringify(productSnapshot),
             item.quantity,
             item.unitPriceGross,
@@ -530,64 +577,70 @@ export class OrderModel {
         };
         orderItems.push(orderItem);
 
-        // Deduct stock
-        const newTotalUnits = product.totalUnits - item.quantity;
+        // Calculate productUnitsPerPallet (needed for inventory movements later)
         const productUnitsPerPallet = product.unitsPerPallet || 1;
-        const newPalletCount = Math.floor(newTotalUnits / productUnitsPerPallet);
-        const newLooseUnits = newTotalUnits % productUnitsPerPallet;
 
-        await client.query(
-          'UPDATE products SET pallet_count = $1, loose_units = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
-          [newPalletCount, newLooseUnits, item.productId]
-        );
+        // Deduct stock (skip if product was deleted)
+        if (!skipStockUpdate) {
+          const newTotalUnits = product.totalUnits - item.quantity;
+          const newPalletCount = Math.floor(newTotalUnits / productUnitsPerPallet);
+          const newLooseUnits = newTotalUnits % productUnitsPerPallet;
 
-        // Auto-archive if stock reached 0
-        if (newTotalUnits <= 0) {
           await client.query(
-            'UPDATE products SET is_archived = true, archived_at = CURRENT_TIMESTAMP, visible_in_shop = false WHERE id = $1',
-            [item.productId]
+            'UPDATE products SET pallet_count = $1, loose_units = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
+            [newPalletCount, newLooseUnits, item.productId]
           );
+
+          // Auto-archive if stock reached 0
+          if (newTotalUnits <= 0) {
+            await client.query(
+              'UPDATE products SET is_archived = true, archived_at = CURRENT_TIMESTAMP, visible_in_shop = false WHERE id = $1',
+              [item.productId]
+            );
+          }
         }
 
-        // Create inventory movement for new products or increased quantities
-        const existingItem = existingItemsMap.get(item.productId);
-        if (!existingItem) {
-          // Completely new product added to order
-          await client.query(
-            `INSERT INTO inventory_movements (
-              product_id, user_id, movement_type, delta_units, delta_pallets,
-              reason, reference_type, reference_id
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-            [
-              item.productId,
-              userId,
-              'order',
-              -item.quantity,
-              -Math.ceil(item.quantity / productUnitsPerPallet),
-              `Edycja zamówienia ${order.orderNumber} - dodano produkt`,
-              'order',
-              orderId,
-            ]
-          );
-        } else if (item.quantity > existingItem.quantity) {
-          // Quantity increased - create movement for the additional amount
-          const additionalQuantity = item.quantity - existingItem.quantity;
-          await client.query(
-            `INSERT INTO inventory_movements (
-              product_id, user_id, movement_type, delta_units, delta_pallets,
-              reason, reference_type, reference_id
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-            [
-              item.productId,
-              userId,
-              'order',
-              -additionalQuantity,
-              -Math.ceil(additionalQuantity / productUnitsPerPallet),
-              `Edycja zamówienia ${order.orderNumber} - zwiększono ilość`,
-              'order',
-              orderId,
-            ]
-          );
+        // Create inventory movement for new products or increased quantities (skip for deleted products)
+        if (!skipStockUpdate) {
+          const existingItem = existingItemsMap.get(item.productId);
+          if (!existingItem) {
+            // Completely new product added to order
+            await client.query(
+              `INSERT INTO inventory_movements (
+                product_id, user_id, movement_type, delta_units, delta_pallets,
+                reason, reference_type, reference_id
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+              [
+                item.productId,
+                userId,
+                'order',
+                -item.quantity,
+                -Math.ceil(item.quantity / productUnitsPerPallet),
+                `Edycja zamówienia ${order.orderNumber} - dodano produkt`,
+                'order',
+                orderId,
+              ]
+            );
+          } else if (item.quantity > existingItem.quantity) {
+            // Quantity increased - create movement for the additional amount
+            const additionalQuantity = item.quantity - existingItem.quantity;
+            await client.query(
+              `INSERT INTO inventory_movements (
+                product_id, user_id, movement_type, delta_units, delta_pallets,
+                reason, reference_type, reference_id
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+              [
+                item.productId,
+                userId,
+                'order',
+                -additionalQuantity,
+                -Math.ceil(additionalQuantity / productUnitsPerPallet),
+                `Edycja zamówienia ${order.orderNumber} - zwiększono ilość`,
+                'order',
+                orderId,
+              ]
+            );
+          }
         }
       }
 
@@ -774,6 +827,69 @@ export class OrderModel {
       });
 
       return updatedOrder;
+    });
+  }
+  static async getCompletedToday(): Promise<any[]> {
+    const sql = `
+      SELECT
+        o.*,
+        COALESCE(c.company_name, CONCAT(c.first_name, ' ', c.last_name)) as customer_name,
+        (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) as item_count,
+        -- Invoice info (if exists)
+        i.id as invoice_id,
+        i.invoice_number,
+        i.payment_method as invoice_payment_method,
+        i.payment_splits as invoice_payment_splits,
+        -- Receipt info (if exists)
+        r.id as receipt_id,
+        r.receipt_number,
+        r.payment_method as receipt_payment_method,
+        r.payment_splits as receipt_payment_splits
+      FROM orders o
+      LEFT JOIN customers c ON o.customer_id = c.id
+      LEFT JOIN invoices i ON i.order_id = o.id AND (i.invoice_type = 'invoice' OR i.invoice_type IS NULL)
+      LEFT JOIN receipts r ON r.order_id = o.id
+      WHERE o.status = 'completed'
+        AND DATE(o.completed_at) = CURRENT_DATE
+      ORDER BY o.completed_at DESC
+    `;
+
+    const result = await query(sql);
+
+    // Transform results to include document info
+    return result.rows.map((row: any) => {
+      let document: { type: 'invoice' | 'receipt'; id: number; number: string; paymentMethod?: string; paymentSplits?: any } | undefined;
+
+      if (row.invoiceId) {
+        document = {
+          type: 'invoice',
+          id: row.invoiceId,
+          number: row.invoiceNumber,
+          paymentMethod: row.invoicePaymentMethod,
+          paymentSplits: row.invoicePaymentSplits,
+        };
+      } else if (row.receiptId) {
+        document = {
+          type: 'receipt',
+          id: row.receiptId,
+          number: row.receiptNumber,
+          paymentMethod: row.receiptPaymentMethod,
+          paymentSplits: row.receiptPaymentSplits,
+        };
+      }
+
+      return {
+        id: row.id,
+        orderNumber: row.orderNumber,
+        customerId: row.customerId,
+        customerName: row.customerName,
+        totalAmount: row.totalAmount,
+        status: row.status,
+        completedAt: row.completedAt,
+        createdAt: row.createdAt,
+        itemCount: row.itemCount,
+        document,
+      };
     });
   }
 }

@@ -4,13 +4,10 @@ import { API } from '../../services/api';
 import type { Product, Customer } from '../../types';
 import { QuickCustomerModal } from '../../components/Scanner/QuickCustomerModal';
 
-type QuantityMode = 'pallets' | 'units';
-
 interface OrderItem {
   productId: number;
   product: Product;
-  quantityMode: QuantityMode; // Tryb: paletki lub sztuki
-  inputValue: number; // Wartość wpisana przez użytkownika (paletki lub sztuki)
+  palletCount: number; // Ilość palet
   unitsPerPallet: number; // Sztuk na paletę (z produktu)
   unitPriceGross: number; // Cena za sztukę
 }
@@ -114,7 +111,9 @@ export function ScannerNewOrderPage() {
   };
 
   const handleNewCustomerCreated = (customer: Customer) => {
+    // Add new customer to the list
     setCustomers(prev => [customer, ...prev]);
+    // Select the new customer and move to products step
     setShowNewCustomerModal(false);
     selectCustomer(customer);
   };
@@ -122,18 +121,16 @@ export function ScannerNewOrderPage() {
   const addProduct = (product: Product) => {
     const existing = items.find(item => item.productId === product.id);
     if (existing) {
-      // Zwiększ ilość o 1 paletę (lub jednostkę w zależności od trybu)
       setItems(items.map(item =>
         item.productId === product.id
-          ? { ...item, inputValue: item.inputValue + 1 }
+          ? { ...item, palletCount: item.palletCount + 1 }
           : item
       ));
     } else {
       setItems([...items, {
         productId: product.id,
         product,
-        quantityMode: 'pallets', // Domyślnie paletki
-        inputValue: 1,
+        palletCount: 1,
         unitsPerPallet: product.unitsPerPallet || 1,
         unitPriceGross: product.basePriceGross || 0,
       }]);
@@ -143,48 +140,11 @@ export function ScannerNewOrderPage() {
     productInputRef.current?.focus();
   };
 
-  // Zmień tryb ilości (paletki/sztuki)
-  const toggleQuantityMode = (productId: number) => {
+  const updatePalletCount = (productId: number, delta: number) => {
     setItems(items.map(item => {
       if (item.productId === productId) {
-        if (item.quantityMode === 'pallets') {
-          // Przełączamy z paletek na sztuki - przeliczamy wartość
-          return {
-            ...item,
-            quantityMode: 'units',
-            inputValue: item.inputValue * item.unitsPerPallet,
-          };
-        } else {
-          // Przełączamy ze sztuk na paletki - przeliczamy wartość
-          const pallets = Math.max(1, Math.round(item.inputValue / item.unitsPerPallet));
-          return {
-            ...item,
-            quantityMode: 'pallets',
-            inputValue: pallets,
-          };
-        }
-      }
-      return item;
-    }));
-  };
-
-  // Zmień wartość ilości
-  const updateInputValue = (productId: number, value: string) => {
-    const numValue = parseInt(value) || 0;
-    setItems(items.map(item => {
-      if (item.productId === productId) {
-        return { ...item, inputValue: Math.max(0, numValue) };
-      }
-      return item;
-    }));
-  };
-
-  // Zmień ilość przyciskami +/-
-  const updateQuantity = (productId: number, delta: number) => {
-    setItems(items.map(item => {
-      if (item.productId === productId) {
-        const newValue = Math.max(1, item.inputValue + delta);
-        return { ...item, inputValue: newValue };
+        const newCount = Math.max(1, item.palletCount + delta);
+        return { ...item, palletCount: newCount };
       }
       return item;
     }));
@@ -194,22 +154,6 @@ export function ScannerNewOrderPage() {
     setItems(items.filter(item => item.productId !== productId));
   };
 
-  // Oblicz liczbę sztuk dla pozycji
-  const getItemUnits = (item: OrderItem) => {
-    if (item.quantityMode === 'pallets') {
-      return item.inputValue * item.unitsPerPallet;
-    }
-    return item.inputValue;
-  };
-
-  // Oblicz liczbę palet dla pozycji
-  const getItemPallets = (item: OrderItem) => {
-    if (item.quantityMode === 'pallets') {
-      return item.inputValue;
-    }
-    return item.inputValue / item.unitsPerPallet;
-  };
-
   // Oblicz cenę za paletę
   const getPalletPrice = (item: OrderItem) => {
     return item.unitPriceGross * item.unitsPerPallet;
@@ -217,7 +161,7 @@ export function ScannerNewOrderPage() {
 
   // Oblicz sumę dla pozycji
   const getItemTotal = (item: OrderItem) => {
-    return item.unitPriceGross * getItemUnits(item);
+    return getPalletPrice(item) * item.palletCount;
   };
 
   // Oblicz całkowitą sumę zamówienia
@@ -227,19 +171,12 @@ export function ScannerNewOrderPage() {
 
   // Oblicz całkowitą liczbę sztuk
   const getTotalUnits = () => {
-    return items.reduce((sum, item) => sum + getItemUnits(item), 0);
+    return items.reduce((sum, item) => sum + (item.palletCount * item.unitsPerPallet), 0);
   };
 
   const handleSubmit = async () => {
     if (!selectedCustomer || items.length === 0) {
       setError('Wybierz klienta i dodaj produkty');
-      return;
-    }
-
-    // Sprawdź czy wszystkie pozycje mają ilość > 0
-    const invalidItems = items.filter(item => getItemUnits(item) <= 0);
-    if (invalidItems.length > 0) {
-      setError('Wszystkie produkty muszą miec ilosc wieksza niz 0');
       return;
     }
 
@@ -251,7 +188,7 @@ export function ScannerNewOrderPage() {
         customerId: selectedCustomer.id,
         items: items.map(item => ({
           productId: item.productId,
-          quantity: getItemUnits(item), // Przekazujemy łączną liczbę sztuk
+          quantity: item.palletCount * item.unitsPerPallet, // Przekazujemy łączną liczbę sztuk
           unitPriceGross: item.unitPriceGross,
         })),
         customerNotes: customerNotes || undefined,
@@ -444,11 +381,11 @@ export function ScannerNewOrderPage() {
               <div className="space-y-3">
                 {items.map((item) => (
                   <div key={item.productId} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <div className="flex justify-between items-start mb-2">
+                    <div className="flex justify-between items-start mb-3">
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-gray-900 truncate">{item.product.plantName}</div>
                         <div className="text-sm text-gray-500">
-                          {item.unitPriceGross.toFixed(2)} PLN/szt. ({item.unitsPerPallet} szt./paleta)
+                          {getPalletPrice(item).toFixed(2)} PLN/paleta ({item.unitsPerPallet} szt.)
                         </div>
                       </div>
                       <button
@@ -460,62 +397,22 @@ export function ScannerNewOrderPage() {
                         </svg>
                       </button>
                     </div>
-
-                    {/* Quantity Mode Toggle */}
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-xs text-gray-500">Tryb:</span>
-                      <div className="flex rounded-lg overflow-hidden border border-gray-300">
-                        <button
-                          onClick={() => item.quantityMode !== 'pallets' && toggleQuantityMode(item.productId)}
-                          className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                            item.quantityMode === 'pallets'
-                              ? 'bg-green-600 text-white'
-                              : 'bg-white text-gray-600 hover:bg-gray-50'
-                          }`}
-                        >
-                          Paletki
-                        </button>
-                        <button
-                          onClick={() => item.quantityMode !== 'units' && toggleQuantityMode(item.productId)}
-                          className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                            item.quantityMode === 'units'
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-white text-gray-600 hover:bg-gray-50'
-                          }`}
-                        >
-                          Sztuki
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Quantity Input */}
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
                         <button
-                          onClick={() => updateQuantity(item.productId, -1)}
+                          onClick={() => updatePalletCount(item.productId, -1)}
                           className="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                           </svg>
                         </button>
-                        <div className="flex items-center">
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            min="0"
-                            value={item.inputValue}
-                            onChange={(e) => updateInputValue(item.productId, e.target.value)}
-                            className="w-20 h-10 text-center text-xl font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                          />
-                          <span className={`ml-2 text-sm font-medium ${
-                            item.quantityMode === 'pallets' ? 'text-green-600' : 'text-blue-600'
-                          }`}>
-                            {item.quantityMode === 'pallets' ? 'pal.' : 'szt.'}
-                          </span>
+                        <div className="text-center">
+                          <span className="text-xl font-bold">{item.palletCount}</span>
+                          <span className="text-sm text-gray-500 ml-1">pal.</span>
                         </div>
                         <button
-                          onClick={() => updateQuantity(item.productId, 1)}
+                          onClick={() => updatePalletCount(item.productId, 1)}
                           className="w-10 h-10 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg flex items-center justify-center"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -528,10 +425,7 @@ export function ScannerNewOrderPage() {
                           {getItemTotal(item).toFixed(2)} PLN
                         </div>
                         <div className="text-xs text-gray-500">
-                          {item.quantityMode === 'pallets'
-                            ? `= ${getItemUnits(item)} szt.`
-                            : `= ${getItemPallets(item).toFixed(2)} pal.`
-                          }
+                          {item.palletCount * item.unitsPerPallet} szt.
                         </div>
                       </div>
                     </div>
@@ -601,13 +495,10 @@ export function ScannerNewOrderPage() {
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">{item.product.plantName}</div>
                     <div className="text-sm text-gray-500">
-                      {item.quantityMode === 'pallets'
-                        ? `${item.inputValue} pal. × ${item.unitsPerPallet} szt. = ${getItemUnits(item)} szt.`
-                        : `${item.inputValue} szt. (${getItemPallets(item).toFixed(2)} pal.)`
-                      }
+                      {item.palletCount} pal. × {item.unitsPerPallet} szt. = {item.palletCount * item.unitsPerPallet} szt.
                     </div>
                     <div className="text-xs text-gray-400">
-                      {item.unitPriceGross.toFixed(2)} PLN/szt.
+                      {getPalletPrice(item).toFixed(2)} PLN/paleta
                     </div>
                   </div>
                   <div className="font-bold text-green-600 ml-3">

@@ -43,6 +43,7 @@ export enum PaymentMethod {
 
 export interface PaymentSplit {
   paymentMethod: PaymentMethod;
+  paymentSplits?: PaymentSplit[];
   amount: number;
 }
 
@@ -93,6 +94,7 @@ export interface Product {
   priceDiscount15: number;
   priceDiscount20: number;
   priceDiscount25: number;
+  priceAuchan8?: number;
   inventoryStatus: InventoryStatus;
   visibleInShop: boolean;
   imageUrl?: string;
@@ -106,6 +108,7 @@ export interface Product {
   mergedProductIds?: number[];
   mergedIntoId?: number;
   mergedBarcodes?: string[];
+  isArchived?: boolean;
 }
 
 export interface InventoryMovement {
@@ -140,6 +143,14 @@ export interface Customer {
   priceGroupId: number;
   priceGroupName?: string;
   notes?: string;
+  // Delivery address (Odbiorca)
+  deliveryCompanyName?: string;
+  deliveryFirstName?: string;
+  deliveryLastName?: string;
+  deliveryStreet?: string;
+  deliveryPostalCode?: string;
+  deliveryCity?: string;
+  deliveryPhone?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -153,6 +164,14 @@ export interface Order {
   totalAmount: number;
   itemCount?: number;
   notes?: string;
+  // Delivery address (Odbiorca)
+  deliveryCompanyName?: string;
+  deliveryFirstName?: string;
+  deliveryLastName?: string;
+  deliveryStreet?: string;
+  deliveryPostalCode?: string;
+  deliveryCity?: string;
+  deliveryPhone?: string;
   customerNotes?: string;
   createdAt: string;
   updatedAt: string;
@@ -193,6 +212,14 @@ export interface OrderStatusHistoryItem {
   statusFrom?: OrderStatus;
   statusTo: OrderStatus;
   notes?: string;
+  // Delivery address (Odbiorca)
+  deliveryCompanyName?: string;
+  deliveryFirstName?: string;
+  deliveryLastName?: string;
+  deliveryStreet?: string;
+  deliveryPostalCode?: string;
+  deliveryCity?: string;
+  deliveryPhone?: string;
   changedBy: number;
   changedByEmail?: string;
   createdAt: string;
@@ -221,12 +248,21 @@ export interface Invoice {
   saleDate: string;
   paymentDeadline?: string;
   paymentMethod?: PaymentMethod;
+  paymentSplits?: PaymentSplit[];
   paymentStatus: PaymentStatus;
   paidAmount: number;
   subtotalNet: number;
   totalVat: number;
   totalGross: number;
   notes?: string;
+  // Delivery address (Odbiorca)
+  deliveryCompanyName?: string;
+  deliveryFirstName?: string;
+  deliveryLastName?: string;
+  deliveryStreet?: string;
+  deliveryPostalCode?: string;
+  deliveryCity?: string;
+  deliveryPhone?: string;
   pdfUrl?: string;
   createdAt: string;
   invoiceType?: InvoiceType;
@@ -245,6 +281,15 @@ export interface Invoice {
     phone?: string;
     email?: string;
   };
+  recipientSnapshot?: {
+    companyName?: string;
+    firstName?: string;
+    lastName?: string;
+    street?: string;
+    postalCode?: string;
+    city?: string;
+    phone?: string;
+  };
 }
 
 // Proforma (same structure as Invoice but with invoiceType = 'proforma')
@@ -255,8 +300,17 @@ export interface Receipt {
   receiptNumber: string;
   orderId?: number;
   paymentMethod: PaymentMethod;
+  paymentSplits?: PaymentSplit[];
   totalAmount: number;
   notes?: string;
+  // Delivery address (Odbiorca)
+  deliveryCompanyName?: string;
+  deliveryFirstName?: string;
+  deliveryLastName?: string;
+  deliveryStreet?: string;
+  deliveryPostalCode?: string;
+  deliveryCity?: string;
+  deliveryPhone?: string;
   createdAt: string;
   customerName?: string;
   buyerSnapshot?: any;
@@ -443,6 +497,14 @@ export interface Loss {
   unitPrice: number;
   totalValue: number;
   notes?: string;
+  // Delivery address (Odbiorca)
+  deliveryCompanyName?: string;
+  deliveryFirstName?: string;
+  deliveryLastName?: string;
+  deliveryStreet?: string;
+  deliveryPostalCode?: string;
+  deliveryCity?: string;
+  deliveryPhone?: string;
   isReversed: boolean;
   reversedAt?: string;
   createdAt: string;
@@ -459,6 +521,15 @@ export interface LossStats {
     totalQuantity: number;
     totalValue: number;
   };
+  recipientSnapshot?: {
+    companyName?: string;
+    firstName?: string;
+    lastName?: string;
+    street?: string;
+    postalCode?: string;
+    city?: string;
+    phone?: string;
+  };
   byProduct: Array<{
     id: number;
     plantName: string;
@@ -473,4 +544,30 @@ export interface LossStats {
     totalQuantity: number;
     totalValue: number;
   }>;
+}
+
+// POS History types
+export interface CompletedOrderSummary {
+  id: number;
+  orderNumber: string;
+  customerId?: number;
+  customerName?: string;
+  totalAmount: number;
+  completedAt?: string;
+  createdAt: string;
+  document?: {
+    type: DocumentType;
+    number: string;
+    id: number;
+    paymentMethod: PaymentMethod;
+  paymentSplits?: PaymentSplit[];
+  };
+}
+
+export interface TodaySummary {
+  totalTransactions: number;
+  cashTotal: number;
+  cardTotal: number;
+  transferTotal: number;
+  grandTotal: number;
 }

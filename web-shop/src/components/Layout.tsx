@@ -29,11 +29,16 @@ export function Layout() {
               <Link to="/" className="text-gray-600 hover:text-green-600 font-medium">
                 Katalog
               </Link>
-              
+
               {isAuthenticated && (
-                <Link to="/orders" className="text-gray-600 hover:text-green-600 font-medium">
-                  Zamówienia
-                </Link>
+                <>
+                  <Link to="/orders" className="text-gray-600 hover:text-green-600 font-medium">
+                    Zamówienia
+                  </Link>
+                  <Link to="/profile" className="text-gray-600 hover:text-green-600 font-medium">
+                    Profil
+                  </Link>
+                </>
               )}
 
               {/* Cart */}

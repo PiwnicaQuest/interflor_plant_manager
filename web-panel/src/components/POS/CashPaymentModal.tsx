@@ -8,7 +8,7 @@ const formatPrice = (value: number | string | null | undefined): string => {
 
 interface CashPaymentModalProps {
   totalAmount: number;
-  onConfirm: () => void;
+  onConfirm: (receivedAmount: number) => void;
   onCancel: () => void;
 }
 
@@ -29,7 +29,7 @@ export function CashPaymentModal({ totalAmount, onConfirm, onCancel }: CashPayme
 
   const handleSubmit = () => {
     if (received >= (totalAmount ?? 0)) {
-      onConfirm();
+      onConfirm(received);
     }
   };
 
@@ -40,24 +40,24 @@ export function CashPaymentModal({ totalAmount, onConfirm, onCancel }: CashPayme
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-xl border border-gray-700 w-full max-w-lg">
-        <div className="p-6 border-b border-gray-700">
-          <h2 className="text-2xl font-bold text-white">Płatność gotówką</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg border border-gray-200 shadow-xl w-full max-w-md">
+        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+          <h2 className="text-lg font-semibold text-gray-900">Płatność gotówką</h2>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-4 space-y-4">
           {/* Total Amount */}
-          <div className="bg-gray-900 rounded-lg p-4 text-center">
-            <div className="text-sm text-gray-400 mb-1">Do zapłaty</div>
-            <div className="text-4xl font-bold text-green-400">
+          <div className="bg-gray-50 rounded-lg p-3 text-center">
+            <div className="text-xs text-gray-500 mb-1">Do zapłaty</div>
+            <div className="text-2xl font-bold text-green-600">
               {formatPrice(totalAmount)} PLN
             </div>
           </div>
 
           {/* Amount Input */}
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">
+            <label className="block text-sm font-medium text-gray-600 mb-1">
               Otrzymano od klienta
             </label>
             <input
@@ -66,29 +66,29 @@ export function CashPaymentModal({ totalAmount, onConfirm, onCancel }: CashPayme
               value={receivedAmount}
               onChange={(e) => setReceivedAmount(e.target.value)}
               placeholder="0.00"
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-4 text-3xl text-white text-center focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-3 text-xl text-gray-900 text-center focus:ring-2 focus:ring-green-500 focus:border-green-500"
             />
           </div>
 
           {/* Quick Amounts */}
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 gap-1.5">
             {getQuickAmounts().map((amount) => (
               <button
                 key={amount}
                 onClick={() => handleQuickAmount(amount)}
-                className="py-3 px-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors"
+                className="py-2 px-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-sm font-medium transition-colors"
               >
-                {amount.toFixed(0)} PLN
+                {amount.toFixed(0)}
               </button>
             ))}
           </div>
 
           {/* Change Display */}
-          <div className={"rounded-lg p-4 text-center " + (change >= 0 ? 'bg-green-900 bg-opacity-30 border border-green-700' : 'bg-red-900 bg-opacity-30 border border-red-700')}>
-            <div className="text-sm text-gray-400 mb-1">
+          <div className={`rounded-lg p-3 text-center ${change >= 0 ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+            <div className="text-xs text-gray-500 mb-1">
               {change >= 0 ? 'Reszta dla klienta' : 'Brakuje'}
             </div>
-            <div className={"text-3xl font-bold " + (change >= 0 ? 'text-green-400' : 'text-red-400')}>
+            <div className={`text-xl font-bold ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {change >= 0
                 ? formatPrice(change) + ' PLN'
                 : formatPrice(Math.abs(change)) + ' PLN'
@@ -97,19 +97,19 @@ export function CashPaymentModal({ totalAmount, onConfirm, onCancel }: CashPayme
           </div>
         </div>
 
-        <div className="p-6 border-t border-gray-700 flex gap-4">
+        <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg flex gap-3">
           <button
             onClick={onCancel}
-            className="flex-1 py-4 bg-gray-600 hover:bg-gray-500 text-white font-semibold rounded-lg transition-colors"
+            className="flex-1 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition-colors"
           >
             Anuluj
           </button>
           <button
             onClick={handleSubmit}
             disabled={received < (totalAmount ?? 0)}
-            className="flex-1 py-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors"
+            className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
           >
-            Potwierdź płatność
+            Potwierdź
           </button>
         </div>
       </div>

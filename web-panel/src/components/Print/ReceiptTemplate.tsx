@@ -4,7 +4,7 @@ interface ReceiptData {
   receiptNumber: string;
   orderId?: number;
   orderNumber?: string;
-  items: OrderItem[];
+  items?: OrderItem[];
   totalAmount: number;
   paymentMethod: string;
   paymentSplits?: Array<{ paymentMethod: string; amount: number }>;
@@ -97,7 +97,7 @@ export function ReceiptTemplate({ data, companyInfo = defaultCompanyInfo }: Rece
             </tr>
           </thead>
           <tbody>
-            {data.items.map((item, index) => {
+            {data.items?.map((item, index) => {
               const unitsPerPallet = item.productSnapshot?.unitsPerPallet || (item as any).unitsPerPallet || 0;
               const palletCount = unitsPerPallet > 0 ? (item.quantity / unitsPerPallet).toFixed(2) : "-";
               return (

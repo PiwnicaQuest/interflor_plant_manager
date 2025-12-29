@@ -253,13 +253,12 @@ export async function generateInvoicePDF(invoice: InvoiceWithItems): Promise<PDF
   doc.text(`Sposób płatności: ${formatPaymentMethod(invoice.paymentMethod)}`, 50, yPosition);
   yPosition += 15;
 
-  if (invoice.paymentDeadline) {
-    doc.text(`Termin płatności: ${formatDate(invoice.paymentDeadline)}`, 50, yPosition);
-    yPosition += 15;
-  }
-
-  // Bank account info for transfer payments
+  // Payment deadline and bank info - only for transfer payments
   if (invoice.paymentMethod === PaymentMethod.TRANSFER) {
+    if (invoice.paymentDeadline) {
+      doc.text(`Termin płatności: ${formatDate(invoice.paymentDeadline)}`, 50, yPosition);
+      yPosition += 15;
+    }
     if (seller.bankName || seller.bankAccount) {
       yPosition += 10;
       doc.font('Bold');
@@ -277,11 +276,24 @@ export async function generateInvoicePDF(invoice: InvoiceWithItems): Promise<PDF
     }
   }
 
+  // Company-wide invoice comment (from settings)
+  if (companySettings.invoiceComment) {
+    yPosition += 15;
+    doc.fontSize(10).font('Bold');
+    doc.text('Uwagi sprzedawcy:', 50, yPosition);
+    yPosition += 15;
+    doc.fontSize(9).font('Regular');
+    doc.text(companySettings.invoiceComment, 50, yPosition, { width: 500 });
+    yPosition += 25;
+  }
+
+  // Per-invoice notes
   if (invoice.notes) {
     yPosition += 10;
-    doc.text('Uwagi:', 50, yPosition);
+    doc.fontSize(10).font('Bold');
+    doc.text('Uwagi do zamówienia:', 50, yPosition);
     yPosition += 15;
-    doc.fontSize(9).text(invoice.notes, 50, yPosition, { width: 500 });
+    doc.fontSize(9).font('Regular').text(invoice.notes, 50, yPosition, { width: 500 });
   }
 
   // Footer - signatures

@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/auth';
 import { ProductModel } from '../models/Product';
 import { OrderModel } from '../models/Order';
 import { CustomerModel } from '../models/Customer';
+import { UserModel } from '../models/User';
 import { query } from '../models/database';
 
 export class ShopController {
@@ -222,14 +223,14 @@ export class ShopController {
 
       const orders = result.rows.map(row => ({
         id: row.id,
-        orderNumber: row.order_number,
+        orderNumber: row.orderNumber,
         status: row.status,
-        totalAmount: row.total_amount,
-        customerNotes: row.customer_notes,
+        totalAmount: row.totalAmount,
+        customerNotes: row.customerNotes,
         notes: row.notes,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-        completedAt: row.completed_at,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        completedAt: row.completedAt,
         items: row.items.filter((item: any) => item.id !== null),
       }));
 
@@ -400,6 +401,47 @@ export class ShopController {
     } catch (error) {
       console.error('Get customer profile error:', error);
       return res.status(500).json({ error: 'Błąd serwera' });
+    }
+  }
+
+  static async changeMyPassword(req: AuthRequest, res: Response) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Musisz być zalogowany' });
+      }
+
+      const { currentPassword, newPassword } = req.body;
+
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ error: 'Obecne hasło i nowe hasło są wymagane' });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({ error: 'Nowe hasło musi mieć minimum 6 znaków' });
+      }
+
+      // Get user
+      const user = await UserModel.getById(req.user.userId);
+      if (!user) {
+        return res.status(404).json({ error: 'Użytkownik nie znaleziony' });
+      }
+
+      // Verify current password
+      const isValid = await UserModel.verifyPassword(user, currentPassword);
+      if (!isValid) {
+        return res.status(400).json({ error: 'Obecne hasło jest nieprawidłowe' });
+      }
+
+      // Change password
+      const success = await UserModel.changePassword(req.user.userId, newPassword);
+      if (!success) {
+        return res.status(500).json({ error: 'Błąd zmiany hasła' });
+      }
+
+      return res.json({ message: 'Hasło zostało zmienione pomyślnie' });
+    } catch (error) {
+      console.error('Change my password error:', error);
+      return res.status(500).json({ error: 'Błąd zmiany hasła' });
     }
   }
 }

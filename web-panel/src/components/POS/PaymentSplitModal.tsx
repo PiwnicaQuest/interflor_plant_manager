@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { PaymentMethod, PaymentSplit } from '../../types';
 
 // Helper function to safely format numbers
@@ -18,10 +18,10 @@ interface PaymentInput {
   amount: string;
 }
 
-const paymentMethodLabels: Record<PaymentMethod, { label: string; icon: string; color: string }> = {
-  [PaymentMethod.CARD]: { label: 'KARTA', icon: '💳', color: 'bg-blue-600' },
-  [PaymentMethod.CASH]: { label: 'GOTÓWKA', icon: '💵', color: 'bg-green-600' },
-  [PaymentMethod.TRANSFER]: { label: 'PRZELEW', icon: '🏦', color: 'bg-purple-600' },
+const paymentMethodLabels: Record<PaymentMethod, { label: string; color: string }> = {
+  [PaymentMethod.CARD]: { label: 'Karta', color: 'bg-blue-600' },
+  [PaymentMethod.CASH]: { label: 'Gotówka', color: 'bg-green-600' },
+  [PaymentMethod.TRANSFER]: { label: 'Przelew', color: 'bg-purple-600' },
 };
 
 export function PaymentSplitModal({ totalAmount, onConfirm, onCancel }: PaymentSplitModalProps) {
@@ -122,42 +122,42 @@ export function PaymentSplitModal({ totalAmount, onConfirm, onCancel }: PaymentS
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-800 rounded-lg max-w-2xl w-full border border-gray-700">
-        <div className="p-6">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-white mb-2">Podział płatności</h2>
-            <div className="flex justify-between items-center">
-              <p className="text-gray-400">
-                Do zapłaty: <span className="text-green-400 font-bold text-xl">{formatPrice(totalAmount)} PLN</span>
-              </p>
-              <p className="text-gray-400">
-                Pozostało: <span className={`font-bold text-xl ${remainingAmount < 0 ? 'text-red-400' : remainingAmount === 0 ? 'text-green-400' : 'text-yellow-400'}`}>
-                  {formatPrice(remainingAmount)} PLN
-                </span>
-              </p>
-            </div>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg max-w-lg w-full border border-gray-200 shadow-xl">
+        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+          <h2 className="text-lg font-semibold text-gray-900">Podział płatności</h2>
+          <div className="flex justify-between items-center mt-1 text-sm">
+            <span className="text-gray-500">
+              Do zapłaty: <span className="text-green-600 font-semibold">{formatPrice(totalAmount)} PLN</span>
+            </span>
+            <span className="text-gray-500">
+              Pozostało: <span className={`font-semibold ${remainingAmount < 0 ? 'text-red-600' : remainingAmount === 0 ? 'text-green-600' : 'text-yellow-600'}`}>
+                {formatPrice(remainingAmount)} PLN
+              </span>
+            </span>
           </div>
+        </div>
 
+        <div className="p-4">
           {error && (
-            <div className="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded mb-4">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm mb-3">
               {error}
             </div>
           )}
 
-          <div className="space-y-4 mb-6">
+          <div className="space-y-2 mb-4">
             {payments.map((payment, index) => (
-              <div key={index} className="bg-gray-900 rounded-lg p-4 border border-gray-700">
-                <div className="flex gap-4 items-center">
+              <div key={index} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                <div className="flex gap-2 items-center">
                   <div className="flex-shrink-0">
                     <select
                       value={payment.method}
                       onChange={(e) => handleMethodChange(index, e.target.value as PaymentMethod)}
-                      className="bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="bg-white text-gray-700 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       {Object.entries(paymentMethodLabels).map(([method, config]) => (
                         <option key={method} value={method}>
-                          {config.icon} {config.label}
+                          {config.label}
                         </option>
                       ))}
                     </select>
@@ -170,9 +170,9 @@ export function PaymentSplitModal({ totalAmount, onConfirm, onCancel }: PaymentS
                       placeholder="0.00"
                       value={payment.amount}
                       onChange={(e) => handleAmountChange(index, e.target.value)}
-                      className="w-full bg-gray-800 text-white text-2xl font-bold border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-right"
+                      className="w-full bg-white text-gray-900 text-lg font-semibold border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-right pr-12"
                     />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl pointer-events-none">
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">
                       PLN
                     </span>
                   </div>
@@ -180,16 +180,16 @@ export function PaymentSplitModal({ totalAmount, onConfirm, onCancel }: PaymentS
                   {remainingAmount > 0 && (
                     <button
                       onClick={() => handleFillRemaining(index)}
-                      className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors text-sm font-semibold"
+                      className="px-2 py-1.5 bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded text-xs font-medium transition-colors"
                     >
-                      Wypełnij<br/>resztę
+                      Reszta
                     </button>
                   )}
 
                   {payments.length > 1 && (
                     <button
                       onClick={() => handleRemovePayment(index)}
-                      className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                      className="p-1.5 bg-red-100 hover:bg-red-200 text-red-600 rounded transition-colors"
                       title="Usuń metodę płatności"
                     >
                       ✕
@@ -203,45 +203,45 @@ export function PaymentSplitModal({ totalAmount, onConfirm, onCancel }: PaymentS
           {payments.length < 3 && (
             <button
               onClick={handleAddPayment}
-              className="w-full py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors mb-6 flex items-center justify-center gap-2"
+              className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-colors mb-4 flex items-center justify-center gap-2 text-sm"
             >
               + Dodaj metodę płatności
             </button>
           )}
 
-          <div className="bg-gray-900 rounded-lg p-4 mb-6 border border-gray-700">
-            <div className="flex justify-between items-center text-lg">
-              <span className="text-gray-400">Wpłacono:</span>
-              <span className="text-white font-bold">{formatPrice(paidAmount)} PLN</span>
+          <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 text-sm">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">Wpłacono:</span>
+              <span className="text-gray-900 font-semibold">{formatPrice(paidAmount)} PLN</span>
             </div>
-            <div className="flex justify-between items-center text-lg mt-2">
-              <span className="text-gray-400">Do zapłaty:</span>
-              <span className="text-green-400 font-bold">{formatPrice(totalAmount)} PLN</span>
+            <div className="flex justify-between items-center mt-1">
+              <span className="text-gray-500">Do zapłaty:</span>
+              <span className="text-green-600 font-semibold">{formatPrice(totalAmount)} PLN</span>
             </div>
-            <div className="border-t border-gray-700 my-3"></div>
-            <div className="flex justify-between items-center text-xl">
-              <span className="text-gray-400">Pozostało:</span>
-              <span className={`font-bold ${remainingAmount < 0 ? 'text-red-400' : remainingAmount === 0 ? 'text-green-400' : 'text-yellow-400'}`}>
+            <div className="border-t border-gray-200 my-2"></div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">Pozostało:</span>
+              <span className={`font-bold ${remainingAmount < 0 ? 'text-red-600' : remainingAmount === 0 ? 'text-green-600' : 'text-yellow-600'}`}>
                 {formatPrice(remainingAmount)} PLN
               </span>
             </div>
           </div>
+        </div>
 
-          <div className="flex gap-4">
-            <button
-              onClick={onCancel}
-              className="flex-1 py-4 bg-gray-700 hover:bg-gray-600 text-white text-xl font-bold rounded-lg transition-colors"
-            >
-              Anuluj
-            </button>
-            <button
-              onClick={handleConfirm}
-              disabled={Math.abs(remainingAmount) > 0.01}
-              className="flex-1 py-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-xl font-bold rounded-lg transition-colors"
-            >
-              Potwierdź płatność
-            </button>
-          </div>
+        <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition-colors"
+          >
+            Anuluj
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={Math.abs(remainingAmount) > 0.01}
+            className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
+          >
+            Potwierdź płatność
+          </button>
         </div>
       </div>
     </div>

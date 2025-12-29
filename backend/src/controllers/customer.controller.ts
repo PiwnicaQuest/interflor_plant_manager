@@ -173,6 +173,11 @@ export class CustomerController {
           return res.status(409).json({ error: 'Kontrahent ma już konto w sklepie' });
         }
       }
+      // Check if customer has email
+      if (!customer.email) {
+        return res.status(400).json({ error: 'Kontrahent nie ma adresu email. Aby utworzyć konto w sklepie, najpierw dodaj adres email.' });
+      }
+
 
       // Check if email is already used by another user
       const existingUserByEmail = await UserModel.getByEmail(customer.email);

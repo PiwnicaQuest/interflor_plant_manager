@@ -98,6 +98,7 @@ export class ReceiptModel {
     paymentSplits?: PaymentSplit[],
     customerId?: number,
     buyerSnapshot?: BuyerSnapshot,
+    recipientSnapshot?: BuyerSnapshot,
     items?: Array<{
       productId?: number;
       description: string;
@@ -118,8 +119,8 @@ export class ReceiptModel {
       const receiptResult = await client.query<Receipt>(
         `INSERT INTO receipts (
           receipt_number, order_id, payment_method, total_amount, notes, 
-          created_by_user_id, payment_splits, customer_id, buyer_snapshot
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          created_by_user_id, payment_splits, customer_id, buyer_snapshot, recipient_snapshot
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING *`,
         [
           receiptNumber, 
@@ -130,7 +131,8 @@ export class ReceiptModel {
           createdByUserId, 
           paymentSplits ? JSON.stringify(paymentSplits) : null,
           customerId,
-          buyerSnapshot ? JSON.stringify(buyerSnapshot) : null
+          buyerSnapshot ? JSON.stringify(buyerSnapshot) : null,
+          recipientSnapshot ? JSON.stringify(recipientSnapshot) : null
         ]
       );
 

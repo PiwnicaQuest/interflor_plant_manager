@@ -258,7 +258,7 @@ export class InvoiceModel {
       }> = [];
 
       for (const item of orderItems) {
-        const vatRate = item.vatRate || 23.0;
+        const vatRate = item.vatRate || 8.0;
         const unitPriceGross = item.unitPriceGross;
         const unitPriceNet = unitPriceGross / (1 + vatRate / 100);
 
@@ -339,7 +339,7 @@ export class InvoiceModel {
   static async convertProformaToInvoice(
     proformaId: number,
     paymentMethod: PaymentMethod,
-    paymentDeadline: Date,
+    paymentDeadline: Date | null,
     createdByUserId?: number
   ): Promise<InvoiceWithItems> {
     return transaction(async (client) => {
@@ -435,9 +435,10 @@ export class InvoiceModel {
     customerId: number,
     buyerSnapshot: CustomerSnapshot,
     paymentMethod: PaymentMethod,
-    paymentDeadline: Date,
+    paymentDeadline: Date | null,
     createdByUserId?: number,
-    paymentSplits?: PaymentSplit[]
+    paymentSplits?: PaymentSplit[],
+    recipientSnapshot?: CustomerSnapshot
   ): Promise<InvoiceWithItems> {
     return transaction(async (client) => {
       // Generate invoice number
@@ -471,7 +472,7 @@ export class InvoiceModel {
       }> = [];
 
       for (const item of orderItems) {
-        const vatRate = item.vatRate || 23.0;
+        const vatRate = item.vatRate || 8.0;
         const unitPriceGross = item.unitPriceGross;
         const unitPriceNet = unitPriceGross / (1 + vatRate / 100);
 
@@ -506,8 +507,8 @@ export class InvoiceModel {
           invoice_number, order_id, customer_id, buyer_snapshot,
           issue_date, sale_date, payment_deadline, payment_method,
           payment_status, paid_amount,
-          subtotal_net, total_vat, total_gross, created_by_user_id, payment_splits, invoice_type
-        ) VALUES ($1, $2, $3, $4, CURRENT_DATE, CURRENT_DATE, $5, $6, $7::payment_status, $8, $9, $10, $11, $12, $13, 'invoice'::invoice_type)
+          subtotal_net, total_vat, total_gross, created_by_user_id, payment_splits, invoice_type, recipient_snapshot
+        ) VALUES ($1, $2, $3, $4, CURRENT_DATE, CURRENT_DATE, $5, $6, $7::payment_status, $8, $9, $10, $11, $12, $13, 'invoice'::invoice_type, $14)
         RETURNING *`,
         [
           invoiceNumber,
@@ -523,6 +524,7 @@ export class InvoiceModel {
           totalGross,
           createdByUserId,
           JSON.stringify(paymentSplits),
+          recipientSnapshot ? JSON.stringify(recipientSnapshot) : null,
         ]
       );
 
@@ -567,7 +569,7 @@ export class InvoiceModel {
       vatRate: number;
     }>,
     paymentMethod: PaymentMethod,
-    paymentDeadline: Date,
+    paymentDeadline: Date | null,
     createdByUserId?: number
   ): Promise<InvoiceWithItems> {
     return transaction(async (client) => {
@@ -604,7 +606,7 @@ export class InvoiceModel {
           issue_date, sale_date, payment_deadline, payment_method,
           payment_status, paid_amount,
           subtotal_net, total_vat, total_gross, created_by_user_id, invoice_type
-        ) VALUES ($1, $2, $3, CURRENT_DATE, CURRENT_DATE, $4, $5, $6::payment_status, $7, $8, $9, $10, $11, 'invoice'::invoice_type)
+        ) VALUES ($1, $2, $3, CURRENT_DATE, CURRENT_DATE, $4, $5, $6::payment_status, $7, $8, $9, $10, $11, 'invoice'::invoice_type, )
         RETURNING *`,
         [
           invoiceNumber,

@@ -232,12 +232,12 @@ export class SettingsModel {
    * Calculate prices based on purchase price and current settings
    * This is used during import and when creating new products
    */
-  static calculatePrices(purchasePriceNet: number, costPercentage: number, marginPercentage: number, vatRate: number = 8.0) {
+  static calculatePrices(purchasePriceNet: number, costPercentage: number, marginPercentage: number) {
     // 1. Cena+ = Cena zakupu × (1 + % kosztów / 100)
     const pricePlus = purchasePriceNet * (1 + costPercentage / 100);
 
-    // 2. Cena podstawowa = Cena+ × (1 + vatRate%) × (1 + % marży / 100)
-    const basePriceGross = pricePlus * (1 + vatRate / 100) * (1 + marginPercentage / 100);
+    // 2. Cena podstawowa = Cena+ × 1.08 (VAT 8%) × (1 + % marży / 100)
+    const basePriceGross = pricePlus * 1.08 * (1 + marginPercentage / 100);
 
     // 3. Ceny rabatowe = Cena podstawowa × procent
     const priceDiscount10 = basePriceGross * 0.90;

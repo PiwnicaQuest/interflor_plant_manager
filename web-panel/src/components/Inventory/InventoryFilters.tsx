@@ -97,16 +97,27 @@ export function InventoryFilters({ filters, onChange }: InventoryFiltersProps) {
     });
   };
 
+  const clearDateFilters = () => {
+    onChange({
+      ...filters,
+      dateFrom: undefined,
+      dateTo: undefined,
+    });
+  };
+
   const activeFiltersCount = Object.entries(filters).filter(([key, value]) => {
     if (key === 'sortBy' || key === 'sortOrder') return false;
+    if (key === 'dateFrom' || key === 'dateTo') return false; // Date filters are visible, don't count
     if (key === 'tags' && Array.isArray(value)) return value.length > 0;
     return value !== undefined && value !== '';
   }).length;
 
+  const hasDateFilter = filters.dateFrom || filters.dateTo;
+
   return (
     <div className="card">
-      {/* Compact sorting and filters row */}
-      <div className="px-3 py-1.5 flex items-center justify-between gap-3 bg-gray-50">
+      {/* Compact sorting, date filters and filters row */}
+      <div className="px-3 py-1.5 flex items-center justify-between gap-3 bg-gray-50 flex-wrap">
         {/* Left side: Advanced filters button */}
         <button
           onClick={() => setIsExpanded(!isExpanded)}
@@ -123,8 +134,37 @@ export function InventoryFilters({ filters, onChange }: InventoryFiltersProps) {
           )}
         </button>
 
-        {/* Center: Sorting controls */}
-        <div className="flex items-center gap-2">
+        {/* Center-left: Date range filters - always visible */}
+        <div className="flex items-center gap-2 border-l border-gray-300 pl-3">
+          <span className="text-xs text-gray-500">Data:</span>
+          <input
+            type="date"
+            className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary-500 w-32"
+            value={filters.dateFrom || ''}
+            onChange={(e) => handleChange('dateFrom', e.target.value)}
+            title="Data od"
+          />
+          <span className="text-xs text-gray-400">-</span>
+          <input
+            type="date"
+            className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary-500 w-32"
+            value={filters.dateTo || ''}
+            onChange={(e) => handleChange('dateTo', e.target.value)}
+            title="Data do"
+          />
+          {hasDateFilter && (
+            <button
+              onClick={clearDateFilters}
+              className="text-xs text-gray-500 hover:text-red-600 ml-1"
+              title="Wyczyść daty"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {/* Center-right: Sorting controls */}
+        <div className="flex items-center gap-2 border-l border-gray-300 pl-3">
           <span className="text-xs text-gray-500">Sortuj:</span>
           <select
             className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary-500"
@@ -151,12 +191,12 @@ export function InventoryFilters({ filters, onChange }: InventoryFiltersProps) {
         </div>
 
         {/* Right side: Clear filters */}
-        {activeFiltersCount > 0 && (
+        {(activeFiltersCount > 0 || hasDateFilter) && (
           <button
             onClick={clearFilters}
             className="text-xs text-red-600 hover:text-red-800"
           >
-            Wyczyść
+            Wyczyść wszystko
           </button>
         )}
       </div>
@@ -345,30 +385,9 @@ export function InventoryFilters({ filters, onChange }: InventoryFiltersProps) {
               />
             </div>
 
-            {/* Date range */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Data dodania od
-              </label>
-              <input
-                type="date"
-                className="input"
-                value={filters.dateFrom || ''}
-                onChange={(e) => handleChange('dateFrom', e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Data dodania do
-              </label>
-              <input
-                type="date"
-                className="input"
-                value={filters.dateTo || ''}
-                onChange={(e) => handleChange('dateTo', e.target.value)}
-              />
-            </div>
+            {/* Empty cells to maintain grid alignment */}
+            <div className="hidden md:block"></div>
+            <div className="hidden md:block"></div>
           </div>
 
           {/* Quick filter buttons */}

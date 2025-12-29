@@ -349,10 +349,42 @@ export function ProductForm({ onClose, onSubmit, initialData }: ProductFormProps
   }, []);
 
   const handleChange = (field: keyof Product, value: any) => {
-    // PostgreSQL oblicza ceny automatycznie: base_price_gross = purchase_price_pln * 2.0
+    // Mnożnik netto (bez VAT) = 2.0 / 1.08 (bo domyślny mnożnik 2.0 zawierał 8% VAT)
+    const NET_MULTIPLIER = 2.0 / 1.08;
+    
+    // Obsługa zmiany stawki VAT - przelicz ceny
+    if (field === 'vatRate') {
+      const newVatRate = value as number;
+      const oldVatRate = formData.vatRate || 8;
+      const currentBasePriceGross = formData.basePriceGross || 0;
+      
+      if (currentBasePriceGross > 0 && newVatRate !== oldVatRate) {
+        // Oblicz cenę netto (bez VAT)
+        const netPrice = currentBasePriceGross / (1 + oldVatRate / 100);
+        // Zastosuj nowy VAT
+        const newBasePriceGross = parseFloat((netPrice * (1 + newVatRate / 100)).toFixed(2));
+        
+        setFormData(prev => ({
+          ...prev,
+          vatRate: newVatRate,
+          basePriceGross: newBasePriceGross,
+          priceDiscount10: parseFloat((newBasePriceGross * 0.90).toFixed(2)),
+          priceDiscount12: parseFloat((newBasePriceGross * 0.88).toFixed(2)),
+          priceDiscount15: parseFloat((newBasePriceGross * 0.85).toFixed(2)),
+          priceDiscount20: parseFloat((newBasePriceGross * 0.80).toFixed(2)),
+          priceDiscount25: parseFloat((newBasePriceGross * 0.75).toFixed(2)),
+        }));
+        return;
+      }
+      setFormData(prev => ({ ...prev, vatRate: newVatRate }));
+      return;
+    }
+    
     if (field === 'basePriceGross' && typeof value === 'number' && value > 0) {
       // Gdy użytkownik wpisuje cenę podstawową, oblicz cenę zakupu i ceny rabatowe
-      const purchasePricePln = parseFloat((value / 2.0).toFixed(2));
+      const vatRate = formData.vatRate || 8;
+      const netPrice = value / (1 + vatRate / 100);
+      const purchasePricePln = parseFloat((netPrice / NET_MULTIPLIER * (1 + vatRate / 100)).toFixed(2));
       setFormData(prev => ({
         ...prev,
         purchasePricePln,
@@ -364,8 +396,9 @@ export function ProductForm({ onClose, onSubmit, initialData }: ProductFormProps
         priceDiscount25: parseFloat((value * 0.75).toFixed(2)),
       }));
     } else if (field === 'purchasePricePln' && typeof value === 'number' && value > 0) {
-      // Gdy użytkownik wpisuje cenę zakupu, oblicz pozostałe ceny
-      const basePriceGross = parseFloat((value * 2.0).toFixed(2));
+      // Gdy użytkownik wpisuje cenę zakupu, oblicz pozostałe ceny z uwzględnieniem VAT
+      const vatRate = formData.vatRate || 8;
+      const basePriceGross = parseFloat((value * NET_MULTIPLIER * (1 + vatRate / 100)).toFixed(2));
       setFormData(prev => ({
         ...prev,
         purchasePricePln: value,
@@ -727,6 +760,7 @@ export function ProductForm({ onClose, onSubmit, initialData }: ProductFormProps
                     value={formData.vatRate || 8}
                     onChange={(e) => handleChange('vatRate', parseInt(e.target.value))}
                   >
+                    <option value={0}>0% (zwolniony)</option>
                     <option value={8}>8% (rośliny)</option>
                     <option value={23}>23% (standardowy)</option>
                   </select>
