@@ -36,18 +36,25 @@ export function ProductDetails({ product, movements, onClose, onUpdateProduct, o
   const [editingGrower, setEditingGrower] = useState(false);
   const [growerValue, setGrowerValue] = useState(product.grower || '');
   const [savingGrower, setSavingGrower] = useState(false);
+  // VAT editing state
+  const [editingVat, setEditingVat] = useState(false);
+  const [vatValue, setVatValue] = useState(product.vatRate || 8);
+  const [savingVat, setSavingVat] = useState(false);
+
 
   // Update state when product changes (e.g., modal reopened for different product)
   useEffect(() => {
     setBarcodeValue(product.barcode || '');
     setPassportValue(product.plantPassport || '');
     setGrowerValue(product.grower || '');
+    setVatValue(product.vatRate || 8);
     setCurrentImageUrl(product.imageUrl);
     // Reset editing states
     setEditingBarcode(false);
     setEditingPassport(false);
     setEditingGrower(false);
-  }, [product.id, product.barcode, product.plantPassport, product.grower, product.imageUrl]);
+    setEditingVat(false);
+  }, [product.id, product.barcode, product.plantPassport, product.grower, product.vatRate, product.imageUrl]);
 
   const handleSaveBarcode = async () => {
     if (!onUpdateProduct) return;
@@ -85,6 +92,21 @@ export function ProductDetails({ product, movements, onClose, onUpdateProduct, o
       console.error('Error saving grower:', error);
     } finally {
       setSavingGrower(false);
+    }
+  };
+
+  
+
+  const handleSaveVat = async () => {
+    if (!onUpdateProduct) return;
+    setSavingVat(true);
+    try {
+      await onUpdateProduct(product.id, 'vatRate', vatValue);
+      setEditingVat(false);
+    } catch (error) {
+      console.error('Error saving VAT rate:', error);
+    } finally {
+      setSavingVat(false);
     }
   };
 
@@ -424,7 +446,50 @@ export function ProductDetails({ product, movements, onClose, onUpdateProduct, o
                     </span>
                   )}
                 </div>
-                <p><strong>VAT:</strong> {product.vatRate}%</p>
+                <div className="flex items-center gap-2">
+                  <strong>Stawka VAT:</strong>
+                  {editingVat ? (
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={vatValue}
+                        onChange={(e) => setVatValue(Number(e.target.value))}
+                        className="input text-sm py-1 px-2 w-32"
+                        autoFocus
+                      >
+                        <option value={0}>0% (zwolniony)</option>
+                        <option value={8}>8% (rośliny)</option>
+                        <option value={23}>23% (standardowy)</option>
+                      </select>
+                      <button
+                        onClick={handleSaveVat}
+                        disabled={savingVat}
+                        className="btn btn-primary text-xs py-1 px-2"
+                      >
+                        {savingVat ? 'Zapisuję...' : 'Zapisz'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingVat(false);
+                          setVatValue(product.vatRate || 8);
+                        }}
+                        className="btn btn-secondary text-xs py-1 px-2"
+                      >
+                        Anuluj
+                      </button>
+                    </div>
+                  ) : (
+                    <span
+                      onClick={() => onUpdateProduct && setEditingVat(true)}
+                      className={`${onUpdateProduct ? 'cursor-pointer hover:bg-gray-100 px-1 rounded' : ''}`}
+                      title={onUpdateProduct ? 'Kliknij aby zmienić stawkę VAT' : ''}
+                    >
+                      {product.vatRate || 8}%
+                      {product.vatRate === 0 && <span className="text-gray-500 ml-1">(zwolniony)</span>}
+                      {product.vatRate === 23 && <span className="text-gray-500 ml-1">(standardowy)</span>}
+                      {(product.vatRate === 8 || !product.vatRate) && <span className="text-gray-500 ml-1">(rośliny)</span>}
+                    </span>
+                  )}
+                </div>
                 <p>
                   <strong>Widoczna w sklepie:</strong>{' '}
                   {product.visibleInShop ? 'Tak' : 'Nie'}

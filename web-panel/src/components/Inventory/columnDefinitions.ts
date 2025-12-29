@@ -174,6 +174,19 @@ export const ALL_COLUMNS: ColumnDefinition[] = [
     filterable: true,
     description: 'Edytowalne',
   },
+
+  // VAT rate column
+  {
+    key: 'vatRate',
+    label: 'Stawka VAT',
+    shortLabel: 'VAT',
+    group: 'basePrice',
+    defaultWidth: 40,
+    minWidth: 35,
+    editable: true,
+    filterable: false,
+    description: 'Stawka VAT (%)',
+  },
   
   // Discount columns
   {
