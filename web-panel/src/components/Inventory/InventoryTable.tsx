@@ -378,14 +378,6 @@ export function InventoryTable({
 
   const sortedColumnKeys = getSortedColumnKeys();
 
-  if (products.length === 0) {
-    return (
-      <div className="card p-8 text-center">
-        <p className="text-gray-500">Brak produktów w magazynie</p>
-      </div>
-    );
-  }
-
   // Click on cell - first click selects, second click (or double click) edits
   // Helper to format date value for date input (YYYY-MM-DD format)
   const formatDateForInput = (value: any): string => {
@@ -1048,32 +1040,40 @@ export function InventoryTable({
               )}
             </thead>
             <tbody>
-              {products.map((product, rowIndex) => {
-                const isRowSelected = selectedProducts.includes(product.id);
-                const isRowFocused = focusedRowId === product.id;
-                const rowBg = isRowFocused ? 'bg-sky-100' : isRowSelected ? 'bg-primary-100' : (rowIndex % 2 === 0 ? '' : 'bg-gray-50/30');
-                const imageUrl = getFullImageUrl(product.imageUrl);
+              {products.length === 0 ? (
+                <tr>
+                  <td colSpan={sortedColumnKeys.length} className="text-center py-8 text-gray-500">
+                    Brak produktów spełniających kryteria filtrowania
+                  </td>
+                </tr>
+              ) : (
+                products.map((product, rowIndex) => {
+                  const isRowSelected = selectedProducts.includes(product.id);
+                  const isRowFocused = focusedRowId === product.id;
+                  const rowBg = isRowFocused ? 'bg-sky-100' : isRowSelected ? 'bg-primary-100' : (rowIndex % 2 === 0 ? '' : 'bg-gray-50/30');
+                  const imageUrl = getFullImageUrl(product.imageUrl);
 
-                return (
-                  <tr key={product.id} className={`${rowBg} cursor-pointer group transition-colors`} onClick={() => setFocusedRowId(focusedRowId === product.id ? null : product.id)} onDoubleClick={() => onViewDetails(product)} title="Kliknij dwukrotnie aby otworzyć szczegóły">
-                    {sortedColumnKeys.map((columnKey) => {
-                      const config = cellConfigs[columnKey];
-                      if (!config) return null;
-                      const colStyle = colStyles[config.styleKey as keyof typeof colStyles];
-                      return (
-                        <td
-                          key={columnKey}
-                          className={`${isRowSelected ? "" : colStyle} ${config.borderClass} ${config.extraClass || ""} group-hover:!bg-blue-200`}
-                          style={getColumnStyle(columnKey)}
-                          title={getCellTitle(columnKey, product)}
-                        >
-                          {renderCellContent(columnKey, product, isRowSelected, imageUrl)}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
+                  return (
+                    <tr key={product.id} className={`${rowBg} cursor-pointer group transition-colors`} onClick={() => setFocusedRowId(focusedRowId === product.id ? null : product.id)} onDoubleClick={() => onViewDetails(product)} title="Kliknij dwukrotnie aby otworzyć szczegóły">
+                      {sortedColumnKeys.map((columnKey) => {
+                        const config = cellConfigs[columnKey];
+                        if (!config) return null;
+                        const colStyle = colStyles[config.styleKey as keyof typeof colStyles];
+                        return (
+                          <td
+                            key={columnKey}
+                            className={`${isRowSelected ? "" : colStyle} ${config.borderClass} ${config.extraClass || ""} group-hover:!bg-blue-200`}
+                            style={getColumnStyle(columnKey)}
+                            title={getCellTitle(columnKey, product)}
+                          >
+                            {renderCellContent(columnKey, product, isRowSelected, imageUrl)}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
