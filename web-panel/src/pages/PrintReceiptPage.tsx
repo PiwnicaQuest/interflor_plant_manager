@@ -4,29 +4,53 @@ import { api } from "../services/api";
 import { Receipt, OrderWithItems } from "../types";
 import { ReceiptTemplate } from "../components/Print/ReceiptTemplate";
 
+// Define locally like in PrintInvoicePage.tsx
+interface CompanySettings {
+  companyName: string;
+  nip: string;
+  street: string;
+  postalCode: string;
+  city: string;
+  phone?: string;
+  email?: string;
+  bankName?: string;
+  bankAccount?: string;
+}
+
 export function PrintReceiptPage() {
   const { id } = useParams<{ id: string }>();
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [order, setOrder] = useState<OrderWithItems | null>(null);
+  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       if (!id) return;
-      
+
       try {
         setLoading(true);
-        const response = await api.getReceipts();
-        const foundReceipt = response.receipts.find(r => r.id === parseInt(id));
-        
+
+        // Fetch receipt and company settings in parallel
+        const [receiptsResponse, settingsResponse] = await Promise.all([
+          api.getReceipts(),
+          api.getCompanySettings().catch(() => null)
+        ]);
+
+        const foundReceipt = receiptsResponse.receipts.find(r => r.id === parseInt(id));
+
         if (!foundReceipt) {
           setError("Nie znaleziono paragonu");
           return;
         }
-        
+
         setReceipt(foundReceipt);
-        
+
+        if (settingsResponse) {
+          setCompanySettings(settingsResponse);
+        }
+
         if (foundReceipt.orderId) {
           try {
             const orderResponse = await api.getOrder(foundReceipt.orderId);
@@ -36,20 +60,20 @@ export function PrintReceiptPage() {
           }
         }
       } catch (e) {
-        setError("Nie udało się pobrać paragonu");
+        setError("Nie udalo sie pobrac paragonu");
         console.error(e);
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchData();
   }, [id]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Ładowanie...</div>
+        <div className="text-lg">Ladowanie...</div>
       </div>
     );
   }
@@ -73,7 +97,15 @@ export function PrintReceiptPage() {
     createdAt: receipt.createdAt,
   };
 
+  // Map company settings to receipt format
+  const companyInfo = companySettings ? {
+    name: companySettings.companyName || 'Nazwa firmy',
+    address: `${companySettings.street || ''}, ${companySettings.postalCode || ''} ${companySettings.city || ''}`.trim().replace(/^,\s*/, '').replace(/,\s*$/, '') || 'Adres firmy',
+    nip: companySettings.nip || 'NIP',
+    phone: companySettings.phone,
+  } : undefined;
+
   return (
-    <ReceiptTemplate data={receiptData} />
+    <ReceiptTemplate data={receiptData} companyInfo={companyInfo} />
   );
 }

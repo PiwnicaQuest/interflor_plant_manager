@@ -70,7 +70,7 @@ export function ReceiptTemplate({ data, companyInfo = defaultCompanyInfo }: Rece
 
       {/* Receipt Number */}
       <div className="text-center mb-3">
-        <h2 className="text-base font-bold">PARAGON</h2>
+        <h2 className="text-base font-bold">DOWÓD WYDANIA</h2>
         <p className="text-sm font-bold">{data.receiptNumber}</p>
         {data.orderNumber && (
           <p className="text-xs">Zamówienie: {data.orderNumber}</p>
@@ -162,7 +162,7 @@ export function ReceiptTemplate({ data, companyInfo = defaultCompanyInfo }: Rece
           onClick={() => window.print()}
           className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-sans text-sm"
         >
-          Drukuj paragon
+          Drukuj dowód wydania
         </button>
       </div>
     </div>

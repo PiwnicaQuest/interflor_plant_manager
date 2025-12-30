@@ -92,7 +92,7 @@ export function ReceiptA4Template({ data, companyInfo = defaultCompanyInfo }: Re
       {/* Header */}
       <div className="flex justify-between items-start mb-6 pb-4 border-b-2 border-gray-300">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">PARAGON</h1>
+          <h1 className="text-2xl font-bold text-gray-800">DOWÓD WYDANIA</h1>
           <p className="text-xl font-bold text-green-600 mt-1">{data.receiptNumber}</p>
           {data.orderNumber && (
             <p className="text-sm text-gray-500 mt-1">Zamówienie: {data.orderNumber}</p>
@@ -258,7 +258,7 @@ export function ReceiptA4Template({ data, companyInfo = defaultCompanyInfo }: Re
           onClick={() => window.print()}
           className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-sans text-sm"
         >
-          Drukuj paragon
+          Drukuj dowód wydania
         </button>
         <button
           onClick={() => window.history.back()}
