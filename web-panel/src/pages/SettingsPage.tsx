@@ -7,6 +7,7 @@ import { ChangePasswordModal } from '../components/Users/ChangePasswordModal';
 import { CreatePriceGroupModal } from '../components/PriceGroups/CreatePriceGroupModal';
 import { EditPriceGroupModal } from '../components/PriceGroups/EditPriceGroupModal';
 import { GrowerPassportsTab } from '../components/Settings/GrowerPassportsTab';
+import { TagsTab } from '../components/Settings/TagsTab';
 import { PrinterSettingsTab } from '../components/Settings/PrinterSettingsTab';
 
 interface PricingSettings {
@@ -42,7 +43,7 @@ interface EmailImportSettings {
   enabled: boolean;
 }
 
-type TabType = 'company' | 'pricing' | 'email-import' | 'users' | 'price-groups' | 'printers' | 'grower-passports';
+type TabType = 'company' | 'pricing' | 'email-import' | 'users' | 'price-groups' | 'printers' | 'grower-passports' | 'tags';
 
 export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('company');
@@ -380,6 +381,7 @@ export function SettingsPage() {
     { id: 'price-groups' as TabType, label: 'Grupy cenowe' },
     { id: 'printers' as TabType, label: 'Drukarki' },
     { id: 'grower-passports' as TabType, label: 'Ogrodnicy i paszporty' },
+    { id: 'tags' as TabType, label: 'Tagi' },
   ];
 
   return (
@@ -1169,6 +1171,10 @@ export function SettingsPage() {
 
       {activeTab === 'grower-passports' && (
         <GrowerPassportsTab />
+      )}
+
+      {activeTab === 'tags' && (
+        <TagsTab />
       )}
 
       {viewingCustomers && (

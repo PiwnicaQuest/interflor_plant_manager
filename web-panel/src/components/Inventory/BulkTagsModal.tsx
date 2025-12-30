@@ -1,22 +1,5 @@
-import { useState } from 'react';
-
-// Stała lista tagów z bazy danych
-const AVAILABLE_TAGS = [
-  'Anthurium',
-  'Bonsai',
-  'Bromelia',
-  'Cebulowe',
-  'Ceramika',
-  'Cytrusy',
-  'Doniczki',
-  'Kwitnące',
-  'Ogrodowe',
-  'Palmy',
-  'Rośliny Mini',
-  'Spathiphyllum',
-  'Sukulenty',
-  'Zielone',
-];
+import { useState, useEffect } from 'react';
+import { useTags, FALLBACK_TAGS } from '../../hooks/useTags';
 
 type TagMode = 'add' | 'replace' | 'remove';
 
@@ -32,6 +15,12 @@ export function BulkTagsModal({ selectedCount, onClose, onSubmit }: BulkTagsModa
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Use dynamic tags from API
+  const { tags: dynamicTags, loading: tagsLoading, error: tagsError } = useTags();
+
+  // Use dynamic tags or fallback if loading/error
+  const availableTags = dynamicTags.length > 0 ? dynamicTags : FALLBACK_TAGS;
+
   const handleTagToggle = (tag: string) => {
     setSelectedTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
@@ -39,7 +28,7 @@ export function BulkTagsModal({ selectedCount, onClose, onSubmit }: BulkTagsModa
   };
 
   const handleSelectAll = () => {
-    setSelectedTags(AVAILABLE_TAGS);
+    setSelectedTags([...availableTags]);
   };
 
   const handleDeselectAll = () => {
@@ -111,6 +100,12 @@ export function BulkTagsModal({ selectedCount, onClose, onSubmit }: BulkTagsModa
           </div>
         )}
 
+        {tagsError && (
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-sm">
+            Używam domyślnej listy tagów (błąd połączenia z API)
+          </div>
+        )}
+
         {/* Mode selection */}
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -179,21 +174,25 @@ export function BulkTagsModal({ selectedCount, onClose, onSubmit }: BulkTagsModa
             </div>
           </div>
           <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 max-h-48 overflow-y-auto">
-            {AVAILABLE_TAGS.map((tag) => (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => handleTagToggle(tag)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  selectedTags.includes(tag)
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
-                }`}
-              >
-                {selectedTags.includes(tag) && '✓ '}
-                {tag}
-              </button>
-            ))}
+            {tagsLoading ? (
+              <div className="text-sm text-gray-500">Ładowanie tagów...</div>
+            ) : (
+              availableTags.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => handleTagToggle(tag)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                    selectedTags.includes(tag)
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
+                  }`}
+                >
+                  {selectedTags.includes(tag) && '✓ '}
+                  {tag}
+                </button>
+              ))
+            )}
           </div>
         </div>
 

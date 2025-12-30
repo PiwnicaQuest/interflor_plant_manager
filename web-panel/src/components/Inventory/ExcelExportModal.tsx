@@ -1,27 +1,10 @@
 import { useState, useMemo } from 'react';
 import ExcelJS from 'exceljs';
 import { Product } from '../../types';
+import { useTags, FALLBACK_TAGS } from '../../hooks/useTags';
 
 const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
 const BASE_URL = API_URL.replace(/\/api$/, '');
-
-// Lista dostępnych tagów - taka sama jak w BulkTagsModal i InventoryTable
-const AVAILABLE_TAGS = [
-  'Anthurium',
-  'Bonsai',
-  'Bromelia',
-  'Cebulowe',
-  'Ceramika',
-  'Cytrusy',
-  'Doniczki',
-  'Kwitnące',
-  'Ogrodowe',
-  'Palmy',
-  'Rośliny Mini',
-  'Spathiphyllum',
-  'Sukulenty',
-  'Zielone',
-];
 
 interface ExcelExportModalProps {
   isOpen: boolean;
@@ -82,6 +65,10 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showTagsDropdown, setShowTagsDropdown] = useState(false);
 
+  // Use dynamic tags from API
+  const { tags: dynamicTags, loading: tagsLoading } = useTags();
+  const definedTags = dynamicTags.length > 0 ? dynamicTags : FALLBACK_TAGS;
+
   // Get unique tags from products for display
   const availableTagsInProducts = useMemo(() => {
     const tagsSet = new Set<string>();
@@ -90,10 +77,10 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
         p.tags.forEach(tag => tagsSet.add(tag));
       }
     });
-    // Combine with AVAILABLE_TAGS to show all options
-    AVAILABLE_TAGS.forEach(tag => tagsSet.add(tag));
+    // Combine with defined tags from API to show all options
+    definedTags.forEach(tag => tagsSet.add(tag));
     return Array.from(tagsSet).sort();
-  }, [products]);
+  }, [products, definedTags]);
 
   // Filter products by date range AND tags
   const filteredProducts = useMemo(() => {
@@ -509,27 +496,31 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
                       </div>
                     </div>
                     <div className="p-2 grid grid-cols-2 gap-1">
-                      {availableTagsInProducts.map(tag => {
-                        const isSelected = selectedTags.includes(tag);
-                        return (
-                          <label
-                            key={tag}
-                            className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-sm transition-colors ${
-                              isSelected
-                                ? 'bg-pink-100 text-pink-800 hover:bg-pink-200'
-                                : 'hover:bg-gray-100'
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => handleTagToggle(tag)}
-                              className="rounded border-gray-300 text-pink-600 focus:ring-pink-500"
-                            />
-                            <span>{tag}</span>
-                          </label>
-                        );
-                      })}
+                      {tagsLoading ? (
+                        <div className="col-span-2 text-sm text-gray-500 p-2">Ładowanie tagów...</div>
+                      ) : (
+                        availableTagsInProducts.map(tag => {
+                          const isSelected = selectedTags.includes(tag);
+                          return (
+                            <label
+                              key={tag}
+                              className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-sm transition-colors ${
+                                isSelected
+                                  ? 'bg-pink-100 text-pink-800 hover:bg-pink-200'
+                                  : 'hover:bg-gray-100'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleTagToggle(tag)}
+                                className="rounded border-gray-300 text-pink-600 focus:ring-pink-500"
+                              />
+                              <span>{tag}</span>
+                            </label>
+                          );
+                        })
+                      )}
                     </div>
                   </div>
                 )}

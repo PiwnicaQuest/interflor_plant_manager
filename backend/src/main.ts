@@ -44,6 +44,7 @@ import { UploadController, productImageUpload } from './controllers/upload.contr
 import printRouter from './controllers/print.controller';
 import { ProformaController } from "./controllers/proforma.controller";
 import { LossesController } from "./controllers/losses.controller";
+import { TagsController } from "./controllers/tags.controller";
 
 // Initialize Express
 const app = express();
@@ -114,6 +115,7 @@ app.delete('/inventory/:id', requireAuth, requireRole([UserRole.ADMIN]), Invento
 app.patch('/inventory/:id/toggle-visibility', requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE]), InventoryController.toggleVisibility);
 app.patch("/inventory/:id/archive", requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE]), InventoryController.archive);
 app.patch("/inventory/:id/restore", requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE]), InventoryController.restore);
+app.post("/inventory/bulk-tags", requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE]), InventoryController.bulkUpdateTags);
 
 // Product image upload
 app.post('/inventory/:id/image', requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE]), productImageUpload.single('image'), UploadController.uploadProductImage);
@@ -292,6 +294,12 @@ app.get("/grower-passports/floricode-map", requireAuth, growerPassportController
 app.get("/grower-passports/floricode/:floricode", requireAuth, growerPassportController.getByFloricode);
 app.delete("/grower-passports", requireAuth, requireRole([UserRole.ADMIN]), growerPassportController.deleteAll);
 app.post("/grower-passports/update-products", requireAuth, requireRole([UserRole.ADMIN]), growerPassportController.updateProductsWithGrowerNames);
+
+// Tags management
+app.get("/tags", requireAuth, TagsController.getAllTags);
+app.post("/tags", requireAuth, requireRole([UserRole.ADMIN]), TagsController.createTag);
+app.put("/tags/:tagName", requireAuth, requireRole([UserRole.ADMIN]), TagsController.updateTag);
+app.delete("/tags/:tagName", requireAuth, requireRole([UserRole.ADMIN]), TagsController.deleteTag);
 
 // PRINT TEMPLATES ROUTES
 // ============================================

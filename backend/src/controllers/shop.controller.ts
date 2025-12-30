@@ -4,6 +4,7 @@ import { ProductModel } from '../models/Product';
 import { OrderModel } from '../models/Order';
 import { CustomerModel } from '../models/Customer';
 import { UserModel } from '../models/User';
+import { SettingsModel } from "../models/Settings";
 import { query } from '../models/database';
 
 export class ShopController {
@@ -108,14 +109,21 @@ export class ShopController {
         allProducts.flatMap(p => p.tags || [])
       )).sort();
 
-      // Define available categories (all tags that can be used for filtering)
-      const availableCategories = [
-        'Anthurium', 'Bonsai', 'Bromelia', 'Cebulowe', 'Ceramika', 'Cytrusy',
-        'Doniczki', 'Dzień Matki', 'Iglaste', 'Kaktus', 'Kolekcjonerskie',
-        'Kompozycje', 'Kwitnące', 'Nawozy', 'Ogrodowe', 'Orchidea', 'Owadożerne',
-        'Palmy', 'Pnącza', 'Promocja', 'Rośliny Mini', 'Spathiphyllum', 'Sukulenty',
-        'Świąteczne', 'Walentynki', 'Wielkanoc', 'Wiszące', 'Zielone', 'Zioła'
-      ];
+      // Get defined tags from settings for categories (dynamic)
+      let availableCategories: string[];
+      try {
+        const definedTagsSetting = await SettingsModel.getSetting('available_tags');
+        if (definedTagsSetting) {
+          availableCategories = Array.isArray(definedTagsSetting) 
+            ? definedTagsSetting 
+            : JSON.parse(definedTagsSetting);
+        } else {
+          availableCategories = allTags;
+        }
+      } catch (parseError) {
+        console.error('Error parsing available_tags setting:', parseError);
+        availableCategories = allTags;
+      }
 
       return res.json({
         products,

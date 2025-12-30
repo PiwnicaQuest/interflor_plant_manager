@@ -1,3 +1,4 @@
+import { useTags, FALLBACK_TAGS } from "../../hooks/useTags";
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Product } from '../../types';
 import { parsePrice } from '../../utils/priceUtils';
@@ -169,6 +170,9 @@ export function InventoryTable({
   const [resizing, setResizing] = useState<string | null>(null);
   const [resizePreviewX, setResizePreviewX] = useState<number | null>(null);
   const [editingTags, setEditingTags] = useState<number | null>(null);
+  // Use dynamic tags from API
+  const { tags: dynamicTags } = useTags();
+  const availableTags = dynamicTags.length > 0 ? dynamicTags : FALLBACK_TAGS;
   const rafRef = useRef<number | null>(null);
   const pendingWidth = useRef<number>(0);
   const startX = useRef(0);
@@ -770,7 +774,7 @@ export function InventoryTable({
             {editingTags === product.id && (
               <div className="absolute z-50 top-full left-0 mt-1 bg-white border border-pink-300 rounded-lg shadow-lg p-2 w-64 max-h-48 overflow-y-auto">
                 <div className="flex flex-wrap gap-1">
-                  {AVAILABLE_TAGS.map(tag => (
+                  {availableTags.map(tag => (
                     <button
                       key={tag}
                       onClick={() => handleToggleTag(product, tag)}

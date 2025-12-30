@@ -128,6 +128,10 @@ export class InventoryController {
       const basePriceChanged = data.basePriceGross !== undefined &&
         data.basePriceGross !== existingProduct.basePriceGross;
 
+      // Sprawdź czy zmieniono stawkę VAT
+      const vatRateChanged = data.vatRate !== undefined &&
+        data.vatRate !== existingProduct.vatRate;
+
       // Sprawdź czy zmieniono pricePlus
       const pricePlusChanged = data.pricePlus !== undefined &&
         data.pricePlus !== existingProduct.pricePlus;
@@ -161,6 +165,29 @@ export class InventoryController {
         };
       }
 
+      // Jeśli zmieniono tylko stawkę VAT - przelicz basePriceGross i rabaty od pricePlus
+      if (vatRateChanged && !pricePlusChanged && !basePriceChanged && !isDiscountManualUpdate) {
+        const pricingSettings = await SettingsModel.getPricingSettings();
+        const { marginPercentage } = pricingSettings;
+        const newVatRate = data.vatRate!;
+        const pricePlus = existingProduct.pricePlus;
+
+        if (pricePlus && pricePlus > 0) {
+          // basePriceGross = pricePlus × (1 + vatRate%) × (1 + marża%)
+          const newBasePrice = Math.round(pricePlus * (1 + newVatRate / 100) * (1 + marginPercentage / 100) * 100) / 100;
+
+          updatedData = {
+            ...updatedData,
+            basePriceGross: newBasePrice,
+            priceDiscount10: Math.round(newBasePrice * 0.90 * 100) / 100,
+            priceDiscount12: Math.round(newBasePrice * 0.88 * 100) / 100,
+            priceDiscount15: Math.round(newBasePrice * 0.85 * 100) / 100,
+            priceDiscount20: Math.round(newBasePrice * 0.80 * 100) / 100,
+            priceDiscount25: Math.round(newBasePrice * 0.75 * 100) / 100,
+          };
+        }
+      }
+
       // Jeśli zmieniono basePriceGross i nie podano ręcznie rabatów - przelicz rabaty
       if (basePriceChanged && !isDiscountManualUpdate) {
         const newBasePrice = data.basePriceGross!;
@@ -182,7 +209,7 @@ export class InventoryController {
         const { costPercentage, marginPercentage } = pricingSettings;
 
         if (data.purchasePricePln > 0) {
-          const calculatedPrices = SettingsModel.calculatePrices(data.purchasePricePln, costPercentage, marginPercentage, data.vatRate ?? 8.0);
+          const calculatedPrices = SettingsModel.calculatePrices(data.purchasePricePln, costPercentage, marginPercentage, data.vatRate ?? existingProduct.vatRate ?? 8.0);
           updatedData = {
             ...updatedData,
             pricePlus: calculatedPrices.pricePlus,
@@ -195,6 +222,7 @@ export class InventoryController {
           };
         }
       }
+
 
       if (data.totalUnits !== undefined && data.totalUnits !== existingProduct.totalUnits) {
         const unitsPerPallet = data.unitsPerPallet || existingProduct.unitsPerPallet;

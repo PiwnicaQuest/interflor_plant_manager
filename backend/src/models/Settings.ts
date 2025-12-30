@@ -49,7 +49,7 @@ export class SettingsModel {
    */
   static async getSetting(key: string): Promise<string | null> {
     const result = await query<Setting>(
-      'SELECT * FROM settings WHERE setting_key = $1',
+      'SELECT setting_value as "settingValue" FROM settings WHERE setting_key = $1',
       [key]
     );
     return result.rows[0]?.settingValue || null;

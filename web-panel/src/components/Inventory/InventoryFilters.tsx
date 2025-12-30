@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import { parsePriceOrUndefined } from '../../utils/priceUtils';
-import { AVAILABLE_TAGS } from './InventoryTable';
+import { useTags, FALLBACK_TAGS } from '../../hooks/useTags';
 
 export interface InventoryFilterValues {
   search?: string;
@@ -44,6 +44,10 @@ export function InventoryFilters({ filters, onChange }: InventoryFiltersProps) {
   const [growers, setGrowers] = useState<string[]>([]);
   const [potSizes, setPotSizes] = useState<string[]>([]);
   const [showTagsDropdown, setShowTagsDropdown] = useState(false);
+
+  // Use dynamic tags from API
+  const { tags: dynamicTags, loading: tagsLoading } = useTags();
+  const availableTags = dynamicTags.length > 0 ? dynamicTags : FALLBACK_TAGS;
 
   // Load unique values for dropdowns
   useEffect(() => {
@@ -307,27 +311,31 @@ export function InventoryFilters({ filters, onChange }: InventoryFiltersProps) {
                       )}
                     </div>
                     <div className="p-2 grid grid-cols-2 md:grid-cols-4 gap-1">
-                      {AVAILABLE_TAGS.map(tag => {
-                        const isSelected = filters.tags?.includes(tag);
-                        return (
-                          <label
-                            key={tag}
-                            className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-sm transition-colors ${
-                              isSelected
-                                ? 'bg-pink-100 text-pink-800 hover:bg-pink-200'
-                                : 'hover:bg-gray-100'
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isSelected || false}
-                              onChange={() => handleTagToggle(tag)}
-                              className="rounded border-gray-300 text-pink-600 focus:ring-pink-500"
-                            />
-                            <span>{tag}</span>
-                          </label>
-                        );
-                      })}
+                      {tagsLoading ? (
+                        <div className="col-span-4 text-sm text-gray-500 p-2">Ładowanie tagów...</div>
+                      ) : (
+                        availableTags.map(tag => {
+                          const isSelected = filters.tags?.includes(tag);
+                          return (
+                            <label
+                              key={tag}
+                              className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-sm transition-colors ${
+                                isSelected
+                                  ? 'bg-pink-100 text-pink-800 hover:bg-pink-200'
+                                  : 'hover:bg-gray-100'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected || false}
+                                onChange={() => handleTagToggle(tag)}
+                                className="rounded border-gray-300 text-pink-600 focus:ring-pink-500"
+                              />
+                              <span>{tag}</span>
+                            </label>
+                          );
+                        })
+                      )}
                     </div>
                   </div>
                 )}
@@ -444,10 +452,10 @@ export function InventoryFilters({ filters, onChange }: InventoryFiltersProps) {
               </button>
             </div>
 
-            {/* Tag quick filters */}
+            {/* Tag quick filters - use first few available tags */}
             <p className="text-sm font-medium text-gray-700 mb-2 mt-4">Popularne kategorie:</p>
             <div className="flex flex-wrap gap-2">
-              {['Kwitnące', 'Zielone', 'Sukulenty', 'Orchidea', 'Promocja', 'Kolekcjonerskie'].map(tag => (
+              {availableTags.slice(0, 6).map(tag => (
                 <button
                   key={tag}
                   onClick={() => {
