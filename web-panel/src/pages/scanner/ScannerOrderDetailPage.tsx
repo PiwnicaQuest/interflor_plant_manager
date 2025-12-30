@@ -50,7 +50,7 @@ const STATUS_ICONS: Record<string, JSX.Element> = {
 // Define valid status transitions
 const STATUS_TRANSITIONS: Record<string, string[]> = {
   pending: ['in_progress', 'cancelled'],
-  in_progress: ['ready_for_pickup', 'pending', 'cancelled'],
+  in_progress: ['ready_for_pickup', 'pending', 'cancelled', 'completed'],
   ready_for_pickup: ['completed', 'in_progress', 'cancelled'],
   completed: [], // Cannot change from completed
   cancelled: [], // Cannot change from cancelled
@@ -83,6 +83,7 @@ export function ScannerOrderDetailPage() {
   // Status change
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   // Image preview modal
   const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
@@ -866,7 +867,7 @@ export function ScannerOrderDetailPage() {
               {availableTransitions.map((status) => (
                 <button
                   key={status}
-                  onClick={() => handleStatusChange(status as OrderStatus)}
+                  onClick={() => status === 'cancelled' ? setShowCancelConfirm(true) : handleStatusChange(status as OrderStatus)}
                   disabled={changingStatus}
                   className={`w-full p-2.5 rounded-lg text-left flex items-center gap-2 transition-colors ${
                     status === 'cancelled'
@@ -909,6 +910,48 @@ export function ScannerOrderDetailPage() {
               >
                 Anuluj
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-sm w-full overflow-hidden shadow-xl">
+            <div className="p-4 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Anulować zamówienie?</h3>
+              <p className="text-gray-600 text-sm mb-6">
+                Czy na pewno chcesz anulować to zamówienie? Tej operacji nie można cofnąć.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowCancelConfirm(false)}
+                  className="flex-1 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200"
+                >
+                  Nie, wróć
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCancelConfirm(false);
+                    setShowStatusModal(false);
+                    handleStatusChange('cancelled' as OrderStatus);
+                  }}
+                  disabled={changingStatus}
+                  className="flex-1 py-2.5 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center"
+                >
+                  {changingStatus ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                  ) : (
+                    'Tak, anuluj'
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
