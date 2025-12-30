@@ -50,8 +50,8 @@ const STATUS_ICONS: Record<string, JSX.Element> = {
 // Define valid status transitions
 const STATUS_TRANSITIONS: Record<string, string[]> = {
   pending: ['in_progress', 'cancelled'],
-  in_progress: ['ready_for_pickup', 'pending', 'cancelled', 'completed'],
-  ready_for_pickup: ['completed', 'in_progress', 'cancelled'],
+  in_progress: ['ready_for_pickup', 'pending', 'cancelled'],
+  ready_for_pickup: ['in_progress', 'cancelled'],
   completed: [], // Cannot change from completed
   cancelled: [], // Cannot change from cancelled
 };
