@@ -4,6 +4,7 @@ interface OrdersTableProps {
   orders: Order[];
   selectedOrders: number[];
   onViewDetails: (order: Order) => void;
+  onExportExcel: (order: Order) => void;
   onChangeStatus: (orderId: number, status: OrderStatus) => void;
   onSelectOrder: (orderId: number) => void;
   onSelectAll: () => void;
@@ -21,6 +22,7 @@ export function OrdersTable({
   orders,
   selectedOrders,
   onViewDetails,
+  onExportExcel,
   onChangeStatus,
   onSelectOrder,
   onSelectAll
@@ -90,12 +92,19 @@ export function OrdersTable({
                   </span>
                 </td>
                 <td>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
                     <button
                       onClick={() => onViewDetails(order)}
                       className="text-primary-600 hover:text-primary-700 text-sm font-medium"
                     >
                       Szczegóły
+                    </button>
+                    <button
+                      onClick={() => onExportExcel(order)}
+                      className="text-emerald-600 hover:text-emerald-700 text-sm font-medium"
+                      title="Eksport do Excel"
+                    >
+                      Excel
                     </button>
                     {order.status !== OrderStatus.COMPLETED && order.status !== OrderStatus.CANCELLED && (
                       <select

@@ -4,6 +4,8 @@ import { Order, OrderWithItems, OrderStatus } from '../types';
 import { OrdersTable } from '../components/Orders/OrdersTable';
 import { OrderForm } from '../components/Orders/OrderForm';
 import { OrderDetails } from '../components/Orders/OrderDetails';
+import { exportOrderToExcel } from '../utils/exportOrderToExcel';
+
 
 export function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -47,6 +49,15 @@ export function OrdersPage() {
       setSelectedOrder(data.order);
     } catch (error) {
       console.error('Error fetching order details:', error);
+    }
+  };
+
+  const handleExportExcel = async (order: Order) => {
+    try {
+      const data = await api.getOrder(order.id);
+      await exportOrderToExcel(data.order);
+    } catch (error) {
+      console.error('Error exporting order to Excel:', error);
     }
   };
 
@@ -497,6 +508,7 @@ export function OrdersPage() {
             orders={orders}
             selectedOrders={selectedOrders}
             onViewDetails={handleViewDetails}
+            onExportExcel={handleExportExcel}
             onChangeStatus={handleChangeStatus}
             onSelectOrder={handleSelectOrder}
             onSelectAll={handleSelectAll}

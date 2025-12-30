@@ -1,3 +1,4 @@
+import * as XLSX from 'xlsx';
 import { useState, useEffect } from 'react';
 import { OrderWithItems, OrderStatus, OrderStatusHistoryItem, PaymentMethod, DocumentType } from '../../types';
 import { api } from '../../services/api';
@@ -209,6 +210,230 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
       onClose();
     }, 2000);
   };
+
+  // Export to Excel with styling
+  const handleExportExcel = async () => {
+    const ExcelJS = (await import('exceljs')).default;
+    
+    const statusLabels: Record<OrderStatus, string> = {
+      [OrderStatus.PENDING]: 'Oczekuje',
+      [OrderStatus.IN_PROGRESS]: 'W realizacji',
+      [OrderStatus.READY_FOR_PICKUP]: 'Gotowe do odbioru',
+      [OrderStatus.COMPLETED]: 'Zakończone',
+      [OrderStatus.CANCELLED]: 'Anulowane',
+    };
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'PlantManager';
+    workbook.created = new Date();
+    
+    const worksheet = workbook.addWorksheet(order.orderNumber.replace(/\//g, '-'), {
+      pageSetup: { paperSize: 9, orientation: 'landscape' }
+    });
+
+    // Set column widths
+    worksheet.columns = [
+      { width: 35 }, // A - Produkt/Etykieta
+      { width: 12 }, // B - Rozmiar
+      { width: 10 }, // C - Wysokość
+      { width: 14 }, // D - Data przyjęcia
+      { width: 10 }, // E - Palety
+      { width: 12 }, // F - Szt/paleta
+      { width: 14 }, // G - Łącznie szt.
+      { width: 14 }, // H - Cena jedn.
+      { width: 14 }, // I - Wartość
+    ];
+
+    // Style definitions
+    const headerStyle = {
+      font: { bold: true, size: 14, color: { argb: 'FFFFFFFF' } },
+      fill: { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF2E7D32' } },
+      alignment: { horizontal: 'center' as const, vertical: 'middle' as const },
+      border: {
+        top: { style: 'thin' as const },
+        left: { style: 'thin' as const },
+        bottom: { style: 'thin' as const },
+        right: { style: 'thin' as const },
+      }
+    };
+
+    const labelStyle = {
+      font: { bold: true, size: 11 },
+      fill: { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFE8F5E9' } },
+      alignment: { horizontal: 'left' as const, vertical: 'middle' as const },
+    };
+
+    const valueStyle = {
+      font: { size: 11 },
+      alignment: { horizontal: 'left' as const, vertical: 'middle' as const },
+    };
+
+    const tableHeaderStyle = {
+      font: { bold: true, size: 10, color: { argb: 'FFFFFFFF' } },
+      fill: { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF1565C0' } },
+      alignment: { horizontal: 'center' as const, vertical: 'middle' as const },
+      border: {
+        top: { style: 'thin' as const },
+        left: { style: 'thin' as const },
+        bottom: { style: 'thin' as const },
+        right: { style: 'thin' as const },
+      }
+    };
+
+    const tableCellStyle = {
+      font: { size: 10 },
+      border: {
+        top: { style: 'thin' as const },
+        left: { style: 'thin' as const },
+        bottom: { style: 'thin' as const },
+        right: { style: 'thin' as const },
+      },
+      alignment: { vertical: 'middle' as const },
+    };
+
+    const summaryLabelStyle = {
+      font: { bold: true, size: 11 },
+      fill: { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFFFF3E0' } },
+      alignment: { horizontal: 'right' as const, vertical: 'middle' as const },
+    };
+
+    const summaryValueStyle = {
+      font: { bold: true, size: 11 },
+      fill: { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFFFF3E0' } },
+      alignment: { horizontal: 'left' as const, vertical: 'middle' as const },
+    };
+
+    const totalStyle = {
+      font: { bold: true, size: 14, color: { argb: 'FFFFFFFF' } },
+      fill: { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF388E3C' } },
+      alignment: { horizontal: 'center' as const, vertical: 'middle' as const },
+    };
+
+    let rowNum = 1;
+
+    // === HEADER: Order number ===
+    worksheet.mergeCells(`A${rowNum}:I${rowNum}`);
+    const titleRow = worksheet.getRow(rowNum);
+    titleRow.getCell(1).value = `ZAMÓWIENIE ${order.orderNumber}`;
+    titleRow.getCell(1).style = headerStyle;
+    titleRow.height = 30;
+    rowNum++;
+
+    // === Order info ===
+    worksheet.getRow(rowNum).getCell(1).value = 'Data utworzenia:';
+    worksheet.getRow(rowNum).getCell(1).style = labelStyle;
+    worksheet.getRow(rowNum).getCell(2).value = new Date(order.createdAt).toLocaleDateString('pl-PL');
+    worksheet.getRow(rowNum).getCell(2).style = valueStyle;
+    worksheet.getRow(rowNum).getCell(4).value = 'Status:';
+    worksheet.getRow(rowNum).getCell(4).style = labelStyle;
+    worksheet.getRow(rowNum).getCell(5).value = statusLabels[order.status] || order.status;
+    worksheet.getRow(rowNum).getCell(5).style = valueStyle;
+    rowNum++;
+
+    // === Customer info ===
+    worksheet.getRow(rowNum).getCell(1).value = 'Klient:';
+    worksheet.getRow(rowNum).getCell(1).style = labelStyle;
+    worksheet.mergeCells(`B${rowNum}:E${rowNum}`);
+    worksheet.getRow(rowNum).getCell(2).value = order.customerName || 'Brak danych';
+    worksheet.getRow(rowNum).getCell(2).style = { ...valueStyle, font: { size: 11, bold: true } };
+    rowNum += 2;
+
+    // === Products table header ===
+    const headers = ['Produkt', 'Rozmiar', 'Wysokość', 'Data przyj.', 'Palety', 'Szt/paleta', 'Łącznie szt.', 'Cena jedn.', 'Wartość'];
+    const headerRow = worksheet.getRow(rowNum);
+    headers.forEach((header, idx) => {
+      headerRow.getCell(idx + 1).value = header;
+      headerRow.getCell(idx + 1).style = tableHeaderStyle;
+    });
+    headerRow.height = 25;
+    rowNum++;
+
+    // === Products data ===
+    (order.items || []).forEach((item, idx) => {
+      const row = worksheet.getRow(rowNum);
+      const isEven = idx % 2 === 0;
+      const rowFill = isEven 
+        ? { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFFFFFFF' } }
+        : { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFF5F5F5' } };
+
+      row.getCell(1).value = item.productSnapshot?.plantName || item.productName || `Produkt #${item.productId}`;
+      row.getCell(2).value = item.productSnapshot?.potSize || '-';
+      row.getCell(3).value = item.productSnapshot?.plantHeightCm ? `${item.productSnapshot.plantHeightCm} cm` : '-';
+      row.getCell(4).value = item.productSnapshot?.createdAt ? new Date(item.productSnapshot.createdAt).toLocaleDateString('pl-PL') : '-';
+      row.getCell(5).value = item.palletCount || 0;
+      row.getCell(6).value = item.unitsPerPallet || 1;
+      row.getCell(7).value = item.quantity;
+      row.getCell(8).value = (item.unitPriceGross || 0).toFixed(2) + ' PLN';
+      row.getCell(9).value = (item.totalPrice || 0).toFixed(2) + ' PLN';
+
+      for (let i = 1; i <= 9; i++) {
+        row.getCell(i).style = { 
+          ...tableCellStyle, 
+          fill: rowFill,
+          alignment: { 
+            ...tableCellStyle.alignment, 
+            horizontal: i >= 5 ? 'center' as const : 'left' as const 
+          } 
+        };
+      }
+      row.height = 22;
+      rowNum++;
+    });
+
+    rowNum++;
+
+    // === Summary ===
+    const totalPallets = (order.items || []).reduce((sum, item) => sum + (item.palletCount || 0), 0);
+    const totalUnits = (order.items || []).reduce((sum, item) => sum + item.quantity, 0);
+
+    worksheet.getRow(rowNum).getCell(6).value = 'Łącznie palet:';
+    worksheet.getRow(rowNum).getCell(6).style = summaryLabelStyle;
+    worksheet.getRow(rowNum).getCell(7).value = totalPallets;
+    worksheet.getRow(rowNum).getCell(7).style = summaryValueStyle;
+    rowNum++;
+
+    worksheet.getRow(rowNum).getCell(6).value = 'Łącznie sztuk:';
+    worksheet.getRow(rowNum).getCell(6).style = summaryLabelStyle;
+    worksheet.getRow(rowNum).getCell(7).value = totalUnits;
+    worksheet.getRow(rowNum).getCell(7).style = summaryValueStyle;
+    rowNum++;
+
+    worksheet.mergeCells(`F${rowNum}:G${rowNum}`);
+    worksheet.getRow(rowNum).getCell(6).value = 'SUMA: ' + (order.totalAmount || 0).toFixed(2) + ' PLN';
+    worksheet.getRow(rowNum).getCell(6).style = totalStyle;
+    worksheet.getRow(rowNum).height = 28;
+    rowNum += 2;
+
+    // === Notes ===
+    if (order.customerNotes) {
+      worksheet.getRow(rowNum).getCell(1).value = 'Uwagi klienta:';
+      worksheet.getRow(rowNum).getCell(1).style = { font: { bold: true, size: 10, italic: true } };
+      rowNum++;
+      worksheet.mergeCells(`A${rowNum}:I${rowNum}`);
+      worksheet.getRow(rowNum).getCell(1).value = order.customerNotes;
+      worksheet.getRow(rowNum).getCell(1).style = { font: { size: 10 }, alignment: { wrapText: true } };
+      rowNum++;
+    }
+
+    if (order.notes) {
+      worksheet.getRow(rowNum).getCell(1).value = 'Uwagi wewnętrzne:';
+      worksheet.getRow(rowNum).getCell(1).style = { font: { bold: true, size: 10, italic: true } };
+      rowNum++;
+      worksheet.mergeCells(`A${rowNum}:I${rowNum}`);
+      worksheet.getRow(rowNum).getCell(1).value = order.notes;
+      worksheet.getRow(rowNum).getCell(1).style = { font: { size: 10 }, alignment: { wrapText: true } };
+    }
+
+    // Generate and download file
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `zamowienie_${order.orderNumber.replace(/\//g, '-')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    link.click();
+  };
+
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -443,6 +668,12 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
               className="btn btn-outline flex-1 min-w-[120px]"
             >
               Drukuj zamówienie
+            </button>
+            <button
+              onClick={handleExportExcel}
+              className="btn flex-1 min-w-[120px] bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
+            >
+              Eksport Excel
             </button>
             {canCreateDocument() && (
               <button
