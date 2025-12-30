@@ -400,7 +400,7 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
             )}
 
             <div>
-              <div className="flex justify-between items-center mb-3"><label className="block text-sm font-medium text-gray-700">Produkty <span className="text-red-500">*</span></label><button type="button" onClick={addItem} className="btn btn-secondary text-sm">+ Dodaj produkt</button></div>
+              <div className="mb-3"><label className="block text-sm font-medium text-gray-700">Produkty <span className="text-red-500">*</span></label></div>
               <div className="space-y-3">
                 {items.map((item, index) => (
                   <div key={index} className="bg-gray-50 p-3 rounded-lg">
@@ -419,7 +419,8 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
                   </div>
                 ))}
               </div>
-              {items.length === 0 && <p className="text-sm text-gray-500 italic">Brak produktow. Kliknij "Dodaj produkt"</p>}
+              {items.length === 0 && <p className="text-sm text-gray-500 italic">Brak produktow</p>}
+              <button type="button" onClick={addItem} className="btn btn-secondary text-sm mt-3">+ Dodaj produkt</button>
             </div>
             {items.length > 0 && (<div className="bg-gray-50 p-4 rounded-lg"><div className="flex justify-between text-sm text-gray-600 mb-2"><span>Lacznie palet:</span><span className="font-semibold">{items.reduce((sum, item) => sum + item.palletCount, 0)}</span></div><div className="flex justify-between text-sm text-gray-600 mb-2"><span>Lacznie sztuk:</span><span className="font-semibold">{items.reduce((sum, item) => sum + item.quantity, 0)}</span></div><div className="flex justify-between text-lg font-bold border-t pt-2"><span>Suma:</span><span>{calculateTotal().toFixed(2)} PLN</span></div></div>)}
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Notatki klienta (opcjonalnie)</label><textarea className="input" rows={3} placeholder="Dodatkowe uwagi do zamowienia..." value={customerNotes} onChange={(e) => setCustomerNotes(e.target.value)} /></div>

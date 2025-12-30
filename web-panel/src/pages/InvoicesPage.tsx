@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { api } from '../services/api';
 import { Invoice } from '../types';
 import { InvoicesTable } from '../components/Invoices/InvoicesTable';
 import { InvoiceDetails } from '../components/Invoices/InvoiceDetails';
 import { PaymentStatusModal } from '../components/Invoices/PaymentStatusModal';
+
+export type SortField = 'invoiceNumber' | 'customerName' | 'issueDate' | 'paymentDeadline' | 'paymentStatus' | 'totalGross';
+export type SortOrder = 'asc' | 'desc';
 
 export function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -13,6 +16,11 @@ export function InvoicesPage() {
   const [invoiceToUpdatePayment, setInvoiceToUpdatePayment] = useState<Invoice | null>(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
+  // New: Search and sort state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortField, setSortField] = useState<SortField>('issueDate');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   const fetchInvoices = async () => {
     try {
@@ -34,6 +42,61 @@ export function InvoicesPage() {
     fetchInvoices();
   }, []);
 
+  // Filter and sort invoices
+  const filteredAndSortedInvoices = useMemo(() => {
+    let result = [...invoices];
+
+    // Filter by search query (customer name)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter(invoice =>
+        (invoice.customerName || '').toLowerCase().includes(query) ||
+        (invoice.invoiceNumber || '').toLowerCase().includes(query)
+      );
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      let comparison = 0;
+
+      switch (sortField) {
+        case 'invoiceNumber':
+          comparison = (a.invoiceNumber || '').localeCompare(b.invoiceNumber || '', 'pl');
+          break;
+        case 'customerName':
+          comparison = (a.customerName || '').localeCompare(b.customerName || '', 'pl');
+          break;
+        case 'issueDate':
+          comparison = new Date(a.issueDate).getTime() - new Date(b.issueDate).getTime();
+          break;
+        case 'paymentDeadline':
+          const dateA = a.paymentDeadline ? new Date(a.paymentDeadline).getTime() : 0;
+          const dateB = b.paymentDeadline ? new Date(b.paymentDeadline).getTime() : 0;
+          comparison = dateA - dateB;
+          break;
+        case 'paymentStatus':
+          // Sort by priority: OVERDUE > UNPAID > PARTIALLY_PAID > PAID
+          const statusOrder: Record<string, number> = {
+            'overdue': 0,
+            'unpaid': 1,
+            'partially_paid': 2,
+            'paid': 3,
+          };
+          comparison = (statusOrder[a.paymentStatus] || 99) - (statusOrder[b.paymentStatus] || 99);
+          break;
+        case 'totalGross':
+          comparison = (Number(a.totalGross) || 0) - (Number(b.totalGross) || 0);
+          break;
+        default:
+          comparison = 0;
+      }
+
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    return result;
+  }, [invoices, searchQuery, sortField, sortOrder]);
+
   const handleFilter = () => {
     fetchInvoices();
   };
@@ -41,7 +104,19 @@ export function InvoicesPage() {
   const handleClearFilter = () => {
     setStartDate('');
     setEndDate('');
+    setSearchQuery('');
     setTimeout(() => fetchInvoices(), 0);
+  };
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle order if same field
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New field - default to desc for dates/amounts, asc for text
+      setSortField(field);
+      setSortOrder(['issueDate', 'paymentDeadline', 'totalGross'].includes(field) ? 'desc' : 'asc');
+    }
   };
 
   const handleViewDetails = async (invoice: Invoice) => {
@@ -72,15 +147,15 @@ export function InvoicesPage() {
 
   // Selection handlers
   const handleSelectAll = () => {
-    if (selectedInvoices.length === invoices.length) {
+    if (selectedInvoices.length === filteredAndSortedInvoices.length) {
       setSelectedInvoices([]);
     } else {
-      setSelectedInvoices(invoices.map(inv => inv.id));
+      setSelectedInvoices(filteredAndSortedInvoices.map(inv => inv.id));
     }
   };
 
   const handleSelectInvoice = (id: number) => {
-    setSelectedInvoices(prev => 
+    setSelectedInvoices(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
   };
@@ -91,7 +166,7 @@ export function InvoicesPage() {
       alert('Wybierz faktury do wydruku');
       return;
     }
-    
+
     // Open each selected invoice in print view
     selectedInvoices.forEach((id, index) => {
       setTimeout(() => {
@@ -109,7 +184,35 @@ export function InvoicesPage() {
 
       {/* Filters */}
       <div className="card p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {/* Search by customer name */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Szukaj kontrahenta
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                className="input pl-10"
+                placeholder="Nazwa firmy lub numer faktury..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </div>
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Data od
@@ -137,7 +240,7 @@ export function InvoicesPage() {
               Filtruj
             </button>
             <button onClick={handleClearFilter} className="btn btn-secondary">
-              Wyczyść
+              Wyczysc
             </button>
           </div>
         </div>
@@ -148,16 +251,16 @@ export function InvoicesPage() {
         <div className="card p-4 bg-blue-50 border-blue-200">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="text-sm text-blue-800">
-              Zaznaczono <strong>{selectedInvoices.length}</strong> z {invoices.length} faktur
+              Zaznaczono <strong>{selectedInvoices.length}</strong> z {filteredAndSortedInvoices.length} faktur
             </div>
             <div className="flex gap-2">
-              <button 
+              <button
                 onClick={handlePrintSelected}
                 className="btn btn-primary btn-sm"
               >
                 Drukuj ({selectedInvoices.length})
               </button>
-              <button 
+              <button
                 onClick={() => setSelectedInvoices([])}
                 className="btn btn-secondary btn-sm"
               >
@@ -171,30 +274,36 @@ export function InvoicesPage() {
       {/* Table */}
       {loading ? (
         <div className="text-center py-12">
-          <p className="text-gray-500">Ładowanie...</p>
+          <p className="text-gray-500">Ladowanie...</p>
         </div>
       ) : (
         <>
           <div className="flex justify-between items-center text-sm text-gray-600">
-            <p>Znaleziono: {invoices.length} faktur</p>
+            <p>
+              Znaleziono: {filteredAndSortedInvoices.length} faktur
+              {searchQuery && ` (filtrowane z ${invoices.length})`}
+            </p>
             <div className="space-x-4">
               <span>
                 <strong>Suma netto:</strong>{' '}
-                {(invoices.reduce((sum, inv) => sum + (Number(inv.subtotalNet) || 0), 0)).toFixed(2)} PLN
+                {(filteredAndSortedInvoices.reduce((sum, inv) => sum + (Number(inv.subtotalNet) || 0), 0)).toFixed(2)} PLN
               </span>
               <span>
                 <strong>Suma brutto:</strong>{' '}
-                {(invoices.reduce((sum, inv) => sum + (Number(inv.totalGross) || 0), 0)).toFixed(2)} PLN
+                {(filteredAndSortedInvoices.reduce((sum, inv) => sum + (Number(inv.totalGross) || 0), 0)).toFixed(2)} PLN
               </span>
             </div>
           </div>
           <InvoicesTable
-            invoices={invoices}
+            invoices={filteredAndSortedInvoices}
             onViewDetails={handleViewDetails}
             onUpdatePayment={handleUpdatePayment}
             selectedInvoices={selectedInvoices}
             onSelectInvoice={handleSelectInvoice}
             onSelectAll={handleSelectAll}
+            sortField={sortField}
+            sortOrder={sortOrder}
+            onSort={handleSort}
           />
         </>
       )}

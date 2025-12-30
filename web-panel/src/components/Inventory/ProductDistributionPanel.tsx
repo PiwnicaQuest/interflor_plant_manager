@@ -386,6 +386,8 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                   <tr>
                     <th className="text-left px-2 py-1">Data</th>
                     <th className="text-left px-2 py-1">Typ</th>
+                    <th className="text-left px-2 py-1">Zamówienie</th>
+                    <th className="text-left px-2 py-1">Kontrahent</th>
                     <th className="text-right px-2 py-1">Zmiana</th>
                     <th className="text-left px-2 py-1">Powód</th>
                     <th className="text-left px-2 py-1">Użytkownik</th>
@@ -394,7 +396,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                 <tbody>
                   {movements.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="text-center py-4 text-gray-500">Brak historii ruchów</td>
+                      <td colSpan={7} className="text-center py-4 text-gray-500">Brak historii ruchów</td>
                     </tr>
                   ) : (
                     movements.map((m) => {
@@ -407,10 +409,25 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                               {typeInfo.text}
                             </span>
                           </td>
+                          <td className="px-2 py-1">
+                            {m.orderNumber ? (
+                              <div className="flex items-center gap-1">
+                                <span className="text-primary-700 font-medium">{m.orderNumber}</span>
+                                {m.orderStatus && (
+                                  <span className={`px-1 py-0.5 rounded text-[9px] font-medium ${getStatusLabel(m.orderStatus).color}`}>
+                                    {getStatusLabel(m.orderStatus).text}
+                                  </span>
+                                )}
+                              </div>
+                            ) : '-'}
+                          </td>
+                          <td className="px-2 py-1 text-gray-700 truncate max-w-[120px]" title={m.orderCustomerName || ''}>
+                            {m.orderCustomerName || '-'}
+                          </td>
                           <td className={`px-2 py-1 text-right font-medium ${m.deltaUnits >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                             {m.deltaUnits >= 0 ? '+' : ''}{m.deltaUnits}
                           </td>
-                          <td className="px-2 py-1 text-gray-700 truncate max-w-[200px]" title={m.reason || ''}>
+                          <td className="px-2 py-1 text-gray-700 truncate max-w-[150px]" title={m.reason || ''}>
                             {m.reason || '-'}
                           </td>
                           <td className="px-2 py-1 text-gray-500">{m.userEmail || '-'}</td>

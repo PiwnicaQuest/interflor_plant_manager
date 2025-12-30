@@ -1,5 +1,8 @@
 import { Invoice, PaymentStatus } from '../../types';
 
+type SortField = 'invoiceNumber' | 'customerName' | 'issueDate' | 'paymentDeadline' | 'paymentStatus' | 'totalGross';
+type SortOrder = 'asc' | 'desc';
+
 interface InvoicesTableProps {
   invoices: Invoice[];
   onViewDetails: (invoice: Invoice) => void;
@@ -7,6 +10,9 @@ interface InvoicesTableProps {
   selectedInvoices?: number[];
   onSelectInvoice?: (id: number) => void;
   onSelectAll?: () => void;
+  sortField?: SortField;
+  sortOrder?: SortOrder;
+  onSort?: (field: SortField) => void;
 }
 
 export function InvoicesTable({
@@ -15,7 +21,10 @@ export function InvoicesTable({
   onUpdatePayment,
   selectedInvoices = [],
   onSelectInvoice,
-  onSelectAll
+  onSelectAll,
+  sortField,
+  sortOrder,
+  onSort
 }: InvoicesTableProps) {
   if (invoices.length === 0) {
     return (
@@ -36,7 +45,7 @@ export function InvoicesTable({
   const getPaymentMethodLabel = (method?: string) => {
     const labels: Record<string, string> = {
       card: 'Karta',
-      cash: 'Gotówka',
+      cash: 'Gotowka',
       transfer: 'Przelew',
     };
     return method ? labels[method] || method : '-';
@@ -44,9 +53,9 @@ export function InvoicesTable({
 
   const getPaymentStatusLabel = (status: PaymentStatus): string => {
     const labels: Record<PaymentStatus, string> = {
-      [PaymentStatus.UNPAID]: 'Nieopłacona',
-      [PaymentStatus.PARTIALLY_PAID]: 'Częściowo opłacona',
-      [PaymentStatus.PAID]: 'Opłacona',
+      [PaymentStatus.UNPAID]: 'Nieoplacona',
+      [PaymentStatus.PARTIALLY_PAID]: 'Czesciowo oplacona',
+      [PaymentStatus.PAID]: 'Oplacona',
       [PaymentStatus.OVERDUE]: 'Po terminie',
     };
     return labels[status];
@@ -64,6 +73,47 @@ export function InvoicesTable({
 
   const allSelected = invoices.length > 0 && selectedInvoices.length === invoices.length;
 
+  // Sortable header component
+  const SortableHeader = ({
+    field,
+    children,
+    className = ''
+  }: {
+    field: SortField;
+    children: React.ReactNode;
+    className?: string;
+  }) => {
+    const isActive = sortField === field;
+    const isAsc = sortOrder === 'asc';
+
+    return (
+      <th
+        className={`cursor-pointer select-none hover:bg-gray-100 transition-colors ${className}`}
+        onClick={() => onSort?.(field)}
+      >
+        <div className="flex items-center gap-1">
+          <span>{children}</span>
+          <span className="inline-flex flex-col text-xs leading-none">
+            <svg
+              className={`w-3 h-3 ${isActive && isAsc ? 'text-primary-600' : 'text-gray-300'}`}
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path d="M12 5l-8 8h16z" />
+            </svg>
+            <svg
+              className={`w-3 h-3 -mt-1 ${isActive && !isAsc ? 'text-primary-600' : 'text-gray-300'}`}
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path d="M12 19l8-8H4z" />
+            </svg>
+          </span>
+        </div>
+      </th>
+    );
+  };
+
   return (
     <div className="card overflow-hidden">
       <div className="overflow-x-auto">
@@ -80,15 +130,31 @@ export function InvoicesTable({
                   />
                 </th>
               )}
-              <th>Nr faktury</th>
-              <th>Klient</th>
-              <th>Data wystawienia</th>
-              <th>Termin płatności</th>
-              <th>Metoda płatności</th>
-              <th>Status płatności</th>
-              <th>Zapłacono</th>
-              <th>Kwota brutto</th>
-              <th>Akcje</th>
+              {onSort ? (
+                <>
+                  <SortableHeader field="invoiceNumber">Nr faktury</SortableHeader>
+                  <SortableHeader field="customerName">Klient</SortableHeader>
+                  <SortableHeader field="issueDate">Data wystawienia</SortableHeader>
+                  <SortableHeader field="paymentDeadline">Termin platnosci</SortableHeader>
+                  <th>Metoda platnosci</th>
+                  <SortableHeader field="paymentStatus">Status platnosci</SortableHeader>
+                  <th>Zaplacono</th>
+                  <SortableHeader field="totalGross">Kwota brutto</SortableHeader>
+                  <th>Akcje</th>
+                </>
+              ) : (
+                <>
+                  <th>Nr faktury</th>
+                  <th>Klient</th>
+                  <th>Data wystawienia</th>
+                  <th>Termin platnosci</th>
+                  <th>Metoda platnosci</th>
+                  <th>Status platnosci</th>
+                  <th>Zaplacono</th>
+                  <th>Kwota brutto</th>
+                  <th>Akcje</th>
+                </>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -130,22 +196,22 @@ export function InvoicesTable({
                     <button
                       onClick={() => window.open('/print/invoice/' + invoice.id, '_blank')}
                       className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                      title="Drukuj fakturę"
+                      title="Drukuj fakture"
                     >
                       Drukuj
                     </button>
                     <button
                       onClick={() => onUpdatePayment(invoice)}
                       className="text-green-600 hover:text-green-700 text-sm font-medium"
-                      title="Aktualizuj płatność"
+                      title="Aktualizuj platnosc"
                     >
-                      Płatność
+                      Platnosc
                     </button>
                     <button
                       onClick={() => onViewDetails(invoice)}
                       className="text-primary-600 hover:text-primary-700 text-sm font-medium"
                     >
-                      Szczegóły
+                      Szczegoly
                     </button>
                     {invoice.pdfUrl && (
                       <a
