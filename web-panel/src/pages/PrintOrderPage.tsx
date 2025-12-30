@@ -4,26 +4,50 @@ import { api } from "../services/api";
 import { OrderWithItems, Customer } from "../types";
 import { OrderTemplate } from "../components/Print/OrderTemplate";
 
+interface CompanySettings {
+  companyName: string;
+  nip: string;
+  regon: string;
+  street: string;
+  postalCode: string;
+  city: string;
+  country: string;
+  phone: string;
+  email: string;
+  website: string;
+  bankName: string;
+  bankAccount: string;
+  bankSwift: string;
+}
+
 export function PrintOrderPage() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const showPrices = searchParams.get("showPrices") !== "false";
-  
+
   const [order, setOrder] = useState<OrderWithItems | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       if (!id) return;
-      
+
       try {
         setLoading(true);
-        const response = await api.getOrder(parseInt(id));
-        const orderData = response.order;
+
+        // Fetch order, customer, and company settings in parallel
+        const [orderResponse, companyResponse] = await Promise.all([
+          api.getOrder(parseInt(id)),
+          api.getCompanySettings().catch(() => null),
+        ]);
+
+        const orderData = orderResponse.order;
         setOrder(orderData);
-        
+        setCompanySettings(companyResponse);
+
         if (orderData.customerId) {
           try {
             const customerResponse = await api.getCustomer(orderData.customerId);
@@ -39,7 +63,7 @@ export function PrintOrderPage() {
         setLoading(false);
       }
     };
-    
+
     fetchData();
   }, [id]);
 
@@ -71,6 +95,17 @@ export function PrintOrderPage() {
     phone: customer.phone,
   } : undefined;
 
+  // Map company settings to companyInfo format
+  const companyInfo = companySettings ? {
+    name: companySettings.companyName,
+    nip: companySettings.nip,
+    address: companySettings.street,
+    city: companySettings.city,
+    postalCode: companySettings.postalCode,
+    phone: companySettings.phone,
+    email: companySettings.email,
+  } : undefined;
+
   return (
     <OrderTemplate
       data={{
@@ -88,6 +123,7 @@ export function PrintOrderPage() {
         updatedAt: order.updatedAt,
         completedAt: order.completedAt,
       }}
+      companyInfo={companyInfo}
       showPrices={showPrices}
     />
   );
