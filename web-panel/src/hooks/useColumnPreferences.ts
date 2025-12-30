@@ -40,11 +40,20 @@ const loadPreferences = (): ColumnPreferences => {
         ...parsed,
         // Ensure all columns exist in order
         columnOrder: [
-          ...parsed.columnOrder.filter(key => 
+          ...parsed.columnOrder.filter(key =>
             ALL_COLUMNS.some(col => col.key === key)
           ),
-          ...defaults.columnOrder.filter(key => 
+          ...defaults.columnOrder.filter(key =>
             !parsed.columnOrder.includes(key)
+          ),
+        ],
+        // Ensure new columns are visible by default (add missing default-visible columns)
+        visibleColumns: [
+          ...parsed.visibleColumns.filter(key =>
+            ALL_COLUMNS.some(col => col.key === key)
+          ),
+          ...defaults.visibleColumns.filter(key =>
+            !parsed.visibleColumns.includes(key)
           ),
         ],
         // Merge widths

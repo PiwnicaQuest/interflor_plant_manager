@@ -26,30 +26,30 @@ const getFullImageUrl = (imageUrl: string | null | undefined) => {
 type ColumnWidths = { [key: string]: number };
 
 const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
-  checkbox: 40,
-  image: 50,
-  plantName: 180,
-  createdAt: 85,
-  potSize: 65,
-  plantHeight: 55,
-  palletCount: 55,
-  unitsPerPallet: 55,
-  totalUnits: 55,
-  totalSold: 55,
-  purchasePrice: 60,
-  pricePlus: 60,
-  basePrice: 60,
-  discount10: 50,
-  discount12: 50,
-  discount15: 50,
-  discount20: 50,
-  discount25: 50,
-  status: 55,
-  visible: 50,
-  grower: 110,
-  passport: 75,
-  tags: 120,
-  actions: 115,
+  checkbox: 32,
+  image: 36,
+  plantName: 140,
+  createdAt: 70,
+  potSize: 50,
+  plantHeight: 40,
+  palletCount: 40,
+  unitsPerPallet: 45,
+  totalUnits: 45,
+  totalSold: 45,
+  purchasePrice: 50,
+  pricePlus: 50,
+  basePrice: 50,
+  discount10: 42,
+  discount12: 42,
+  discount15: 42,
+  discount20: 42,
+  discount25: 42,
+  auchan8: 42,
+  visible: 36,
+  grower: 80,
+  passport: 60,
+  tags: 80,
+  actions: 70,
 };
 
 const STORAGE_KEY = 'inventory-column-widths';
@@ -70,6 +70,7 @@ const saveColumnWidths = (widths: ColumnWidths) => {
 
 // Editable columns in order (for keyboard navigation)
 const EDITABLE_COLUMNS: (keyof Product)[] = [
+  'createdAt',
   'plantName',
   'potSize',
   'plantHeightCm',
@@ -84,6 +85,7 @@ const EDITABLE_COLUMNS: (keyof Product)[] = [
   'priceDiscount15',
   'priceDiscount20',
   'priceDiscount25',
+  'priceAuchan8',
 ];
 
 // Column filter values interface
@@ -98,7 +100,6 @@ export interface ColumnFilters {
   colPurchasePrice?: string;
   colPricePlus?: string;
   colBasePrice?: string;
-  colStatus?: string;
   colVisible?: string;
   colGrower?: string;
   colPassport?: string;
@@ -167,6 +168,7 @@ export function InventoryTable({
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>(loadColumnWidths);
   const [resizing, setResizing] = useState<string | null>(null);
   const [resizePreviewX, setResizePreviewX] = useState<number | null>(null);
+  const [editingTags, setEditingTags] = useState<number | null>(null);
   const rafRef = useRef<number | null>(null);
   const pendingWidth = useRef<number>(0);
   const startX = useRef(0);
@@ -351,6 +353,31 @@ export function InventoryTable({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [selectedCell, editingCell, products, getAdjacentCell]);
 
+  // Default column order (moved before early return to respect React hooks rules)
+  const DEFAULT_COLUMN_ORDER = [
+    "checkbox", "createdAt", "visible", "image", "plantName", "tags",
+    "palletCount", "unitsPerPallet", "totalUnits", "potSize", "plantHeight",
+    "purchasePrice", "pricePlus", "basePrice",
+    "discount10", "discount12", "discount15", "discount20", "discount25", "auchan8",
+    "totalSold", "grower", "passport", "actions"
+  ];
+
+  // Get sorted column keys based on columnOrder prop
+  const getSortedColumnKeys = useCallback(() => {
+    if (!columnOrder || columnOrder.length === 0) {
+      return DEFAULT_COLUMN_ORDER;
+    }
+    const orderedKeys = [...columnOrder];
+    DEFAULT_COLUMN_ORDER.forEach(key => {
+      if (!orderedKeys.includes(key)) {
+        orderedKeys.push(key);
+      }
+    });
+    return orderedKeys;
+  }, [columnOrder]);
+
+  const sortedColumnKeys = getSortedColumnKeys();
+
   if (products.length === 0) {
     return (
       <div className="card p-8 text-center">
@@ -360,21 +387,43 @@ export function InventoryTable({
   }
 
   // Click on cell - first click selects, second click (or double click) edits
+  // Helper to format date value for date input (YYYY-MM-DD format)
+  const formatDateForInput = (value: any): string => {
+    if (!value) return '';
+    try {
+      const date = new Date(value);
+      return date.toISOString().split('T')[0];
+    } catch {
+      return '';
+    }
+  };
+
   const handleCellClick = (product: Product, field: keyof Product) => {
     setFocusedRowId(product.id);
     // Immediately enter edit mode on click
     setSelectedCell({ productId: product.id, field });
     setEditingCell({ productId: product.id, field });
     const value = product[field];
-    setEditValue(value !== null && value !== undefined ? String(value) : '');
+    // Format date for date input
+    if (field === 'createdAt') {
+      setEditValue(formatDateForInput(value));
+    } else {
+      setEditValue(value !== null && value !== undefined ? String(value) : '');
+    }
   };
 
   // Double click to immediately edit
-  const handleCellDoubleClick = (product: Product, field: keyof Product) => {
+  const handleCellDoubleClick = (product: Product, field: keyof Product, e?: React.MouseEvent) => {
+    e?.stopPropagation(); // Prevent row onDoubleClick from firing
     setSelectedCell({ productId: product.id, field });
     setEditingCell({ productId: product.id, field });
     const value = product[field];
-    setEditValue(value !== null && value !== undefined ? String(value) : '');
+    // Format date for date input
+    if (field === 'createdAt') {
+      setEditValue(formatDateForInput(value));
+    } else {
+      setEditValue(value !== null && value !== undefined ? String(value) : '');
+    }
   };
 
   const handleCellBlur = async () => {
@@ -384,8 +433,16 @@ export function InventoryTable({
         let finalValue: any = editValue;
         const numericFields = ['palletCount', 'unitsPerPallet', 'plantHeightCm', 'purchasePricePln',
           'pricePlus', 'basePriceGross', 'priceDiscount10', 'priceDiscount12', 'priceDiscount15', 'priceDiscount20',
-          'priceDiscount25', 'vatRate', 'totalUnits'];
-        if (numericFields.includes(editingCell.field as string)) {
+          'priceDiscount25',
+  'priceAuchan8', 'vatRate', 'totalUnits'];
+        // Handle date field - convert YYYY-MM-DD to ISO date string
+        if (editingCell.field === 'createdAt') {
+          if (editValue) {
+            finalValue = new Date(editValue).toISOString();
+          } else {
+            finalValue = null;
+          }
+        } else if (numericFields.includes(editingCell.field as string)) {
           finalValue = parsePrice(editValue);
         }
         await onUpdateProduct(editingCell.productId, editingCell.field, finalValue);
@@ -446,7 +503,24 @@ export function InventoryTable({
     const cellSelected = isSelected(product.id, field);
     const cellEditing = isEditing(product.id, field);
 
+    // Check if it's a date field
+    const isDateField = field === 'createdAt';
+
     if (cellEditing) {
+      if (isDateField) {
+        // For date fields, render date input
+        return (
+          <input
+            type="date"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={handleCellBlur}
+            onKeyDown={handleInputKeyDown}
+            className={`w-full px-0.5 py-0 border border-primary-500 rounded text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 ${className}`}
+            autoFocus
+          />
+        );
+      }
       return (
         <input
           type="text"
@@ -463,7 +537,7 @@ export function InventoryTable({
     return (
       <span
         onClick={() => handleCellClick(product, field)}
-        onDoubleClick={() => handleCellDoubleClick(product, field)}
+        onDoubleClick={(e) => handleCellDoubleClick(product, field, e)}
         className={`cursor-pointer px-1 py-0.5 rounded inline-block w-full truncate transition-colors ${
           cellSelected
             ? 'bg-blue-200 ring-2 ring-blue-400'
@@ -483,8 +557,6 @@ export function InventoryTable({
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
-
-  const [editingTags, setEditingTags] = useState<number | null>(null);
 
   const handleToggleTag = async (product: Product, tag: string) => {
     const currentTags = product.tags || [];
@@ -532,70 +604,45 @@ export function InventoryTable({
     actions: 'bg-gray-100',
   };
 
-  // Default column order
-  const DEFAULT_COLUMN_ORDER = [
-    "checkbox", "image", "plantName", "createdAt", "potSize", "plantHeight",
-    "palletCount", "unitsPerPallet", "totalUnits", "totalSold",
-    "purchasePrice", "pricePlus", "basePrice",
-    "discount10", "discount12", "discount15", "discount20", "discount25",
-    "status", "visible", "grower", "passport", "tags", "actions"
-  ];
-
-  // Get sorted column keys based on columnOrder prop
-  const getSortedColumnKeys = useCallback(() => {
-    if (!columnOrder || columnOrder.length === 0) {
-      return DEFAULT_COLUMN_ORDER;
-    }
-    const orderedKeys = [...columnOrder];
-    DEFAULT_COLUMN_ORDER.forEach(key => {
-      if (!orderedKeys.includes(key)) {
-        orderedKeys.push(key);
-      }
-    });
-    return orderedKeys;
-  }, [columnOrder]);
-
-  const sortedColumnKeys = getSortedColumnKeys();
-
   // Header configurations for dynamic rendering
   const headerConfigs: Record<string, { label: string; style: string; title?: string; borderClass?: string }> = {
     checkbox: { label: "", style: headerStyles.checkbox, borderClass: "border-b-2 border-gray-300" },
-    image: { label: "Zdjęcie", style: headerStyles.image, borderClass: "border-b-2 border-gray-300" },
-    plantName: { label: "Nazwa rośliny", style: headerStyles.info, borderClass: "border-b-2 border-slate-400 border-l border-slate-300" },
-    createdAt: { label: "Dodano", style: headerStyles.date, title: "Data importu/dodania produktu", borderClass: "border-b-2 border-cyan-400 border-l border-cyan-300" },
-    potSize: { label: "Doniczka", style: headerStyles.info, borderClass: "border-b-2 border-slate-400 border-l border-slate-300" },
-    plantHeight: { label: "Wys.", style: headerStyles.info, borderClass: "border-b-2 border-slate-400" },
-    palletCount: { label: "Palety", style: headerStyles.inventory, borderClass: "border-b-2 border-amber-400 border-l border-amber-300" },
-    unitsPerPallet: { label: "Szt/pal", style: headerStyles.inventory, borderClass: "border-b-2 border-amber-400" },
-    totalUnits: { label: "Suma", style: headerStyles.inventory, title: "Edytowalne", borderClass: "border-b-2 border-amber-400" },
-    totalSold: { label: "Sprz.", style: headerStyles.inventory, title: "Sprzedane", borderClass: "border-b-2 border-amber-400" },
-    purchasePrice: { label: "Zakup", style: headerStyles.purchase, borderClass: "border-b-2 border-blue-400 border-l border-blue-300" },
-    pricePlus: { label: "Cena+", style: headerStyles.pricePlus, borderClass: "border-b-2 border-green-500 border-l border-green-400 font-bold" },
-    basePrice: { label: "Podst.", style: headerStyles.basePrice, title: "Edytowalne", borderClass: "border-b-2 border-emerald-400 border-l border-emerald-300" },
-    discount10: { label: "-10%", style: headerStyles.discounts, title: "Edytowalne", borderClass: "border-b-2 border-purple-400 border-l border-purple-300" },
-    discount12: { label: "-12%", style: headerStyles.discounts, title: "Edytowalne", borderClass: "border-b-2 border-purple-400" },
-    discount15: { label: "-15%", style: headerStyles.discounts, title: "Edytowalne", borderClass: "border-b-2 border-purple-400" },
-    discount20: { label: "-20%", style: headerStyles.discounts, title: "Edytowalne", borderClass: "border-b-2 border-purple-400" },
-    discount25: { label: "-25%", style: headerStyles.discounts, title: "Edytowalne", borderClass: "border-b-2 border-purple-400" },
-    status: { label: "Status", style: headerStyles.status, borderClass: "border-b-2 border-orange-400 border-l border-orange-300" },
-    visible: { label: "Sklep", style: headerStyles.status, borderClass: "border-b-2 border-orange-400" },
-    grower: { label: "Ogrodnik", style: headerStyles.grower, borderClass: "border-b-2 border-teal-400 border-l border-teal-300" },
-    passport: { label: "Paszport", style: headerStyles.grower, title: "Paszport ogrodnika", borderClass: "border-b-2 border-teal-400" },
-    tags: { label: "Tagi", style: headerStyles.tags, title: "Kategorie produktu", borderClass: "border-b-2 border-pink-400 border-l border-pink-300" },
-    actions: { label: "Akcje", style: headerStyles.actions, borderClass: "border-b-2 border-gray-300 border-l border-gray-200" },
+    image: { label: "📷", style: headerStyles.image, title: "Zdjęcie", borderClass: "border-b-2 border-gray-300" },
+    plantName: { label: "Nazwa", style: headerStyles.info, title: "Nazwa rośliny", borderClass: "border-b-2 border-slate-400 border-l border-slate-300" },
+    createdAt: { label: "📅", style: headerStyles.date, title: "Data dodania", borderClass: "border-b-2 border-cyan-400 border-l border-cyan-300" },
+    potSize: { label: "⌀", style: headerStyles.info, title: "Rozmiar doniczki", borderClass: "border-b-2 border-slate-400 border-l border-slate-300" },
+    plantHeight: { label: "↕", style: headerStyles.info, title: "Wysokość rośliny", borderClass: "border-b-2 border-slate-400" },
+    palletCount: { label: "🎨", style: headerStyles.inventory, title: "Liczba palet", borderClass: "border-b-2 border-amber-400 border-l border-amber-300" },
+    unitsPerPallet: { label: "szt/p", style: headerStyles.inventory, title: "Sztuk na palecie", borderClass: "border-b-2 border-amber-400" },
+    totalUnits: { label: "Σ", style: headerStyles.inventory, title: "Suma sztuk (edytowalne)", borderClass: "border-b-2 border-amber-400" },
+    totalSold: { label: "📦", style: headerStyles.inventory, title: "Sprzedane", borderClass: "border-b-2 border-amber-400" },
+    purchasePrice: { label: "Zak", style: headerStyles.purchase, title: "Cena zakupu", borderClass: "border-b-2 border-blue-400 border-l border-blue-300" },
+    pricePlus: { label: "C+", style: headerStyles.pricePlus, title: "Cena+ (zakup + marża)", borderClass: "border-b-2 border-green-500 border-l border-green-400 font-bold" },
+    basePrice: { label: "Baz", style: headerStyles.basePrice, title: "Cena podstawowa (edytowalne)", borderClass: "border-b-2 border-emerald-400 border-l border-emerald-300" },
+    discount10: { label: "10", style: headerStyles.discounts, title: "Rabat -10%", borderClass: "border-b-2 border-purple-400 border-l border-purple-300" },
+    discount12: { label: "12", style: headerStyles.discounts, title: "Rabat -12%", borderClass: "border-b-2 border-purple-400" },
+    discount15: { label: "15", style: headerStyles.discounts, title: "Rabat -15%", borderClass: "border-b-2 border-purple-400" },
+    discount20: { label: "20", style: headerStyles.discounts, title: "Rabat -20%", borderClass: "border-b-2 border-purple-400" },
+    discount25: { label: "25", style: headerStyles.discounts, title: "Rabat -25%", borderClass: "border-b-2 border-purple-400" },
+    auchan8: { label: "A8", style: headerStyles.discounts, title: "Auchan (cena podstawowa)", borderClass: "border-b-2 border-purple-400" },
+    visible: { label: "👁", style: headerStyles.status, title: "Widoczność w sklepie", borderClass: "border-b-2 border-orange-400" },
+    grower: { label: "🌱", style: headerStyles.grower, title: "Ogrodnik/Producent", borderClass: "border-b-2 border-teal-400 border-l border-teal-300" },
+    passport: { label: "ID", style: headerStyles.grower, title: "Paszport ogrodnika", borderClass: "border-b-2 border-teal-400" },
+    tags: { label: "🏷", style: headerStyles.tags, title: "Tagi/Kategorie", borderClass: "border-b-2 border-pink-400 border-l border-pink-300" },
+    actions: { label: "⚙", style: headerStyles.actions, title: "Akcje", borderClass: "border-b-2 border-gray-300 border-l border-gray-200" },
   };
 
   // Render header content based on column key
   const renderHeaderContent = (columnKey: string) => {
     if (columnKey === "checkbox") {
       return (
-        <div className="flex items-center justify-center w-full">
+        <div className="flex justify-center items-center w-full">
           <input
             type="checkbox"
             checked={allSelected}
             ref={(el) => { if (el) el.indeterminate = someSelected; }}
             onChange={onSelectAll}
-            className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            className="w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
           />
         </div>
       );
@@ -623,7 +670,7 @@ export function InventoryTable({
     discount15: { styleKey: "discounts", borderClass: "border-b border-purple-200", extraClass: "text-center text-xs" },
     discount20: { styleKey: "discounts", borderClass: "border-b border-purple-200", extraClass: "text-center text-xs" },
     discount25: { styleKey: "discounts", borderClass: "border-b border-purple-200", extraClass: "text-center text-xs" },
-    status: { styleKey: "status", borderClass: "border-b border-orange-200 border-l border-orange-200", extraClass: "text-center" },
+    auchan8: { styleKey: "discounts", borderClass: "border-b border-purple-200", extraClass: "text-center text-xs font-medium text-purple-700" },
     visible: { styleKey: "status", borderClass: "border-b border-orange-200", extraClass: "text-center" },
     grower: { styleKey: "grower", borderClass: "border-b border-teal-200 border-l border-teal-200", extraClass: "text-center text-xs text-gray-700 truncate" },
     passport: { styleKey: "grower", borderClass: "border-b border-teal-200", extraClass: "text-center text-xs text-teal-700 font-medium truncate" },
@@ -637,7 +684,7 @@ export function InventoryTable({
       case "createdAt":
         return product.createdAt ? new Date(product.createdAt).toLocaleString("pl-PL") : "";
       case "grower":
-        return product.grower || "";
+        return product.grower || product.grower || "";
       case "passport":
         return product.growerPassport || "";
       default:
@@ -650,9 +697,7 @@ export function InventoryTable({
     switch (columnKey) {
       case "checkbox":
         return (
-          <div className="flex items-center justify-center w-full">
-            <input type="checkbox" checked={isRowSelected} onChange={() => onSelectProduct(product.id)} className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-          </div>
+          <div className="flex justify-center items-center w-full"><input type="checkbox" checked={isRowSelected} onChange={() => onSelectProduct(product.id)} className="w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer" /></div>
         );
       case "image":
         return product.imageUrl ? (
@@ -665,7 +710,7 @@ export function InventoryTable({
       case "plantName":
         return renderEditableCell(product, "plantName", product.plantName);
       case "createdAt":
-        return formatDate(product.createdAt);
+        return renderEditableCell(product, "createdAt", formatDate(product.createdAt));
       case "potSize":
         return renderEditableCell(product, "potSize", product.potSize || "-");
       case "plantHeight":
@@ -694,12 +739,12 @@ export function InventoryTable({
         return renderEditableCell(product, "priceDiscount20", product.priceDiscount20?.toFixed(2) || "-");
       case "discount25":
         return renderEditableCell(product, "priceDiscount25", product.priceDiscount25?.toFixed(2) || "-");
-      case "status":
-        return (
-          <span className={`badge text-xs ${product.inventoryStatus === "ok" ? "badge-success" : "badge-warning"}`}>
-            {product.inventoryStatus === "ok" ? "OK" : "NISKI"}
-          </span>
-        );
+      case "auchan8":
+        // Auchan - edytowalna cena, domyslnie cena podstawowa
+        const auchan8Value = product.priceAuchan8 
+          ? parseFloat(String(product.priceAuchan8)).toFixed(2) 
+          : (product.basePriceGross ? product.basePriceGross.toFixed(2) : "-");
+        return renderEditableCell(product, "priceAuchan8", auchan8Value);
       case "visible":
         return (
           <button onClick={() => onToggleVisibility(product.id)} className={`px-1.5 py-0.5 rounded text-xs font-medium ${product.visibleInShop ? "bg-green-200 text-green-800" : "bg-gray-200 text-gray-600"}`}>
@@ -707,7 +752,7 @@ export function InventoryTable({
           </button>
         );
       case "grower":
-        return product.grower || "-";
+        return product.grower || product.grower || "-";
       case "passport":
         return product.growerPassport || "-";
       case "tags":
@@ -760,20 +805,19 @@ export function InventoryTable({
       case "actions":
         return (
           <div className="flex gap-0.5 flex-nowrap">
-            <button onClick={() => onViewDetails(product)} className="text-primary-600 hover:text-primary-700 text-xs font-medium px-1 py-0.5 hover:bg-primary-50 rounded whitespace-nowrap">Szczegóły</button>
             <button onClick={() => onShowBarcode(product)} className="text-gray-600 hover:text-gray-800 text-xs px-0.5 hover:bg-gray-100 rounded" title={product.barcode ? `Kod: ${product.barcode}` : "Generuj kod"}>
               {product.barcode ? "📊" : "➕"}
             </button>
             {onDuplicateProduct && (
               <button onClick={() => onDuplicateProduct(product)} className="text-blue-600 hover:text-blue-800 text-xs px-0.5 hover:bg-blue-50 rounded" title="Kopiuj">📋</button>
             )}
-            {!isArchiveView && onReportLoss && (
+            {!product.isArchived && onReportLoss && (
               <button onClick={() => onReportLoss(product)} className="text-red-600 hover:text-red-800 text-xs px-0.5 hover:bg-red-50 rounded" title="Zglos strate">⚠️</button>
             )}
-            {!isArchiveView && onArchiveProduct && (
+            {!product.isArchived && onArchiveProduct && (
               <button onClick={() => onArchiveProduct(product)} className="text-yellow-600 hover:text-yellow-800 text-xs px-0.5 hover:bg-yellow-50 rounded" title="Archiwizuj">📦</button>
             )}
-            {isArchiveView && onRestoreProduct && (
+            {product.isArchived && onRestoreProduct && (
               <button onClick={() => onRestoreProduct(product)} className="text-green-600 hover:text-green-800 text-xs px-0.5 hover:bg-green-50 rounded" title="Przywroc">↩️</button>
             )}
             {onDeleteProduct && (
@@ -850,116 +894,11 @@ export function InventoryTable({
               {/* Filter row - sticky with headers */}
               {onColumnFilterChange && (
                 <tr className="bg-gray-100">
+                  {/* 1. checkbox */}
                   <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('checkbox')}></th>
-                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('image')}></th>
-                  <th className="p-0.5 border-b border-gray-300 border-l border-slate-300" style={getColumnStyle('plantName')}>
-                    <input
-                      type="text"
-                      placeholder="Szukaj..."
-                      value={columnFilters.colPlantName || ''}
-                      onChange={(e) => onColumnFilterChange('colPlantName', e.target.value)}
-                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </th>
+                  {/* 2. createdAt */}
                   <th className="p-0.5 border-b border-gray-300 border-l border-cyan-300" style={getColumnStyle('createdAt')}></th>
-                  <th className="p-0.5 border-b border-gray-300 border-l border-slate-300" style={getColumnStyle('potSize')}>
-                    <input
-                      type="text"
-                      placeholder="Rozmiar"
-                      value={columnFilters.colPotSize || ''}
-                      onChange={(e) => onColumnFilterChange('colPotSize', e.target.value)}
-                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </th>
-                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('plantHeight')}>
-                    <input
-                      type="text"
-                      placeholder="Wys."
-                      value={columnFilters.colPlantHeight || ''}
-                      onChange={(e) => onColumnFilterChange('colPlantHeight', e.target.value)}
-                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </th>
-                  <th className="p-0.5 border-b border-gray-300 border-l border-amber-300" style={getColumnStyle('palletCount')}>
-                    <input
-                      type="text"
-                      placeholder="Palety"
-                      value={columnFilters.colPalletCount || ''}
-                      onChange={(e) => onColumnFilterChange('colPalletCount', e.target.value)}
-                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </th>
-                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('unitsPerPallet')}>
-                    <input
-                      type="text"
-                      placeholder="Szt/pal"
-                      value={columnFilters.colUnitsPerPallet || ''}
-                      onChange={(e) => onColumnFilterChange('colUnitsPerPallet', e.target.value)}
-                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </th>
-                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('totalUnits')}>
-                    <input
-                      type="text"
-                      placeholder="Suma"
-                      value={columnFilters.colTotalUnits || ''}
-                      onChange={(e) => onColumnFilterChange('colTotalUnits', e.target.value)}
-                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </th>
-                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('totalSold')}>
-                    <input
-                      type="text"
-                      placeholder="Sprz."
-                      value={columnFilters.colTotalSold || ''}
-                      onChange={(e) => onColumnFilterChange('colTotalSold', e.target.value)}
-                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </th>
-                  <th className="p-0.5 border-b border-gray-300 border-l border-blue-300" style={getColumnStyle('purchasePrice')}>
-                    <input
-                      type="text"
-                      placeholder="Zakup"
-                      value={columnFilters.colPurchasePrice || ''}
-                      onChange={(e) => onColumnFilterChange('colPurchasePrice', e.target.value)}
-                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </th>
-                  <th className="p-0.5 border-b border-gray-300 border-l border-green-400" style={getColumnStyle('pricePlus')}>
-                    <input
-                      type="text"
-                      placeholder="Cena+"
-                      value={columnFilters.colPricePlus || ''}
-                      onChange={(e) => onColumnFilterChange('colPricePlus', e.target.value)}
-                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </th>
-                  <th className="p-0.5 border-b border-gray-300 border-l border-emerald-300" style={getColumnStyle('basePrice')}>
-                    <input
-                      type="text"
-                      placeholder="Podst."
-                      value={columnFilters.colBasePrice || ''}
-                      onChange={(e) => onColumnFilterChange('colBasePrice', e.target.value)}
-                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </th>
-                  {/* Discount columns - no filter */}
-                  <th className="p-0.5 border-b border-gray-300 border-l border-purple-300" style={getColumnStyle('discount10')}></th>
-                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('discount12')}></th>
-                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('discount15')}></th>
-                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('discount20')}></th>
-                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('discount25')}></th>
-                  <th className="p-0.5 border-b border-gray-300 border-l border-orange-300" style={getColumnStyle('status')}>
-                    <select
-                      value={columnFilters.colStatus || ''}
-                      onChange={(e) => onColumnFilterChange('colStatus', e.target.value)}
-                      className="w-full px-0.5 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    >
-                      <option value="">Wszystkie</option>
-                      <option value="ok">OK</option>
-                      <option value="low">Niski</option>
-                    </select>
-                  </th>
+                  {/* 3. visible */}
                   <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('visible')}>
                     <select
                       value={columnFilters.colVisible || ''}
@@ -971,6 +910,119 @@ export function InventoryTable({
                       <option value="false">Nie</option>
                     </select>
                   </th>
+                  {/* 3. image */}
+                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('image')}></th>
+                  {/* 4. plantName */}
+                  <th className="p-0.5 border-b border-gray-300 border-l border-slate-300" style={getColumnStyle('plantName')}>
+                    <input
+                      type="text"
+                      placeholder="Szukaj..."
+                      value={columnFilters.colPlantName || ''}
+                      onChange={(e) => onColumnFilterChange('colPlantName', e.target.value)}
+                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    />
+                  </th>
+                  {/* 5. tags */}
+                  <th className="p-0.5 border-b border-gray-300 border-l border-pink-300" style={getColumnStyle('tags')}></th>
+                  {/* 6. palletCount */}
+                  <th className="p-0.5 border-b border-gray-300 border-l border-amber-300" style={getColumnStyle('palletCount')}>
+                    <input
+                      type="text"
+                      placeholder="Palety"
+                      value={columnFilters.colPalletCount || ''}
+                      onChange={(e) => onColumnFilterChange('colPalletCount', e.target.value)}
+                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    />
+                  </th>
+                  {/* 7. unitsPerPallet */}
+                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('unitsPerPallet')}>
+                    <input
+                      type="text"
+                      placeholder="Szt/pal"
+                      value={columnFilters.colUnitsPerPallet || ''}
+                      onChange={(e) => onColumnFilterChange('colUnitsPerPallet', e.target.value)}
+                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    />
+                  </th>
+                  {/* 8. totalUnits */}
+                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('totalUnits')}>
+                    <input
+                      type="text"
+                      placeholder="Suma"
+                      value={columnFilters.colTotalUnits || ''}
+                      onChange={(e) => onColumnFilterChange('colTotalUnits', e.target.value)}
+                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    />
+                  </th>
+                  {/* 9. potSize */}
+                  <th className="p-0.5 border-b border-gray-300 border-l border-slate-300" style={getColumnStyle('potSize')}>
+                    <input
+                      type="text"
+                      placeholder="Rozmiar"
+                      value={columnFilters.colPotSize || ''}
+                      onChange={(e) => onColumnFilterChange('colPotSize', e.target.value)}
+                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    />
+                  </th>
+                  {/* 10. plantHeight */}
+                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('plantHeight')}>
+                    <input
+                      type="text"
+                      placeholder="Wys."
+                      value={columnFilters.colPlantHeight || ''}
+                      onChange={(e) => onColumnFilterChange('colPlantHeight', e.target.value)}
+                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    />
+                  </th>
+                  {/* 11. purchasePrice */}
+                  <th className="p-0.5 border-b border-gray-300 border-l border-blue-300" style={getColumnStyle('purchasePrice')}>
+                    <input
+                      type="text"
+                      placeholder="Zakup"
+                      value={columnFilters.colPurchasePrice || ''}
+                      onChange={(e) => onColumnFilterChange('colPurchasePrice', e.target.value)}
+                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    />
+                  </th>
+                  {/* 12. pricePlus */}
+                  <th className="p-0.5 border-b border-gray-300 border-l border-green-400" style={getColumnStyle('pricePlus')}>
+                    <input
+                      type="text"
+                      placeholder="Cena+"
+                      value={columnFilters.colPricePlus || ''}
+                      onChange={(e) => onColumnFilterChange('colPricePlus', e.target.value)}
+                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    />
+                  </th>
+                  {/* 13. basePrice */}
+                  <th className="p-0.5 border-b border-gray-300 border-l border-emerald-300" style={getColumnStyle('basePrice')}>
+                    <input
+                      type="text"
+                      placeholder="Podst."
+                      value={columnFilters.colBasePrice || ''}
+                      onChange={(e) => onColumnFilterChange('colBasePrice', e.target.value)}
+                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    />
+                  </th>
+                  {/* 14-18. Discount columns - no filter */}
+                  <th className="p-0.5 border-b border-gray-300 border-l border-purple-300" style={getColumnStyle('discount10')}></th>
+                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('discount12')}></th>
+                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('discount15')}></th>
+                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('discount20')}></th>
+                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('discount25')}></th>
+                  {/* 19. auchan8 */}
+                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('auchan8')}></th>
+                  {/* 19. totalSold */}
+                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('totalSold')}>
+                    <input
+                      type="text"
+                      placeholder="Sprz."
+                      value={columnFilters.colTotalSold || ''}
+                      onChange={(e) => onColumnFilterChange('colTotalSold', e.target.value)}
+                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    />
+                  </th>
+                  {/* 20. grower */}
                   <th className="p-0.5 border-b border-gray-300 border-l border-teal-300" style={getColumnStyle('grower')}>
                     <input
                       type="text"
@@ -980,6 +1032,7 @@ export function InventoryTable({
                       className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
                     />
                   </th>
+                  {/* 21. passport */}
                   <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('passport')}>
                     <input
                       type="text"
@@ -989,7 +1042,7 @@ export function InventoryTable({
                       className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
                     />
                   </th>
-                  <th className="p-0.5 border-b border-gray-300 border-l border-pink-300" style={getColumnStyle('tags')}></th>
+                  {/* 24. actions */}
                   <th className="p-0.5 border-b border-gray-300 border-l border-gray-200" style={getColumnStyle('actions')}></th>
                 </tr>
               )}
@@ -1002,7 +1055,7 @@ export function InventoryTable({
                 const imageUrl = getFullImageUrl(product.imageUrl);
 
                 return (
-                  <tr key={product.id} className={`${rowBg} cursor-pointer hover:bg-sky-50 transition-colors`} onClick={() => setFocusedRowId(focusedRowId === product.id ? null : product.id)}>
+                  <tr key={product.id} className={`${rowBg} cursor-pointer group transition-colors`} onClick={() => setFocusedRowId(focusedRowId === product.id ? null : product.id)} onDoubleClick={() => onViewDetails(product)} title="Kliknij dwukrotnie aby otworzyć szczegóły">
                     {sortedColumnKeys.map((columnKey) => {
                       const config = cellConfigs[columnKey];
                       if (!config) return null;
@@ -1010,7 +1063,7 @@ export function InventoryTable({
                       return (
                         <td
                           key={columnKey}
-                          className={`${isRowSelected ? "" : colStyle} ${config.borderClass} ${config.extraClass || ""}`}
+                          className={`${isRowSelected ? "" : colStyle} ${config.borderClass} ${config.extraClass || ""} group-hover:!bg-blue-200`}
                           style={getColumnStyle(columnKey)}
                           title={getCellTitle(columnKey, product)}
                         >

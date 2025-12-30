@@ -35,8 +35,8 @@ export const ALL_COLUMNS: ColumnDefinition[] = [
     key: 'checkbox',
     label: '',
     group: 'system',
-    defaultWidth: 40,
-    minWidth: 40,
+    defaultWidth: 32,
+    minWidth: 28,
     editable: false,
     filterable: false,
     fixed: true,
@@ -46,7 +46,7 @@ export const ALL_COLUMNS: ColumnDefinition[] = [
     label: 'Zdjęcie',
     group: 'system',
     defaultWidth: 50,
-    minWidth: 40,
+    minWidth: 28,
     editable: false,
     filterable: false,
   },
@@ -181,7 +181,7 @@ export const ALL_COLUMNS: ColumnDefinition[] = [
     label: 'Stawka VAT',
     shortLabel: 'VAT',
     group: 'basePrice',
-    defaultWidth: 40,
+    defaultWidth: 32,
     minWidth: 35,
     editable: true,
     filterable: false,
@@ -244,7 +244,18 @@ export const ALL_COLUMNS: ColumnDefinition[] = [
     filterable: false,
     description: 'Edytowalne',
   },
-  
+  {
+    key: 'auchan8',
+    label: 'Auchan',
+    shortLabel: 'A8',
+    group: 'discounts',
+    defaultWidth: 42,
+    minWidth: 28,
+    editable: true,
+    filterable: false,
+    description: 'Cena Auchan (8% VAT)',
+  },
+
   // Status columns
   {
     key: 'status',
