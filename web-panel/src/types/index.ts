@@ -125,6 +125,9 @@ export interface InventoryMovement {
   plantName?: string;
   barcode?: string;
   userEmail?: string;
+  orderNumber?: string;
+  orderStatus?: string;
+  orderCustomerName?: string;
 }
 
 export interface Customer {

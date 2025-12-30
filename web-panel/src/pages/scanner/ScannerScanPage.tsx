@@ -350,13 +350,46 @@ export function ScannerScanPage() {
                 <div className="divide-y divide-gray-100 max-h-60 overflow-auto">
                   {movements.slice(0, 10).map((movement) => (
                     <div key={movement.id} className="px-4 py-3 flex justify-between items-center">
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {getMovementTypeLabel(movement.movementType)}
-                        </div>
-                        <div className="text-xs text-gray-400">{formatDate(movement.createdAt)}</div>
+                      <div className="flex-1 min-w-0">
+                        {movement.movementType === 'order' && movement.orderNumber ? (
+                          <>
+                            <div className="font-medium text-gray-900 truncate">
+                              #{movement.orderNumber}
+                              {movement.orderCustomerName && (
+                                <span className="text-gray-600 font-normal"> - {movement.orderCustomerName}</span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {movement.orderStatus && (
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                  movement.orderStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                  movement.orderStatus === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                                  movement.orderStatus === 'ready_for_pickup' ? 'bg-purple-100 text-purple-800' :
+                                  movement.orderStatus === 'completed' ? 'bg-green-100 text-green-800' :
+                                  movement.orderStatus === 'cancelled' ? 'bg-red-100 text-red-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {movement.orderStatus === 'pending' ? 'Oczekujace' :
+                                   movement.orderStatus === 'in_progress' ? 'W realizacji' :
+                                   movement.orderStatus === 'ready_for_pickup' ? 'Do odbioru' :
+                                   movement.orderStatus === 'completed' ? 'Zakonczone' :
+                                   movement.orderStatus === 'cancelled' ? 'Anulowane' :
+                                   movement.orderStatus}
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-400">{formatDate(movement.createdAt)}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="font-medium text-gray-900">
+                              {getMovementTypeLabel(movement.movementType)}
+                            </div>
+                            <div className="text-xs text-gray-400">{formatDate(movement.createdAt)}</div>
+                          </>
+                        )}
                       </div>
-                      <div className={`font-bold ${getMovementColor(movement.deltaUnits)}`}>
+                      <div className={`font-bold ${getMovementColor(movement.deltaUnits)} ml-2`}>
                         {movement.deltaUnits > 0 ? '+' : ''}{movement.deltaUnits}
                       </div>
                     </div>
