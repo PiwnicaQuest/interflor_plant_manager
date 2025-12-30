@@ -330,11 +330,18 @@ export class ProductModel {
     };
   }
 
-  static async getMovements(productId: number, limit = 50): Promise<InventoryMovement[]> {
+static async getMovements(productId: number, limit = 50): Promise<InventoryMovement[]> {
     const result = await query<InventoryMovement>(
-      `SELECT im.*, u.email as user_email
+      `SELECT
+        im.*,
+        u.email as user_email,
+        o.order_number,
+        o.status as order_status,
+        COALESCE(c.company_name, CONCAT(c.first_name, ' ', c.last_name)) as order_customer_name
        FROM inventory_movements im
        LEFT JOIN users u ON im.user_id = u.id
+       LEFT JOIN orders o ON im.reference_type = 'order' AND im.reference_id = o.id
+       LEFT JOIN customers c ON o.customer_id = c.id
        WHERE im.product_id = $1
        ORDER BY im.created_at DESC
        LIMIT $2`,
