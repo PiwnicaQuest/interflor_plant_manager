@@ -93,6 +93,11 @@ export function ScannerOrderDetailPage() {
   const [lastAddedProduct, setLastAddedProduct] = useState<string | null>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
 
+  // Product search
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     if (id) {
       loadOrder();
@@ -122,11 +127,12 @@ export function ScannerOrderDetailPage() {
       setOrder(result.order);
       setEditedItems(result.order.items.map(item => {
         const unitsPerPallet = item.unitsPerPallet || item.productSnapshot?.unitsPerPallet || 1;
-        const palletCount = item.palletCount || Math.ceil(item.quantity / unitsPerPallet);
+        // Używamy rzeczywistej ilości palet (ułamkowej) aby zachować dokładną ilość sztuk
+        const actualPalletCount = item.quantity / unitsPerPallet;
         return {
           productId: item.productId ?? 0,
           quantityMode: 'pallets', // Domyślnie tryb paletek
-          inputValue: palletCount,
+          inputValue: actualPalletCount,
           unitsPerPallet,
           productName: item.productSnapshot?.plantName || item.productName || 'Produkt',
           unitPrice: item.unitPriceGross || 0,
@@ -169,6 +175,63 @@ export function ScannerOrderDetailPage() {
       setScanInput('');
       // Re-focus the input for next scan
       scanInputRef.current?.focus();
+    }
+  };
+
+
+  // Search products by name (debounced)
+  const handleSearchProducts = async (query: string) => {
+    // Clear previous timeout
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+
+    // If query is too short or looks like a barcode, don't search
+    if (query.length < 2 || /^\d{8,}$/.test(query)) {
+      setSearchResults([]);
+      setShowSearchDropdown(false);
+      return;
+    }
+
+    // Debounce search
+    searchDebounceRef.current = setTimeout(async () => {
+      try {
+        const result = await API.getInventory({ 
+          search: query, 
+          isArchived: false 
+        });
+        setSearchResults(result.products.slice(0, 10)); // Max 10 results
+        setShowSearchDropdown(result.products.length > 0);
+      } catch (err) {
+        console.error('Search error:', err);
+        setSearchResults([]);
+        setShowSearchDropdown(false);
+      }
+    }, 300);
+  };
+
+  // Handle selecting a product from search results
+  const handleSelectSearchResult = (product: Product) => {
+    handleAddProduct(product);
+    setLastAddedProduct(product.plantName);
+    setScanInput('');
+    setSearchResults([]);
+    setShowSearchDropdown(false);
+    scanInputRef.current?.focus();
+  };
+
+  // Handle input change - search or prepare for barcode
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setScanInput(value);
+    
+    // If input contains letters, trigger search
+    if (/[a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/.test(value)) {
+      handleSearchProducts(value);
+    } else {
+      // Pure numbers - likely barcode, hide search dropdown
+      setShowSearchDropdown(false);
+      setSearchResults([]);
     }
   };
 
@@ -218,7 +281,8 @@ export function ScannerOrderDetailPage() {
 
   const handleInputValueChange = (index: number, value: string) => {
     const newItems = [...editedItems];
-    const newValue = parseInt(value) || 0;
+    const item = newItems[index];
+    const newValue = item.quantityMode === "pallets" ? (parseFloat(value) || 0) : (parseInt(value) || 0);
     newItems[index].inputValue = Math.max(0, newValue);
     setEditedItems(newItems);
   };
@@ -239,7 +303,7 @@ export function ScannerOrderDetailPage() {
   // Calculate total units for an item
   const getItemUnits = (item: EditedItem) => {
     if (item.quantityMode === 'pallets') {
-      return item.inputValue * item.unitsPerPallet;
+      return Math.round(item.inputValue * item.unitsPerPallet);
     }
     return item.inputValue;
   };
@@ -292,11 +356,12 @@ export function ScannerOrderDetailPage() {
     if (!order) return;
     setEditedItems(order.items.map(item => {
       const unitsPerPallet = item.unitsPerPallet || item.productSnapshot?.unitsPerPallet || 1;
-      const palletCount = item.palletCount || Math.ceil(item.quantity / unitsPerPallet);
+      // Używamy rzeczywistej ilości palet (ułamkowej) aby zachować dokładną ilość sztuk
+        const actualPalletCount = item.quantity / unitsPerPallet;
       return {
         productId: item.productId ?? 0,
         quantityMode: 'pallets' as QuantityMode,
-        inputValue: palletCount,
+        inputValue: actualPalletCount,
         unitsPerPallet,
         productName: item.productSnapshot?.plantName || item.productName || 'Produkt',
         unitPrice: item.unitPriceGross || 0,
@@ -419,11 +484,12 @@ export function ScannerOrderDetailPage() {
             <input
               ref={scanInputRef}
               type="text"
-              inputMode="none"
+              inputMode="text"
               value={scanInput}
-              onChange={(e) => setScanInput(e.target.value)}
+              onChange={handleInputChange}
+              onBlur={() => setTimeout(() => setShowSearchDropdown(false), 200)}
               onKeyDown={handleScanInput}
-              placeholder="Skanuj kod kreskowy..."
+              placeholder="Skanuj kod lub wyszukaj produkt..."
               className="w-full pl-10 pr-10 py-2.5 text-base border border-green-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500"
               autoComplete="off"
               autoFocus
@@ -431,6 +497,52 @@ export function ScannerOrderDetailPage() {
             {scanLoading && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600" />
+              </div>
+            )}
+
+            {/* Search Results Dropdown */}
+            {showSearchDropdown && searchResults.length > 0 && (
+              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-auto">
+                {searchResults.map((product) => (
+                  <button
+                    key={product.id}
+                    type="button"
+                    className="w-full px-3 py-2 flex items-center gap-3 hover:bg-green-50 border-b border-gray-100 last:border-b-0 text-left"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      handleSelectSearchResult(product);
+                    }}
+                  >
+                    {product.imageUrl ? (
+                      <img 
+                        src={product.imageUrl} 
+                        alt={product.plantName}
+                        className="w-10 h-10 object-cover rounded"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
+                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-gray-900 truncate">{product.plantName}</div>
+                      <div className="text-xs text-gray-500">
+                        {product.potSize && <span>{product.potSize}</span>}
+                        {product.potSize && product.plantHeightCm && <span> • </span>}
+                        {product.plantHeightCm && <span>{product.plantHeightCm}cm</span>}
+                        {(product.potSize || product.plantHeightCm) && <span> • </span>}
+                        <span>{product.unitsPerPallet || 1} szt./pal.</span>
+                      </div>
+                    </div>
+                    <div className="text-green-600">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                    </div>
+                  </button>
+                ))}
               </div>
             )}
           </div>

@@ -443,7 +443,7 @@ export class OrderModel {
                 userId,
                 'return',
                 quantityDiff,
-                Math.round(quantityDiff / unitsPerPallet * 100) / 100,
+                Math.ceil(quantityDiff / unitsPerPallet),
                 `Edycja zamówienia ${order.orderNumber} - zmniejszono ilość`,
                 'order',
                 orderId,
@@ -550,7 +550,7 @@ export class OrderModel {
         const itemResult = await client.query<OrderItem>(
           `INSERT INTO order_items (
             order_id, product_id, product_snapshot, quantity, unit_price_gross, pallet_count, units_per_pallet
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
           RETURNING *`,
           [
             orderId,
