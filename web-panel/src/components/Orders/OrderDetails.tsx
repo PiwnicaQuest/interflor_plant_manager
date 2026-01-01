@@ -6,6 +6,7 @@ import { CancelOrderModal } from './CancelOrderModal';
 import { ProductDetailsModal } from './ProductDetailsModal';
 import { OrderItem } from '../../types';
 import { TransferProductsModal } from './TransferProductsModal';
+import { ReopenOrderModal } from './ReopenOrderModal';
 
 interface OrderDetailsProps {
   order: OrderWithItems;
@@ -29,9 +30,11 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [showReopenModal, setShowReopenModal] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCreatingDocument, setIsCreatingDocument] = useState(false);
+  const [isReopening, setIsReopening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<OrderItem | null>(null);
@@ -196,6 +199,47 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
 
   const canCreateDocument = () => {
     return order.status === OrderStatus.READY_FOR_PICKUP || order.status === OrderStatus.IN_PROGRESS || order.status === OrderStatus.PENDING;
+  };
+
+  const canReopenOrder = () => {
+    // Tylko dla zakończonych lub anulowanych zamówień
+    return order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELLED;
+  };
+
+  const handleReopenOrder = async (newStatus: OrderStatus, reason: string) => {
+    try {
+      setIsReopening(true);
+      setError(null);
+
+      await api.updateOrderStatus(order.id, newStatus, `[OTWARCIE PONOWNE] ${reason}`);
+
+      setSuccessMessage(`Zamówienie zostało ponownie otwarte ze statusem "${statusConfig[newStatus].label}"`);
+      setShowReopenModal(false);
+
+      await loadStatusHistory();
+
+      if (onOrderUpdated) {
+        onOrderUpdated();
+      }
+
+      setTimeout(() => {
+        onClose();
+      }, 2000);
+    } catch (err: any) {
+      console.error('Błąd podczas otwierania zamówienia:', err);
+
+      if (err.response?.status === 400) {
+        setError(err.response.data?.error || 'Nie można otworzyć tego zamówienia');
+      } else if (err.response?.status === 404) {
+        setError('Zamówienie nie zostało znalezione');
+      } else {
+        setError('Wystąpił błąd podczas otwierania zamówienia');
+      }
+
+      setShowReopenModal(false);
+    } finally {
+      setIsReopening(false);
+    }
   };
 
   const handleTransferSuccess = () => {
@@ -708,6 +752,15 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
                 Anuluj zamówienie
               </button>
             )}
+            {canReopenOrder() && (
+              <button
+                onClick={() => setShowReopenModal(true)}
+                className="btn flex-1 min-w-[120px] bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+                disabled={isReopening}
+              >
+                Otwórz ponownie
+              </button>
+            )}
             <button
               onClick={() => setShowDeleteModal(true)}
               className="btn flex-1 min-w-[120px] bg-red-700 hover:bg-red-800 text-white border-red-700"
@@ -746,6 +799,16 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
           sourceOrder={order}
           onClose={() => setShowTransferModal(false)}
           onSuccess={handleTransferSuccess}
+        />
+      )}
+
+      {/* Modal otwierania ponownie zamówienia */}
+      {showReopenModal && (
+        <ReopenOrderModal
+          orderNumber={order.orderNumber}
+          onConfirm={handleReopenOrder}
+          onClose={() => setShowReopenModal(false)}
+          isLoading={isReopening}
         />
       )}
 

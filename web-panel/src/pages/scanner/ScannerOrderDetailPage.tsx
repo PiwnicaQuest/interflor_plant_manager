@@ -237,6 +237,12 @@ export function ScannerOrderDetailPage() {
   };
 
   const handleAddProduct = (product: Product) => {
+    // Block products with zero stock
+    if ((product.totalUnits ?? 0) <= 0) {
+      setError(`Produkt "${product.plantName}" jest niedostępny (stan: 0)`);
+      return;
+    }
+
     const existingIndex = editedItems.findIndex(item => item.productId === product.id);
     if (existingIndex >= 0) {
       // Increase value by 1 (pallet or unit depending on mode)
@@ -504,46 +510,79 @@ export function ScannerOrderDetailPage() {
             {/* Search Results Dropdown */}
             {showSearchDropdown && searchResults.length > 0 && (
               <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-auto">
-                {searchResults.map((product) => (
-                  <button
-                    key={product.id}
-                    type="button"
-                    className="w-full px-3 py-2 flex items-center gap-3 hover:bg-green-50 border-b border-gray-100 last:border-b-0 text-left"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      handleSelectSearchResult(product);
-                    }}
-                  >
-                    {product.imageUrl ? (
-                      <img 
-                        src={product.imageUrl} 
-                        alt={product.plantName}
-                        className="w-10 h-10 object-cover rounded"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
-                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
+                {searchResults.map((product) => {
+                  const isOutOfStock = (product.totalUnits ?? 0) <= 0;
+                  return (
+                    <button
+                      key={product.id}
+                      type="button"
+                      className={`w-full px-3 py-2 flex items-center gap-3 border-b border-gray-100 last:border-b-0 text-left ${
+                        isOutOfStock
+                          ? 'bg-gray-50 hover:bg-gray-100'
+                          : 'hover:bg-green-50'
+                      }`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleSelectSearchResult(product);
+                      }}
+                    >
+                      {/* Product image */}
+                      <div className="relative">
+                        {product.imageUrl ? (
+                          <img
+                            src={product.imageUrl}
+                            alt={product.plantName}
+                            className={`w-10 h-10 object-cover rounded ${isOutOfStock ? 'opacity-50' : ''}`}
+                          />
+                        ) : (
+                          <div className={`w-10 h-10 bg-gray-200 rounded flex items-center justify-center ${isOutOfStock ? 'opacity-50' : ''}`}>
+                            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                        )}
                       </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-900 truncate">{product.plantName}</div>
-                      <div className="text-xs text-gray-500">
-                        {product.potSize && <span>{product.potSize}</span>}
-                        {product.potSize && product.plantHeightCm && <span> • </span>}
-                        {product.plantHeightCm && <span>{product.plantHeightCm}cm</span>}
-                        {(product.potSize || product.plantHeightCm) && <span> • </span>}
-                        <span>{product.unitsPerPallet || 1} szt./pal.</span>
+
+                      {/* Product info */}
+                      <div className="flex-1 min-w-0">
+                        <div className={`font-medium truncate ${isOutOfStock ? 'text-gray-500' : 'text-gray-900'}`}>
+                          {product.plantName}
+                        </div>
+                        <div className="text-xs text-gray-500 flex items-center gap-1">
+                          {product.potSize && <span>{product.potSize}</span>}
+                          {product.potSize && product.plantHeightCm && <span> • </span>}
+                          {product.plantHeightCm && <span>{product.plantHeightCm}cm</span>}
+                          {(product.potSize || product.plantHeightCm) && <span> • </span>}
+                          <span>{product.unitsPerPallet || 1} szt./pal.</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-green-600">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                      </svg>
-                    </div>
-                  </button>
-                ))}
+
+                      {/* Stock indicator and action */}
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                          isOutOfStock
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-green-100 text-green-700'
+                        }`}>
+                          {isOutOfStock ? 'Brak' : `${product.totalUnits} szt.`}
+                        </span>
+                        {isOutOfStock ? (
+                          <div className="text-gray-400">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                            </svg>
+                          </div>
+                        ) : (
+                          <div className="text-green-600">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>

@@ -16,6 +16,7 @@ import { ReportsPage } from "./pages/ReportsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { LossesPage } from "./pages/LossesPage";
 import { TemplatesPageWrapper } from "./pages/TemplatesPage";
+import { UsersPage } from "./pages/UsersPage";
 import { PrintOrderPage } from "./pages/PrintOrderPage";
 import { PrintInvoicePage } from "./pages/PrintInvoicePage";
 import { PrintReceiptPage } from "./pages/PrintReceiptPage";
@@ -75,6 +76,7 @@ function App() {
             <Route path="settings" element={<SettingsPage />} />
             <Route path="losses" element={<LossesPage />} />
             <Route path="templates" element={<TemplatesPageWrapper />} />
+            <Route path="users" element={<UsersPage />} />
           </Route>
 
           {/* Scanner app - standalone mobile-first interface */}

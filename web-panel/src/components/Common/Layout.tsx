@@ -113,7 +113,8 @@ export function Layout() {
       [
         { path: '/settings', label: 'Ustawienia' },
         { path: '/templates', label: 'Szablony' },
-        { path: '/losses', label: 'Straty' }
+        { path: '/losses', label: 'Straty' },
+        { path: '/users', label: 'Użytkownicy' }
       ]
     ] : []),
   ];
