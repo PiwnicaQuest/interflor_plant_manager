@@ -391,6 +391,7 @@ export interface CreateUserRequest {
 }
 
 export interface UpdateUserRequest {
+  profileId?: number;
   email?: string;
   role?: UserRole;
   isActive?: boolean;
@@ -573,4 +574,54 @@ export interface TodaySummary {
   cardTotal: number;
   transferTotal: number;
   grandTotal: number;
+}
+
+// ============================================
+// PERMISSION PROFILES
+// ============================================
+
+export interface PermissionProfile {
+  id: number;
+  name: string;
+  description?: string;
+  color: string;
+  isSystem: boolean;
+  permissions: string[];
+  userCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PermissionItem {
+  key: string;
+  label: string;
+}
+
+export interface PermissionCategory {
+  label: string;
+  permissions: PermissionItem[];
+}
+
+export interface PermissionCategories {
+  [key: string]: PermissionCategory;
+}
+
+export interface CreatePermissionProfileRequest {
+  name: string;
+  description?: string;
+  color?: string;
+  permissions: string[];
+}
+
+export interface UpdatePermissionProfileRequest {
+  name?: string;
+  description?: string;
+  color?: string;
+  permissions?: string[];
+}
+
+// Extended User with profile info
+export interface UserWithProfile extends User {
+  profileId?: number;
+  profileName?: string;
 }

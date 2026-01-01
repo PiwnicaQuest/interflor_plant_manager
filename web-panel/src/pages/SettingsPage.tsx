@@ -9,6 +9,7 @@ import { EditPriceGroupModal } from '../components/PriceGroups/EditPriceGroupMod
 import { GrowerPassportsTab } from '../components/Settings/GrowerPassportsTab';
 import { TagsTab } from '../components/Settings/TagsTab';
 import { PrinterSettingsTab } from '../components/Settings/PrinterSettingsTab';
+import PermissionProfilesTab from '../components/settings/PermissionProfilesTab';
 
 interface PricingSettings {
   costPercentage: number;
@@ -43,7 +44,7 @@ interface EmailImportSettings {
   enabled: boolean;
 }
 
-type TabType = 'company' | 'pricing' | 'email-import' | 'users' | 'price-groups' | 'printers' | 'grower-passports' | 'tags';
+type TabType = 'company' | 'pricing' | 'email-import' | 'users' | 'price-groups' | 'printers' | 'grower-passports' | 'tags' | 'profiles';
 
 export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('company');
@@ -382,6 +383,7 @@ export function SettingsPage() {
     { id: 'printers' as TabType, label: 'Drukarki' },
     { id: 'grower-passports' as TabType, label: 'Ogrodnicy i paszporty' },
     { id: 'tags' as TabType, label: 'Tagi' },
+    { id: 'profiles' as TabType, label: 'Profile uprawnień' },
   ];
 
   return (
@@ -1177,6 +1179,12 @@ export function SettingsPage() {
         <TagsTab />
       )}
 
+      {activeTab === 'profiles' && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <PermissionProfilesTab />
+        </div>
+      )}
+
       {viewingCustomers && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-3xl w-full p-6 max-h-[80vh] overflow-y-auto">
@@ -1229,3 +1237,4 @@ export function SettingsPage() {
     </div>
   );
 }
+

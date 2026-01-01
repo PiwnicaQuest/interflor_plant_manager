@@ -4,12 +4,21 @@ import bcrypt from 'bcrypt';
 
 const SALT_ROUNDS = 10;
 
+export interface UserWithProfile extends UserWithoutPassword {
+  profileId?: number;
+  profileName?: string;
+}
+
 export class UserModel {
-  static async getAll(): Promise<UserWithoutPassword[]> {
+  static async getAll(): Promise<UserWithProfile[]> {
     const result = await query<any>(
-      `SELECT id, email, role, is_active as "isActive",
-       created_at as "createdAt", updated_at as "updatedAt"
-       FROM users ORDER BY created_at DESC`
+      `SELECT u.id, u.email, u.role, u.is_active as "isActive",
+       u.profile_id as "profileId",
+       pp.name as "profileName",
+       u.created_at as "createdAt", u.updated_at as "updatedAt"
+       FROM users u
+       LEFT JOIN permission_profiles pp ON u.profile_id = pp.id
+       ORDER BY u.created_at DESC`
     );
     return result.rows;
   }
@@ -17,6 +26,7 @@ export class UserModel {
   static async getById(id: number): Promise<User | null> {
     const result = await query<any>(
       `SELECT id, email, password_hash as "passwordHash", role, is_active as "isActive",
+       profile_id as "profileId",
        created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE id = $1`,
       [id]
     );
@@ -26,6 +36,7 @@ export class UserModel {
   static async getByEmail(email: string): Promise<User | null> {
     const result = await query<any>(
       `SELECT id, email, password_hash as "passwordHash", role, is_active as "isActive",
+       profile_id as "profileId",
        created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE email = $1`,
       [email]
     );
@@ -35,16 +46,33 @@ export class UserModel {
   static async create(
     email: string,
     password: string,
-    role: UserRole = UserRole.CUSTOMER
-  ): Promise<UserWithoutPassword> {
+    role: UserRole = UserRole.CUSTOMER,
+    profileId?: number
+  ): Promise<UserWithProfile> {
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
+    // If no profileId provided, get the default one based on role
+    let finalProfileId = profileId;
+    if (!finalProfileId) {
+      const roleToProfileMap: Record<UserRole, string> = {
+        [UserRole.ADMIN]: 'Administrator',
+        [UserRole.WAREHOUSE]: 'Magazynier',
+        [UserRole.POS]: 'Sprzedawca',
+        [UserRole.CUSTOMER]: 'Klient'
+      };
+      const profileResult = await query<any>(
+        'SELECT id FROM permission_profiles WHERE name = $1',
+        [roleToProfileMap[role]]
+      );
+      finalProfileId = profileResult.rows[0]?.id;
+    }
+
     const result = await query<any>(
-      `INSERT INTO users (email, password_hash, role)
-       VALUES ($1, $2, $3)
-       RETURNING id, email, role, is_active as "isActive",
+      `INSERT INTO users (email, password_hash, role, profile_id)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, email, role, is_active as "isActive", profile_id as "profileId",
        created_at as "createdAt", updated_at as "updatedAt"`,
-      [email, passwordHash, role]
+      [email, passwordHash, role, finalProfileId]
     );
 
     return result.rows[0];
@@ -66,7 +94,7 @@ export class UserModel {
   static async updateRole(id: number, role: UserRole): Promise<UserWithoutPassword | null> {
     const result = await query<any>(
       `UPDATE users SET role = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2
-       RETURNING id, email, role, is_active as "isActive",
+       RETURNING id, email, role, is_active as "isActive", profile_id as "profileId",
        created_at as "createdAt", updated_at as "updatedAt"`,
       [role, id]
     );
@@ -83,8 +111,8 @@ export class UserModel {
 
   static async update(
     id: number,
-    data: { email?: string; role?: UserRole; isActive?: boolean }
-  ): Promise<UserWithoutPassword | null> {
+    data: { email?: string; role?: UserRole; isActive?: boolean; profileId?: number }
+  ): Promise<UserWithProfile | null> {
     const updates: string[] = [];
     const values: any[] = [];
     let paramCount = 1;
@@ -104,6 +132,11 @@ export class UserModel {
       values.push(data.isActive);
     }
 
+    if (data.profileId !== undefined) {
+      updates.push(`profile_id = $${paramCount++}`);
+      values.push(data.profileId);
+    }
+
     if (updates.length === 0) {
       return null;
     }
@@ -113,21 +146,40 @@ export class UserModel {
 
     const result = await query<any>(
       `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramCount}
-       RETURNING id, email, role, is_active as "isActive",
+       RETURNING id, email, role, is_active as "isActive", profile_id as "profileId",
        created_at as "createdAt", updated_at as "updatedAt"`,
       values
     );
 
+    // Get profile name
+    if (result.rows[0]) {
+      const profileResult = await query<any>(
+        'SELECT name FROM permission_profiles WHERE id = $1',
+        [result.rows[0].profileId]
+      );
+      result.rows[0].profileName = profileResult.rows[0]?.name;
+    }
+
     return result.rows[0] || null;
   }
 
-  static async toggleActive(id: number): Promise<UserWithoutPassword | null> {
+  static async toggleActive(id: number): Promise<UserWithProfile | null> {
     const result = await query<any>(
       `UPDATE users SET is_active = NOT is_active, updated_at = CURRENT_TIMESTAMP WHERE id = $1
-       RETURNING id, email, role, is_active as "isActive",
+       RETURNING id, email, role, is_active as "isActive", profile_id as "profileId",
        created_at as "createdAt", updated_at as "updatedAt"`,
       [id]
     );
+
+    // Get profile name
+    if (result.rows[0]) {
+      const profileResult = await query<any>(
+        'SELECT name FROM permission_profiles WHERE id = $1',
+        [result.rows[0].profileId]
+      );
+      result.rows[0].profileName = profileResult.rows[0]?.name;
+    }
+
     return result.rows[0] || null;
   }
 

@@ -45,6 +45,7 @@ import printRouter from './controllers/print.controller';
 import { ProformaController } from "./controllers/proforma.controller";
 import { LossesController } from "./controllers/losses.controller";
 import { TagsController } from "./controllers/tags.controller";
+import { PermissionProfileController } from "./controllers/permissionProfile.controller";
 
 // Initialize Express
 const app = express();
@@ -231,6 +232,17 @@ app.put('/users/:id', requireAuth, requireRole([UserRole.ADMIN]), UserController
 app.delete('/users/:id', requireAuth, requireRole([UserRole.ADMIN]), UserController.delete);
 app.patch('/users/:id/toggle-active', requireAuth, requireRole([UserRole.ADMIN]), UserController.toggleActive);
 app.patch('/users/:id/change-password', requireAuth, requireRole([UserRole.ADMIN]), UserController.changePassword);
+
+// ============================================
+// PERMISSION PROFILES ROUTES
+// ============================================
+
+app.get("/permission-profiles", requireAuth, requireRole([UserRole.ADMIN]), PermissionProfileController.getAll);
+app.get("/permission-profiles/permissions", requireAuth, requireRole([UserRole.ADMIN]), PermissionProfileController.getAvailablePermissions);
+app.get("/permission-profiles/:id", requireAuth, requireRole([UserRole.ADMIN]), PermissionProfileController.getById);
+app.post("/permission-profiles", requireAuth, requireRole([UserRole.ADMIN]), PermissionProfileController.create);
+app.put("/permission-profiles/:id", requireAuth, requireRole([UserRole.ADMIN]), PermissionProfileController.update);
+app.delete("/permission-profiles/:id", requireAuth, requireRole([UserRole.ADMIN]), PermissionProfileController.delete);
 
 // ============================================
 // PRICE GROUPS ROUTES (ADMIN only)

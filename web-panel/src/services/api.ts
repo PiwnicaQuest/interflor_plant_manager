@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import type { AuthResponse, Product, Order, OrderWithItems, Customer, Invoice, Proforma, Receipt, ReceiptWithItems, InventoryMovement, OrderStatusHistoryItem, SalesReport, TopProduct, RevenueSummary, User, CreateUserRequest, UpdateUserRequest, ChangePasswordRequest, PriceGroup, CreatePriceGroupRequest, UpdatePriceGroupRequest, MovementType, PaymentMethod } from '../types';
+import type { AuthResponse, Product, Order, OrderWithItems, Customer, Invoice, Proforma, Receipt, ReceiptWithItems, InventoryMovement, OrderStatusHistoryItem, SalesReport, TopProduct, RevenueSummary, User, CreateUserRequest, UpdateUserRequest, ChangePasswordRequest, PriceGroup, CreatePriceGroupRequest, UpdatePriceGroupRequest, MovementType, PaymentMethod, PermissionProfile, PermissionCategories, CreatePermissionProfileRequest, UpdatePermissionProfileRequest } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -879,6 +879,39 @@ class ApiClient {
     if (filters?.startDate) params.append('startDate', filters.startDate);
     if (filters?.endDate) params.append('endDate', filters.endDate);
     const response = await this.client.get(`/losses/stats?${params.toString()}`);
+    return response.data;
+  }
+  // ============================================
+  // PERMISSION PROFILES
+  // ============================================
+
+  async getPermissionProfiles(): Promise<{ profiles: PermissionProfile[] }> {
+    const response = await this.client.get('/permission-profiles');
+    return response.data;
+  }
+
+  async getPermissionProfile(id: number): Promise<{ profile: PermissionProfile }> {
+    const response = await this.client.get(`/permission-profiles/${id}`);
+    return response.data;
+  }
+
+  async getAvailablePermissions(): Promise<{ permissions: PermissionCategories }> {
+    const response = await this.client.get('/permission-profiles/permissions');
+    return response.data;
+  }
+
+  async createPermissionProfile(data: CreatePermissionProfileRequest): Promise<{ message: string; profile: PermissionProfile }> {
+    const response = await this.client.post('/permission-profiles', data);
+    return response.data;
+  }
+
+  async updatePermissionProfile(id: number, data: UpdatePermissionProfileRequest): Promise<{ message: string; profile: PermissionProfile }> {
+    const response = await this.client.put(`/permission-profiles/${id}`, data);
+    return response.data;
+  }
+
+  async deletePermissionProfile(id: number): Promise<{ message: string }> {
+    const response = await this.client.delete(`/permission-profiles/${id}`);
     return response.data;
   }
 }

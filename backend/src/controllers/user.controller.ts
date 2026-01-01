@@ -50,11 +50,11 @@ export class UserController {
    */
   static async create(req: AuthRequest, res: Response) {
     try {
-      const { email, password, role }: CreateUserRequest = req.body;
+      const { email, password, role, profileId } = req.body;
 
       // Walidacja wymaganych pól
-      if (!email || !password || !role) {
-        return res.status(400).json({ error: 'Email, hasło i rola są wymagane' });
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Email i hasło są wymagane' });
       }
 
       // Walidacja formatu email
@@ -68,9 +68,10 @@ export class UserController {
         return res.status(400).json({ error: 'Hasło musi mieć minimum 6 znaków' });
       }
 
-      // Walidacja roli
+      // Walidacja roli jeśli podana (dla kompatybilności wstecznej)
+      const userRole = role || UserRole.CUSTOMER;
       const validRoles = Object.values(UserRole);
-      if (!validRoles.includes(role)) {
+      if (!validRoles.includes(userRole)) {
         return res.status(400).json({ error: 'Nieprawidłowa rola użytkownika' });
       }
 
@@ -81,7 +82,7 @@ export class UserController {
       }
 
       // Utwórz użytkownika
-      const user = await UserModel.create(email, password, role);
+      const user = await UserModel.create(email, password, userRole, profileId);
 
       return res.status(201).json({
         message: 'Użytkownik utworzony pomyślnie',
@@ -94,7 +95,7 @@ export class UserController {
   }
 
   /**
-   * PUT /users/:id - Aktualizacja użytkownika (email, role, isActive)
+   * PUT /users/:id - Aktualizacja użytkownika (email, role, isActive, profileId)
    * Tylko dla ADMIN
    */
   static async update(req: AuthRequest, res: Response) {
@@ -106,10 +107,10 @@ export class UserController {
         return res.status(400).json({ error: 'Nieprawidłowe ID użytkownika' });
       }
 
-      const { email, role, isActive }: UpdateUserRequest = req.body;
+      const { email, role, isActive, profileId } = req.body;
 
       // Walidacja - przynajmniej jedno pole musi być podane
-      if (email === undefined && role === undefined && isActive === undefined) {
+      if (email === undefined && role === undefined && isActive === undefined && profileId === undefined) {
         return res.status(400).json({ error: 'Brak danych do aktualizacji' });
       }
 
@@ -119,9 +120,9 @@ export class UserController {
         return res.status(404).json({ error: 'Użytkownik nie znaleziony' });
       }
 
-      // Zabezpieczenie: admin nie może zmienić swojej roli
-      if (role !== undefined && currentUserId === id) {
-        return res.status(403).json({ error: 'Nie możesz zmienić swojej własnej roli' });
+      // Zabezpieczenie: admin nie może zmienić swojej roli ani profilu
+      if ((role !== undefined || profileId !== undefined) && currentUserId === id) {
+        return res.status(403).json({ error: 'Nie możesz zmienić swojej własnej roli ani profilu' });
       }
 
       // Walidacja email jeśli podany
@@ -147,7 +148,7 @@ export class UserController {
       }
 
       // Aktualizuj użytkownika
-      const updatedUser = await UserModel.update(id, { email, role, isActive });
+      const updatedUser = await UserModel.update(id, { email, role, isActive, profileId });
 
       if (!updatedUser) {
         return res.status(500).json({ error: 'Błąd aktualizacji użytkownika' });
