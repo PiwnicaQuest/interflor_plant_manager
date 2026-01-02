@@ -168,6 +168,10 @@ export class CustomerModel {
           WHEN 'rabat_15' THEN p.price_discount_15
           WHEN 'rabat_20' THEN p.price_discount_20
           WHEN 'rabat_25' THEN p.price_discount_25
+          WHEN 'auchan_8' THEN p.price_auchan8
+          WHEN 'hurt' THEN p.price_discount_15
+          WHEN 'detal' THEN p.base_price_gross
+          WHEN 'plus_8' THEN p.price_plus
           ELSE p.base_price_gross
         END as price
        FROM products p
