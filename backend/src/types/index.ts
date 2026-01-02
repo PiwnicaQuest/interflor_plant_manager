@@ -217,6 +217,7 @@ export interface OrderItem {
   palletCount?: number;
   unitsPerPallet?: number;
   totalUnits?: number;
+  looseUnits?: number;
   id: number;
   orderId: number;
   productId?: number;
@@ -415,6 +416,7 @@ export interface UpdateProductRequest {
   palletCount?: number;
   unitsPerPallet?: number;
   totalUnits?: number;
+  looseUnits?: number;
   purchasePricePln?: number;
   visibleInShop?: boolean;
   imageUrl?: string;

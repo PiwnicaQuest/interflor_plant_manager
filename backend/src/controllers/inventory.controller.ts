@@ -226,8 +226,10 @@ export class InventoryController {
 
       if (data.totalUnits !== undefined && data.totalUnits !== existingProduct.totalUnits) {
         const unitsPerPallet = data.unitsPerPallet || existingProduct.unitsPerPallet;
-        const newPalletCount = Math.ceil(data.totalUnits / unitsPerPallet);
+        const newPalletCount = Math.floor(data.totalUnits / unitsPerPallet);
+        const newLooseUnits = data.totalUnits % unitsPerPallet;
         updatedData.palletCount = newPalletCount;
+        updatedData.looseUnits = newLooseUnits;
 
         const deltaUnits = data.totalUnits - existingProduct.totalUnits;
         const deltaPallets = newPalletCount - existingProduct.palletCount;

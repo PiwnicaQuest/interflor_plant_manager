@@ -351,7 +351,7 @@ export function InventoryPage() {
         optimisticUpdates = { [field]: value };
 
         if (field === 'totalUnits' && typeof value === 'number') {
-          const newPalletCount = Math.ceil(value / product.unitsPerPallet);
+          const newPalletCount = Math.floor(value / product.unitsPerPallet);
           optimisticUpdates.palletCount = newPalletCount;
         }
 
