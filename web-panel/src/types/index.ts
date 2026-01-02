@@ -146,14 +146,14 @@ export interface Customer {
   priceGroupId: number;
   priceGroupName?: string;
   notes?: string;
-  // Delivery address (Odbiorca)
-  deliveryCompanyName?: string;
-  deliveryFirstName?: string;
-  deliveryLastName?: string;
-  deliveryStreet?: string;
-  deliveryPostalCode?: string;
-  deliveryCity?: string;
-  deliveryPhone?: string;
+  // Recipient (delivery address)
+  recipientCompanyName?: string;
+  recipientFirstName?: string;
+  recipientLastName?: string;
+  recipientStreet?: string;
+  recipientPostalCode?: string;
+  recipientCity?: string;
+  recipientPhone?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -167,14 +167,14 @@ export interface Order {
   totalAmount: number;
   itemCount?: number;
   notes?: string;
-  // Delivery address (Odbiorca)
-  deliveryCompanyName?: string;
-  deliveryFirstName?: string;
-  deliveryLastName?: string;
-  deliveryStreet?: string;
-  deliveryPostalCode?: string;
-  deliveryCity?: string;
-  deliveryPhone?: string;
+  // Recipient (delivery address)
+  recipientCompanyName?: string;
+  recipientFirstName?: string;
+  recipientLastName?: string;
+  recipientStreet?: string;
+  recipientPostalCode?: string;
+  recipientCity?: string;
+  recipientPhone?: string;
   customerNotes?: string;
   createdAt: string;
   updatedAt: string;
@@ -215,14 +215,14 @@ export interface OrderStatusHistoryItem {
   statusFrom?: OrderStatus;
   statusTo: OrderStatus;
   notes?: string;
-  // Delivery address (Odbiorca)
-  deliveryCompanyName?: string;
-  deliveryFirstName?: string;
-  deliveryLastName?: string;
-  deliveryStreet?: string;
-  deliveryPostalCode?: string;
-  deliveryCity?: string;
-  deliveryPhone?: string;
+  // Recipient (delivery address)
+  recipientCompanyName?: string;
+  recipientFirstName?: string;
+  recipientLastName?: string;
+  recipientStreet?: string;
+  recipientPostalCode?: string;
+  recipientCity?: string;
+  recipientPhone?: string;
   changedBy: number;
   changedByEmail?: string;
   createdAt: string;
@@ -258,14 +258,14 @@ export interface Invoice {
   totalVat: number;
   totalGross: number;
   notes?: string;
-  // Delivery address (Odbiorca)
-  deliveryCompanyName?: string;
-  deliveryFirstName?: string;
-  deliveryLastName?: string;
-  deliveryStreet?: string;
-  deliveryPostalCode?: string;
-  deliveryCity?: string;
-  deliveryPhone?: string;
+  // Recipient (delivery address)
+  recipientCompanyName?: string;
+  recipientFirstName?: string;
+  recipientLastName?: string;
+  recipientStreet?: string;
+  recipientPostalCode?: string;
+  recipientCity?: string;
+  recipientPhone?: string;
   pdfUrl?: string;
   createdAt: string;
   invoiceType?: InvoiceType;
@@ -306,14 +306,14 @@ export interface Receipt {
   paymentSplits?: PaymentSplit[];
   totalAmount: number;
   notes?: string;
-  // Delivery address (Odbiorca)
-  deliveryCompanyName?: string;
-  deliveryFirstName?: string;
-  deliveryLastName?: string;
-  deliveryStreet?: string;
-  deliveryPostalCode?: string;
-  deliveryCity?: string;
-  deliveryPhone?: string;
+  // Recipient (delivery address)
+  recipientCompanyName?: string;
+  recipientFirstName?: string;
+  recipientLastName?: string;
+  recipientStreet?: string;
+  recipientPostalCode?: string;
+  recipientCity?: string;
+  recipientPhone?: string;
   createdAt: string;
   customerName?: string;
   buyerSnapshot?: any;
@@ -501,14 +501,14 @@ export interface Loss {
   unitPrice: number;
   totalValue: number;
   notes?: string;
-  // Delivery address (Odbiorca)
-  deliveryCompanyName?: string;
-  deliveryFirstName?: string;
-  deliveryLastName?: string;
-  deliveryStreet?: string;
-  deliveryPostalCode?: string;
-  deliveryCity?: string;
-  deliveryPhone?: string;
+  // Recipient (delivery address)
+  recipientCompanyName?: string;
+  recipientFirstName?: string;
+  recipientLastName?: string;
+  recipientStreet?: string;
+  recipientPostalCode?: string;
+  recipientCity?: string;
+  recipientPhone?: string;
   isReversed: boolean;
   reversedAt?: string;
   createdAt: string;

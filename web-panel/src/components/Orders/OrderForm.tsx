@@ -158,8 +158,6 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
   const [loadingData, setLoadingData] = useState(true);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ companyName: '', firstName: '', lastName: '', nip: '', email: '', phone: '', street: '', postalCode: '', city: '', priceGroupId: 1 });
-  const [useCustomRecipient, setUseCustomRecipient] = useState(false);
-  const [recipient, setRecipient] = useState({ companyName: '', firstName: '', lastName: '', street: '', postalCode: '', city: '', phone: '' });
   const isEditMode = !!order;
 
   useEffect(() => {
@@ -243,18 +241,6 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
     if (items.length === 0) { setError('Dodaj przynajmniej jeden produkt'); return; }
     if (items.some(item => !item.productId || item.quantity <= 0)) { setError('Wszystkie produkty musza miec wybrana pozycje i ilosc wieksza od 0'); return; }
 
-    // Validate recipient fields if custom recipient is used
-    if (useCustomRecipient) {
-      if (!recipient.street || !recipient.postalCode || !recipient.city) {
-        setError('Wypelnij adres odbiorcy (ulica, kod pocztowy, miasto)');
-        return;
-      }
-      if (!recipient.companyName && (!recipient.firstName || !recipient.lastName)) {
-        setError('Podaj nazwe firmy odbiorcy lub imie i nazwisko');
-        return;
-      }
-    }
-
     setLoading(true); setError('');
     try {
       if (isEditMode && order) {
@@ -264,14 +250,6 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
           customerId: selectedCustomerId!,
           items: items.map(item => ({ productId: item.productId!, quantity: item.quantity, palletCount: item.palletCount, unitsPerPallet: item.unitsPerPallet })),
           customerNotes: customerNotes || undefined,
-          useCustomRecipient,
-          recipientCompanyName: useCustomRecipient ? recipient.companyName : undefined,
-          recipientFirstName: useCustomRecipient ? recipient.firstName : undefined,
-          recipientLastName: useCustomRecipient ? recipient.lastName : undefined,
-          recipientStreet: useCustomRecipient ? recipient.street : undefined,
-          recipientPostalCode: useCustomRecipient ? recipient.postalCode : undefined,
-          recipientCity: useCustomRecipient ? recipient.city : undefined,
-          recipientPhone: useCustomRecipient ? recipient.phone : undefined,
         });
       }
       onSave();
@@ -296,108 +274,6 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
               {isEditMode ? <input type="text" className="input bg-gray-100" value={order?.customerName || 'Brak danych'} disabled /> : <CustomerSearchInput customers={customers} selectedCustomerId={selectedCustomerId} onSelect={handleCustomerSelect} />}
               {selectedCustomer && <div className="mt-1 text-sm text-gray-500">Grupa cenowa: <span className="font-medium">{selectedCustomer.priceGroupName || 'Podstawowa'}</span>{selectedCustomer.nip && <span className="ml-3">NIP: {selectedCustomer.nip}</span>}</div>}
             </div>
-
-            {/* Recipient Section - only for new orders */}
-            {!isEditMode && selectedCustomerId && (
-              <div className="border border-green-200 rounded-lg p-4 bg-green-50">
-                <div className="flex items-center mb-3">
-                  <input
-                    type="checkbox"
-                    id="useCustomRecipient"
-                    checked={useCustomRecipient}
-                    onChange={(e) => setUseCustomRecipient(e.target.checked)}
-                    className="h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                  />
-                  <label htmlFor="useCustomRecipient" className="ml-2 text-sm font-medium text-gray-700">
-                    Inny adres dostawy (Odbiorca)
-                  </label>
-                </div>
-
-                {useCustomRecipient && (
-                  <div className="mt-4 space-y-4 border-t border-green-200 pt-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Nazwa firmy odbiorcy</label>
-                        <input
-                          type="text"
-                          className="input"
-                          value={recipient.companyName}
-                          onChange={(e) => setRecipient({ ...recipient, companyName: e.target.value })}
-                          placeholder="Opcjonalnie"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Telefon odbiorcy</label>
-                        <input
-                          type="text"
-                          className="input"
-                          value={recipient.phone}
-                          onChange={(e) => setRecipient({ ...recipient, phone: e.target.value })}
-                          placeholder="Opcjonalnie"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Imie odbiorcy</label>
-                        <input
-                          type="text"
-                          className="input"
-                          value={recipient.firstName}
-                          onChange={(e) => setRecipient({ ...recipient, firstName: e.target.value })}
-                          placeholder="Opcjonalnie"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Nazwisko odbiorcy</label>
-                        <input
-                          type="text"
-                          className="input"
-                          value={recipient.lastName}
-                          onChange={(e) => setRecipient({ ...recipient, lastName: e.target.value })}
-                          placeholder="Opcjonalnie"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Ulica <span className="text-red-500">*</span></label>
-                      <input
-                        type="text"
-                        className="input"
-                        value={recipient.street}
-                        onChange={(e) => setRecipient({ ...recipient, street: e.target.value })}
-                        placeholder="np. ul. Kwiatowa 15"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Kod pocztowy <span className="text-red-500">*</span></label>
-                        <input
-                          type="text"
-                          className="input"
-                          value={recipient.postalCode}
-                          onChange={(e) => setRecipient({ ...recipient, postalCode: e.target.value })}
-                          placeholder="00-000"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Miasto <span className="text-red-500">*</span></label>
-                        <input
-                          type="text"
-                          className="input"
-                          value={recipient.city}
-                          onChange={(e) => setRecipient({ ...recipient, city: e.target.value })}
-                          placeholder="Miasto"
-                        />
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Te dane pojawia sie jako "Odbiorca" na fakturze, jesli adres dostawy rozni sie od adresu nabywcy.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
 
             <div>
               <div className="mb-3"><label className="block text-sm font-medium text-gray-700">Produkty <span className="text-red-500">*</span></label></div>

@@ -108,6 +108,13 @@ export class CustomerModel {
       'email',
       'priceGroupId',
       'notes',
+      'recipientCompanyName',
+      'recipientFirstName',
+      'recipientLastName',
+      'recipientStreet',
+      'recipientPostalCode',
+      'recipientCity',
+      'recipientPhone',
     ];
 
     const columnMap: { [key: string]: string } = {
@@ -117,6 +124,13 @@ export class CustomerModel {
       lastName: 'last_name',
       postalCode: 'postal_code',
       priceGroupId: 'price_group_id',
+      recipientCompanyName: 'recipient_company_name',
+      recipientFirstName: 'recipient_first_name',
+      recipientLastName: 'recipient_last_name',
+      recipientStreet: 'recipient_street',
+      recipientPostalCode: 'recipient_postal_code',
+      recipientCity: 'recipient_city',
+      recipientPhone: 'recipient_phone',
     };
 
     for (const [key, value] of Object.entries(data)) {

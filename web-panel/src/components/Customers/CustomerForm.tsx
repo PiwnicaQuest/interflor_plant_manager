@@ -27,7 +27,16 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
     email: '',
     priceGroupId: 1,
     notes: '',
+    // Recipient fields
+    recipientCompanyName: '',
+    recipientFirstName: '',
+    recipientLastName: '',
+    recipientStreet: '',
+    recipientPostalCode: '',
+    recipientCity: '',
+    recipientPhone: '',
   });
+  const [useRecipient, setUseRecipient] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [lookingUpNIP, setLookingUpNIP] = useState(false);
@@ -55,7 +64,17 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
         email: customer.email,
         priceGroupId: customer.priceGroupId,
         notes: customer.notes || '',
+        recipientCompanyName: customer.recipientCompanyName || '',
+        recipientFirstName: customer.recipientFirstName || '',
+        recipientLastName: customer.recipientLastName || '',
+        recipientStreet: customer.recipientStreet || '',
+        recipientPostalCode: customer.recipientPostalCode || '',
+        recipientCity: customer.recipientCity || '',
+        recipientPhone: customer.recipientPhone || '',
       });
+
+      // Set useRecipient toggle if customer has recipient data
+      setUseRecipient(!!customer.recipientStreet);
 
       // Load shop account info
       loadShopAccountInfo(customer.id);
@@ -406,6 +425,130 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               />
+            </div>
+
+            {/* Inny adres odbiorcy (dostawy) */}
+            <div className="border-t pt-6">
+              <label className="flex items-center cursor-pointer mb-4">
+                <input
+                  type="checkbox"
+                  checked={useRecipient}
+                  onChange={(e) => setUseRecipient(e.target.checked)}
+                  className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                />
+                <span className="ml-3 text-sm font-medium text-gray-700">
+                  Inny adres odbiorcy (dostawy)
+                </span>
+              </label>
+
+              {useRecipient && (
+                <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+                  <p className="text-sm text-gray-600 mb-4">
+                    Uzupełnij dane odbiorcy jeśli adres dostawy różni się od adresu nabywcy.
+                    Te dane będą automatycznie używane na fakturach dla tego kontrahenta.
+                  </p>
+
+                  {/* Nazwa firmy odbiorcy */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Nazwa firmy odbiorcy (opcjonalnie)
+                    </label>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="Firma odbiorcy Sp. z o.o."
+                      value={formData.recipientCompanyName}
+                      onChange={(e) => setFormData({ ...formData, recipientCompanyName: e.target.value })}
+                    />
+                  </div>
+
+                  {/* Imię i nazwisko odbiorcy */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Imię odbiorcy (opcjonalnie)
+                      </label>
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="Jan"
+                        value={formData.recipientFirstName}
+                        onChange={(e) => setFormData({ ...formData, recipientFirstName: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Nazwisko odbiorcy (opcjonalnie)
+                      </label>
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="Kowalski"
+                        value={formData.recipientLastName}
+                        onChange={(e) => setFormData({ ...formData, recipientLastName: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Adres odbiorcy */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Ulica i numer odbiorcy <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="ul. Dostawcza 456"
+                      value={formData.recipientStreet}
+                      onChange={(e) => setFormData({ ...formData, recipientStreet: e.target.value })}
+                      required={useRecipient}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Kod pocztowy <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="00-000"
+                        value={formData.recipientPostalCode}
+                        onChange={(e) => setFormData({ ...formData, recipientPostalCode: e.target.value })}
+                        required={useRecipient}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Miasto <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="Warszawa"
+                        value={formData.recipientCity}
+                        onChange={(e) => setFormData({ ...formData, recipientCity: e.target.value })}
+                        required={useRecipient}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Telefon odbiorcy */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Telefon odbiorcy (opcjonalnie)
+                    </label>
+                    <input
+                      type="tel"
+                      className="input"
+                      placeholder="+48 123 456 789"
+                      value={formData.recipientPhone}
+                      onChange={(e) => setFormData({ ...formData, recipientPhone: e.target.value })}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Konto sklepu internetowego - tylko dla istniejących kontrahentów */}

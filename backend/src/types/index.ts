@@ -105,6 +105,14 @@ export interface Customer {
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
+  // Recipient (delivery address) fields
+  recipientCompanyName?: string;
+  recipientFirstName?: string;
+  recipientLastName?: string;
+  recipientStreet?: string;
+  recipientPostalCode?: string;
+  recipientCity?: string;
+  recipientPhone?: string;
 }
 
 export interface CustomerSnapshot {

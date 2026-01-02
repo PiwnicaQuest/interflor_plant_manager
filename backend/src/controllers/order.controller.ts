@@ -73,22 +73,21 @@ export class OrderController {
         email: customer.email,
       };
 
-      // Create recipient snapshot if custom recipient is specified
+      // Create recipient snapshot from customer's recipient data (if different delivery address is set)
       let recipientSnapshot = undefined;
-      if (data.useCustomRecipient) {
+      if (customer.recipientStreet) {
         recipientSnapshot = {
-          companyName: data.recipientCompanyName,
-          firstName: data.recipientFirstName,
-          lastName: data.recipientLastName,
-          street: data.recipientStreet || '',
-          postalCode: data.recipientPostalCode || '',
-          city: data.recipientCity || '',
-          phone: data.recipientPhone || '',
+          companyName: customer.recipientCompanyName || '',
+          firstName: customer.recipientFirstName || '',
+          lastName: customer.recipientLastName || '',
+          street: customer.recipientStreet,
+          postalCode: customer.recipientPostalCode || '',
+          city: customer.recipientCity || '',
+          phone: customer.recipientPhone || '',
           country: 'Polska',
           email: '',
         };
       }
-
       // Get prices for each item based on customer's price group
       const itemsWithPrices = [];
       for (const item of data.items) {
