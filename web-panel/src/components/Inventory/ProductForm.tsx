@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Product } from '../../types';
+import { api } from '../../services/api';
 import { parsePrice } from '../../utils/priceUtils';
 
 interface GrowerPassport {
@@ -10,7 +11,7 @@ interface GrowerPassport {
 
 interface ProductFormProps {
   onClose: () => void;
-  onSubmit: (data: Partial<Product>) => Promise<void>;
+  onSubmit: (data: Partial<Product>) => Promise<{ productId: number } | void>;
   initialData?: Partial<Product>;
 }
 
@@ -75,6 +76,7 @@ function GrowerSearchInput({
         setIsOpen(false);
       }
     };
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -89,15 +91,18 @@ function GrowerSearchInput({
     }
   };
 
+
   const handleInputFocus = () => {
     setIsOpen(true);
   };
+
 
   const handleSelect = (grower: GrowerPassport) => {
     onSelect(grower);
     setSearchTerm(grower.growerName);
     setIsOpen(false);
   };
+
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!isOpen) {
@@ -129,6 +134,7 @@ function GrowerSearchInput({
         break;
     }
   };
+
 
   return (
     <div className="relative flex gap-2">
@@ -222,6 +228,7 @@ function AddGrowerModal({
     }
   };
 
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4" style={{ zIndex: 60 }}>
       <div className="bg-white rounded-lg max-w-md w-full">
@@ -294,6 +301,7 @@ export function ProductForm({ onClose, onSubmit, initialData }: ProductFormProps
         ...initialData,
         barcode: generateBarcode(), // Zawsze nowy barcode dla kopii
       };
+
     }
     // Nowy produkt
     return {
@@ -316,12 +324,13 @@ export function ProductForm({ onClose, onSubmit, initialData }: ProductFormProps
       grower: '',
       imageUrl: '',
     };
+
   });
 
   const [growers, setGrowers] = useState<GrowerPassport[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingGrowers, setLoadingGrowers] = useState(true);
-  const [_imageFile, setImageFile] = useState<File | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [showAddGrowerModal, setShowAddGrowerModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -345,6 +354,7 @@ export function ProductForm({ onClose, onSubmit, initialData }: ProductFormProps
         setLoadingGrowers(false);
       }
     };
+
     fetchGrowers();
   }, []);
 
@@ -414,6 +424,7 @@ export function ProductForm({ onClose, onSubmit, initialData }: ProductFormProps
     }
   };
 
+
   const handleGrowerSelect = (grower: GrowerPassport | null) => {
     if (grower) {
       setFormData(prev => ({
@@ -429,6 +440,7 @@ export function ProductForm({ onClose, onSubmit, initialData }: ProductFormProps
       }));
     }
   };
+
 
   const handleAddGrower = async (growerName: string, passportNumber: string) => {
     const response = await fetch(`${(import.meta as any).env?.VITE_API_URL || 'http://localhost:4000'}/grower-passports`, {
@@ -452,14 +464,17 @@ export function ProductForm({ onClose, onSubmit, initialData }: ProductFormProps
       passportNumber,
     };
 
+
     // Dodaj do listy i wybierz
     setGrowers(prev => [...prev, newGrower]);
     handleGrowerSelect(newGrower);
   };
 
+
   const handleRegenerateBarcode = () => {
     setFormData(prev => ({ ...prev, barcode: generateBarcode() }));
   };
+
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -485,8 +500,10 @@ export function ProductForm({ onClose, onSubmit, initialData }: ProductFormProps
     reader.onloadend = () => {
       setImagePreview(reader.result as string);
     };
+
     reader.readAsDataURL(file);
   };
+
 
   const handleRemoveImage = () => {
     setImageFile(null);
@@ -495,6 +512,7 @@ export function ProductForm({ onClose, onSubmit, initialData }: ProductFormProps
       fileInputRef.current.value = '';
     }
   };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -508,11 +526,18 @@ export function ProductForm({ onClose, onSubmit, initialData }: ProductFormProps
       setLoading(true);
 
       // Utwórz produkt
-      await onSubmit(formData);
+      const result = await onSubmit(formData);
 
-      // Uwaga: Zdjęcie można dodać po utworzeniu produktu
-      // przez edycję w szczegółach produktu (ProductDetails)
-      // ponieważ potrzebujemy ID produktu do uploadu
+      // Jeśli mamy zdjęcie i otrzymaliśmy ID produktu, uploaduj zdjęcie
+      if (imageFile && result?.productId) {
+        try {
+          await api.uploadProductImage(result.productId, imageFile);
+        } catch (uploadError) {
+          console.error('Error uploading image:', uploadError);
+          // Produkt został utworzony, ale zdjęcie się nie dodało
+          alert('Produkt został dodany, ale wystąpił błąd podczas dodawania zdjęcia. Możesz dodać zdjęcie przez edycję produktu.');
+        }
+      }
 
       onClose();
     } catch (error) {

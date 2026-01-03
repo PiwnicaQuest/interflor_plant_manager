@@ -418,10 +418,11 @@ export function InventoryPage() {
 
   const handleCreateProduct = async (data: Partial<Product>) => {
     try {
-      await api.createProduct(data);
+      const result = await api.createProduct(data);
       await fetchProducts();
       setShowAddForm(false);
       setEditingProduct(null);
+      return { productId: result.productId };
     } catch (error) {
       console.error('Error creating product:', error);
       throw error;
