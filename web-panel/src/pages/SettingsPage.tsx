@@ -31,6 +31,7 @@ interface CompanySettings {
   bankName: string;
   bankAccount: string;
   bankSwift: string;
+  invoiceComment: string;
 }
 
 interface EmailImportSettings {
@@ -73,6 +74,7 @@ export function SettingsPage() {
     bankName: '',
     bankAccount: '',
     bankSwift: '',
+    invoiceComment: '',
   });
   const [companyLoading, setCompanyLoading] = useState(true);
   const [companySaving, setCompanySaving] = useState(false);
@@ -156,7 +158,7 @@ export function SettingsPage() {
     try {
       setCompanyLoading(true);
       const data = await api.getCompanySettings();
-      setCompanySettings(data);
+      setCompanySettings({ ...data, invoiceComment: (data as any).invoiceComment || '' });
     } catch (err) {
       console.error('Error fetching company settings:', err);
     } finally {
@@ -600,6 +602,22 @@ export function SettingsPage() {
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Komentarz na fakturze */}
+              <div className="border-t border-gray-200 pt-6">
+                <h3 className="text-md font-medium text-gray-900 mb-4">Komentarz na fakturze</h3>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Treść komentarza</label>
+                  <textarea
+                    value={companySettings.invoiceComment}
+                    onChange={(e) => setCompanySettings({ ...companySettings, invoiceComment: e.target.value })}
+                    rows={3}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="Np. Dziękujemy za zakupy! Towar pozostaje własnością sprzedawcy do momentu zapłaty."
+                  />
+                  <p className="mt-1 text-sm text-gray-500">Ten tekst pojawi się na dole każdej faktury.</p>
                 </div>
               </div>
 
