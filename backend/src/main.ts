@@ -414,19 +414,6 @@ app.get("/image-proxy", requireAuth, async (req: Request, res: Response) => {
 app.use('/print', printRouter);
 
 // ============================================
-// ERROR HANDLING
-// ============================================
-
-app.use((_req: Request, res: Response) => {
-  res.status(404).json({ error: 'Endpoint nie znaleziony' });
-});
-
-app.use((err: any, _req: Request, res: Response, _next: any) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ error: 'Wewnętrzny błąd serwera' });
-});
-
-// ============================================
 // START SERVER
 // ============================================
 
@@ -435,15 +422,60 @@ const httpServer = createServer(app);
 // WebSocket Server
 const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
 
+// Extended WSClient interface to track user details
 interface WSClient extends WebSocket {
   userId?: number;
+  userEmail?: string;
+  userRole?: string;
+  connectedAt?: Date;
   subscriptions?: Set<string>;
 }
+
+// Helper function to get online users
+const getOnlineUsers = () => {
+  const employees: { userId: number; email: string; role: string; connectedAt: Date }[] = [];
+  const customers: { userId: number; email: string; role: string; connectedAt: Date }[] = [];
+
+  wss.clients.forEach((client) => {
+    const wsClient = client as WSClient;
+    if (wsClient.readyState === WebSocket.OPEN && wsClient.userId && wsClient.userEmail) {
+      const userInfo = {
+        userId: wsClient.userId,
+        email: wsClient.userEmail,
+        role: wsClient.userRole || 'unknown',
+        connectedAt: wsClient.connectedAt || new Date()
+      };
+
+      if (wsClient.userRole === 'customer') {
+        customers.push(userInfo);
+      } else {
+        employees.push(userInfo);
+      }
+    }
+  });
+
+  return { employees, customers };
+};
+
+// Broadcast user status to all admins subscribed to 'online-users' channel
+const broadcastOnlineUsers = () => {
+  const onlineUsers = getOnlineUsers();
+  wss.clients.forEach((client) => {
+    const wsClient = client as WSClient;
+    if (wsClient.readyState === WebSocket.OPEN && wsClient.subscriptions?.has('online-users')) {
+      wsClient.send(JSON.stringify({
+        type: 'online-users:update',
+        data: onlineUsers
+      }));
+    }
+  });
+};
 
 wss.on('connection', (ws: WSClient) => {
   console.log('WebSocket client connected');
 
   ws.subscriptions = new Set();
+  ws.connectedAt = new Date();
 
   ws.on('message', (message: string) => {
     try {
@@ -460,11 +492,16 @@ wss.on('connection', (ws: WSClient) => {
             // Verify JWT token
             const decoded = jwt.verify(data.token, JWT_SECRET) as JWTPayload;
 
-            // Store userId in WSClient
+            // Store user info in WSClient
             ws.userId = decoded.userId;
+            ws.userEmail = decoded.email;
+            ws.userRole = decoded.role;
 
-            console.log('[WebSocket] User authenticated:', decoded.email, '(userId:', decoded.userId, ')');
+            console.log('[WebSocket] User authenticated:', decoded.email, '(userId:', decoded.userId, ', role:', decoded.role, ')');
             ws.send(JSON.stringify({ type: 'auth:success', userId: decoded.userId }));
+
+            // Broadcast updated online users list
+            broadcastOnlineUsers();
           } catch (error) {
             console.error('[WebSocket] Authentication failed:', error);
             if (error instanceof jwt.TokenExpiredError) {
@@ -486,6 +523,15 @@ wss.on('connection', (ws: WSClient) => {
             ws.subscriptions?.add(data.channel);
             console.log('[WebSocket] User', ws.userId, 'subscribed to channel:', data.channel);
             ws.send(JSON.stringify({ type: 'subscribe:success', channel: data.channel }));
+
+            // If subscribing to online-users, send current list immediately
+            if (data.channel === 'online-users') {
+              const onlineUsers = getOnlineUsers();
+              ws.send(JSON.stringify({
+                type: 'online-users:update',
+                data: onlineUsers
+              }));
+            }
           }
           break;
 
@@ -496,6 +542,18 @@ wss.on('connection', (ws: WSClient) => {
             ws.send(JSON.stringify({ type: 'unsubscribe:success', channel: data.channel }));
           }
           break;
+
+        case 'get-online-users':
+          if (!ws.userId) {
+            ws.send(JSON.stringify({ type: 'error', error: 'Wymagana autoryzacja' }));
+            return;
+          }
+          const onlineUsers = getOnlineUsers();
+          ws.send(JSON.stringify({
+            type: 'online-users:update',
+            data: onlineUsers
+          }));
+          break;
       }
     } catch (error) {
       console.error('WebSocket message error:', error);
@@ -503,7 +561,16 @@ wss.on('connection', (ws: WSClient) => {
   });
 
   ws.on('close', () => {
-    console.log('WebSocket client disconnected');
+    const wasAuthenticated = ws.userId;
+    console.log('WebSocket client disconnected', wasAuthenticated ? `(userId: ${ws.userId})` : '');
+
+    // Broadcast updated online users list if this was an authenticated user
+    if (wasAuthenticated) {
+      // Small delay to ensure the client is removed from the list
+      setTimeout(() => {
+        broadcastOnlineUsers();
+      }, 100);
+    }
   });
 
   ws.on('error', (error) => {
@@ -520,6 +587,28 @@ export const broadcast = (channel: string, data: any) => {
     }
   });
 };
+
+// ============================================
+// ONLINE USERS API ENDPOINT
+// ============================================
+
+app.get('/online-users', requireAuth, requireRole([UserRole.ADMIN]), (_req: Request, res: Response) => {
+  const onlineUsers = getOnlineUsers();
+  res.json(onlineUsers);
+});
+
+// ============================================
+// ERROR HANDLING
+// ============================================
+
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({ error: 'Endpoint nie znaleziony' });
+});
+
+app.use((err: any, _req: Request, res: Response, _next: any) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Wewnętrzny błąd serwera' });
+});
 
 // Initialize email service
 emailService.initialize();
