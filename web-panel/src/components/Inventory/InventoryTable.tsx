@@ -575,8 +575,8 @@ export function InventoryTable({
     date: 'bg-cyan-50',
     inventory: 'bg-amber-50',
     purchase: 'bg-blue-50',
-    pricePlus: 'bg-green-200',
-    basePrice: 'bg-yellow-100',
+    pricePlus: 'bg-yellow-100',
+    basePrice: 'bg-green-200',
     discounts: 'bg-purple-50',
     status: 'bg-orange-50',
     grower: 'bg-teal-50',
@@ -591,8 +591,8 @@ export function InventoryTable({
     date: 'bg-cyan-200',
     inventory: 'bg-amber-200',
     purchase: 'bg-blue-200',
-    pricePlus: 'bg-green-400',
-    basePrice: 'bg-yellow-300',
+    pricePlus: 'bg-yellow-300',
+    basePrice: 'bg-green-400',
     discounts: 'bg-purple-200',
     status: 'bg-orange-200',
     grower: 'bg-teal-200',
@@ -613,8 +613,8 @@ export function InventoryTable({
     totalUnits: { label: "Σ", style: headerStyles.inventory, title: "Suma sztuk (edytowalne)", borderClass: "border-b-2 border-amber-400" },
     totalSold: { label: "📦", style: headerStyles.inventory, title: "Sprzedane", borderClass: "border-b-2 border-amber-400" },
     purchasePrice: { label: "Zak", style: headerStyles.purchase, title: "Cena zakupu", borderClass: "border-b-2 border-blue-400 border-l border-blue-300" },
-    pricePlus: { label: "C+", style: headerStyles.pricePlus, title: "Cena+ (zakup + marża)", borderClass: "border-b-2 border-green-500 border-l border-green-400 font-bold" },
-    basePrice: { label: "Baz", style: headerStyles.basePrice, title: "Cena podstawowa (edytowalne)", borderClass: "border-b-2 border-yellow-500 border-l border-yellow-400 font-bold" },
+    pricePlus: { label: "C+", style: headerStyles.pricePlus, title: "Cena+ (zakup + marża)", borderClass: "border-b-2 border-yellow-500 border-l border-yellow-400 font-bold" },
+    basePrice: { label: "Baz", style: headerStyles.basePrice, title: "Cena podstawowa (edytowalne)", borderClass: "border-b-2 border-green-500 border-l border-green-400 font-bold" },
     discount10: { label: "10", style: headerStyles.discounts, title: "Rabat -10%", borderClass: "border-b-2 border-purple-400 border-l border-purple-300" },
     discount12: { label: "12", style: headerStyles.discounts, title: "Rabat -12%", borderClass: "border-b-2 border-purple-400" },
     discount15: { label: "15", style: headerStyles.discounts, title: "Rabat -15%", borderClass: "border-b-2 border-purple-400" },
@@ -659,8 +659,8 @@ export function InventoryTable({
     totalUnits: { styleKey: "inventory", borderClass: "border-b border-amber-200", extraClass: "text-center font-bold text-amber-800 text-xs" },
     totalSold: { styleKey: "inventory", borderClass: "border-b border-amber-200", extraClass: "text-center font-semibold text-amber-700 text-xs" },
     purchasePrice: { styleKey: "purchase", borderClass: "border-b border-blue-200 border-l border-blue-200", extraClass: "text-center text-xs" },
-    pricePlus: { styleKey: "pricePlus", borderClass: "border-b border-green-400 border-l border-green-400", extraClass: "text-center font-bold text-green-800 text-xs" },
-    basePrice: { styleKey: "basePrice", borderClass: "border-b border-yellow-300 border-l border-yellow-300", extraClass: "text-center font-bold text-yellow-900 text-xs" },
+    pricePlus: { styleKey: "pricePlus", borderClass: "border-b border-yellow-300 border-l border-yellow-300", extraClass: "text-center font-bold text-yellow-900 text-xs" },
+    basePrice: { styleKey: "basePrice", borderClass: "border-b border-green-400 border-l border-green-400", extraClass: "text-center font-bold text-green-800 text-xs" },
     discount10: { styleKey: "discounts", borderClass: "border-b border-purple-200 border-l border-purple-200", extraClass: "text-center text-xs" },
     discount12: { styleKey: "discounts", borderClass: "border-b border-purple-200", extraClass: "text-center text-xs" },
     discount15: { styleKey: "discounts", borderClass: "border-b border-purple-200", extraClass: "text-center text-xs" },
@@ -981,7 +981,7 @@ export function InventoryTable({
                     />
                   </th>
                   {/* 12. pricePlus */}
-                  <th className="p-0.5 border-b border-gray-300 border-l border-green-400" style={getColumnStyle('pricePlus')}>
+                  <th className="p-0.5 border-b border-gray-300 border-l border-yellow-400" style={getColumnStyle('pricePlus')}>
                     <input
                       type="text"
                       placeholder="Cena+"
@@ -991,7 +991,7 @@ export function InventoryTable({
                     />
                   </th>
                   {/* 13. basePrice */}
-                  <th className="p-0.5 border-b border-gray-300 border-l border-emerald-300" style={getColumnStyle('basePrice')}>
+                  <th className="p-0.5 border-b border-gray-300 border-l border-green-400" style={getColumnStyle('basePrice')}>
                     <input
                       type="text"
                       placeholder="Podst."
