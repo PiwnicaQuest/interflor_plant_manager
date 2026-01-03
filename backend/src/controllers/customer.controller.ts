@@ -83,6 +83,14 @@ export class CustomerController {
       const id = parseInt(req.params.id);
       const data = req.body;
 
+      // Check if NIP is being changed and if it already exists for another customer
+      if (data.nip) {
+        const existingWithNip = await CustomerModel.getByNIP(data.nip);
+        if (existingWithNip && existingWithNip.id !== id) {
+          return res.status(409).json({ error: 'Kontrahent z tym NIP już istnieje' });
+        }
+      }
+
       const customer = await CustomerModel.update(id, data);
 
       if (!customer) {
