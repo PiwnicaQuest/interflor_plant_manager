@@ -344,6 +344,7 @@ app.get('/shop/products/:id', optionalAuth, ShopController.getProduct);
 app.get('/shop/my-orders', requireAuth, requireRole([UserRole.CUSTOMER]), ShopController.getMyOrders);
 app.get('/shop/my-orders/:id', requireAuth, requireRole([UserRole.CUSTOMER]), ShopController.getMyOrder);
 app.get('/shop/profile', requireAuth, requireRole([UserRole.CUSTOMER]), ShopController.getCustomerProfile);
+app.post('/shop/change-password', requireAuth, requireRole([UserRole.CUSTOMER]), ShopController.changeMyPassword);
 
 // ============================================
 // MOBILE ROUTES
