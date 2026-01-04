@@ -395,6 +395,24 @@ export function ScannerOrderDetailPage() {
     }
   };
 
+  // Proper order cancellation with stock restoration
+  const handleCancelOrder = async () => {
+    if (!order) return;
+
+    setChangingStatus(true);
+    setError(null);
+    try {
+      await API.cancelOrder(order.id, 'Anulowano przez aplikację skanera');
+      await loadOrder();
+      setShowStatusModal(false);
+      setShowCancelConfirm(false);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Nie udalo sie anulowac zamowienia');
+    } finally {
+      setChangingStatus(false);
+    }
+  };
+
   const calculateTotal = () => {
     return editedItems.reduce((sum, item) => sum + getItemTotal(item), 0);
   };
@@ -964,23 +982,27 @@ export function ScannerOrderDetailPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Anulować zamówienie?</h3>
-              <p className="text-gray-600 text-sm mb-6">
-                Czy na pewno chcesz anulować to zamówienie? Tej operacji nie można cofnąć.
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Anulowac zamowienie?</h3>
+              <p className="text-gray-600 text-sm mb-2">
+                Czy na pewno chcesz anulowac to zamowienie?
               </p>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-2 mb-4">
+                <p className="text-green-700 text-xs flex items-center justify-center gap-1">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Produkty zostana zwrocone do magazynu
+                </p>
+              </div>
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowCancelConfirm(false)}
                   className="flex-1 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200"
                 >
-                  Nie, wróć
+                  Nie, wroc
                 </button>
                 <button
-                  onClick={() => {
-                    setShowCancelConfirm(false);
-                    setShowStatusModal(false);
-                    handleStatusChange('cancelled' as OrderStatus);
-                  }}
+                  onClick={handleCancelOrder}
                   disabled={changingStatus}
                   className="flex-1 py-2.5 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center"
                 >

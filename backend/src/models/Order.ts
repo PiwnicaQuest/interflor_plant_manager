@@ -744,9 +744,11 @@ export class OrderModel {
 
         const product = productResult.rows[0];
 
-        // Calculate new stock after restoration using pallet_count and loose_units
-        const newTotalUnits = product.totalUnits + item.quantity;
+        // Calculate new stock after restoration
+        // Note: wrapClient converts snake_case to camelCase, so use camelCase properties
+        const currentTotalUnits = product.totalUnits || 0;
         const unitsPerPallet = product.unitsPerPallet || 1;
+        const newTotalUnits = currentTotalUnits + item.quantity;
         const newPalletCount = Math.floor(newTotalUnits / unitsPerPallet);
         const newLooseUnits = newTotalUnits % unitsPerPallet;
 
