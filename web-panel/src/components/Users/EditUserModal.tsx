@@ -10,6 +10,9 @@ interface EditUserModalProps {
 
 export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
   const [email, setEmail] = useState(user.email);
+  const [firstName, setFirstName] = useState(user.firstName || '');
+  const [lastName, setLastName] = useState(user.lastName || '');
+  const [login, setLogin] = useState(user.login || '');
   const [role, setRole] = useState<UserRole>(user.role);
   const [isActive, setIsActive] = useState(user.isActive);
   const [profileId, setProfileId] = useState<number | undefined>(user.profileId);
@@ -45,7 +48,15 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
 
     setLoading(true);
     try {
-      await onUpdate({ email, role, isActive, profileId });
+      await onUpdate({ 
+        email, 
+        role, 
+        isActive, 
+        profileId,
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+        login: login || undefined
+      });
       onClose();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Błąd podczas aktualizacji użytkownika');
@@ -81,6 +92,45 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
         )}
 
         <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Imię
+            </label>
+            <input
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Opcjonalne"
+            />
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nazwisko
+            </label>
+            <input
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Opcjonalne"
+            />
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Login
+            </label>
+            <input
+              type="text"
+              value={login}
+              onChange={(e) => setLogin(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Opcjonalne"
+            />
+          </div>
+
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Email

@@ -10,6 +10,9 @@ export function CreateUserModal({ onClose, onCreate }: CreateUserModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>(UserRole.CUSTOMER);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [login, setLogin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -36,7 +39,14 @@ export function CreateUserModal({ onClose, onCreate }: CreateUserModalProps) {
 
     setLoading(true);
     try {
-      await onCreate({ email, password, role });
+      await onCreate({ 
+        email, 
+        password, 
+        role,
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+        login: login || undefined
+      });
       onClose();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Błąd podczas tworzenia użytkownika');
@@ -57,6 +67,45 @@ export function CreateUserModal({ onClose, onCreate }: CreateUserModalProps) {
         )}
 
         <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Imię
+            </label>
+            <input
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Imię użytkownika"
+            />
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nazwisko
+            </label>
+            <input
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Nazwisko użytkownika"
+            />
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Login
+            </label>
+            <input
+              type="text"
+              value={login}
+              onChange={(e) => setLogin(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Login użytkownika"
+            />
+          </div>
+
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Email

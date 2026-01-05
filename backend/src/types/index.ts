@@ -62,9 +62,13 @@ export enum PaymentStatus {
 export interface User {
   id: number;
   email: string;
+  login?: string;
+  firstName?: string;
+  lastName?: string;
   passwordHash: string;
   role: UserRole;
   isActive: boolean;
+  profileId?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -72,8 +76,12 @@ export interface User {
 export interface UserWithoutPassword {
   id: number;
   email: string;
+  login?: string;
+  firstName?: string;
+  lastName?: string;
   role: UserRole;
   isActive: boolean;
+  profileId?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -335,6 +343,7 @@ export interface JWTPayload {
   userId: number;
   email: string;
   role: UserRole;
+  firstName?: string;
   iat?: number;
   exp?: number;
 }
@@ -367,12 +376,20 @@ export interface CreateUserRequest {
   email: string;
   password: string;
   role: UserRole;
+  profileId?: number;
+  firstName?: string;
+  lastName?: string;
+  login?: string;
 }
 
 export interface UpdateUserRequest {
   email?: string;
   role?: UserRole;
   isActive?: boolean;
+  profileId?: number;
+  firstName?: string;
+  lastName?: string;
+  login?: string;
 }
 
 export interface ChangePasswordRequest {

@@ -9,19 +9,25 @@ export function Layout() {
   const navigate = useNavigate();
   const { showNotification } = useNotifications();
   const [toasts, setToasts] = useState<Array<{ id: string; type: any; message: string }>>([]);
-  const getUserRole = () => {
+  const getUserInfo = () => {
     const token = localStorage.getItem('token');
     if (!token) return null;
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.role;
+      return {
+        role: payload.role,
+        email: payload.email,
+        firstName: payload.firstName
+      };
     } catch {
       return null;
     }
   };
-  const userRole = getUserRole();
+  const userInfo = getUserInfo();
+  const userRole = userInfo?.role;
   const isAdmin = userRole === 'admin';
   const isWarehouse = userRole === 'warehouse';
+  const displayName = userInfo?.firstName || userInfo?.email?.split('@')[0] || '';
   const handleLogout = () => {
     localStorage.removeItem('token');
     navigate('/login');
@@ -114,7 +120,7 @@ export function Layout() {
         { path: '/settings', label: 'Ustawienia' },
         { path: '/templates', label: 'Szablony' },
         { path: '/losses', label: 'Straty' },
-        
+
       ]
     ] : []),
   ];
@@ -155,8 +161,9 @@ export function Layout() {
                 ))}
               </nav>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <NotificationCenter />
+              <span className="text-sm font-medium text-gray-700">{displayName}</span>
               <button
                 onClick={handleLogout}
                 className="px-4 py-2 text-sm text-gray-700 hover:text-gray-900"

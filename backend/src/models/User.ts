@@ -12,7 +12,8 @@ export interface UserWithProfile extends UserWithoutPassword {
 export class UserModel {
   static async getAll(): Promise<UserWithProfile[]> {
     const result = await query<any>(
-      `SELECT u.id, u.email, u.role, u.is_active as "isActive",
+      `SELECT u.id, u.email, u.login, u.first_name as "firstName", u.last_name as "lastName",
+       u.role, u.is_active as "isActive",
        u.profile_id as "profileId",
        pp.name as "profileName",
        u.created_at as "createdAt", u.updated_at as "updatedAt"
@@ -25,7 +26,8 @@ export class UserModel {
 
   static async getById(id: number): Promise<User | null> {
     const result = await query<any>(
-      `SELECT id, email, password_hash as "passwordHash", role, is_active as "isActive",
+      `SELECT id, email, login, first_name as "firstName", last_name as "lastName",
+       password_hash as "passwordHash", role, is_active as "isActive",
        profile_id as "profileId",
        created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE id = $1`,
       [id]
@@ -35,7 +37,8 @@ export class UserModel {
 
   static async getByEmail(email: string): Promise<User | null> {
     const result = await query<any>(
-      `SELECT id, email, password_hash as "passwordHash", role, is_active as "isActive",
+      `SELECT id, email, login, first_name as "firstName", last_name as "lastName",
+       password_hash as "passwordHash", role, is_active as "isActive",
        profile_id as "profileId",
        created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE email = $1`,
       [email]
@@ -43,15 +46,37 @@ export class UserModel {
     return result.rows[0] || null;
   }
 
+  static async getByLogin(login: string): Promise<User | null> {
+    const result = await query<any>(
+      `SELECT id, email, login, first_name as "firstName", last_name as "lastName",
+       password_hash as "passwordHash", role, is_active as "isActive",
+       profile_id as "profileId",
+       created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE login = $1`,
+      [login]
+    );
+    return result.rows[0] || null;
+  }
+
+  static async getByEmailOrLogin(emailOrLogin: string): Promise<User | null> {
+    const isEmail = emailOrLogin.includes('@');
+    if (isEmail) {
+      return this.getByEmail(emailOrLogin);
+    } else {
+      const userByLogin = await this.getByLogin(emailOrLogin);
+      if (userByLogin) return userByLogin;
+      return this.getByEmail(emailOrLogin);
+    }
+  }
+
   static async create(
     email: string,
     password: string,
     role: UserRole = UserRole.CUSTOMER,
-    profileId?: number
+    profileId?: number,
+    options?: { firstName?: string; lastName?: string; login?: string }
   ): Promise<UserWithProfile> {
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-    // If no profileId provided, get the default one based on role
     let finalProfileId = profileId;
     if (!finalProfileId) {
       const roleToProfileMap: Record<UserRole, string> = {
@@ -68,11 +93,12 @@ export class UserModel {
     }
 
     const result = await query<any>(
-      `INSERT INTO users (email, password_hash, role, profile_id)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, email, role, is_active as "isActive", profile_id as "profileId",
+      `INSERT INTO users (email, password_hash, role, profile_id, first_name, last_name, login)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, email, login, first_name as "firstName", last_name as "lastName",
+       role, is_active as "isActive", profile_id as "profileId",
        created_at as "createdAt", updated_at as "updatedAt"`,
-      [email, passwordHash, role, finalProfileId]
+      [email, passwordHash, role, finalProfileId, options?.firstName || null, options?.lastName || null, options?.login || null]
     );
 
     return result.rows[0];
@@ -94,7 +120,8 @@ export class UserModel {
   static async updateRole(id: number, role: UserRole): Promise<UserWithoutPassword | null> {
     const result = await query<any>(
       `UPDATE users SET role = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2
-       RETURNING id, email, role, is_active as "isActive", profile_id as "profileId",
+       RETURNING id, email, login, first_name as "firstName", last_name as "lastName",
+       role, is_active as "isActive", profile_id as "profileId",
        created_at as "createdAt", updated_at as "updatedAt"`,
       [role, id]
     );
@@ -111,7 +138,7 @@ export class UserModel {
 
   static async update(
     id: number,
-    data: { email?: string; role?: UserRole; isActive?: boolean; profileId?: number }
+    data: { email?: string; role?: UserRole; isActive?: boolean; profileId?: number; firstName?: string; lastName?: string; login?: string }
   ): Promise<UserWithProfile | null> {
     const updates: string[] = [];
     const values: any[] = [];
@@ -137,6 +164,21 @@ export class UserModel {
       values.push(data.profileId);
     }
 
+    if (data.firstName !== undefined) {
+      updates.push(`first_name = $${paramCount++}`);
+      values.push(data.firstName || null);
+    }
+
+    if (data.lastName !== undefined) {
+      updates.push(`last_name = $${paramCount++}`);
+      values.push(data.lastName || null);
+    }
+
+    if (data.login !== undefined) {
+      updates.push(`login = $${paramCount++}`);
+      values.push(data.login || null);
+    }
+
     if (updates.length === 0) {
       return null;
     }
@@ -146,15 +188,15 @@ export class UserModel {
 
     const result = await query<any>(
       `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramCount}
-       RETURNING id, email, role, is_active as "isActive", profile_id as "profileId",
+       RETURNING id, email, login, first_name as "firstName", last_name as "lastName",
+       role, is_active as "isActive", profile_id as "profileId",
        created_at as "createdAt", updated_at as "updatedAt"`,
       values
     );
 
-    // Get profile name
     if (result.rows[0]) {
       const profileResult = await query<any>(
-        'SELECT name FROM permission_profiles WHERE id = $1',
+        'SELECT Name FROM permission_profiles WHERE id = $1',
         [result.rows[0].profileId]
       );
       result.rows[0].profileName = profileResult.rows[0]?.name;
@@ -166,12 +208,12 @@ export class UserModel {
   static async toggleActive(id: number): Promise<UserWithProfile | null> {
     const result = await query<any>(
       `UPDATE users SET is_active = NOT is_active, updated_at = CURRENT_TIMESTAMP WHERE id = $1
-       RETURNING id, email, role, is_active as "isActive", profile_id as "profileId",
+       RETURNING id, email, login, first_name as "firstName", last_name as "lastName",
+       role, is_active as "isActive", profile_id as "profileId",
        created_at as "createdAt", updated_at as "updatedAt"`,
       [id]
     );
 
-    // Get profile name
     if (result.rows[0]) {
       const profileResult = await query<any>(
         'SELECT name FROM permission_profiles WHERE id = $1',
@@ -210,11 +252,7 @@ export class UserModel {
     return userWithoutPassword as UserWithoutPassword;
   }
 
-  /**
-   * Trwale usuwa użytkownika i powiązanego klienta z bazy danych
-   */
   static async hardDelete(id: number): Promise<{ success: boolean; deletedCustomer: boolean }> {
-    // Sprawdź czy użytkownik ma powiązanego klienta
     const customerResult = await query<any>(
       'SELECT id FROM customers WHERE user_id = $1',
       [id]
@@ -222,22 +260,16 @@ export class UserModel {
     const hasCustomer = customerResult.rows.length > 0;
     const customerId = hasCustomer ? customerResult.rows[0].id : null;
 
-    // Najpierw usuń powiązanego klienta (jeśli istnieje)
-    // Dzięki ON DELETE SET NULL, zamówienia i faktury zachowają się ale stracą referencję do klienta
     if (customerId) {
       await query('DELETE FROM customers WHERE id = $1', [customerId]);
     }
 
-    // Usuń użytkownika - dzięki ON DELETE SET NULL referencje w innych tabelach zostaną ustawione na NULL
     const result = await query('DELETE FROM users WHERE id = $1', [id]);
     const success = (result.rowCount || 0) > 0;
 
     return { success, deletedCustomer: hasCustomer };
   }
 
-  /**
-   * Pobiera statystyki powiązanych danych użytkownika
-   */
   static async getRelatedData(id: number): Promise<{
     hasCustomer: boolean;
     orderCount: number;
@@ -257,5 +289,18 @@ export class UserModel {
       invoiceCount: parseInt(invoiceResult.rows[0]?.count || '0'),
       movementCount: parseInt(movementResult.rows[0]?.count || '0'),
     };
+  }
+
+  static async loginExists(login: string, excludeUserId?: number): Promise<boolean> {
+    let sql = 'SELECT id FROM users WHERE login = $1';
+    const params: any[] = [login];
+
+    if (excludeUserId) {
+      sql += ' AND id != $2';
+      params.push(excludeUserId);
+    }
+
+    const result = await query<any>(sql, params);
+    return result.rows.length > 0;
   }
 }

@@ -58,10 +58,10 @@ export function LoginPage() {
               <input
                 id="email"
                 name="email"
-                type="email"
+                type="text"
                 required
                 className="input rounded-t-md rounded-b-none"
-                placeholder="Email"
+                placeholder="Email lub login"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />

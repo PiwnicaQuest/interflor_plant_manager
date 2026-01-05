@@ -971,6 +971,9 @@ export function SettingsPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Imie</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nazwisko</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Login</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rola</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -981,6 +984,15 @@ export function SettingsPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {users.map((user) => (
                     <tr key={user.id}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{(user as any).firstName || '-'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{(user as any).lastName || '-'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{(user as any).login || '-'}</div>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{user.email}</div>
                       </td>
@@ -1001,12 +1013,12 @@ export function SettingsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button onClick={() => setEditingUser(user)} className="text-blue-600 hover:text-blue-900 mr-3">Edytuj</button>
-                        <button onClick={() => setChangingPasswordUser(user)} className="text-indigo-600 hover:text-indigo-900 mr-3">Hasło</button>
+                        <button onClick={() => setChangingPasswordUser(user)} className="text-indigo-600 hover:text-indigo-900 mr-3">Haslo</button>
                         <button onClick={() => handleToggleUserActive(user.id)} className="text-yellow-600 hover:text-yellow-900 mr-3">
                           {user.isActive ? 'Dezaktywuj' : 'Aktywuj'}
                         </button>
-                        <button onClick={() => handleDeleteUser(user.id, user.email)} className="text-red-600 hover:text-red-900 mr-3">Usuń</button>
-                        <button onClick={() => handlePermanentDelete(user.id, user.email)} className="text-red-800 hover:text-red-900 font-semibold">Usuń trwale</button>
+                        <button onClick={() => handleDeleteUser(user.id, user.email)} className="text-red-600 hover:text-red-900 mr-3">Usun</button>
+                        <button onClick={() => handlePermanentDelete(user.id, user.email)} className="text-red-800 hover:text-red-900 font-semibold">Usun trwale</button>
                       </td>
                     </tr>
                   ))}

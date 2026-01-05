@@ -10,13 +10,14 @@ export class AuthController {
       const { email, password }: LoginRequest = req.body;
 
       if (!email || !password) {
-        return res.status(400).json({ error: 'Email i hasło są wymagane' });
+        return res.status(400).json({ error: 'Email/login i hasło są wymagane' });
       }
 
-      const user = await UserModel.getByEmail(email);
+      // Support login by email or login field
+      const user = await UserModel.getByEmailOrLogin(email);
 
       if (!user) {
-        return res.status(401).json({ error: 'Nieprawidłowy email lub hasło' });
+        return res.status(401).json({ error: 'Nieprawidłowy email/login lub hasło' });
       }
 
       if (!user.isActive) {
@@ -26,10 +27,11 @@ export class AuthController {
       const isPasswordValid = await UserModel.verifyPassword(user, password);
 
       if (!isPasswordValid) {
-        return res.status(401).json({ error: 'Nieprawidłowy email lub hasło' });
+        return res.status(401).json({ error: 'Nieprawidłowy email/login lub hasło' });
       }
 
       const token = generateToken({
+        firstName: user.firstName,
         userId: user.id,
         email: user.email,
         role: user.role,

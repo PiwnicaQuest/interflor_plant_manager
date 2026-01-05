@@ -50,7 +50,7 @@ export class UserController {
    */
   static async create(req: AuthRequest, res: Response) {
     try {
-      const { email, password, role, profileId } = req.body;
+      const { email, password, role, profileId, firstName, lastName, login } = req.body;
 
       // Walidacja wymaganych pól
       if (!email || !password) {
@@ -81,8 +81,20 @@ export class UserController {
         return res.status(409).json({ error: 'Użytkownik z tym emailem już istnieje' });
       }
 
+      // Sprawdź czy login już istnieje (jeśli podany)
+      if (login) {
+        const loginExists = await UserModel.loginExists(login);
+        if (loginExists) {
+          return res.status(409).json({ error: 'Ten login jest już zajęty' });
+        }
+      }
+
       // Utwórz użytkownika
-      const user = await UserModel.create(email, password, userRole, profileId);
+      const user = await UserModel.create(email, password, userRole, profileId, {
+        firstName,
+        lastName,
+        login,
+      });
 
       return res.status(201).json({
         message: 'Użytkownik utworzony pomyślnie',
@@ -95,7 +107,7 @@ export class UserController {
   }
 
   /**
-   * PUT /users/:id - Aktualizacja użytkownika (email, role, isActive, profileId)
+   * PUT /users/:id - Aktualizacja użytkownika
    * Tylko dla ADMIN
    */
   static async update(req: AuthRequest, res: Response) {
@@ -107,10 +119,11 @@ export class UserController {
         return res.status(400).json({ error: 'Nieprawidłowe ID użytkownika' });
       }
 
-      const { email, role, isActive, profileId } = req.body;
+      const { email, role, isActive, profileId, firstName, lastName, login } = req.body;
 
       // Walidacja - przynajmniej jedno pole musi być podane
-      if (email === undefined && role === undefined && isActive === undefined && profileId === undefined) {
+      if (email === undefined && role === undefined && isActive === undefined && 
+          profileId === undefined && firstName === undefined && lastName === undefined && login === undefined) {
         return res.status(400).json({ error: 'Brak danych do aktualizacji' });
       }
 
@@ -139,6 +152,14 @@ export class UserController {
         }
       }
 
+      // Walidacja login jeśli podany
+      if (login !== undefined && login !== null && login !== '') {
+        const loginExists = await UserModel.loginExists(login, id);
+        if (loginExists) {
+          return res.status(409).json({ error: 'Ten login jest już zajęty' });
+        }
+      }
+
       // Walidacja roli jeśli podana
       if (role !== undefined) {
         const validRoles = Object.values(UserRole);
@@ -148,7 +169,7 @@ export class UserController {
       }
 
       // Aktualizuj użytkownika
-      const updatedUser = await UserModel.update(id, { email, role, isActive, profileId });
+      const updatedUser = await UserModel.update(id, { email, role, isActive, profileId, firstName, lastName, login });
 
       if (!updatedUser) {
         return res.status(500).json({ error: 'Błąd aktualizacji użytkownika' });
@@ -165,7 +186,7 @@ export class UserController {
   }
 
   /**
-   * DELETE /users/:id - Usunięcie użytkownika (soft delete - ustaw isActive=false)
+   * DELETE /users/:id - Usunięcie użytkownika (soft delete)
    * Tylko dla ADMIN
    */
   static async delete(req: AuthRequest, res: Response) {
@@ -177,18 +198,15 @@ export class UserController {
         return res.status(400).json({ error: 'Nieprawidłowe ID użytkownika' });
       }
 
-      // Zabezpieczenie: admin nie może usunąć samego siebie
       if (currentUserId === id) {
         return res.status(403).json({ error: 'Nie możesz usunąć swojego własnego konta' });
       }
 
-      // Sprawdź czy użytkownik istnieje
       const existingUser = await UserModel.getById(id);
       if (!existingUser) {
         return res.status(404).json({ error: 'Użytkownik nie znaleziony' });
       }
 
-      // Soft delete - ustaw isActive na false
       const success = await UserModel.softDelete(id);
 
       if (!success) {
@@ -215,18 +233,15 @@ export class UserController {
         return res.status(400).json({ error: 'Nieprawidłowe ID użytkownika' });
       }
 
-      // Zabezpieczenie: admin nie może zmienić swojego statusu aktywności
       if (currentUserId === id) {
         return res.status(403).json({ error: 'Nie możesz zmienić statusu aktywności swojego własnego konta' });
       }
 
-      // Sprawdź czy użytkownik istnieje
       const existingUser = await UserModel.getById(id);
       if (!existingUser) {
         return res.status(404).json({ error: 'Użytkownik nie znaleziony' });
       }
 
-      // Toggle isActive
       const updatedUser = await UserModel.toggleActive(id);
 
       if (!updatedUser) {
@@ -234,7 +249,7 @@ export class UserController {
       }
 
       return res.json({
-        message: `Użytkownik został ${updatedUser.isActive ? 'aktywowany' : 'dezaktywowany'}`,
+        message: updatedUser.isActive ? 'Użytkownik został aktywowany' : 'Użytkownik został dezaktywowany',
         user: updatedUser,
       });
     } catch (error) {
@@ -261,18 +276,15 @@ export class UserController {
         return res.status(400).json({ error: 'Nowe hasło jest wymagane' });
       }
 
-      // Walidacja hasła
       if (newPassword.length < 6) {
         return res.status(400).json({ error: 'Hasło musi mieć minimum 6 znaków' });
       }
 
-      // Sprawdź czy użytkownik istnieje
       const existingUser = await UserModel.getById(id);
       if (!existingUser) {
         return res.status(404).json({ error: 'Użytkownik nie znaleziony' });
       }
 
-      // Zmień hasło
       const success = await UserModel.changePassword(id, newPassword);
 
       if (!success) {
@@ -329,21 +341,16 @@ export class UserController {
         return res.status(400).json({ error: 'Nieprawidłowe ID użytkownika' });
       }
 
-      // Zabezpieczenie: admin nie może usunąć samego siebie
       if (currentUserId === id) {
         return res.status(403).json({ error: 'Nie możesz usunąć swojego własnego konta' });
       }
 
-      // Sprawdź czy użytkownik istnieje
       const existingUser = await UserModel.getById(id);
       if (!existingUser) {
         return res.status(404).json({ error: 'Użytkownik nie znaleziony' });
       }
 
-      // Pobierz statystyki przed usunięciem
       const relatedData = await UserModel.getRelatedData(id);
-
-      // Trwale usuń użytkownika
       const result = await UserModel.hardDelete(id);
 
       if (!result.success) {

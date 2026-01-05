@@ -69,6 +69,21 @@ export interface User {
   email: string;
   role: UserRole;
   isActive: boolean;
+  firstName?: string;
+  lastName?: string;
+  login?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserWithoutPassword {
+  id: number;
+  email: string;
+  role: UserRole;
+  isActive: boolean;
+  firstName?: string;
+  lastName?: string;
+  login?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -388,6 +403,9 @@ export interface CreateUserRequest {
   password: string;
   role: UserRole;
   isActive?: boolean;
+  firstName?: string;
+  lastName?: string;
+  login?: string;
 }
 
 export interface UpdateUserRequest {
@@ -395,6 +413,9 @@ export interface UpdateUserRequest {
   email?: string;
   role?: UserRole;
   isActive?: boolean;
+  firstName?: string;
+  lastName?: string;
+  login?: string;
 }
 
 export interface ChangePasswordRequest {
