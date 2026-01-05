@@ -50,10 +50,10 @@ export function ReceiptTemplate({ data, companyInfo = defaultCompanyInfo }: Rece
   };
 
   return (
-    <div className="receipt-template bg-white text-black p-4 max-w-[80mm] mx-auto font-mono text-sm">
+    <div className="receipt-template bg-white text-black p-4 max-w-[75mm] mx-auto font-mono text-sm">
       <style>{`
         @media print {
-          @page { size: 80mm auto; margin: 2mm; }
+          @page { size: 75mm auto; margin: 2mm; }
           body { margin: 0; padding: 0; }
           .receipt-template { max-width: 100% !important; padding: 0 !important; }
           .no-print { display: none !important; }
