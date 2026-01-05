@@ -7,6 +7,7 @@ interface CustomersTableProps {
   customers: Customer[];
   onEdit: (customer: Customer) => void;
   onDelete: (customerId: number) => void;
+  onPermanentDelete?: (customerId: number, customerName: string) => void;
   sortBy?: SortField;
   sortOrder?: SortOrder;
   onSort?: (field: SortField) => void;
@@ -16,6 +17,7 @@ export function CustomersTable({
   customers,
   onEdit,
   onDelete,
+  onPermanentDelete,
   sortBy,
   sortOrder,
   onSort
@@ -104,6 +106,14 @@ export function CustomersTable({
                     >
                       Usun
                     </button>
+                    {onPermanentDelete && (
+                      <button
+                        onClick={() => onPermanentDelete(customer.id, getDisplayName(customer))}
+                        className="text-red-800 hover:text-red-900 text-sm font-bold"
+                      >
+                        Usun trwale
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

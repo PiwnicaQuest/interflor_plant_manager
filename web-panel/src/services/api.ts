@@ -270,6 +270,16 @@ class ApiClient {
     return response.data;
   }
 
+  async getCustomerRelatedData(id: number): Promise<{ customerId: number; customerName: string; hasShopAccount: boolean; orderCount: number; invoiceCount: number }> {
+    const response = await this.client.get(`/customers/${id}/related-data`);
+    return response.data;
+  }
+
+  async permanentlyDeleteCustomer(id: number): Promise<{ message: string; deletedCustomerName: string; deletedUserAccount: boolean; affectedData: { ordersUnlinked: number; invoicesUnlinked: number } }> {
+    const response = await this.client.delete(`/customers/${id}/permanent`);
+    return response.data;
+  }
+
   async lookupNIP(nip: string): Promise<any> {
     const response = await this.client.post('/customers/lookup-nip', { nip });
     return response.data;
@@ -489,6 +499,16 @@ class ApiClient {
     return response.data;
   }
 
+
+  async getUserRelatedData(id: number): Promise<{ userId: number; email: string; hasCustomer: boolean; orderCount: number; invoiceCount: number; movementCount: number }> {
+    const response = await this.client.get(`/users/${id}/related-data`);
+    return response.data;
+  }
+
+  async permanentlyDeleteUser(id: number): Promise<{ message: string; deletedEmail: string; deletedCustomer: boolean; affectedData: { ordersUnlinked: number; invoicesUnlinked: number; movementsUnlinked: number } }> {
+    const response = await this.client.delete(`/users/${id}/permanent`);
+    return response.data;
+  }
   // ============================================
   // PRICE GROUPS
   // ============================================

@@ -67,6 +67,7 @@ interface InvoiceTemplateProps {
     email?: string;
     bankAccount?: string;
     bankName?: string;
+    invoiceComment?: string;
   };
 }
 
@@ -282,6 +283,11 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
             <div className="mt-3 p-3 bg-gray-50 rounded text-xs">
               <p className="font-semibold">{sellerInfo.bankName}</p>
               <p className="font-mono mt-1">{sellerInfo.bankAccount}</p>
+            </div>
+          )}
+          {sellerInfo.invoiceComment && (
+            <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs">
+              <p className="text-yellow-700">{sellerInfo.invoiceComment}</p>
             </div>
           )}
         </div>

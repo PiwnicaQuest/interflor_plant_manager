@@ -28,8 +28,9 @@ type ColumnWidths = { [key: string]: number };
 
 const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   checkbox: 32,
-  image: 36,
+  image: 28,
   plantName: 140,
+  updatedAt: 70,
   createdAt: 70,
   potSize: 50,
   plantHeight: 40,
@@ -71,6 +72,7 @@ const saveColumnWidths = (widths: ColumnWidths) => {
 
 // Editable columns in order (for keyboard navigation)
 const EDITABLE_COLUMNS: (keyof Product)[] = [
+  'updatedAt',
   'createdAt',
   'plantName',
   'potSize',
@@ -359,7 +361,7 @@ export function InventoryTable({
 
   // Default column order (moved before early return to respect React hooks rules)
   const DEFAULT_COLUMN_ORDER = [
-    "checkbox", "createdAt", "visible", "image", "plantName", "tags",
+    "checkbox", "updatedAt", "createdAt", "visible", "image", "plantName", "tags",
     "palletCount", "unitsPerPallet", "totalUnits", "potSize", "plantHeight",
     "purchasePrice", "pricePlus", "basePrice",
     "discount10", "discount12", "discount15", "discount20", "discount25", "auchan8",
@@ -382,6 +384,159 @@ export function InventoryTable({
 
   const sortedColumnKeys = getSortedColumnKeys();
 
+  // Calculate total table width from all visible column widths
+  const calculateTableMinWidth = useCallback(() => {
+    return sortedColumnKeys.reduce((total, columnKey) => {
+      const width = columnKey === "image" ? 28 : (columnWidths[columnKey] || DEFAULT_COLUMN_WIDTHS[columnKey] || 60);
+      return total + width;
+    }, 0);
+  }, [sortedColumnKeys, columnWidths]);
+
+  // Render filter cell content based on column type
+  const renderFilterCell = useCallback((columnKey: string) => {
+    if (!onColumnFilterChange) return null;
+
+    const inputClass = "w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500";
+    const selectClass = "w-full px-0.5 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500";
+
+    switch (columnKey) {
+      case 'visible':
+        return (
+          <select
+            value={columnFilters.colVisible || ''}
+            onChange={(e) => onColumnFilterChange('colVisible', e.target.value)}
+            className={selectClass}
+          >
+            <option value="">Wszystkie</option>
+            <option value="true">Tak</option>
+            <option value="false">Nie</option>
+          </select>
+        );
+      case 'plantName':
+        return (
+          <input
+            type="text"
+            placeholder="Szukaj..."
+            value={columnFilters.colPlantName || ''}
+            onChange={(e) => onColumnFilterChange('colPlantName', e.target.value)}
+            className={inputClass}
+          />
+        );
+      case 'palletCount':
+        return (
+          <input
+            type="text"
+            placeholder="Palety"
+            value={columnFilters.colPalletCount || ''}
+            onChange={(e) => onColumnFilterChange('colPalletCount', e.target.value)}
+            className={inputClass}
+          />
+        );
+      case 'unitsPerPallet':
+        return (
+          <input
+            type="text"
+            placeholder="Szt/pal"
+            value={columnFilters.colUnitsPerPallet || ''}
+            onChange={(e) => onColumnFilterChange('colUnitsPerPallet', e.target.value)}
+            className={inputClass}
+          />
+        );
+      case 'totalUnits':
+        return (
+          <input
+            type="text"
+            placeholder="Suma"
+            value={columnFilters.colTotalUnits || ''}
+            onChange={(e) => onColumnFilterChange('colTotalUnits', e.target.value)}
+            className={inputClass}
+          />
+        );
+      case 'potSize':
+        return (
+          <input
+            type="text"
+            placeholder="Rozmiar"
+            value={columnFilters.colPotSize || ''}
+            onChange={(e) => onColumnFilterChange('colPotSize', e.target.value)}
+            className={inputClass}
+          />
+        );
+      case 'plantHeight':
+        return (
+          <input
+            type="text"
+            placeholder="Wys."
+            value={columnFilters.colPlantHeight || ''}
+            onChange={(e) => onColumnFilterChange('colPlantHeight', e.target.value)}
+            className={inputClass}
+          />
+        );
+      case 'purchasePrice':
+        return (
+          <input
+            type="text"
+            placeholder="Zakup"
+            value={columnFilters.colPurchasePrice || ''}
+            onChange={(e) => onColumnFilterChange('colPurchasePrice', e.target.value)}
+            className={inputClass}
+          />
+        );
+      case 'pricePlus':
+        return (
+          <input
+            type="text"
+            placeholder="Cena+"
+            value={columnFilters.colPricePlus || ''}
+            onChange={(e) => onColumnFilterChange('colPricePlus', e.target.value)}
+            className={inputClass}
+          />
+        );
+      case 'basePrice':
+        return (
+          <input
+            type="text"
+            placeholder="Podst."
+            value={columnFilters.colBasePrice || ''}
+            onChange={(e) => onColumnFilterChange('colBasePrice', e.target.value)}
+            className={inputClass}
+          />
+        );
+      case 'totalSold':
+        return (
+          <input
+            type="text"
+            placeholder="Sprz."
+            value={columnFilters.colTotalSold || ''}
+            onChange={(e) => onColumnFilterChange('colTotalSold', e.target.value)}
+            className={inputClass}
+          />
+        );
+      case 'grower':
+        return (
+          <input
+            type="text"
+            placeholder="Ogrodnik"
+            value={columnFilters.colGrower || ''}
+            onChange={(e) => onColumnFilterChange('colGrower', e.target.value)}
+            className={inputClass}
+          />
+        );
+      case 'passport':
+        return (
+          <input
+            type="text"
+            placeholder="Paszport"
+            value={columnFilters.colPassport || ''}
+            onChange={(e) => onColumnFilterChange('colPassport', e.target.value)}
+            className={inputClass}
+          />
+        );
+      default:
+        return null;
+    }
+  }, [columnFilters, onColumnFilterChange]);
+
   // Click on cell - first click selects, second click (or double click) edits
   // Helper to format date value for date input (YYYY-MM-DD format)
   const formatDateForInput = (value: any): string => {
@@ -401,7 +556,7 @@ export function InventoryTable({
     setEditingCell({ productId: product.id, field });
     const value = product[field];
     // Format date for date input
-    if (field === 'createdAt') {
+    if (field === 'createdAt' || field === 'updatedAt') {
       setEditValue(formatDateForInput(value));
     } else {
       setEditValue(value !== null && value !== undefined ? String(value) : '');
@@ -415,7 +570,7 @@ export function InventoryTable({
     setEditingCell({ productId: product.id, field });
     const value = product[field];
     // Format date for date input
-    if (field === 'createdAt') {
+    if (field === 'createdAt' || field === 'updatedAt') {
       setEditValue(formatDateForInput(value));
     } else {
       setEditValue(value !== null && value !== undefined ? String(value) : '');
@@ -432,7 +587,7 @@ export function InventoryTable({
           'priceDiscount25',
   'priceAuchan8', 'vatRate', 'totalUnits'];
         // Handle date field - convert YYYY-MM-DD to ISO date string
-        if (editingCell.field === 'createdAt') {
+        if (editingCell.field === 'createdAt' || editingCell.field === 'updatedAt') {
           if (editValue) {
             finalValue = new Date(editValue).toISOString();
           } else {
@@ -500,7 +655,7 @@ export function InventoryTable({
     const cellEditing = isEditing(product.id, field);
 
     // Check if it's a date field
-    const isDateField = field === 'createdAt';
+    const isDateField = field === 'createdAt' || field === 'updatedAt';
 
     if (cellEditing) {
       if (isDateField) {
@@ -605,7 +760,8 @@ export function InventoryTable({
     checkbox: { label: "", style: headerStyles.checkbox, borderClass: "border-b-2 border-gray-300" },
     image: { label: "📷", style: headerStyles.image, title: "Zdjęcie", borderClass: "border-b-2 border-gray-300" },
     plantName: { label: "Nazwa", style: headerStyles.info, title: "Nazwa rośliny", borderClass: "border-b-2 border-slate-400 border-l border-slate-300" },
-    createdAt: { label: "📅", style: headerStyles.date, title: "Data dodania", borderClass: "border-b-2 border-cyan-400 border-l border-cyan-300" },
+    updatedAt: { label: "📅U", style: headerStyles.date, title: "Data aktualizacji", borderClass: "border-b-2 border-cyan-400 border-l border-cyan-300" },
+    createdAt: { label: "📅D", style: headerStyles.date, title: "Data dodania", borderClass: "border-b-2 border-cyan-400 border-l border-cyan-300" },
     potSize: { label: "⌀", style: headerStyles.info, title: "Rozmiar doniczki", borderClass: "border-b-2 border-slate-400 border-l border-slate-300" },
     plantHeight: { label: "↕", style: headerStyles.info, title: "Wysokość rośliny", borderClass: "border-b-2 border-slate-400" },
     palletCount: { label: "🎨", style: headerStyles.inventory, title: "Liczba palet", borderClass: "border-b-2 border-amber-400 border-l border-amber-300" },
@@ -649,8 +805,9 @@ export function InventoryTable({
   // Cell configurations for dynamic rendering - styles and border classes
   const cellConfigs: Record<string, { styleKey: string; borderClass: string; extraClass?: string }> = {
     checkbox: { styleKey: "checkbox", borderClass: "border-b border-gray-200" },
-    image: { styleKey: "image", borderClass: "border-b border-gray-200" },
+    image: { styleKey: "image", borderClass: "border-b border-gray-200", extraClass: "!px-0.5 !py-0.5" },
     plantName: { styleKey: "info", borderClass: "border-b border-slate-200 border-l border-slate-200", extraClass: "text-xs" },
+    updatedAt: { styleKey: "date", borderClass: "border-b border-cyan-200 border-l border-cyan-200", extraClass: "text-center text-xs text-gray-600" },
     createdAt: { styleKey: "date", borderClass: "border-b border-cyan-200 border-l border-cyan-200", extraClass: "text-center text-xs text-gray-600" },
     potSize: { styleKey: "info", borderClass: "border-b border-slate-200 border-l border-slate-200", extraClass: "text-center text-xs" },
     plantHeight: { styleKey: "info", borderClass: "border-b border-slate-200", extraClass: "text-center text-xs" },
@@ -677,6 +834,8 @@ export function InventoryTable({
   // Get cell title for tooltips
   const getCellTitle = (columnKey: string, product: Product) => {
     switch (columnKey) {
+      case "updatedAt":
+        return product.updatedAt ? new Date(product.updatedAt).toLocaleString("pl-PL") : "";
       case "createdAt":
         return product.createdAt ? new Date(product.createdAt).toLocaleString("pl-PL") : "";
       case "grower":
@@ -697,14 +856,16 @@ export function InventoryTable({
         );
       case "image":
         return product.imageUrl ? (
-          <div className="relative cursor-zoom-in" onMouseEnter={() => imageUrl && setHoveredImage({ url: imageUrl, name: product.plantName })} onMouseLeave={() => setHoveredImage(null)}>
-            <img src={imageUrl || ""} alt={product.plantName} className="w-8 h-8 object-cover rounded transition-transform hover:scale-110" />
+          <div className="relative cursor-zoom-in inline-block w-6 h-6" onMouseEnter={() => imageUrl && setHoveredImage({ url: imageUrl, name: product.plantName })} onMouseLeave={() => setHoveredImage(null)}>
+            <img src={imageUrl || ""} alt={product.plantName} className="w-6 h-6 object-cover rounded transition-transform hover:scale-110" />
           </div>
         ) : (
-          <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-sm">🌿</div>
+          <div className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center text-sm">🌿</div>
         );
       case "plantName":
         return renderEditableCell(product, "plantName", product.plantName);
+      case "updatedAt":
+        return renderEditableCell(product, "updatedAt", formatDate(product.updatedAt));
       case "createdAt":
         return renderEditableCell(product, "createdAt", formatDate(product.createdAt));
       case "potSize":
@@ -834,7 +995,7 @@ export function InventoryTable({
   const ResizableHeader = ({ columnKey, children, className, title }: { columnKey: string; children: React.ReactNode; className: string; title?: string }) => (
     <th
       className={`${className} relative select-none bg-white`}
-      style={{ ...getColumnStyle(columnKey), minWidth: isColumnVisible(columnKey) ? 30 : 0 }}
+      style={{ ...getColumnStyle(columnKey), minWidth: isColumnVisible(columnKey) ? (columnKey === "image" ? 20 : 30) : 0, ...(columnKey === "image" ? { padding: "2px", maxWidth: "28px" } : {}) }}
       title={title}
     >
       <div className="truncate pr-2">{children}</div>
@@ -868,7 +1029,13 @@ export function InventoryTable({
 
       <div className="card overflow-hidden" style={{ maxHeight: "calc(100vh - 280px)" }}>
         <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: "calc(100vh - 300px)" }}>
-          <table ref={tableRef} className="table border-separate border-spacing-0" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
+          <table ref={tableRef} className="table border-separate border-spacing-0" style={{ tableLayout: 'fixed', minWidth: calculateTableMinWidth() }}>
+            <colgroup>
+              {sortedColumnKeys.map((columnKey) => {
+                const width = columnKey === "image" ? 28 : (columnWidths[columnKey] || DEFAULT_COLUMN_WIDTHS[columnKey] || 60);
+                return <col key={columnKey} style={{ width }} />;
+              })}
+            </colgroup>
             <thead className="sticky top-0 z-20 bg-white">
               <tr>
                 {sortedColumnKeys.map((columnKey) => {
@@ -887,159 +1054,25 @@ export function InventoryTable({
                 })}
 
               </tr>
-              {/* Filter row - sticky with headers */}
+              {/* Filter row - sticky with headers - dynamically rendered based on sortedColumnKeys */}
               {onColumnFilterChange && (
                 <tr className="bg-gray-100">
-                  {/* 1. checkbox */}
-                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('checkbox')}></th>
-                  {/* 2. createdAt */}
-                  <th className="p-0.5 border-b border-gray-300 border-l border-cyan-300" style={getColumnStyle('createdAt')}></th>
-                  {/* 3. visible */}
-                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('visible')}>
-                    <select
-                      value={columnFilters.colVisible || ''}
-                      onChange={(e) => onColumnFilterChange('colVisible', e.target.value)}
-                      className="w-full px-0.5 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    >
-                      <option value="">Wszystkie</option>
-                      <option value="true">Tak</option>
-                      <option value="false">Nie</option>
-                    </select>
-                  </th>
-                  {/* 3. image */}
-                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('image')}></th>
-                  {/* 4. plantName */}
-                  <th className="p-0.5 border-b border-gray-300 border-l border-slate-300" style={getColumnStyle('plantName')}>
-                    <input
-                      type="text"
-                      placeholder="Szukaj..."
-                      value={columnFilters.colPlantName || ''}
-                      onChange={(e) => onColumnFilterChange('colPlantName', e.target.value)}
-                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </th>
-                  {/* 5. tags */}
-                  <th className="p-0.5 border-b border-gray-300 border-l border-pink-300" style={getColumnStyle('tags')}></th>
-                  {/* 6. palletCount */}
-                  <th className="p-0.5 border-b border-gray-300 border-l border-amber-300" style={getColumnStyle('palletCount')}>
-                    <input
-                      type="text"
-                      placeholder="Palety"
-                      value={columnFilters.colPalletCount || ''}
-                      onChange={(e) => onColumnFilterChange('colPalletCount', e.target.value)}
-                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </th>
-                  {/* 7. unitsPerPallet */}
-                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('unitsPerPallet')}>
-                    <input
-                      type="text"
-                      placeholder="Szt/pal"
-                      value={columnFilters.colUnitsPerPallet || ''}
-                      onChange={(e) => onColumnFilterChange('colUnitsPerPallet', e.target.value)}
-                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </th>
-                  {/* 8. totalUnits */}
-                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('totalUnits')}>
-                    <input
-                      type="text"
-                      placeholder="Suma"
-                      value={columnFilters.colTotalUnits || ''}
-                      onChange={(e) => onColumnFilterChange('colTotalUnits', e.target.value)}
-                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </th>
-                  {/* 9. potSize */}
-                  <th className="p-0.5 border-b border-gray-300 border-l border-slate-300" style={getColumnStyle('potSize')}>
-                    <input
-                      type="text"
-                      placeholder="Rozmiar"
-                      value={columnFilters.colPotSize || ''}
-                      onChange={(e) => onColumnFilterChange('colPotSize', e.target.value)}
-                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </th>
-                  {/* 10. plantHeight */}
-                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('plantHeight')}>
-                    <input
-                      type="text"
-                      placeholder="Wys."
-                      value={columnFilters.colPlantHeight || ''}
-                      onChange={(e) => onColumnFilterChange('colPlantHeight', e.target.value)}
-                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </th>
-                  {/* 11. purchasePrice */}
-                  <th className="p-0.5 border-b border-gray-300 border-l border-blue-300" style={getColumnStyle('purchasePrice')}>
-                    <input
-                      type="text"
-                      placeholder="Zakup"
-                      value={columnFilters.colPurchasePrice || ''}
-                      onChange={(e) => onColumnFilterChange('colPurchasePrice', e.target.value)}
-                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </th>
-                  {/* 12. pricePlus */}
-                  <th className="p-0.5 border-b border-gray-300 border-l border-yellow-400" style={getColumnStyle('pricePlus')}>
-                    <input
-                      type="text"
-                      placeholder="Cena+"
-                      value={columnFilters.colPricePlus || ''}
-                      onChange={(e) => onColumnFilterChange('colPricePlus', e.target.value)}
-                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </th>
-                  {/* 13. basePrice */}
-                  <th className="p-0.5 border-b border-gray-300 border-l border-green-400" style={getColumnStyle('basePrice')}>
-                    <input
-                      type="text"
-                      placeholder="Podst."
-                      value={columnFilters.colBasePrice || ''}
-                      onChange={(e) => onColumnFilterChange('colBasePrice', e.target.value)}
-                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </th>
-                  {/* 14-18. Discount columns - no filter */}
-                  <th className="p-0.5 border-b border-gray-300 border-l border-purple-300" style={getColumnStyle('discount10')}></th>
-                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('discount12')}></th>
-                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('discount15')}></th>
-                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('discount20')}></th>
-                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('discount25')}></th>
-                  {/* 19. auchan8 */}
-                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('auchan8')}></th>
-                  {/* 19. totalSold */}
-                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('totalSold')}>
-                    <input
-                      type="text"
-                      placeholder="Sprz."
-                      value={columnFilters.colTotalSold || ''}
-                      onChange={(e) => onColumnFilterChange('colTotalSold', e.target.value)}
-                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </th>
-                  {/* 20. grower */}
-                  <th className="p-0.5 border-b border-gray-300 border-l border-teal-300" style={getColumnStyle('grower')}>
-                    <input
-                      type="text"
-                      placeholder="Ogrodnik"
-                      value={columnFilters.colGrower || ''}
-                      onChange={(e) => onColumnFilterChange('colGrower', e.target.value)}
-                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </th>
-                  {/* 21. passport */}
-                  <th className="p-0.5 border-b border-gray-300" style={getColumnStyle('passport')}>
-                    <input
-                      type="text"
-                      placeholder="Paszport"
-                      value={columnFilters.colPassport || ''}
-                      onChange={(e) => onColumnFilterChange('colPassport', e.target.value)}
-                      className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </th>
-                  {/* 24. actions */}
-                  <th className="p-0.5 border-b border-gray-300 border-l border-gray-200" style={getColumnStyle('actions')}></th>
+                  {sortedColumnKeys.map((columnKey) => {
+                    const config = headerConfigs[columnKey];
+                    // Extract border-l class from headerConfigs borderClass (for left borders)
+                    const borderClass = config?.borderClass || "";
+                    const leftBorderMatch = borderClass.match(/border-l\s+border-\w+-\d+/);
+                    const leftBorder = leftBorderMatch ? leftBorderMatch[0] : "";
+                    return (
+                      <th
+                        key={columnKey}
+                        className={`p-0.5 border-b border-gray-300 ${leftBorder}`}
+                        style={getColumnStyle(columnKey)}
+                      >
+                        {renderFilterCell(columnKey)}
+                      </th>
+                    );
+                  })}
                 </tr>
               )}
             </thead>
@@ -1067,7 +1100,7 @@ export function InventoryTable({
                           <td
                             key={columnKey}
                             className={`${isRowSelected ? "" : colStyle} ${config.borderClass} ${config.extraClass || ""} group-hover:!bg-blue-200`}
-                            style={getColumnStyle(columnKey)}
+                            style={{...getColumnStyle(columnKey), ...(columnKey === "image" ? { padding: "2px", maxWidth: "28px" } : {})}}
                             title={getCellTitle(columnKey, product)}
                           >
                             {renderCellContent(columnKey, product, isRowSelected, imageUrl)}

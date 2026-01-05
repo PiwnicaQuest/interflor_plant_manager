@@ -285,4 +285,84 @@ export class UserController {
       return res.status(500).json({ error: 'Błąd zmiany hasła' });
     }
   }
+
+  /**
+   * GET /users/:id/related-data - Pobiera statystyki powiązanych danych
+   * Tylko dla ADMIN
+   */
+  static async getRelatedData(req: AuthRequest, res: Response) {
+    try {
+      const id = parseInt(req.params.id);
+
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Nieprawidłowe ID użytkownika' });
+      }
+
+      const user = await UserModel.getById(id);
+      if (!user) {
+        return res.status(404).json({ error: 'Użytkownik nie znaleziony' });
+      }
+
+      const relatedData = await UserModel.getRelatedData(id);
+
+      return res.json({
+        userId: id,
+        email: user.email,
+        ...relatedData,
+      });
+    } catch (error) {
+      console.error('Get related data error:', error);
+      return res.status(500).json({ error: 'Błąd pobierania danych powiązanych' });
+    }
+  }
+
+  /**
+   * DELETE /users/:id/permanent - Trwale usuwa użytkownika i powiązane dane
+   * Tylko dla ADMIN
+   */
+  static async permanentDelete(req: AuthRequest, res: Response) {
+    try {
+      const id = parseInt(req.params.id);
+      const currentUserId = req.user?.userId;
+
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Nieprawidłowe ID użytkownika' });
+      }
+
+      // Zabezpieczenie: admin nie może usunąć samego siebie
+      if (currentUserId === id) {
+        return res.status(403).json({ error: 'Nie możesz usunąć swojego własnego konta' });
+      }
+
+      // Sprawdź czy użytkownik istnieje
+      const existingUser = await UserModel.getById(id);
+      if (!existingUser) {
+        return res.status(404).json({ error: 'Użytkownik nie znaleziony' });
+      }
+
+      // Pobierz statystyki przed usunięciem
+      const relatedData = await UserModel.getRelatedData(id);
+
+      // Trwale usuń użytkownika
+      const result = await UserModel.hardDelete(id);
+
+      if (!result.success) {
+        return res.status(500).json({ error: 'Błąd trwałego usuwania użytkownika' });
+      }
+
+      return res.json({
+        message: 'Użytkownik został trwale usunięty',
+        deletedEmail: existingUser.email,
+        deletedCustomer: result.deletedCustomer,
+        affectedData: {
+          ordersUnlinked: relatedData.orderCount,
+          invoicesUnlinked: relatedData.invoiceCount,
+          movementsUnlinked: relatedData.movementCount,
+        },
+      });
+    } catch (error) {
+      console.error('Permanent delete user error:', error);
+      return res.status(500).json({ error: 'Błąd trwałego usuwania użytkownika' });
+    }
+  }
 }

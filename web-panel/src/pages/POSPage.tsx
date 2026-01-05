@@ -5,6 +5,7 @@ import { PaymentSplitModal } from '../components/POS/PaymentSplitModal';
 import { CashPaymentModal } from '../components/POS/CashPaymentModal';
 import { PaymentSuccessModal } from '../components/POS/PaymentSuccessModal';
 import { TransferPaymentModal } from '../components/POS/TransferPaymentModal';
+import { CardPaymentModal } from '../components/POS/CardPaymentModal';
 
 // Helper function to safely format numbers
 const formatPrice = (value: number | string | null | undefined): string => {
@@ -37,6 +38,7 @@ export function POSPage() {
   const [showSplitPaymentModal, setShowSplitPaymentModal] = useState(false);
   const [showCashPaymentModal, setShowCashPaymentModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showCardPaymentModal, setShowCardPaymentModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [checkoutResult, setCheckoutResult] = useState<CheckoutResult | null>(null);
   const [cashReceived, setCashReceived] = useState<number>(0);
@@ -198,6 +200,11 @@ export function POSPage() {
   const handleTransferConfirm = (paymentDeadlineDays: number) => {
     setShowTransferModal(false);
     handleCheckout(PaymentMethod.TRANSFER, undefined, paymentDeadlineDays);
+  };
+
+  const handleCardPaymentConfirm = () => {
+    setShowCardPaymentModal(false);
+    handleCheckout(PaymentMethod.CARD);
   };
 
   const handlePrint = () => {
@@ -471,7 +478,7 @@ export function POSPage() {
                     {/* Payment Methods - Grid */}
                     <div className="grid grid-cols-2 gap-2">
                       <button
-                        onClick={() => handleCheckout(PaymentMethod.CARD)}
+                        onClick={() => setShowCardPaymentModal(true)}
                         disabled={processing}
                         className="py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
                       >
@@ -698,6 +705,16 @@ export function POSPage() {
           totalAmount={selectedOrder.totalAmount ?? 0}
           onConfirm={handleTransferConfirm}
           onCancel={() => setShowTransferModal(false)}
+        />
+      )}
+
+      {/* Card Payment Modal */}
+      {showCardPaymentModal && selectedOrder && (
+        <CardPaymentModal
+          totalAmount={selectedOrder.totalAmount ?? 0}
+          onConfirm={handleCardPaymentConfirm}
+          onCancel={() => setShowCardPaymentModal(false)}
+          processing={processing}
         />
       )}
 

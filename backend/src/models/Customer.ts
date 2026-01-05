@@ -158,6 +158,62 @@ export class CustomerModel {
     return (result.rowCount || 0) > 0;
   }
 
+  /**
+   * Pobiera statystyki powiązanych danych kontrahenta
+   */
+  static async getRelatedData(id: number): Promise<{
+    hasShopAccount: boolean;
+    orderCount: number;
+    invoiceCount: number;
+  }> {
+    // Sprawdź czy ma konto w sklepie
+    const customer = await this.getById(id);
+    const hasShopAccount = customer?.userId ? true : false;
+
+    // Policz zamówienia
+    const ordersResult = await query<{ count: string }>(
+      'SELECT COUNT(*) as count FROM orders WHERE customer_id = $1',
+      [id]
+    );
+    const orderCount = parseInt(ordersResult.rows[0]?.count || '0');
+
+    // Policz faktury
+    const invoicesResult = await query<{ count: string }>(
+      'SELECT COUNT(*) as count FROM invoices WHERE customer_id = $1',
+      [id]
+    );
+    const invoiceCount = parseInt(invoicesResult.rows[0]?.count || '0');
+
+    return { hasShopAccount, orderCount, invoiceCount };
+  }
+
+  /**
+   * Trwale usuwa kontrahenta wraz z powiązanym kontem użytkownika
+   */
+  static async hardDelete(id: number): Promise<{ success: boolean; deletedUser: boolean }> {
+    // Pobierz kontrahenta
+    const customer = await this.getById(id);
+    if (!customer) {
+      return { success: false, deletedUser: false };
+    }
+
+    const hasUser = customer.userId ? true : false;
+    const userId = customer.userId;
+
+    // Usuń kontrahenta (referencje w orders/invoices zostaną ustawione na NULL dzięki ON DELETE SET NULL)
+    const result = await query('DELETE FROM customers WHERE id = $1', [id]);
+    const customerDeleted = (result.rowCount || 0) > 0;
+
+    // Jeśli kontrahent miał konto użytkownika, usuń je również
+    let userDeleted = false;
+    if (customerDeleted && hasUser && userId) {
+      const userResult = await query('DELETE FROM users WHERE id = $1', [userId]);
+      userDeleted = (userResult.rowCount || 0) > 0;
+    }
+
+    return { success: customerDeleted, deletedUser: userDeleted };
+  }
+
   static async getPriceForCustomer(customerId: number, productId: number): Promise<number> {
     const result = await query<{ price: number }>(
       `SELECT

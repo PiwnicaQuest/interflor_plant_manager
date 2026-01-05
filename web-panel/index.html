@@ -2,12 +2,30 @@
 <html lang="pl">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>PlantManager - Panel Administracyjny</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#16a34a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    
+    <!-- iOS Safari PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Skaner" />
+    <link rel="apple-touch-icon" href="/scanner-icon-180.png" />
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/scanner-icon-192.png" />
+    <link rel="icon" type="image/svg+xml" href="/scanner-icon.svg" />
+    
     <style>
       body {
         margin: 0;
         font-family: system-ui, -apple-system, sans-serif;
+        /* iOS safe area support */
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
       }
       #loader {
         position: fixed;
@@ -15,7 +33,7 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -40,34 +58,40 @@
         font-size: 20px;
         font-weight: 500;
       }
+      /* Standalone mode adjustments */
+      @media all and (display-mode: standalone) {
+        body {
+          overscroll-behavior: none;
+        }
+      }
     </style>
   </head>
   <body>
     <div id="loader">
       <div class="spinner"></div>
-      <div class="loader-text">Ładowanie PlantManager...</div>
+      <div class="loader-text">Ładowanie...</div>
     </div>
     <div id="root"></div>
     
     <script>
-      // Automatyczne przekierowanie na /login jeśli React się nie załaduje
+      // Register Service Worker
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js')
+            .then(function(registration) {
+              console.log('[SW] Registered:', registration.scope);
+            })
+            .catch(function(error) {
+              console.log('[SW] Registration failed:', error);
+            });
+        });
+      }
+      
+      // Loader handling
       (function() {
-        var redirectTimer = setTimeout(function() {
-          var root = document.getElementById('root');
-          // Jeśli po 1.5s React się nie załadował i nie jesteśmy na /login, przekieruj
-          if (root && root.children.length === 0 && window.location.pathname !== '/login') {
-            console.log('React not loaded, redirecting to /login');
-            window.location.href = '/login';
-          }
-        }, 1500);
-        
-        // Obserwuj zmiany w #root
         var observer = new MutationObserver(function(mutations) {
           var root = document.getElementById('root');
           if (root && root.children.length > 0) {
-            console.log('React loaded successfully');
-            clearTimeout(redirectTimer);
-            // Usuń loader
             setTimeout(function() {
               var loader = document.getElementById('loader');
               if (loader) loader.remove();
@@ -76,19 +100,9 @@
           }
         });
         
-        // Rozpocznij obserwację po załadowaniu DOM
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', function() {
-            var root = document.getElementById('root');
-            if (root) {
-              observer.observe(root, { childList: true, subtree: true });
-            }
-          });
-        } else {
-          var root = document.getElementById('root');
-          if (root) {
-            observer.observe(root, { childList: true, subtree: true });
-          }
+        var root = document.getElementById('root');
+        if (root) {
+          observer.observe(root, { childList: true, subtree: true });
         }
       })();
     </script>

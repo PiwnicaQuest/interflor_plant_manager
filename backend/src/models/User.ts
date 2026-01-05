@@ -209,4 +209,53 @@ export class UserModel {
     const { passwordHash, ...userWithoutPassword } = user;
     return userWithoutPassword as UserWithoutPassword;
   }
+
+  /**
+   * Trwale usuwa użytkownika i powiązanego klienta z bazy danych
+   */
+  static async hardDelete(id: number): Promise<{ success: boolean; deletedCustomer: boolean }> {
+    // Sprawdź czy użytkownik ma powiązanego klienta
+    const customerResult = await query<any>(
+      'SELECT id FROM customers WHERE user_id = $1',
+      [id]
+    );
+    const hasCustomer = customerResult.rows.length > 0;
+    const customerId = hasCustomer ? customerResult.rows[0].id : null;
+
+    // Najpierw usuń powiązanego klienta (jeśli istnieje)
+    // Dzięki ON DELETE SET NULL, zamówienia i faktury zachowają się ale stracą referencję do klienta
+    if (customerId) {
+      await query('DELETE FROM customers WHERE id = $1', [customerId]);
+    }
+
+    // Usuń użytkownika - dzięki ON DELETE SET NULL referencje w innych tabelach zostaną ustawione na NULL
+    const result = await query('DELETE FROM users WHERE id = $1', [id]);
+    const success = (result.rowCount || 0) > 0;
+
+    return { success, deletedCustomer: hasCustomer };
+  }
+
+  /**
+   * Pobiera statystyki powiązanych danych użytkownika
+   */
+  static async getRelatedData(id: number): Promise<{
+    hasCustomer: boolean;
+    orderCount: number;
+    invoiceCount: number;
+    movementCount: number;
+  }> {
+    const [customerResult, orderResult, invoiceResult, movementResult] = await Promise.all([
+      query<any>('SELECT id FROM customers WHERE user_id = $1', [id]),
+      query<any>('SELECT COUNT(*) as count FROM orders WHERE created_by_user_id = $1', [id]),
+      query<any>('SELECT COUNT(*) as count FROM invoices WHERE created_by_user_id = $1', [id]),
+      query<any>('SELECT COUNT(*) as count FROM inventory_movements WHERE user_id = $1', [id]),
+    ]);
+
+    return {
+      hasCustomer: customerResult.rows.length > 0,
+      orderCount: parseInt(orderResult.rows[0]?.count || '0'),
+      invoiceCount: parseInt(invoiceResult.rows[0]?.count || '0'),
+      movementCount: parseInt(movementResult.rows[0]?.count || '0'),
+    };
+  }
 }

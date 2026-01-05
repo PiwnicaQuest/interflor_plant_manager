@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Invoice, PaymentStatus, PrintTemplate } from '../../types';
 import { API } from '../../services/api';
+import { usePrint } from '../../hooks/usePrint';
 
 interface InvoiceDetailsProps {
   invoice: Invoice;
@@ -12,6 +13,34 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment }: InvoiceDet
   const [templates, setTemplates] = useState<PrintTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  const [printStatus, setPrintStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+
+  // Use print hook
+  const { printInvoice, hasConfiguredPrinter, getConfig } = usePrint({
+    onQueued: (jobId) => {
+      const config = getConfig('invoices');
+      setPrintStatus({
+        type: 'success',
+        message: `Wysłano do drukarki ${config?.printerName || 'domyślnej'} (job: ${jobId.slice(0, 8)}...)`,
+      });
+      setTimeout(() => setPrintStatus(null), 5000);
+    },
+    onBrowserPrint: () => {
+      setPrintStatus({
+        type: 'info',
+        message: 'Otwarto okno drukowania przeglądarki',
+      });
+      setTimeout(() => setPrintStatus(null), 3000);
+    },
+    onError: (error) => {
+      setPrintStatus({
+        type: 'error',
+        message: error,
+      });
+    },
+  });
+
+  const hasPrinterConfigured = hasConfiguredPrinter('invoices');
 
   // Load invoice templates
   useEffect(() => {
@@ -159,19 +188,36 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment }: InvoiceDet
     return '<div class="page" style="width: ' + (template.paperWidth * mmToPx) + 'px; height: ' + (template.paperHeight * mmToPx) + 'px; position: relative; background: white; box-sizing: border-box; page-break-after: always;">' + elementsHtml + '</div>';
   };
 
-  const handlePrintWithTemplate = () => {
+  // Generate full HTML for printing
+  const generatePrintHtml = (): string => {
+    if (!selectedTemplate) return '';
+
+    const pageHtml = generateTemplateHtml(selectedTemplate);
+
+    return '<!DOCTYPE html><html><head><title>Faktura ' + invoice.invoiceNumber + '</title>' +
+      '<style>' +
+      '@page { size: ' + selectedTemplate.paperWidth + 'mm ' + selectedTemplate.paperHeight + 'mm; margin: 0; }' +
+      '* { margin: 0; padding: 0; box-sizing: border-box; }' +
+      'body { font-family: Arial, sans-serif; margin: 0; padding: 0; }' +
+      '.page { margin: 0 auto; }' +
+      '@media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }' +
+      '</style></head><body>' + pageHtml + '</body></html>';
+  };
+
+  const handlePrintWithTemplate = async () => {
     if (!selectedTemplate) {
       alert('Wybierz szablon faktury');
       return;
     }
 
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+    setPrintStatus(null);
+    const htmlContent = generatePrintHtml();
 
-    const pageHtml = generateTemplateHtml(selectedTemplate);
+    await printInvoice(htmlContent, {
+      title: 'Faktura ' + invoice.invoiceNumber,
+      invoiceId: invoice.id,
+    });
 
-    printWindow.document.write('<!DOCTYPE html><html><head><title>Faktura ' + invoice.invoiceNumber + '</title><style>@page { size: ' + selectedTemplate.paperWidth + 'mm ' + selectedTemplate.paperHeight + 'mm; margin: 0; } * { margin: 0; padding: 0; box-sizing: border-box; } body { font-family: Arial, sans-serif; margin: 0; padding: 0; } .page { margin: 0 auto; } @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }</style></head><body>' + pageHtml + '<script>setTimeout(() => { window.print(); window.close(); }, 300);</script></body></html>');
-    printWindow.document.close();
     setShowTemplateSelector(false);
   };
 
@@ -195,6 +241,27 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment }: InvoiceDet
             >
               ×
             </button>
+          </div>
+
+          {/* Print status notification */}
+          {printStatus && (
+            <div className={'mb-4 px-4 py-3 rounded-lg text-sm ' + (
+              printStatus.type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
+              printStatus.type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
+              'bg-blue-100 text-blue-800 border border-blue-200'
+            )}>
+              {printStatus.message}
+            </div>
+          )}
+
+          {/* Printer status indicator */}
+          <div className="mb-4 flex items-center gap-2 text-sm">
+            <div className={'w-2 h-2 rounded-full ' + (hasPrinterConfigured ? 'bg-green-500' : 'bg-gray-400')}></div>
+            <span className={hasPrinterConfigured ? 'text-green-700' : 'text-gray-600'}>
+              {hasPrinterConfigured
+                ? 'Drukarka faktur skonfigurowana - automatyczny wydruk'
+                : 'Brak skonfigurowanej drukarki - wydruk przez przeglądarkę'}
+            </span>
           </div>
 
           {/* Customer Info */}
@@ -343,6 +410,7 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment }: InvoiceDet
                 onClick={() => setShowTemplateSelector(true)}
                 className="btn btn-secondary flex items-center gap-2"
               >
+                <span>🖨️</span>
                 <span>Drukuj z szablonu</span>
               </button>
             )}
@@ -358,6 +426,16 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment }: InvoiceDet
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-bold mb-4">Wybierz szablon faktury</h3>
+
+            {/* Printer status in modal */}
+            <div className="mb-4 flex items-center gap-2 text-sm">
+              <div className={'w-2 h-2 rounded-full ' + (hasPrinterConfigured ? 'bg-green-500' : 'bg-gray-400')}></div>
+              <span className={hasPrinterConfigured ? 'text-green-700' : 'text-gray-600'}>
+                {hasPrinterConfigured
+                  ? 'Automatyczny wydruk na skonfigurowanej drukarce'
+                  : 'Wydruk przez przeglądarkę'}
+              </span>
+            </div>
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -389,6 +467,7 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment }: InvoiceDet
                 disabled={!selectedTemplateId}
                 className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
               >
+                <span>🖨️</span>
                 Drukuj
               </button>
             </div>

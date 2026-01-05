@@ -50,6 +50,17 @@ export function CustomersPage() {
     }
   };
 
+  const handlePermanentDelete = async (customerId: number, customerName: string) => {
+    if (!confirm(`UWAGA: Trwale usuniesz kontrahenta "${customerName}" wraz z jego kontem online.\nTo dzialanie jest NIEODWRACALNE!\nCzy na pewno chcesz kontynuowac?`)) return;
+    try {
+      await api.permanentlyDeleteCustomer(customerId);
+      await fetchCustomers();
+      alert(`Kontrahent "${customerName}" zostal trwale usuniety`);
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Blad trwalego usuwania kontrahenta');
+    }
+  };
+
   const handleSave = () => {
     setShowForm(false);
     setEditingCustomer(null);
@@ -196,6 +207,7 @@ export function CustomersPage() {
             customers={filteredAndSortedCustomers}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onPermanentDelete={handlePermanentDelete}
             sortBy={sortBy}
             sortOrder={sortOrder}
             onSort={(field) => {

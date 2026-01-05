@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { OrderItem, OrderStatus } from '../../types';
 import JsBarcode from 'jsbarcode';
+import { usePrint } from '../../hooks/usePrint';
 
 interface CustomerInfo {
   companyName?: string;
@@ -82,6 +83,36 @@ function BarcodeDisplay({ value }: { value: string }) {
 }
 
 export function OrderTemplate({ data, companyInfo = defaultCompanyInfo, showPrices = true }: OrderTemplateProps) {
+  const templateRef = useRef<HTMLDivElement>(null);
+  const [printStatus, setPrintStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+
+  // Use print hook
+  const { printOrder, hasConfiguredPrinter, getConfig } = usePrint({
+    onQueued: (jobId) => {
+      const config = getConfig('orders');
+      setPrintStatus({
+        type: 'success',
+        message: `Wysłano do drukarki ${config?.printerName || 'domyślnej'} (job: ${jobId.slice(0, 8)}...)`,
+      });
+      setTimeout(() => setPrintStatus(null), 5000);
+    },
+    onBrowserPrint: () => {
+      setPrintStatus({
+        type: 'info',
+        message: 'Otwarto okno drukowania przeglądarki',
+      });
+      setTimeout(() => setPrintStatus(null), 3000);
+    },
+    onError: (error) => {
+      setPrintStatus({
+        type: 'error',
+        message: error,
+      });
+    },
+  });
+
+  const hasPrinterConfigured = hasConfiguredPrinter('orders');
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('pl-PL', {
       year: 'numeric',
@@ -132,8 +163,20 @@ export function OrderTemplate({ data, companyInfo = defaultCompanyInfo, showPric
 
   const totalQuantity = data.items.reduce((sum, item) => sum + item.quantity, 0);
 
+  const handlePrint = async () => {
+    setPrintStatus(null);
+
+    // Get the full HTML content of the page
+    const htmlContent = document.documentElement.outerHTML;
+
+    await printOrder(htmlContent, {
+      title: 'Zamówienie ' + data.orderNumber,
+      orderId: data.id,
+    });
+  };
+
   return (
-    <div className="order-template bg-white text-black p-6 max-w-[210mm] mx-auto font-sans text-xs">
+    <div ref={templateRef} className="order-template bg-white text-black p-6 max-w-[210mm] mx-auto font-sans text-xs">
       <style>{`
         @media print {
           @page { size: A4; margin: 10mm; }
@@ -148,6 +191,27 @@ export function OrderTemplate({ data, companyInfo = defaultCompanyInfo, showPric
           height: 35px;
         }
       `}</style>
+
+      {/* Print status notification - no-print */}
+      {printStatus && (
+        <div className={'no-print mb-4 px-4 py-3 rounded-lg text-sm ' + (
+          printStatus.type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
+          printStatus.type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
+          'bg-blue-100 text-blue-800 border border-blue-200'
+        )}>
+          {printStatus.message}
+        </div>
+      )}
+
+      {/* Printer status indicator - no-print */}
+      <div className="no-print mb-4 flex items-center gap-2 text-sm">
+        <div className={'w-2 h-2 rounded-full ' + (hasPrinterConfigured ? 'bg-green-500' : 'bg-gray-400')}></div>
+        <span className={hasPrinterConfigured ? 'text-green-700' : 'text-gray-600'}>
+          {hasPrinterConfigured
+            ? 'Drukarka zamówień skonfigurowana - automatyczny wydruk'
+            : 'Brak skonfigurowanej drukarki - wydruk przez przeglądarkę'}
+        </span>
+      </div>
 
       {/* Header */}
       <div className="flex justify-between items-start mb-4 pb-3 border-b-2 border-gray-300">
@@ -311,7 +375,7 @@ export function OrderTemplate({ data, companyInfo = defaultCompanyInfo, showPric
           <div className="bg-blue-50 px-2 py-1 rounded border border-blue-200 inline-flex items-center gap-2">
             <span className="text-[10px] text-gray-500">Wartość:</span>
             <span className="text-xs font-bold text-blue-600">{(Number(data.totalAmount) || 0).toFixed(2)} PLN</span>
-            
+
           </div>
         </div>
       )}
@@ -342,9 +406,10 @@ export function OrderTemplate({ data, companyInfo = defaultCompanyInfo, showPric
       {/* Print Button */}
       <div className="no-print mt-6 text-center space-x-4">
         <button
-          onClick={() => window.print()}
-          className="px-5 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 font-sans text-xs"
+          onClick={handlePrint}
+          className="px-5 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 font-sans text-xs flex items-center gap-2 mx-auto"
         >
+          <span>🖨️</span>
           Drukuj zamówienie
         </button>
       </div>

@@ -70,6 +70,42 @@ export function UsersPage() {
     }
   };
 
+  const handlePermanentDelete = async (userId: number, userEmail: string) => {
+    // Najpierw pobierz informacje o powiązanych danych
+    try {
+      const relatedData = await api.getUserRelatedData(userId);
+      
+      let warningMessage = `UWAGA: Trwale usuniesz użytkownika ${userEmail}.\n\n`;
+      warningMessage += "To działanie jest NIEODWRACALNE!\n\n";
+      
+      if (relatedData.hasCustomer) {
+        warningMessage += "• Powiązany kontrahent zostanie usunięty\n";
+      }
+      if (relatedData.orderCount > 0) {
+        warningMessage += `• ${relatedData.orderCount} zamówień zostanie odłączonych\n`;
+      }
+      if (relatedData.invoiceCount > 0) {
+        warningMessage += `• ${relatedData.invoiceCount} faktur zostanie odłączonych\n`;
+      }
+      if (relatedData.movementCount > 0) {
+        warningMessage += `• ${relatedData.movementCount} ruchów magazynowych zostanie odłączonych\n`;
+      }
+      
+      warningMessage += "\nCzy na pewno chcesz kontynuować?";
+      
+      if (!confirm(warningMessage)) {
+        return;
+      }
+      
+      const result = await api.permanentlyDeleteUser(userId);
+      alert(`Użytkownik ${result.deletedEmail} został trwale usunięty.` + 
+        (result.deletedCustomer ? "\nPowiązany kontrahent został usunięty." : ""));
+      await loadUsers();
+    } catch (err: any) {
+      alert(err.response?.data?.error || "Błąd usuwania użytkownika");
+    }
+  };
+
   const getRoleBadgeColor = (role: UserRole) => {
     switch (role) {
       case UserRole.ADMIN:
@@ -197,6 +233,13 @@ export function UsersPage() {
                     className="text-red-600 hover:text-red-900"
                   >
                     Usuń
+                  </button>
+                  <button
+                    onClick={() => handlePermanentDelete(user.id, user.email)}
+                    className="text-red-800 hover:text-red-950 ml-2 font-bold"
+                    title="Trwale usuń użytkownika i powiązane dane"
+                  >
+                    Usuń trwale
                   </button>
                 </td>
               </tr>

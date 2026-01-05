@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import JsBarcode from 'jsbarcode';
 import { Product, PrintTemplate } from '../../types';
 import { API } from '../../services/api';
+import { usePrint } from '../../hooks/usePrint';
 
 interface ProductWithQuantity {
   product: Product;
@@ -21,6 +22,34 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
   const previewRefs = useRef<Map<number, SVGSVGElement>>(new Map());
   const [templates, setTemplates] = useState<PrintTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+  const [printStatus, setPrintStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+
+  // Use print hook
+  const { printBarcodes, hasConfiguredPrinter, getConfig } = usePrint({
+    onQueued: (jobId) => {
+      const config = getConfig('barcode_labels');
+      setPrintStatus({
+        type: 'success',
+        message: 'Wyslano do drukarki ' + (config?.printerName || 'domyslnej') + ' (job: ' + jobId.slice(0, 8) + '...)',
+      });
+      setTimeout(() => setPrintStatus(null), 5000);
+    },
+    onBrowserPrint: () => {
+      setPrintStatus({
+        type: 'info',
+        message: 'Otwarto okno drukowania przegladarki',
+      });
+      setTimeout(() => setPrintStatus(null), 3000);
+    },
+    onError: (error) => {
+      setPrintStatus({
+        type: 'error',
+        message: error,
+      });
+    },
+  });
+
+  const hasPrinterConfigured = hasConfiguredPrinter('barcode_labels');
 
   // Load label templates
   useEffect(() => {
@@ -110,71 +139,34 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
       const width = el.width * mmToPx;
       const height = el.height * mmToPx;
 
-      const baseStyles = `
-        position: absolute;
-        left: ${x}px;
-        top: ${y}px;
-        width: ${width}px;
-        height: ${height}px;
-        font-size: ${style.fontSize || 10}px;
-        font-weight: ${style.fontWeight || 'normal'};
-        text-align: ${style.textAlign || 'left'};
-        color: ${style.color || '#000000'};
-        background-color: ${style.backgroundColor || 'transparent'};
-        border-width: ${style.borderWidth || 0}px;
-        border-color: ${style.borderColor || '#000000'};
-        border-style: solid;
-        border-radius: ${style.borderRadius || 0}px;
-        box-sizing: border-box;
-        overflow: hidden;
-      `;
+      const baseStyles = 'position: absolute; left: ' + x + 'px; top: ' + y + 'px; width: ' + width + 'px; height: ' + height + 'px; ' +
+        'font-size: ' + (style.fontSize || 10) + 'px; font-weight: ' + (style.fontWeight || 'normal') + '; ' +
+        'text-align: ' + (style.textAlign || 'left') + '; color: ' + (style.color || '#000000') + '; ' +
+        'background-color: ' + (style.backgroundColor || 'transparent') + '; border-width: ' + (style.borderWidth || 0) + 'px; ' +
+        'border-color: ' + (style.borderColor || '#000000') + '; border-style: solid; border-radius: ' + (style.borderRadius || 0) + 'px; ' +
+        'box-sizing: border-box; overflow: hidden;';
 
       const content = replacePlaceholders(el.content || '', product);
 
       switch (el.type) {
         case 'text':
-          return `<div style="${baseStyles} display: flex; align-items: center; padding: 1px;">${content}</div>`;
+          return '<div style="' + baseStyles + ' display: flex; align-items: center; padding: 1px;">' + content + '</div>';
         case 'barcode':
-          return `<svg class="template-barcode" data-barcode="${content}" style="${baseStyles}"></svg>`;
+          return '<svg class="template-barcode" data-barcode="' + content + '" style="' + baseStyles + '"></svg>';
         case 'rectangle':
-          return `<div style="${baseStyles}"></div>`;
+          return '<div style="' + baseStyles + '"></div>';
         case 'line':
-          return `<div style="${baseStyles} height: ${style.borderWidth || 1}px; background-color: ${style.borderColor || '#000'}; border: none;"></div>`;
+          return '<div style="' + baseStyles + ' height: ' + (style.borderWidth || 1) + 'px; background-color: ' + (style.borderColor || '#000') + '; border: none;"></div>';
         default:
           return '';
       }
     }).join('');
 
-    return `
-      <div class="label" style="
-        width: ${template.paperWidth * mmToPx}px;
-        height: ${template.paperHeight * mmToPx}px;
-        position: relative;
-        border: 1px solid #ddd;
-        margin: 2px;
-        box-sizing: border-box;
-        page-break-inside: avoid;
-      ">
-        ${elementsHtml}
-      </div>
-    `;
+    return '<div class="label" style="width: ' + (template.paperWidth * mmToPx) + 'px; height: ' + (template.paperHeight * mmToPx) + 'px; position: relative; border: 1px solid #ddd; margin: 2px; box-sizing: border-box; page-break-inside: avoid;">' + elementsHtml + '</div>';
   };
 
-  const handlePrint = () => {
-    setIsPrinting(true);
-
+  const generatePrintHtml = (): string => {
     const productsToprint = getProductsWithBarcodes();
-    if (productsToprint.length === 0) {
-      alert('Brak produktów z kodami kreskowymi do wydruku');
-      setIsPrinting(false);
-      return;
-    }
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      setIsPrinting(false);
-      return;
-    }
 
     // Generate labels HTML
     let labelsHtml: string;
@@ -185,127 +177,61 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
       ).join('');
     } else {
       labelsHtml = productsToprint.flatMap(({ product, quantity }) =>
-        Array(quantity).fill('').map(() => `
-          <div class="label">
-            <div class="product-name">${product.plantName || ''}</div>
-            <div class="product-info">${product.potSize || ''} ${product.plantHeightCm ? `/ ${product.plantHeightCm}cm` : ''}</div>
-            <svg class="barcode-svg" data-barcode="${product.barcode}"></svg>
-            <div class="units-info">${product.unitsPerPallet || '-'} szt./paleta</div>
-          </div>
-        `)
+        Array(quantity).fill('').map(() =>
+          '<div class="label">' +
+          '<div class="product-name">' + (product.plantName || '') + '</div>' +
+          '<div class="product-info">' + (product.potSize || '') + (product.plantHeightCm ? ' / ' + product.plantHeightCm + 'cm' : '') + '</div>' +
+          '<svg class="barcode-svg" data-barcode="' + product.barcode + '"></svg>' +
+          '<div class="units-info">' + (product.unitsPerPallet || '-') + ' szt./paleta</div>' +
+          '</div>'
+        )
       ).join('');
     }
 
     const paperWidth = selectedTemplate ? selectedTemplate.paperWidth : 50;
     const paperHeight = selectedTemplate ? selectedTemplate.paperHeight : 30;
 
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Drukuj kody kreskowe - Zbiorczo</title>
-        <style>
-          @page {
-            size: ${paperWidth}mm ${paperHeight}mm;
-            margin: 1mm;
-          }
-          body {
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-          }
-          .label-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1mm;
-          }
-          .label {
-            width: ${paperWidth - 2}mm;
-            height: ${paperHeight - 2}mm;
-            border: 1px solid #ddd;
-            padding: 1mm;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            page-break-inside: avoid;
-          }
-          .product-name {
-            font-size: 8px;
-            font-weight: bold;
-            margin-bottom: 1mm;
-            text-align: center;
-            max-width: ${paperWidth - 4}mm;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-          .product-info {
-            font-size: 7px;
-            color: #333;
-            margin-bottom: 1mm;
-          }
-          .barcode-svg {
-            max-width: ${paperWidth - 6}mm;
-            height: auto;
-          }
-          .units-info {
-            font-size: 7px;
-            font-weight: bold;
-            margin-top: 1mm;
-            color: #333;
-          }
-          @media print {
-            .label {
-              border: none;
-            }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="label-container">
-          ${labelsHtml}
-        </div>
-        <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-        <script>
-          // Handle template barcodes
-          document.querySelectorAll('.template-barcode').forEach(svg => {
-            const barcode = svg.getAttribute('data-barcode');
-            if (barcode) {
-              JsBarcode(svg, barcode, {
-                format: 'CODE128',
-                width: 1.5,
-                height: 35,
-                displayValue: true,
-                fontSize: 8,
-                margin: 2
-              });
-            }
-          });
-          // Handle default template barcodes
-          document.querySelectorAll('.barcode-svg').forEach(svg => {
-            const barcode = svg.getAttribute('data-barcode');
-            if (barcode) {
-              JsBarcode(svg, barcode, {
-                format: 'CODE128',
-                width: 1.5,
-                height: 35,
-                displayValue: true,
-                fontSize: 8,
-                margin: 2
-              });
-            }
-          });
-          setTimeout(() => {
-            window.print();
-            window.close();
-          }, 500);
-        </script>
-      </body>
-      </html>
-    `);
-    printWindow.document.close();
+    return '<!DOCTYPE html><html><head><title>Drukuj kody kreskowe - Zbiorczo</title>' +
+      '<style>' +
+      '@page { size: ' + paperWidth + 'mm ' + paperHeight + 'mm; margin: 1mm; }' +
+      'body { margin: 0; padding: 0; font-family: Arial, sans-serif; }' +
+      '.label-container { display: flex; flex-wrap: wrap; gap: 1mm; }' +
+      '.label { width: ' + (paperWidth - 2) + 'mm; height: ' + (paperHeight - 2) + 'mm; border: 1px solid #ddd; padding: 1mm; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; page-break-inside: avoid; }' +
+      '.product-name { font-size: 8px; font-weight: bold; margin-bottom: 1mm; text-align: center; max-width: ' + (paperWidth - 4) + 'mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }' +
+      '.product-info { font-size: 7px; color: #333; margin-bottom: 1mm; }' +
+      '.barcode-svg { max-width: ' + (paperWidth - 6) + 'mm; height: auto; }' +
+      '.units-info { font-size: 7px; font-weight: bold; margin-top: 1mm; color: #333; }' +
+      '@media print { .label { border: none; } }' +
+      '</style></head><body>' +
+      '<div class="label-container">' + labelsHtml + '</div>' +
+      '<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>' +
+      '<script>' +
+      'document.querySelectorAll(".template-barcode").forEach(function(svg) { var barcode = svg.getAttribute("data-barcode"); if (barcode) { JsBarcode(svg, barcode, { format: "CODE128", width: 1.5, height: 35, displayValue: true, fontSize: 8, margin: 2 }); } });' +
+      'document.querySelectorAll(".barcode-svg").forEach(function(svg) { var barcode = svg.getAttribute("data-barcode"); if (barcode) { JsBarcode(svg, barcode, { format: "CODE128", width: 1.5, height: 35, displayValue: true, fontSize: 8, margin: 2 }); } });' +
+      '</script></body></html>';
+  };
+
+  const handlePrint = async () => {
+    setIsPrinting(true);
+    setPrintStatus(null);
+
+    const productsToprint = getProductsWithBarcodes();
+    if (productsToprint.length === 0) {
+      setPrintStatus({
+        type: 'error',
+        message: 'Brak produktow z kodami kreskowymi do wydruku',
+      });
+      setIsPrinting(false);
+      return;
+    }
+
+    const htmlContent = generatePrintHtml();
+
+    // Use the print hook - it will send to queue if printer is configured, or fallback to browser
+    await printBarcodes(htmlContent, {
+      title: 'Etykiety zbiorczo - ' + getTotalLabels() + ' szt.',
+    });
+
     setIsPrinting(false);
   };
 
@@ -316,28 +242,49 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
       <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] flex flex-col">
         <div className="p-6 border-b">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold">Drukuj kody kreskowe - {products.length} produktów</h2>
+            <h2 className="text-xl font-bold">Drukuj kody kreskowe - {products.length} produktow</h2>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 text-2xl"
             >
-              ×
+              x
             </button>
+          </div>
+
+          {/* Printer status indicator */}
+          <div className="mt-3 flex items-center gap-2 text-sm">
+            <div className={'w-2 h-2 rounded-full ' + (hasPrinterConfigured ? 'bg-green-500' : 'bg-gray-400')}></div>
+            <span className={hasPrinterConfigured ? 'text-green-700' : 'text-gray-600'}>
+              {hasPrinterConfigured
+                ? 'Drukarka etykiet skonfigurowana - automatyczny wydruk'
+                : 'Brak skonfigurowanej drukarki - wydruk przez przegladarke'}
+            </span>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
+          {/* Print status notification */}
+          {printStatus && (
+            <div className={'mb-4 px-4 py-3 rounded-lg text-sm ' + (
+              printStatus.type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
+              printStatus.type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
+              'bg-blue-100 text-blue-800 border border-blue-200'
+            )}>
+              {printStatus.message}
+            </div>
+          )}
+
           {productsWithoutBarcodes.length > 0 && (
             <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-yellow-800 text-sm font-medium">
-                ⚠️ {productsWithoutBarcodes.length} produkt(ów) nie ma przypisanego kodu kreskowego:
+                {productsWithoutBarcodes.length} produkt(ow) nie ma przypisanego kodu kreskowego:
               </p>
               <ul className="mt-2 text-sm text-yellow-700">
                 {productsWithoutBarcodes.slice(0, 5).map(({ product }) => (
-                  <li key={product.id}>• {product.plantName}</li>
+                  <li key={product.id}>* {product.plantName}</li>
                 ))}
                 {productsWithoutBarcodes.length > 5 && (
-                  <li>• ... i {productsWithoutBarcodes.length - 5} więcej</li>
+                  <li>* ... i {productsWithoutBarcodes.length - 5} wiecej</li>
                 )}
               </ul>
             </div>
@@ -356,7 +303,7 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
                 {templates.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name} ({t.paperWidth}x{t.paperHeight}mm)
-                    {t.isDefault ? ' - Domyślny' : ''}
+                    {t.isDefault ? ' - Domyslny' : ''}
                   </option>
                 ))}
               </select>
@@ -367,8 +314,8 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Produkt</th>
-                <th className="px-4 py-2 text-center text-sm font-medium text-gray-700 w-32">Podgląd kodu</th>
-                <th className="px-4 py-2 text-center text-sm font-medium text-gray-700 w-24">Ilość</th>
+                <th className="px-4 py-2 text-center text-sm font-medium text-gray-700 w-32">Podglad kodu</th>
+                <th className="px-4 py-2 text-center text-sm font-medium text-gray-700 w-24">Ilosc</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -377,7 +324,7 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
                   <td className="px-4 py-3">
                     <div className="font-medium">{product.plantName}</div>
                     <div className="text-sm text-gray-500">
-                      {product.potSize} {product.plantHeightCm && `/ ${product.plantHeightCm}cm`}
+                      {product.potSize} {product.plantHeightCm && '/ ' + product.plantHeightCm + 'cm'}
                     </div>
                     <div className="text-sm text-gray-500">
                       {product.unitsPerPallet} szt./paleta
@@ -396,7 +343,7 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
                         style={{ maxWidth: '100px' }}
                       />
                     ) : (
-                      <span className="text-gray-400 text-sm">—</span>
+                      <span className="text-gray-400 text-sm">-</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-center">
@@ -419,7 +366,7 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
         <div className="p-6 border-t bg-gray-50">
           <div className="flex justify-between items-center">
             <div className="text-sm text-gray-600">
-              Łącznie etykiet do wydruku: <span className="font-bold text-lg">{getTotalLabels()}</span>
+              Lacznie etykiet do wydruku: <span className="font-bold text-lg">{getTotalLabels()}</span>
             </div>
             <div className="flex gap-3">
               <button

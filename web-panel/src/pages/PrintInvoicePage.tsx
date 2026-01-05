@@ -14,6 +14,7 @@ interface CompanySettings {
   email?: string;
   bankName?: string;
   bankAccount?: string;
+  invoiceComment?: string;
 }
 
 export function PrintInvoicePage() {
@@ -136,6 +137,7 @@ export function PrintInvoicePage() {
     email: companySettings.email,
     bankAccount: companySettings.bankAccount,
     bankName: companySettings.bankName,
+    invoiceComment: companySettings.invoiceComment,
   } : undefined;
 
   return (

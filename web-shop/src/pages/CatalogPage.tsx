@@ -15,7 +15,6 @@ export function CatalogPage() {
   const [sortBy, setSortBy] = useState('plantName');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [potSizes, setPotSizes] = useState<string[]>([]);
-  const [priceGroup, setPriceGroup] = useState('podstawowa');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [usedTags, setUsedTags] = useState<string[]>([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -40,7 +39,6 @@ export function CatalogPage() {
       setProducts(result.products);
       setPotSizes(result.filters.potSizes);
       setUsedTags(result.filters.usedTags || []);
-      setPriceGroup(result.priceGroup);
     } catch (err) {
       const error = err as Error;
       setError(error.message || 'Blad ladowania produktow');
@@ -183,12 +181,11 @@ export function CatalogPage() {
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Katalog roslin</h1>
-          <p className="text-gray-600">
-            {isAuthenticated
-              ? 'Ceny wyswietlane dla grupy: ' + priceGroup
-              : 'Zaloguj sie, aby zobaczyc ceny i skladac zamowienia'
-            }
-          </p>
+          {!isAuthenticated && (
+            <p className="text-gray-600">
+              Zaloguj sie, aby zobaczyc ceny i skladac zamowienia
+            </p>
+          )}
         </div>
 
         {/* Mobile filters button */}
@@ -363,7 +360,7 @@ export function CatalogPage() {
                         🌿
                       </div>
                     )}
-                    {availablePallets <= 0 && (
+                    {isAuthenticated && availablePallets <= 0 && (
                       <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
                         <span className="text-white font-semibold">Niedostepny</span>
                       </div>
@@ -397,14 +394,14 @@ export function CatalogPage() {
                     <div className="text-sm text-gray-500 mb-2 space-y-0.5">
                       {product.potSize && <p>Doniczka: {product.potSize}</p>}
                       {product.plantHeightCm && <p>Wysokosc: {product.plantHeightCm} cm</p>}
-                      <p className="font-medium text-gray-700">
-                        Dostepne: {availablePallets} palet x {unitsPerPallet} szt.
-                      </p>
                     </div>
 
-                    {/* Prices - only when authenticated */}
+                    {/* Prices and availability - only when authenticated */}
                     {isAuthenticated ? (
                       <>
+                        <p className="text-sm font-medium text-gray-700 mb-2">
+                          Dostepne: {availablePallets} palet x {unitsPerPallet} szt.
+                        </p>
                         <div className="border-t pt-2 mt-2 space-y-1">
                           <div className="flex justify-between text-sm text-gray-500">
                             <span>Cena/szt.:</span>
@@ -423,7 +420,7 @@ export function CatalogPage() {
                           disabled={availablePallets <= 0}
                           className="btn btn-primary w-full mt-3 text-sm"
                         >
-                          Dodaj paletke
+                          Dodaj
                         </button>
                       </>
                     ) : (

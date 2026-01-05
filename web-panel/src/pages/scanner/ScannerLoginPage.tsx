@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API } from '../../services/api';
 
@@ -8,6 +8,15 @@ export function ScannerLoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+
+  useEffect(() => {
+    // Check if running as PWA standalone
+    const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches 
+      || (window.navigator as any).standalone 
+      || document.referrer.includes('android-app://');
+    setIsStandalone(isInStandaloneMode);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +42,15 @@ export function ScannerLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center p-3">
+    <div 
+      className="min-h-screen bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center p-3"
+      style={{
+        paddingTop: 'max(12px, env(safe-area-inset-top))',
+        paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
+        paddingLeft: 'max(12px, env(safe-area-inset-left))',
+        paddingRight: 'max(12px, env(safe-area-inset-right))',
+      }}
+    >
       <div className="w-full max-w-sm">
         {/* Logo - COMPACT */}
         <div className="text-center mb-6">
@@ -44,6 +61,11 @@ export function ScannerLoginPage() {
           </div>
           <h1 className="text-2xl font-bold text-white">Skaner Magazynowy</h1>
           <p className="text-green-100 mt-1 text-sm">PlantManager</p>
+          {isStandalone && (
+            <span className="inline-block mt-2 px-2 py-0.5 bg-green-800 text-green-100 text-xs rounded-full">
+              📱 Tryb aplikacji
+            </span>
+          )}
         </div>
 
         {/* Login Form - COMPACT */}
@@ -105,6 +127,15 @@ export function ScannerLoginPage() {
             </button>
           </form>
         </div>
+
+        {/* Install hint for non-standalone mode */}
+        {!isStandalone && (
+          <div className="mt-4 text-center">
+            <p className="text-green-100 text-xs">
+              💡 Dodaj do ekranu głównego, aby korzystać bez przeglądarki
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

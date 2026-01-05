@@ -325,4 +325,77 @@ export class CustomerController {
       return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
+
+  /**
+   * Get related data statistics for customer
+   * GET /customers/:id/related-data
+   */
+  static async getRelatedData(req: AuthRequest, res: Response) {
+    try {
+      const id = parseInt(req.params.id);
+
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Nieprawidłowe ID kontrahenta' });
+      }
+
+      const customer = await CustomerModel.getById(id);
+      if (!customer) {
+        return res.status(404).json({ error: 'Kontrahent nie znaleziony' });
+      }
+
+      const relatedData = await CustomerModel.getRelatedData(id);
+
+      return res.json({
+        customerId: id,
+        customerName: customer.companyName || `${customer.firstName || ''} ${customer.lastName || ''}`.trim(),
+        ...relatedData,
+      });
+    } catch (error) {
+      console.error('Get related data error:', error);
+      return res.status(500).json({ error: 'Błąd pobierania danych powiązanych' });
+    }
+  }
+
+  /**
+   * Permanently delete customer with associated user account
+   * DELETE /customers/:id/permanent
+   */
+  static async permanentDelete(req: AuthRequest, res: Response) {
+    try {
+      const id = parseInt(req.params.id);
+
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Nieprawidłowe ID kontrahenta' });
+      }
+
+      // Sprawdź czy kontrahent istnieje
+      const customer = await CustomerModel.getById(id);
+      if (!customer) {
+        return res.status(404).json({ error: 'Kontrahent nie znaleziony' });
+      }
+
+      // Pobierz statystyki przed usunięciem
+      const relatedData = await CustomerModel.getRelatedData(id);
+
+      // Trwale usuń kontrahenta wraz z kontem użytkownika
+      const result = await CustomerModel.hardDelete(id);
+
+      if (!result.success) {
+        return res.status(500).json({ error: 'Błąd trwałego usuwania kontrahenta' });
+      }
+
+      return res.json({
+        message: 'Kontrahent został trwale usunięty',
+        deletedCustomerName: customer.companyName || `${customer.firstName || ''} ${customer.lastName || ''}`.trim(),
+        deletedUserAccount: result.deletedUser,
+        affectedData: {
+          ordersUnlinked: relatedData.orderCount,
+          invoicesUnlinked: relatedData.invoiceCount,
+        },
+      });
+    } catch (error) {
+      console.error('Permanent delete customer error:', error);
+      return res.status(500).json({ error: 'Błąd trwałego usuwania kontrahenta' });
+    }
+  }
 }

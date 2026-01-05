@@ -152,11 +152,6 @@ export function ProfilePage() {
                 <p className="text-gray-900">{customer.country}</p>
               </div>
 
-              {/* Price group */}
-              <div className="pt-4 border-t border-gray-200">
-                <label className="text-sm font-medium text-gray-500">Grupa cenowa</label>
-                <p className="text-green-600 font-semibold">{customer.priceGroup}</p>
-              </div>
             </div>
           ) : null}
         </div>
@@ -244,33 +239,6 @@ export function ProfilePage() {
               )}
             </button>
           </form>
-        </div>
-      </div>
-
-      {/* Special Order Card */}
-      <div className="mt-8 card p-6 bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200">
-        <div className="flex flex-col md:flex-row items-center gap-6">
-          <div className="text-6xl">🌷</div>
-          <div className="flex-1 text-center md:text-left">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              Zamówienie specjalne
-            </h2>
-            <p className="text-gray-600 mb-4">
-              Szukasz czegoś wyjątkowego? Zamów rośliny bezpośrednio z holenderskiej giełdy kwiatowej. 
-              Szeroki wybór gatunków i odmian niedostępnych w standardowej ofercie.
-            </p>
-            <a
-              href="https://polflor.orderyourflowers.nl/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-colors"
-            >
-              <span>Przejdź do zamówień specjalnych</span>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-            </a>
-          </div>
         </div>
       </div>
     </div>

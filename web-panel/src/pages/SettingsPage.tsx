@@ -316,6 +316,18 @@ export function SettingsPage() {
     }
   };
 
+  const handlePermanentDelete = async (userId: number, userEmail: string) => {
+    if (!confirm(`UWAGA: Trwale usuniesz użytkownika ${userEmail}.\nTo działanie jest NIEODWRACALNE!\nCzy na pewno chcesz kontynuować?`)) return;
+    try {
+      await api.permanentlyDeleteUser(userId);
+      await fetchUsers();
+      setSuccess(`Użytkownik ${userEmail} został trwale usunięty`);
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Błąd trwałego usuwania użytkownika');
+    }
+  };
+
   // Price group functions
   const handleCreatePriceGroup = async (data: CreatePriceGroupRequest) => {
     await api.createPriceGroup(data);
@@ -993,7 +1005,8 @@ export function SettingsPage() {
                         <button onClick={() => handleToggleUserActive(user.id)} className="text-yellow-600 hover:text-yellow-900 mr-3">
                           {user.isActive ? 'Dezaktywuj' : 'Aktywuj'}
                         </button>
-                        <button onClick={() => handleDeleteUser(user.id, user.email)} className="text-red-600 hover:text-red-900">Usuń</button>
+                        <button onClick={() => handleDeleteUser(user.id, user.email)} className="text-red-600 hover:text-red-900 mr-3">Usuń</button>
+                        <button onClick={() => handlePermanentDelete(user.id, user.email)} className="text-red-800 hover:text-red-900 font-semibold">Usuń trwale</button>
                       </td>
                     </tr>
                   ))}

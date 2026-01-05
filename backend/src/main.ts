@@ -188,6 +188,9 @@ app.post("/customers/:id/shop-account", requireAuth, requireRole([UserRole.ADMIN
 app.delete("/customers/:id/shop-account", requireAuth, requireRole([UserRole.ADMIN]), CustomerController.removeShopAccount);
 app.post("/customers/:id/shop-account/reset-password", requireAuth, requireRole([UserRole.ADMIN]), CustomerController.resetShopPassword);
 app.post("/customers/:id/shop-account/send-credentials", requireAuth, requireRole([UserRole.ADMIN]), CustomerController.sendCredentialsEmail);
+// Customer permanent delete
+app.get("/customers/:id/related-data", requireAuth, requireRole([UserRole.ADMIN]), CustomerController.getRelatedData);
+app.delete("/customers/:id/permanent", requireAuth, requireRole([UserRole.ADMIN]), CustomerController.permanentDelete);
 
 // ============================================
 // POS ROUTES
@@ -232,6 +235,8 @@ app.put('/users/:id', requireAuth, requireRole([UserRole.ADMIN]), UserController
 app.delete('/users/:id', requireAuth, requireRole([UserRole.ADMIN]), UserController.delete);
 app.patch('/users/:id/toggle-active', requireAuth, requireRole([UserRole.ADMIN]), UserController.toggleActive);
 app.patch('/users/:id/change-password', requireAuth, requireRole([UserRole.ADMIN]), UserController.changePassword);
+app.get('/users/:id/related-data', requireAuth, requireRole([UserRole.ADMIN]), UserController.getRelatedData);
+app.delete('/users/:id/permanent', requireAuth, requireRole([UserRole.ADMIN]), UserController.permanentDelete);
 
 // ============================================
 // PERMISSION PROFILES ROUTES

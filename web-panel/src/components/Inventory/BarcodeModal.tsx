@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import JsBarcode from 'jsbarcode';
 import { Product, PrintTemplate } from '../../types';
 import { API } from '../../services/api';
+import { usePrint } from '../../hooks/usePrint';
 
 interface BarcodeModalProps {
   product: Product | null;
@@ -18,6 +19,34 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
   const [_showPrintPreview, setShowPrintPreview] = useState(false);
   const [templates, setTemplates] = useState<PrintTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+  const [printStatus, setPrintStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+
+  // Use print hook
+  const { printBarcodes, hasConfiguredPrinter, getConfig } = usePrint({
+    onQueued: (jobId) => {
+      const config = getConfig('barcode_labels');
+      setPrintStatus({
+        type: 'success',
+        message: `Wyslano do drukarki ${config?.printerName || 'domyslnej'} (job: ${jobId.slice(0, 8)}...)`,
+      });
+      setTimeout(() => setPrintStatus(null), 5000);
+    },
+    onBrowserPrint: () => {
+      setPrintStatus({
+        type: 'info',
+        message: 'Otwarto okno drukowania przegladarki',
+      });
+      setTimeout(() => setPrintStatus(null), 3000);
+    },
+    onError: (error) => {
+      setPrintStatus({
+        type: 'error',
+        message: error,
+      });
+    },
+  });
+
+  const hasPrinterConfigured = hasConfiguredPrinter('barcode_labels');
 
   // Load label templates
   useEffect(() => {
@@ -136,165 +165,75 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
 
       switch (el.type) {
         case 'text':
-          return `<div style="${baseStyles} display: flex; align-items: center; padding: 1px;">${content}</div>`;
+          return '<div style="' + baseStyles + ' display: flex; align-items: center; padding: 1px;">' + content + '</div>';
         case 'barcode':
-          return `<svg class="template-barcode" data-barcode="${content}" style="${baseStyles}"></svg>`;
+          return '<svg class="template-barcode" data-barcode="' + content + '" style="' + baseStyles + '"></svg>';
         case 'rectangle':
-          return `<div style="${baseStyles}"></div>`;
+          return '<div style="' + baseStyles + '"></div>';
         case 'line':
-          return `<div style="${baseStyles} height: ${style.borderWidth || 1}px; background-color: ${style.borderColor || '#000'}; border: none;"></div>`;
+          return '<div style="' + baseStyles + ' height: ' + (style.borderWidth || 1) + 'px; background-color: ' + (style.borderColor || '#000') + '; border: none;"></div>';
         default:
           return '';
       }
     }).join('');
 
-    return `
-      <div class="label" style="
-        width: ${template.paperWidth * mmToPx}px;
-        height: ${template.paperHeight * mmToPx}px;
-        position: relative;
-        border: 1px solid #ddd;
-        margin: 2px;
-        box-sizing: border-box;
-        page-break-inside: avoid;
-      ">
-        ${elementsHtml}
-      </div>
-    `;
+    return '<div class="label" style="width: ' + (template.paperWidth * mmToPx) + 'px; height: ' + (template.paperHeight * mmToPx) + 'px; position: relative; border: 1px solid #ddd; margin: 2px; box-sizing: border-box; page-break-inside: avoid;">' + elementsHtml + '</div>';
   };
 
-  const handlePrint = () => {
+  const generatePrintHtml = (): string => {
+    let labelsHtml: string;
+
+    if (selectedTemplate) {
+      // Use custom template
+      labelsHtml = Array(labelCount).fill('').map(() => generateTemplateHtml(selectedTemplate)).join('');
+    } else {
+      // Fallback to default hardcoded template
+      labelsHtml = Array(labelCount).fill('').map(() =>
+        '<div class="label">' +
+        '<div class="product-name">' + (product?.plantName || '') + '</div>' +
+        '<div class="product-info">' + (product?.potSize || '') + (product?.plantHeightCm ? ' / ' + product.plantHeightCm + 'cm' : '') + '</div>' +
+        '<svg class="barcode-svg" id="print-barcode"></svg>' +
+        '<div class="units-info">' + (product?.unitsPerPallet || '-') + ' szt./paleta</div>' +
+        '</div>'
+      ).join('');
+    }
+
+    const paperWidth = selectedTemplate ? selectedTemplate.paperWidth : 50;
+    const paperHeight = selectedTemplate ? selectedTemplate.paperHeight : 30;
+
+    return '<!DOCTYPE html><html><head><title>Drukuj kody kreskowe - ' + (product?.plantName || '') + '</title>' +
+      '<style>' +
+      '@page { size: ' + paperWidth + 'mm ' + paperHeight + 'mm; margin: 1mm; }' +
+      'body { margin: 0; padding: 0; font-family: Arial, sans-serif; }' +
+      '.label-container { display: flex; flex-wrap: wrap; gap: 1mm; }' +
+      '.label { width: ' + (paperWidth - 2) + 'mm; height: ' + (paperHeight - 2) + 'mm; border: 1px solid #ddd; padding: 1mm; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; page-break-inside: avoid; }' +
+      '.product-name { font-size: 8px; font-weight: bold; margin-bottom: 1mm; text-align: center; max-width: ' + (paperWidth - 4) + 'mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }' +
+      '.product-info { font-size: 7px; color: #333; margin-bottom: 1mm; }' +
+      '.barcode-svg { max-width: ' + (paperWidth - 6) + 'mm; height: auto; }' +
+      '.units-info { font-size: 7px; font-weight: bold; margin-top: 1mm; color: #333; }' +
+      '@media print { .label { border: none; } }' +
+      '</style></head><body>' +
+      '<div class="label-container">' + labelsHtml + '</div>' +
+      '<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>' +
+      '<script>' +
+      'document.querySelectorAll(".template-barcode").forEach(function(svg) { var barcodeValue = svg.getAttribute("data-barcode"); if (barcodeValue) { JsBarcode(svg, barcodeValue, { format: "CODE128", width: 1.5, height: 35, displayValue: true, fontSize: 8, margin: 2 }); } });' +
+      'document.querySelectorAll("#print-barcode").forEach(function(svg) { JsBarcode(svg, "' + barcode + '", { format: "CODE128", width: 1.5, height: 35, displayValue: true, fontSize: 8, margin: 2 }); });' +
+      '</script></body></html>';
+  };
+
+  const handlePrint = async () => {
     setShowPrintPreview(true);
-    setTimeout(() => {
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) return;
+    setPrintStatus(null);
 
-      let labelsHtml: string;
+    const htmlContent = generatePrintHtml();
 
-      if (selectedTemplate) {
-        // Use custom template
-        labelsHtml = Array(labelCount).fill('').map(() => generateTemplateHtml(selectedTemplate)).join('');
-      } else {
-        // Fallback to default hardcoded template
-        labelsHtml = Array(labelCount).fill('').map(() => `
-          <div class="label">
-            <div class="product-name">${product?.plantName || ''}</div>
-            <div class="product-info">${product?.potSize || ''} ${product?.plantHeightCm ? `/ ${product.plantHeightCm}cm` : ''}</div>
-            <svg class="barcode-svg" id="print-barcode"></svg>
-            <div class="units-info">${product?.unitsPerPallet || '-'} szt./paleta</div>
-          </div>
-        `).join('');
-      }
+    // Use the print hook - it will send to queue if printer is configured, or fallback to browser
+    await printBarcodes(htmlContent, {
+      title: 'Etykiety - ' + (product?.plantName || ''),
+      productId: product?.id,
+    });
 
-      const paperWidth = selectedTemplate ? selectedTemplate.paperWidth : 50;
-      const paperHeight = selectedTemplate ? selectedTemplate.paperHeight : 30;
-
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Drukuj kody kreskowe - ${product?.plantName}</title>
-          <style>
-            @page {
-              size: ${paperWidth}mm ${paperHeight}mm;
-              margin: 1mm;
-            }
-            body {
-              margin: 0;
-              padding: 0;
-              font-family: Arial, sans-serif;
-            }
-            .label-container {
-              display: flex;
-              flex-wrap: wrap;
-              gap: 1mm;
-            }
-            .label {
-              width: ${paperWidth - 2}mm;
-              height: ${paperHeight - 2}mm;
-              border: 1px solid #ddd;
-              padding: 1mm;
-              box-sizing: border-box;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              page-break-inside: avoid;
-            }
-            .product-name {
-              font-size: 8px;
-              font-weight: bold;
-              margin-bottom: 1mm;
-              text-align: center;
-              max-width: ${paperWidth - 4}mm;
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
-            }
-            .product-info {
-              font-size: 7px;
-              color: #333;
-              margin-bottom: 1mm;
-            }
-            .barcode-svg {
-              max-width: ${paperWidth - 6}mm;
-              height: auto;
-            }
-            .units-info {
-              font-size: 7px;
-              font-weight: bold;
-              margin-top: 1mm;
-              color: #333;
-            }
-            @media print {
-              .label {
-                border: none;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="label-container">
-            ${labelsHtml}
-          </div>
-          <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-          <script>
-            // Handle template barcodes
-            document.querySelectorAll('.template-barcode').forEach(svg => {
-              const barcodeValue = svg.getAttribute('data-barcode');
-              if (barcodeValue) {
-                JsBarcode(svg, barcodeValue, {
-                  format: 'CODE128',
-                  width: 1.5,
-                  height: 35,
-                  displayValue: true,
-                  fontSize: 8,
-                  margin: 2
-                });
-              }
-            });
-            // Handle default template barcodes
-            document.querySelectorAll('#print-barcode').forEach(svg => {
-              JsBarcode(svg, "${barcode}", {
-                format: "CODE128",
-                width: 1.5,
-                height: 35,
-                displayValue: true,
-                fontSize: 8,
-                margin: 2
-              });
-            });
-            setTimeout(() => {
-              window.print();
-              window.close();
-            }, 500);
-          </script>
-        </body>
-        </html>
-      `);
-      printWindow.document.close();
-      setShowPrintPreview(false);
-    }, 100);
+    setShowPrintPreview(false);
   };
 
   if (!product) return null;
@@ -309,14 +248,35 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 text-2xl"
             >
-              ×
+              x
             </button>
+          </div>
+
+          {/* Print status notification */}
+          {printStatus && (
+            <div className={'mb-4 px-4 py-3 rounded-lg text-sm ' + (
+              printStatus.type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
+              printStatus.type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
+              'bg-blue-100 text-blue-800 border border-blue-200'
+            )}>
+              {printStatus.message}
+            </div>
+          )}
+
+          {/* Printer status indicator */}
+          <div className="mb-4 flex items-center gap-2 text-sm">
+            <div className={'w-2 h-2 rounded-full ' + (hasPrinterConfigured ? 'bg-green-500' : 'bg-gray-400')}></div>
+            <span className={hasPrinterConfigured ? 'text-green-700' : 'text-gray-600'}>
+              {hasPrinterConfigured
+                ? 'Drukarka etykiet skonfigurowana - automatyczny wydruk'
+                : 'Brak skonfigurowanej drukarki - wydruk przez przegladarke'}
+            </span>
           </div>
 
           <div className="mb-4">
             <p className="text-lg font-medium">{product.plantName}</p>
             <p className="text-sm text-gray-500">
-              {product.potSize} {product.plantHeightCm && `/ ${product.plantHeightCm}cm`}
+              {product.potSize} {product.plantHeightCm && '/ ' + product.plantHeightCm + 'cm'}
             </p>
             <p className="text-sm text-gray-500">
               {product.unitsPerPallet} szt./paleta
@@ -337,7 +297,7 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
                 value={barcode}
                 onChange={(e) => setBarcode(e.target.value)}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="Wprowadź lub wygeneruj kod"
+                placeholder="Wprowadz lub wygeneruj kod"
               />
               <button
                 onClick={generateNewBarcode}
@@ -365,7 +325,7 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
                 {templates.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name} ({t.paperWidth}x{t.paperHeight}mm)
-                    {t.isDefault ? ' - Domyślny' : ''}
+                    {t.isDefault ? ' - Domyslny' : ''}
                   </option>
                 ))}
               </select>
@@ -374,7 +334,7 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
 
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Ilość etykiet do wydruku
+              Ilosc etykiet do wydruku
             </label>
             <input
               type="number"
@@ -393,13 +353,13 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
             >
               Anuluj
             </button>
-            {!product.barcode && (
+            {(!product.barcode || barcode !== product.barcode) && (
               <button
                 onClick={handleSaveBarcode}
                 disabled={!barcode || isGenerating}
                 className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
               >
-                {isGenerating ? 'Zapisuję...' : 'Zapisz kod'}
+                {isGenerating ? 'Zapisuje...' : 'Zapisz kod'}
               </button>
             )}
             <button

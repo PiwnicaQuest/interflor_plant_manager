@@ -5,6 +5,7 @@ export function ScannerLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -13,6 +14,12 @@ export function ScannerLayout() {
     } else {
       setIsAuthenticated(true);
     }
+    
+    // Check if running as PWA standalone
+    const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches 
+      || (window.navigator as any).standalone 
+      || document.referrer.includes('android-app://');
+    setIsStandalone(isInStandaloneMode);
   }, [navigate]);
 
   const handleLogout = () => {
@@ -27,12 +34,31 @@ export function ScannerLayout() {
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
-      {/* Header - COMPACT */}
-      <header className="bg-green-600 text-white shadow-lg flex-shrink-0">
+    <div 
+      className="h-screen flex flex-col overflow-hidden bg-gray-100"
+      style={{
+        // Support for iOS safe areas (notch, home indicator)
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+        paddingLeft: 'env(safe-area-inset-left)',
+        paddingRight: 'env(safe-area-inset-right)',
+      }}
+    >
+      {/* Header - with safe area background */}
+      <header 
+        className="bg-green-600 text-white shadow-lg flex-shrink-0"
+        style={{
+          // Extend green background into safe area on top
+          marginTop: 'calc(-1 * env(safe-area-inset-top))',
+          paddingTop: 'env(safe-area-inset-top)',
+        }}
+      >
         <div className="px-3 py-2">
           <div className="flex items-center justify-between">
-            <h1 className="text-base font-bold">Skaner Magazynowy</h1>
+            <div className="flex items-center gap-2">
+              {isStandalone && <span className="text-lg">📱</span>}
+              <h1 className="text-base font-bold">Skaner Magazynowy</h1>
+            </div>
             <button
               onClick={handleLogout}
               className="px-2.5 py-1 bg-green-700 hover:bg-green-800 rounded text-xs font-medium transition-colors"
@@ -44,12 +70,19 @@ export function ScannerLayout() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto bg-gray-100">
+      <main className="flex-1 overflow-auto">
         <Outlet />
       </main>
 
-      {/* Bottom Navigation - COMPACT */}
-      <nav className="bg-white border-t border-gray-200 flex-shrink-0">
+      {/* Bottom Navigation - with safe area support */}
+      <nav 
+        className="bg-white border-t border-gray-200 flex-shrink-0"
+        style={{
+          // Extend white background into safe area on bottom
+          marginBottom: 'calc(-1 * env(safe-area-inset-bottom))',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }}
+      >
         <div className="flex">
           <Link
             to="/scanner/scan"
