@@ -10,6 +10,9 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// Roles that can access the shop
+const ALLOWED_ROLES = ['customer', 'admin', 'warehouse', 'seller'];
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,
@@ -26,8 +29,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const result = await api.getMe();
           const user = result.user as { role: string; id: number; email: string };
-          if (user.role !== 'customer') {
-            throw new Error('Dostęp tylko dla klientów');
+          if (!ALLOWED_ROLES.includes(user.role)) {
+            throw new Error('Brak dostępu do sklepu');
           }
           setState({
             user: { id: user.id, email: user.email, role: user.role },
@@ -58,13 +61,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await api.login(email, password);
     const user = result.user as { role: string; id: number; email: string };
     
-    if (user.role !== 'customer') {
-      throw new Error('Dostęp tylko dla klientów');
+    if (!ALLOWED_ROLES.includes(user.role)) {
+      throw new Error('Brak dostępu do sklepu');
     }
 
     localStorage.setItem('shop_token', result.token);
     
-    // Get customer data
+    // Get customer data (may be null for non-customer roles)
     const meResult = await api.getMe();
     
     setState({
