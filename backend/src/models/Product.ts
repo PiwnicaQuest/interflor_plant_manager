@@ -530,6 +530,31 @@ static async getMovements(productId: number, limit = 50): Promise<InventoryMovem
       productsToMerge.push(product);
     }
 
+    // VALIDATION: Check that all products have matching criteria
+    for (const product of productsToMerge) {
+      // Check plantName
+      if (product.plantName !== masterProduct.plantName) {
+        return {
+          success: false,
+          error: `Produkt #${product.id} (${product.plantName}) ma inną nazwę niż produkt główny (${masterProduct.plantName}). Łączenie różnych roślin jest niedozwolone.`
+        };
+      }
+      // Check potSize
+      if (product.potSize !== masterProduct.potSize) {
+        return {
+          success: false,
+          error: `Produkt #${product.id} ma inny rozmiar doniczki (${product.potSize}) niż produkt główny (${masterProduct.potSize}).`
+        };
+      }
+      // Check unitsPerPallet
+      if (product.unitsPerPallet !== masterProduct.unitsPerPallet) {
+        return {
+          success: false,
+          error: `Produkt #${product.id} ma inną ilość sztuk na palecie (${product.unitsPerPallet}) niż produkt główny (${masterProduct.unitsPerPallet}). Łączenie produktów z różnymi jednostkami jest niedozwolone.`
+        };
+      }
+    }
+
     // Collect all barcodes
     const barcodesToAdd: string[] = [];
     for (const product of productsToMerge) {
@@ -544,10 +569,12 @@ static async getMovements(productId: number, limit = 50): Promise<InventoryMovem
 
     // Calculate combined stock
     let totalPalletCount = masterProduct.palletCount || 0;
+    let totalLooseUnits = masterProduct.looseUnits || 0;
     let totalUnits = masterProduct.totalUnits || 0;
 
     for (const product of productsToMerge) {
       totalPalletCount += product.palletCount || 0;
+      totalLooseUnits += product.looseUnits || 0;
       totalUnits += product.totalUnits || 0;
     }
 
@@ -567,17 +594,19 @@ static async getMovements(productId: number, limit = 50): Promise<InventoryMovem
     const allMergedBarcodes = [...new Set([...existingMergedBarcodes, ...barcodesToAdd])];
     const allMergedIds = [...new Set([...existingMergedIds, ...productIdsToMerge])];
 
-    // Update master product
+    // Update master product with combined stock (including loose_units!)
     await query(
       `UPDATE products SET
         pallet_count = $1,
-        base_price_gross = $2,
-        merged_barcodes = $3,
-        merged_product_ids = $4,
+        loose_units = $2,
+        base_price_gross = $3,
+        merged_barcodes = $4,
+        merged_product_ids = $5,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $5`,
+      WHERE id = $6`,
       [
         totalPalletCount,
+        totalLooseUnits,
         bestPrice,
         allMergedBarcodes,
         allMergedIds,
