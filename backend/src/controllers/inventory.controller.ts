@@ -370,13 +370,14 @@ export class InventoryController {
 
   static async scanBarcode(req: AuthRequest, res: Response) {
     try {
-      const { barcode } = req.body;
+      const { barcode: rawBarcode } = req.body;
+      const barcode = rawBarcode?.trim();
 
       if (!barcode) {
         return res.status(400).json({ error: 'Kod kreskowy jest wymagany' });
       }
 
-      const product = await ProductModel.getByBarcode(barcode);
+      const product = await ProductModel.getByBarcodeIncludingMerged(barcode);
 
       if (!product) {
         return res.status(404).json({ error: 'Produkt nie znaleziony' });
@@ -585,7 +586,8 @@ export class InventoryController {
   // Modified scanBarcode to include merged barcodes
   static async scanBarcodeWithMerged(req: AuthRequest, res: Response) {
     try {
-      const { barcode } = req.body;
+      const { barcode: rawBarcode } = req.body;
+      const barcode = rawBarcode?.trim();
 
       if (!barcode) {
         return res.status(400).json({ error: 'Kod kreskowy jest wymagany' });
