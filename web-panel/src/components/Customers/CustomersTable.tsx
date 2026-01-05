@@ -67,6 +67,7 @@ export function CustomersTable({
           <thead>
             <tr>
               <SortableHeader field="name">Nazwa / Imie i nazwisko</SortableHeader>
+              <th style={{ width: '100px' }}>Kod</th>
               <SortableHeader field="nip">NIP</SortableHeader>
               <SortableHeader field="email">Email</SortableHeader>
               <th>Telefon</th>
@@ -79,6 +80,7 @@ export function CustomersTable({
             {customers.map((customer) => (
               <tr key={customer.id}>
                 <td className="font-medium">{getDisplayName(customer)}</td>
+                <td>{customer.customerCode || ''}</td>
                 <td>{customer.nip || '-'}</td>
                 <td>{customer.email}</td>
                 <td>{customer.phone}</td>

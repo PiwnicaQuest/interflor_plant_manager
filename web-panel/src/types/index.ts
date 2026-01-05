@@ -159,6 +159,7 @@ export interface Customer {
   phone: string;
   email: string;
   priceGroupId: number;
+  customerCode?: string;
   priceGroupName?: string;
   notes?: string;
   // Recipient (delivery address)
@@ -178,6 +179,7 @@ export interface Order {
   orderNumber: string;
   customerId?: number;
   customerName?: string;
+  customerCode?: string;
   status: OrderStatus;
   totalAmount: number;
   itemCount?: number;
@@ -262,6 +264,7 @@ export interface Invoice {
   orderId?: number;
   customerId?: number;
   customerName?: string;
+  customerCode?: string;
   issueDate: string;
   saleDate: string;
   paymentDeadline?: string;
@@ -298,6 +301,7 @@ export interface Invoice {
     country?: string;
     phone?: string;
     email?: string;
+    customerCode?: string;
   };
   recipientSnapshot?: {
     companyName?: string;
@@ -331,6 +335,7 @@ export interface Receipt {
   recipientPhone?: string;
   createdAt: string;
   customerName?: string;
+  customerCode?: string;
   buyerSnapshot?: any;
 }
 
@@ -577,6 +582,7 @@ export interface CompletedOrderSummary {
   orderNumber: string;
   customerId?: number;
   customerName?: string;
+  customerCode?: string;
   totalAmount: number;
   completedAt?: string;
   createdAt: string;

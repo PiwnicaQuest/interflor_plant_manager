@@ -60,14 +60,15 @@ export class CustomerModel {
       email,
       priceGroupId = 1,
       notes,
+      customerCode,
     } = data;
 
     const result = await query<Customer>(
       `INSERT INTO customers (
         user_id, company_name, first_name, last_name, nip,
         street, postal_code, city, country, phone, email,
-        price_group_id, notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        price_group_id, notes, customer_code
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *`,
       [
         userId,
@@ -83,6 +84,7 @@ export class CustomerModel {
         email,
         priceGroupId,
         notes,
+        customerCode,
       ]
     );
 
@@ -115,6 +117,7 @@ export class CustomerModel {
       'recipientPostalCode',
       'recipientCity',
       'recipientPhone',
+      'customerCode',
     ];
 
     const columnMap: { [key: string]: string } = {
@@ -131,6 +134,7 @@ export class CustomerModel {
       recipientPostalCode: 'recipient_postal_code',
       recipientCity: 'recipient_city',
       recipientPhone: 'recipient_phone',
+      customerCode: 'customer_code',
     };
 
     for (const [key, value] of Object.entries(data)) {
@@ -166,11 +170,11 @@ export class CustomerModel {
     orderCount: number;
     invoiceCount: number;
   }> {
-    // Sprawdź czy ma konto w sklepie
+    // Sprawdz czy ma konto w sklepie
     const customer = await this.getById(id);
     const hasShopAccount = customer?.userId ? true : false;
 
-    // Policz zamówienia
+    // Policz zamowienia
     const ordersResult = await query<{ count: string }>(
       'SELECT COUNT(*) as count FROM orders WHERE customer_id = $1',
       [id]
@@ -188,7 +192,7 @@ export class CustomerModel {
   }
 
   /**
-   * Trwale usuwa kontrahenta wraz z powiązanym kontem użytkownika
+   * Trwale usuwa kontrahenta wraz z powiazanym kontem uzytkownika
    */
   static async hardDelete(id: number): Promise<{ success: boolean; deletedUser: boolean }> {
     // Pobierz kontrahenta
@@ -200,11 +204,11 @@ export class CustomerModel {
     const hasUser = customer.userId ? true : false;
     const userId = customer.userId;
 
-    // Usuń kontrahenta (referencje w orders/invoices zostaną ustawione na NULL dzięki ON DELETE SET NULL)
+    // Usun kontrahenta (referencje w orders/invoices zostana ustawione na NULL dzieki ON DELETE SET NULL)
     const result = await query('DELETE FROM customers WHERE id = $1', [id]);
     const customerDeleted = (result.rowCount || 0) > 0;
 
-    // Jeśli kontrahent miał konto użytkownika, usuń je również
+    // Jesli kontrahent mial konto uzytkownika, usun je rowniez
     let userDeleted = false;
     if (customerDeleted && hasUser && userId) {
       const userResult = await query('DELETE FROM users WHERE id = $1', [userId]);

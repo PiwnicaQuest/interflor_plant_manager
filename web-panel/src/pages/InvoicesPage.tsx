@@ -51,7 +51,8 @@ export function InvoicesPage() {
       const query = searchQuery.toLowerCase().trim();
       result = result.filter(invoice =>
         (invoice.customerName || '').toLowerCase().includes(query) ||
-        (invoice.invoiceNumber || '').toLowerCase().includes(query)
+        (invoice.invoiceNumber || '').toLowerCase().includes(query) ||
+        (invoice.buyerSnapshot?.customerCode || '').toLowerCase().includes(query)
       );
     }
 
@@ -194,7 +195,7 @@ export function InvoicesPage() {
               <input
                 type="text"
                 className="input pl-10"
-                placeholder="Nazwa firmy lub numer faktury..."
+                placeholder="Nazwa, numer faktury lub kod klienta..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />

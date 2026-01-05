@@ -72,10 +72,12 @@ export function ScannerNewOrderPage() {
     const firstName = (c.firstName || '').toLowerCase();
     const lastName = (c.lastName || '').toLowerCase();
     const nip = String(c.nip || '');
+    const customerCode = (c.customerCode || '').toLowerCase();
     return companyName.includes(search) ||
            firstName.includes(search) ||
            lastName.includes(search) ||
-           nip.includes(customerSearch);
+           nip.includes(customerSearch) ||
+           customerCode.includes(search);
   });
 
   useEffect(() => {

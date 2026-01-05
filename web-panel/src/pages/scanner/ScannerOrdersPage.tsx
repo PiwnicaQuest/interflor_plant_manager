@@ -29,7 +29,8 @@ export function ScannerOrdersPage() {
   // Filter orders by customer name
   const filteredOrders = orders.filter(order =>
     !searchQuery ||
-    order.customerName?.toLowerCase().includes(searchQuery.toLowerCase())
+    order.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    order.customerCode?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   useEffect(() => {
@@ -94,7 +95,7 @@ export function ScannerOrdersPage() {
           </svg>
           <input
             type="text"
-            placeholder="Szukaj po nazwie kontrahenta..."
+            placeholder="Szukaj po nazwie lub kodzie kontrahenta..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"

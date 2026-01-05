@@ -16,6 +16,7 @@ interface ShopAccountInfo {
 export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) {
   const [formData, setFormData] = useState({
     companyName: '',
+    customerCode: '',
     firstName: '',
     lastName: '',
     nip: '',
@@ -53,6 +54,7 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
     if (customer) {
       setFormData({
         companyName: customer.companyName || '',
+        customerCode: customer.customerCode || '',
         firstName: customer.firstName || '',
         lastName: customer.lastName || '',
         nip: customer.nip || '',
@@ -291,6 +293,20 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
               <p className="text-xs text-gray-500 mt-1">
                 Dla działalności gospodarczych lookup NIP zwraca tylko imię i nazwisko - uzupełnij pełną nazwę ręcznie
               </p>
+            </div>
+
+            {/* Kod kontrahenta */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Kod kontrahenta (opcjonalnie)
+              </label>
+              <input
+                type="text"
+                className="input"
+                placeholder="np. KLIENT01"
+                value={formData.customerCode}
+                onChange={(e) => setFormData({ ...formData, customerCode: e.target.value })}
+              />
             </div>
 
             {/* Imię i nazwisko */}

@@ -111,6 +111,7 @@ export interface Customer {
   email: string;
   priceGroupId: number;
   notes?: string;
+  customerCode?: string;
   createdAt: Date;
   updatedAt: Date;
   // Recipient (delivery address) fields
@@ -134,6 +135,7 @@ export interface CustomerSnapshot {
   country: string;
   phone: string;
   email: string;
+  customerCode?: string;
 }
 
 export type BuyerSnapshot = CustomerSnapshot;
@@ -247,6 +249,7 @@ export interface OrderItem {
 export interface OrderWithItems extends Order {
   items: OrderItem[];
   customerName?: string;
+  customerCode?: string;
 }
 
 // Invoice
@@ -302,6 +305,7 @@ export interface Receipt {
   orderId?: number;
   customerId?: number;
   customerName?: string;
+  customerCode?: string;
   buyerSnapshot?: CustomerSnapshot;
   paymentMethod: PaymentMethod;
   paymentSplits?: PaymentSplit[];
@@ -548,6 +552,7 @@ export interface WSOrderCreatedMessage extends WSMessage {
     orderId: number;
     orderNumber: string;
     customerName?: string;
+  customerCode?: string;
     itemCount: number;
     totalAmount: number;
     timestamp: Date;
@@ -573,6 +578,7 @@ export interface AuthRequest extends Request {
 // Order with document info (for POS completed orders view)
 export interface OrderWithDocument extends Order {
   customerName?: string;
+  customerCode?: string;
   itemCount?: number;
   document?: {
     type: 'invoice' | 'receipt';

@@ -86,8 +86,9 @@ export function CustomersPage() {
       const name = `${customer.companyName || ''} ${customer.firstName || ''} ${customer.lastName || ''}`.toLowerCase();
       const nip = String(customer.nip || '');
       const email = (customer.email || '').toLowerCase();
+      const customerCode = (customer.customerCode || '').toLowerCase();
 
-      return name.includes(searchLower) || nip.includes(searchTerm) || email.includes(searchLower);
+      return name.includes(searchLower) || nip.includes(searchTerm) || email.includes(searchLower) || customerCode.includes(searchLower);
     });
 
     // Sort

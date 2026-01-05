@@ -10,6 +10,7 @@ export class OrderModel {
     let sql = `
       SELECT o.*,
              COALESCE(c.company_name, CONCAT(c.first_name, ' ', c.last_name)) as customer_name,
+             c.customer_code as customer_code,
              (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) as item_count
       FROM orders o
       LEFT JOIN customers c ON o.customer_id = c.id
@@ -89,20 +90,23 @@ export class OrderModel {
       };
     });
 
-    const customerResult = await query<{ companyName?: string; firstName?: string; lastName?: string }>(
-      'SELECT company_name, first_name, last_name FROM customers WHERE id = $1',
+    const customerResult = await query<{ companyName?: string; firstName?: string; lastName?: string; customerCode?: string }>(
+      'SELECT company_name, first_name, last_name, customer_code FROM customers WHERE id = $1',
       [order.customerId]
     );
 
     let customerName: string | undefined;
+    let customerCode: string | undefined;
     if (customerResult.rows.length > 0) {
       const customer = customerResult.rows[0];
       customerName = customer.companyName || `${customer.firstName} ${customer.lastName}`;
+      customerCode = customer.customerCode;
     }
 
     return {
       ...order,
       items,
+      customerCode,
       customerName,
     };
   }
@@ -268,20 +272,23 @@ export class OrderModel {
       }
 
       // Get customer name
-      const customerResult = await client.query<{ companyName?: string; firstName?: string; lastName?: string }>(
-        'SELECT company_name, first_name, last_name FROM customers WHERE id = $1',
+      const customerResult = await client.query<{ companyName?: string; firstName?: string; lastName?: string; customerCode?: string }>(
+        'SELECT company_name, first_name, last_name, customer_code FROM customers WHERE id = $1',
         [customerId]
       );
 
       let customerName: string | undefined;
+      let customerCode: string | undefined;
       if (customerResult.rows.length > 0) {
         const customer = customerResult.rows[0];
         customerName = customer.companyName || `${customer.firstName} ${customer.lastName}`;
+        customerCode = customer.customerCode;
       }
 
       return {
         ...order,
         items: orderItems,
+        customerCode,
         customerName,
       };
     });
@@ -658,20 +665,23 @@ export class OrderModel {
       const updatedOrder = updatedOrderResult.rows[0];
 
       // Get customer name
-      const customerResult = await client.query<{ companyName?: string; firstName?: string; lastName?: string }>(
-        'SELECT company_name, first_name, last_name FROM customers WHERE id = $1',
+      const customerResult = await client.query<{ companyName?: string; firstName?: string; lastName?: string; customerCode?: string }>(
+        'SELECT company_name, first_name, last_name, customer_code FROM customers WHERE id = $1',
         [updatedOrder.customerId]
       );
 
       let customerName: string | undefined;
+      let customerCode: string | undefined;
       if (customerResult.rows.length > 0) {
         const customer = customerResult.rows[0];
         customerName = customer.companyName || `${customer.firstName} ${customer.lastName}`;
+        customerCode = customer.customerCode;
       }
 
       return {
         ...updatedOrder,
         items: orderItems,
+        customerCode,
         customerName,
       };
     });
@@ -836,6 +846,7 @@ export class OrderModel {
       SELECT
         o.*,
         COALESCE(c.company_name, CONCAT(c.first_name, ' ', c.last_name)) as customer_name,
+             c.customer_code as customer_code,
         (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) as item_count,
         -- Invoice info (if exists)
         i.id as invoice_id,
