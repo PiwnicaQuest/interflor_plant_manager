@@ -5,6 +5,7 @@ import { OrderModel } from '../models/Order';
 import { CustomerModel } from '../models/Customer';
 import { UserModel } from '../models/User';
 import { SettingsModel } from "../models/Settings";
+import { UserRole } from '../types';
 import { query } from '../models/database';
 
 export class ShopController {
@@ -23,20 +24,23 @@ export class ShopController {
 
       const allProducts = await ProductModel.getAll(filters);
 
-      // Get customer if authenticated
+      // Get customer if authenticated (for price calculation)
       let customerId: number | undefined;
       let priceGroupName: string | undefined;
       if (req.user) {
-        const customer = await CustomerModel.getByUserId(req.user.userId);
-        customerId = customer?.id;
-        // Get price group name
-        if (customer?.priceGroupId) {
-          const pgResult = await query<{ name: string }>(
-            'SELECT name FROM price_groups WHERE id = $1',
-            [customer.priceGroupId]
-          );
-          priceGroupName = pgResult.rows[0]?.name;
+        // For customer users, get their customer record
+        if (req.user.role === UserRole.CUSTOMER) {
+          const customer = await CustomerModel.getByUserId(req.user.userId);
+          customerId = customer?.id;
+          if (customer?.priceGroupId) {
+            const pgResult = await query<{ name: string }>(
+              'SELECT name FROM price_groups WHERE id = ',
+              [customer.priceGroupId]
+            );
+            priceGroupName = pgResult.rows[0]?.name;
+          }
         }
+        // For employees, use base prices (no discount)
       }
 
       // Format products with prices based on customer's price group
@@ -154,18 +158,17 @@ export class ShopController {
         return res.status(404).json({ error: 'Produkt niedostępny' });
       }
 
-      // Get customer price if authenticated
+      // Get customer price if authenticated and is customer
       let price = product.basePriceGross;
       let priceGroupName: string | undefined;
 
-      if (req.user) {
+      if (req.user && req.user.role === UserRole.CUSTOMER) {
         const customer = await CustomerModel.getByUserId(req.user.userId);
         if (customer) {
           price = await CustomerModel.getPriceForCustomer(customer.id, product.id);
-          // Get price group name
           if (customer.priceGroupId) {
             const pgResult = await query<{ name: string }>(
-              'SELECT name FROM price_groups WHERE id = $1',
+              'SELECT name FROM price_groups WHERE id = ',
               [customer.priceGroupId]
             );
             priceGroupName = pgResult.rows[0]?.name;
@@ -203,30 +206,46 @@ export class ShopController {
         return res.status(401).json({ error: 'Musisz być zalogowany' });
       }
 
-      const customer = await CustomerModel.getByUserId(req.user.userId);
-      if (!customer) {
-        return res.status(404).json({ error: 'Dane klienta nie znalezione' });
+      let whereClause: string;
+      let params: any[];
+
+      // For customer users - show orders for their customer record
+      if (req.user.role === UserRole.CUSTOMER) {
+        const customer = await CustomerModel.getByUserId(req.user.userId);
+        if (!customer) {
+          return res.status(404).json({ error: 'Dane klienta nie znalezione' });
+        }
+        whereClause = 'WHERE o.customer_id = $1';
+        params = [customer.id];
+      } else {
+        // For employees - show orders they created
+        whereClause = 'WHERE o.created_by_user_id = $1';
+        params = [req.user.userId];
       }
 
-      // Get orders for this customer
       const result = await query<any>(
-        `SELECT o.*,
-          json_agg(
-            json_build_object(
-              'id', oi.id,
-              'productId', oi.product_id,
-              'productSnapshot', oi.product_snapshot,
-              'quantity', oi.quantity,
-              'unitPriceGross', oi.unit_price_gross,
-              'totalPrice', oi.total_price
-            )
-          ) as items
+        `SELECT o.id, o.order_number as "orderNumber", o.status, 
+                o.total_amount as "totalAmount", o.customer_notes as "customerNotes",
+                o.notes, o.created_at as "createdAt", o.updated_at as "updatedAt",
+                o.completed_at as "completedAt",
+                c.company_name as "customerName",
+                json_agg(
+                  json_build_object(
+                    'id', oi.id,
+                    'productId', oi.product_id,
+                    'productSnapshot', oi.product_snapshot,
+                    'quantity', oi.quantity,
+                    'unitPriceGross', oi.unit_price_gross,
+                    'totalPrice', oi.total_price
+                  )
+                ) as items
         FROM orders o
         LEFT JOIN order_items oi ON o.id = oi.order_id
-        WHERE o.customer_id = $1
-        GROUP BY o.id
+        LEFT JOIN customers c ON o.customer_id = c.id
+        ${whereClause}
+        GROUP BY o.id, c.company_name
         ORDER BY o.created_at DESC`,
-        [customer.id]
+        params
       );
 
       const orders = result.rows.map(row => ({
@@ -235,6 +254,7 @@ export class ShopController {
         status: row.status,
         totalAmount: row.totalAmount,
         customerNotes: row.customerNotes,
+        customerName: row.customerName,
         notes: row.notes,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
@@ -256,21 +276,26 @@ export class ShopController {
       }
 
       const { id } = req.params;
-
-      const customer = await CustomerModel.getByUserId(req.user.userId);
-      if (!customer) {
-        return res.status(404).json({ error: 'Dane klienta nie znalezione' });
-      }
-
       const order = await OrderModel.getById(parseInt(id));
 
       if (!order) {
         return res.status(404).json({ error: 'Zamówienie nie znalezione' });
       }
 
-      // Check if this order belongs to this customer
-      if (order.customerId !== customer.id) {
-        return res.status(403).json({ error: 'Brak dostępu do tego zamówienia' });
+      // For customer users - check if order belongs to their customer
+      if (req.user.role === UserRole.CUSTOMER) {
+        const customer = await CustomerModel.getByUserId(req.user.userId);
+        if (!customer) {
+          return res.status(404).json({ error: 'Dane klienta nie znalezione' });
+        }
+        if (order.customerId !== customer.id) {
+          return res.status(403).json({ error: 'Brak dostępu do tego zamówienia' });
+        }
+      } else {
+        // For employees - check if they created this order
+        if (order.createdByUserId !== req.user.userId) {
+          return res.status(403).json({ error: 'Brak dostępu do tego zamówienia' });
+        }
       }
 
       return res.json({ order });
@@ -282,7 +307,7 @@ export class ShopController {
 
   static async checkout(req: AuthRequest, res: Response) {
     try {
-      const { items, customerNotes } = req.body;
+      const { items, customerNotes, customerId: requestedCustomerId } = req.body;
 
       if (!items || items.length === 0) {
         return res.status(400).json({ error: 'Koszyk jest pusty' });
@@ -292,10 +317,26 @@ export class ShopController {
         return res.status(401).json({ error: 'Musisz być zalogowany' });
       }
 
-      // Get customer
-      const customer = await CustomerModel.getByUserId(req.user.userId);
-      if (!customer) {
-        return res.status(404).json({ error: 'Dane klienta nie znalezione' });
+      let customer: any;
+
+      // For customer users - use their linked customer record
+      if (req.user.role === UserRole.CUSTOMER) {
+        customer = await CustomerModel.getByUserId(req.user.userId);
+        if (!customer) {
+          return res.status(404).json({ error: 'Dane klienta nie znalezione' });
+        }
+      } else {
+        // For employees - they must specify which customer to order for
+        if (!requestedCustomerId) {
+          return res.status(400).json({ 
+            error: 'Jako pracownik musisz wybrać klienta dla którego składasz zamówienie',
+            requiresCustomerSelection: true
+          });
+        }
+        customer = await CustomerModel.getById(requestedCustomerId);
+        if (!customer) {
+          return res.status(404).json({ error: 'Wybrany klient nie istnieje' });
+        }
       }
 
       // Create customer snapshot
@@ -360,6 +401,7 @@ export class ShopController {
         orderNumber: order.orderNumber,
         orderId: order.id,
         totalAmount: order.totalAmount,
+        customerName: customer.companyName || `${customer.firstName} ${customer.lastName}`,
       });
     } catch (error) {
       console.error('Shop checkout error:', error);
@@ -373,37 +415,56 @@ export class ShopController {
         return res.status(401).json({ error: 'Musisz być zalogowany' });
       }
 
-      const customer = await CustomerModel.getByUserId(req.user.userId);
-      if (!customer) {
-        return res.status(404).json({ error: 'Dane klienta nie znalezione' });
+      // For customer users - return their customer profile
+      if (req.user.role === UserRole.CUSTOMER) {
+        const customer = await CustomerModel.getByUserId(req.user.userId);
+        if (!customer) {
+          return res.status(404).json({ error: 'Dane klienta nie znalezione' });
+        }
+
+        // Get price group name
+        let priceGroupName = 'podstawowa';
+        if (customer.priceGroupId) {
+          const pgResult = await query<{ name: string, discount_percentage: number }>(
+            'SELECT name, discount_percentage FROM price_groups WHERE id = ',
+            [customer.priceGroupId]
+          );
+          if (pgResult.rows[0]) {
+            priceGroupName = pgResult.rows[0].name;
+          }
+        }
+
+        return res.json({
+          userType: 'customer',
+          customer: {
+            id: customer.id,
+            companyName: customer.companyName,
+            firstName: customer.firstName,
+            lastName: customer.lastName,
+            nip: customer.nip,
+            street: customer.street,
+            postalCode: customer.postalCode,
+            city: customer.city,
+            country: customer.country,
+            phone: customer.phone,
+            email: customer.email,
+            priceGroup: priceGroupName,
+          },
+        });
       }
 
-      // Get price group name
-      let priceGroupName = 'podstawowa';
-      if (customer.priceGroupId) {
-        const pgResult = await query<{ name: string, discount_percentage: number }>(
-          'SELECT name, discount_percentage FROM price_groups WHERE id = $1',
-          [customer.priceGroupId]
-        );
-        if (pgResult.rows[0]) {
-          priceGroupName = pgResult.rows[0].name;
-        }
+      // For employees - return their user profile
+      const user = await UserModel.getById(req.user.userId);
+      if (!user) {
+        return res.status(404).json({ error: 'Użytkownik nie znaleziony' });
       }
 
       return res.json({
-        customer: {
-          id: customer.id,
-          companyName: customer.companyName,
-          firstName: customer.firstName,
-          lastName: customer.lastName,
-          nip: customer.nip,
-          street: customer.street,
-          postalCode: customer.postalCode,
-          city: customer.city,
-          country: customer.country,
-          phone: customer.phone,
-          email: customer.email,
-          priceGroup: priceGroupName,
+        userType: 'employee',
+        employee: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
         },
       });
     } catch (error) {

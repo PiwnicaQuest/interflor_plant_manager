@@ -11,7 +11,7 @@ import jwt from 'jsonwebtoken';
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
 // Import middleware
-import { requireAuth, requireRole, optionalAuth } from './middleware/auth';
+import { requireAuth, requireRole, optionalAuth, requirePermission, requireRoleOrPermission } from './middleware/auth';
 import { generalLimiter, authLimiter } from './middleware/rateLimiter';
 import { snakeToCamelMiddleware } from './middleware/caseConverter';
 import { UserRole, JWTPayload } from './types';
@@ -343,13 +343,13 @@ app.post('/migration/run-settings', requireAuth, requireRole([UserRole.ADMIN]), 
 // ============================================
 
 app.get('/shop/catalog', optionalAuth, ShopController.getCatalog);
-app.post('/shop/cart/checkout', requireAuth, requireRole([UserRole.CUSTOMER]), ShopController.checkout);
+app.post('/shop/cart/checkout', requireAuth, requireRoleOrPermission([UserRole.CUSTOMER], 'shop:order'), ShopController.checkout);
 // Shop - additional routes
 app.get('/shop/products/:id', optionalAuth, ShopController.getProduct);
-app.get('/shop/my-orders', requireAuth, requireRole([UserRole.CUSTOMER]), ShopController.getMyOrders);
-app.get('/shop/my-orders/:id', requireAuth, requireRole([UserRole.CUSTOMER]), ShopController.getMyOrder);
-app.get('/shop/profile', requireAuth, requireRole([UserRole.CUSTOMER]), ShopController.getCustomerProfile);
-app.post('/shop/change-password', requireAuth, requireRole([UserRole.CUSTOMER]), ShopController.changeMyPassword);
+app.get('/shop/my-orders', requireAuth, requireRoleOrPermission([UserRole.CUSTOMER], 'shop:view'), ShopController.getMyOrders);
+app.get('/shop/my-orders/:id', requireAuth, requireRoleOrPermission([UserRole.CUSTOMER], 'shop:view'), ShopController.getMyOrder);
+app.get('/shop/profile', requireAuth, requireRoleOrPermission([UserRole.CUSTOMER], 'shop:view'), ShopController.getCustomerProfile);
+app.post('/shop/change-password', requireAuth, ShopController.changeMyPassword);
 
 // ============================================
 // MOBILE ROUTES

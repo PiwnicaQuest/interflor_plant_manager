@@ -263,6 +263,6 @@ export class PermissionProfileModel {
         WHERE u.id = $1 AND prm.permission = $2
       ) as has_permission
     `, [userId, permission]);
-    return result.rows[0]?.has_permission || false;
+    return result.rows[0]?.hasPermission || result.rows[0]?.has_permission || false;
   }
 }
