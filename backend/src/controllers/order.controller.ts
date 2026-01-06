@@ -89,10 +89,20 @@ export class OrderController {
           email: '',
         };
       }
-      // Get prices for each item based on customer's price group
+      // Get prices for each item - use custom price if provided, otherwise get from price group
       const itemsWithPrices = [];
       for (const item of data.items) {
-        const price = await CustomerModel.getPriceForCustomer(data.customerId, item.productId);
+        let price: number;
+
+        // Check if custom unitPriceGross is provided and valid
+        if (item.unitPriceGross !== undefined && item.unitPriceGross !== null && !isNaN(Number(item.unitPriceGross))) {
+          // Use the custom price provided
+          price = Number(item.unitPriceGross);
+        } else {
+          // Fall back to customer's price group
+          price = await CustomerModel.getPriceForCustomer(data.customerId, item.productId);
+        }
+
         itemsWithPrices.push({
           productId: item.productId,
           quantity: item.quantity,
@@ -166,9 +176,9 @@ export class OrderController {
         let price: number;
 
         // Check if custom unitPriceGross is provided and valid
-        if (item.unitPriceGross !== undefined && item.unitPriceGross !== null && !isNaN(parseFloat(item.unitPriceGross))) {
+        if (item.unitPriceGross !== undefined && item.unitPriceGross !== null && !isNaN(Number(item.unitPriceGross))) {
           // Use the custom price provided
-          price = parseFloat(item.unitPriceGross);
+          price = Number(item.unitPriceGross);
         } else {
           // Fall back to customer's price group
           price = await CustomerModel.getPriceForCustomer(existingOrder.customerId!, item.productId);

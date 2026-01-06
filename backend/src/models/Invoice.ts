@@ -1,6 +1,9 @@
 import { query, transaction } from './database';
 import { Invoice, InvoiceItem, InvoiceWithItems, PaymentMethod, CustomerSnapshot, PaymentSplit, InvoiceType } from '../types';
 
+// Helper function to round to 2 decimal places (for currency calculations)
+const round2 = (num: number): number => Math.round(num * 100) / 100;
+
 export class InvoiceModel {
   static async getAll(filters?: {
     startDate?: Date;
@@ -157,14 +160,19 @@ export class InvoiceModel {
       let totalGross = 0;
 
       for (const item of items) {
-        const itemTotalNet = item.unitPriceNet * item.quantity;
-        const itemTotalVat = itemTotalNet * (item.vatRate / 100);
-        const itemTotalGross = itemTotalNet + itemTotalVat;
+        const itemTotalNet = round2(item.unitPriceNet * item.quantity);
+        const itemTotalVat = round2(itemTotalNet * (item.vatRate / 100));
+        const itemTotalGross = round2(itemTotalNet + itemTotalVat);
 
         subtotalNet += itemTotalNet;
         totalVat += itemTotalVat;
         totalGross += itemTotalGross;
       }
+
+      // Round final totals
+      subtotalNet = round2(subtotalNet);
+      totalVat = round2(totalVat);
+      totalGross = round2(totalGross);
 
       // Insert proforma invoice
       const invoiceResult = await client.query<Invoice>(
@@ -263,11 +271,11 @@ export class InvoiceModel {
       for (const item of orderItems) {
         const vatRate = item.vatRate || 8.0;
         const unitPriceGross = item.unitPriceGross;
-        const unitPriceNet = unitPriceGross / (1 + vatRate / 100);
+        const unitPriceNet = round2(unitPriceGross / (1 + vatRate / 100));
 
-        const itemTotalNet = unitPriceNet * item.quantity;
-        const itemTotalVat = itemTotalNet * (vatRate / 100);
-        const itemTotalGross = itemTotalNet + itemTotalVat;
+        const itemTotalNet = round2(unitPriceNet * item.quantity);
+        const itemTotalVat = round2(itemTotalNet * (vatRate / 100));
+        const itemTotalGross = round2(itemTotalNet + itemTotalVat);
 
         subtotalNet += itemTotalNet;
         totalVat += itemTotalVat;
@@ -285,6 +293,11 @@ export class InvoiceModel {
           growerPassport: productSnapshot.growerPassport,
         });
       }
+
+      // Round final totals
+      subtotalNet = round2(subtotalNet);
+      totalVat = round2(totalVat);
+      totalGross = round2(totalGross);
 
       // Insert proforma invoice
       const invoiceResult = await client.query<Invoice>(
@@ -481,11 +494,11 @@ export class InvoiceModel {
       for (const item of orderItems) {
         const vatRate = item.vatRate || 8.0;
         const unitPriceGross = item.unitPriceGross;
-        const unitPriceNet = unitPriceGross / (1 + vatRate / 100);
+        const unitPriceNet = round2(unitPriceGross / (1 + vatRate / 100));
 
-        const itemTotalNet = unitPriceNet * item.quantity;
-        const itemTotalVat = itemTotalNet * (vatRate / 100);
-        const itemTotalGross = itemTotalNet + itemTotalVat;
+        const itemTotalNet = round2(unitPriceNet * item.quantity);
+        const itemTotalVat = round2(itemTotalNet * (vatRate / 100));
+        const itemTotalGross = round2(itemTotalNet + itemTotalVat);
 
         subtotalNet += itemTotalNet;
         totalVat += itemTotalVat;
@@ -503,6 +516,11 @@ export class InvoiceModel {
           growerPassport: productSnapshot.growerPassport,
         });
       }
+
+      // Round final totals
+      subtotalNet = round2(subtotalNet);
+      totalVat = round2(totalVat);
+      totalGross = round2(totalGross);
 
       // Determine payment status based on payment method
       const isImmediatePayment = paymentMethod === 'cash' || paymentMethod === 'card';
@@ -595,14 +613,19 @@ export class InvoiceModel {
       let totalGross = 0;
 
       for (const item of items) {
-        const itemTotalNet = item.unitPriceNet * item.quantity;
-        const itemTotalVat = itemTotalNet * (item.vatRate / 100);
-        const itemTotalGross = itemTotalNet + itemTotalVat;
+        const itemTotalNet = round2(item.unitPriceNet * item.quantity);
+        const itemTotalVat = round2(itemTotalNet * (item.vatRate / 100));
+        const itemTotalGross = round2(itemTotalNet + itemTotalVat);
 
         subtotalNet += itemTotalNet;
         totalVat += itemTotalVat;
         totalGross += itemTotalGross;
       }
+
+      // Round final totals
+      subtotalNet = round2(subtotalNet);
+      totalVat = round2(totalVat);
+      totalGross = round2(totalGross);
 
       // Determine payment status based on payment method
       const isImmediatePayment = paymentMethod === 'cash' || paymentMethod === 'card';

@@ -207,7 +207,7 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
       'body { margin: 0; padding: 0; font-family: Arial, sans-serif; }' +
       '.label-container { display: flex; flex-wrap: wrap; gap: 1mm; }' +
       '.label { width: ' + (paperWidth - 2) + 'mm; height: ' + (paperHeight - 2) + 'mm; border: 1px solid #ddd; padding: 1mm; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; page-break-inside: avoid; }' +
-      '.product-name { font-size: 8px; font-weight: bold; margin-bottom: 1mm; text-align: center; max-width: ' + (paperWidth - 4) + 'mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }' +
+      '.product-name { font-size: 9.5px; font-weight: bold; margin-bottom: 1mm; text-align: center; max-width: ' + (paperWidth - 4) + 'mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }' +
       '.product-info { font-size: 7px; color: #333; margin-bottom: 1mm; }' +
       '.barcode-svg { max-width: ' + (paperWidth - 6) + 'mm; height: auto; }' +
       '.units-info { font-size: 7px; font-weight: bold; margin-top: 1mm; color: #333; }' +

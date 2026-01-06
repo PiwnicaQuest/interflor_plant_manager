@@ -196,6 +196,7 @@ export interface ProductSnapshot {
 export interface InventoryMovement {
   id: number;
   productId: number;
+    unitPriceGross?: number;
   userId?: number;
   movementType: MovementType;
   deltaUnits: number;
@@ -460,6 +461,7 @@ export interface CreateOrderRequest {
   customerId: number;
   items: Array<{
     productId: number;
+    unitPriceGross?: number;
     quantity: number;
   }>;
   customerNotes?: string;
@@ -495,6 +497,7 @@ export interface CheckoutRequest {
   documentType: DocumentType;
   items?: Array<{
     productId: number;
+    unitPriceGross?: number;
     quantity: number;
   }>;
 }
@@ -565,6 +568,7 @@ export interface WSInventoryLowStockMessage extends WSMessage {
   type: 'inventory:low_stock';
   data: {
     productId: number;
+    unitPriceGross?: number;
     plantName: string;
     palletCount: number;
     totalUnits: number;
