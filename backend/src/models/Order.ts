@@ -170,9 +170,22 @@ export class OrderModel {
       // Insert order items and update inventory
       const orderItems: OrderItem[] = [];
       for (const item of items) {
-        // Get product data including stock info
+        // Get product data including stock info and grower passport
         const productResult = await client.query(
-          'SELECT id, plant_name, pot_size, plant_height_cm, barcode, image_url, pallet_count, units_per_pallet, total_units, created_at FROM products WHERE id = $1',
+          `SELECT p.id, p.plant_name, p.pot_size, p.plant_height_cm, p.barcode, p.image_url,
+                  p.pallet_count, p.units_per_pallet, p.total_units, p.created_at,
+                  gp_sub.passport_number as grower_passport
+           FROM products p
+           LEFT JOIN LATERAL (
+             SELECT gp.passport_number
+             FROM grower_passports gp
+             WHERE LTRIM(p.grower, '0') = gp.floricode
+                OR p.grower = gp.floricode
+                OR LOWER(p.grower) = LOWER(gp.grower_name)
+             ORDER BY gp.id
+             LIMIT 1
+           ) gp_sub ON true
+           WHERE p.id = $1`,
           [item.productId]
         );
 
@@ -497,9 +510,22 @@ export class OrderModel {
       // Insert new items and deduct stock
       const orderItems: OrderItem[] = [];
       for (const item of items) {
-        // Get fresh product data (after restoration)
+        // Get fresh product data (after restoration) including grower passport
         const productResult = await client.query(
-          'SELECT id, plant_name, pot_size, plant_height_cm, barcode, image_url, pallet_count, units_per_pallet, total_units, created_at FROM products WHERE id = $1',
+          `SELECT p.id, p.plant_name, p.pot_size, p.plant_height_cm, p.barcode, p.image_url,
+                  p.pallet_count, p.units_per_pallet, p.total_units, p.created_at,
+                  gp_sub.passport_number as grower_passport
+           FROM products p
+           LEFT JOIN LATERAL (
+             SELECT gp.passport_number
+             FROM grower_passports gp
+             WHERE LTRIM(p.grower, '0') = gp.floricode
+                OR p.grower = gp.floricode
+                OR LOWER(p.grower) = LOWER(gp.grower_name)
+             ORDER BY gp.id
+             LIMIT 1
+           ) gp_sub ON true
+           WHERE p.id = $1`,
           [item.productId]
         );
 

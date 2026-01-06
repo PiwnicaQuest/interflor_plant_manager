@@ -292,6 +292,7 @@ export interface InvoiceItem {
   totalNet: number; // generated column
   totalVat: number; // generated column
   totalGross: number; // generated column
+  growerPassport?: string;
   createdAt: Date;
 }
 

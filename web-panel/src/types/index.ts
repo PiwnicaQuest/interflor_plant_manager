@@ -256,6 +256,7 @@ export interface InvoiceItem {
   totalNet?: number;
   totalVat?: number;
   totalGross?: number;
+  growerPassport?: string;
 }
 
 export interface Invoice {

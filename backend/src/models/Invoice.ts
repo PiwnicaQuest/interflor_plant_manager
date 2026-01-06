@@ -138,6 +138,7 @@ export class InvoiceModel {
       quantity: number;
       unitPriceNet: number;
       vatRate: number;
+      growerPassport?: string;
     }>,
     validUntil?: Date,
     notes?: string,
@@ -195,8 +196,8 @@ export class InvoiceModel {
       for (const item of items) {
         const itemResult = await client.query<InvoiceItem>(
           `INSERT INTO invoice_items (
-            invoice_id, product_id, description, quantity, unit_price_net, vat_rate
-          ) VALUES ($1, $2, $3, $4, $5, $6)
+            invoice_id, product_id, description, quantity, unit_price_net, vat_rate, grower_passport
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
           RETURNING *`,
           [
             invoice.id,
@@ -205,6 +206,7 @@ export class InvoiceModel {
             item.quantity,
             item.unitPriceNet,
             item.vatRate,
+            item.growerPassport,
           ]
         );
 
@@ -315,8 +317,8 @@ export class InvoiceModel {
       for (const item of invoiceItems) {
         const itemResult = await client.query<InvoiceItem>(
           `INSERT INTO invoice_items (
-            invoice_id, product_id, description, quantity, unit_price_net, vat_rate
-          ) VALUES ($1, $2, $3, $4, $5, $6)
+            invoice_id, product_id, description, quantity, unit_price_net, vat_rate, grower_passport
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
           RETURNING *`,
           [
             invoice.id,
@@ -325,6 +327,7 @@ export class InvoiceModel {
             item.quantity,
             item.unitPriceNet,
             item.vatRate,
+            item.growerPassport,
           ]
         );
 
@@ -409,8 +412,8 @@ export class InvoiceModel {
       for (const item of itemsResult.rows) {
         const itemResult = await client.query<InvoiceItem>(
           `INSERT INTO invoice_items (
-            invoice_id, product_id, description, quantity, unit_price_net, vat_rate
-          ) VALUES ($1, $2, $3, $4, $5, $6)
+            invoice_id, product_id, description, quantity, unit_price_net, vat_rate, grower_passport
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
           RETURNING *`,
           [
             invoice.id,
@@ -419,6 +422,7 @@ export class InvoiceModel {
             item.quantity,
             item.unitPriceNet,
             item.vatRate,
+            item.growerPassport,
           ]
         );
 
@@ -539,8 +543,8 @@ export class InvoiceModel {
       for (const item of invoiceItems) {
         const itemResult = await client.query<InvoiceItem>(
           `INSERT INTO invoice_items (
-            invoice_id, product_id, description, quantity, unit_price_net, vat_rate
-          ) VALUES ($1, $2, $3, $4, $5, $6)
+            invoice_id, product_id, description, quantity, unit_price_net, vat_rate, grower_passport
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
           RETURNING *`,
           [
             invoice.id,
@@ -549,6 +553,7 @@ export class InvoiceModel {
             item.quantity,
             item.unitPriceNet,
             item.vatRate,
+            item.growerPassport,
           ]
         );
 
@@ -571,6 +576,7 @@ export class InvoiceModel {
       quantity: number;
       unitPriceNet: number;
       vatRate: number;
+      growerPassport?: string;
     }>,
     paymentMethod: PaymentMethod,
     paymentDeadline: Date | null,
@@ -634,8 +640,8 @@ export class InvoiceModel {
       for (const item of items) {
         const itemResult = await client.query<InvoiceItem>(
           `INSERT INTO invoice_items (
-            invoice_id, product_id, description, quantity, unit_price_net, vat_rate
-          ) VALUES ($1, $2, $3, $4, $5, $6)
+            invoice_id, product_id, description, quantity, unit_price_net, vat_rate, grower_passport
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
           RETURNING *`,
           [
             invoice.id,
@@ -644,6 +650,7 @@ export class InvoiceModel {
             item.quantity,
             item.unitPriceNet,
             item.vatRate,
+            item.growerPassport,
           ]
         );
 

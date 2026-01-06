@@ -96,11 +96,72 @@ export function BulkPrintInvoicesPage() {
         }
       `}</style>
 
-      {invoices.map((invoice) => (
-        <div key={invoice.id} className="page-break">
-          <InvoiceTemplate data={invoice as any} />
-        </div>
-      ))}
+      {invoices.map((invoice) => {
+        // Map invoice items to template format
+        const mappedItems = (invoice.items || []).map((item) => ({
+          id: item.id,
+          name: item.description || 'Produkt',
+          quantity: item.quantity,
+          unit: 'szt.',
+          unitPriceNet: item.unitPriceNet || 0,
+          unitPriceGross: (item.unitPriceNet || 0) * (1 + (item.vatRate || 0) / 100),
+          totalNet: item.totalNet || 0,
+          totalGross: item.totalGross || 0,
+          vatRate: item.vatRate || 0,
+          vatAmount: item.totalVat || 0,
+          unitsPerPallet: 0,
+          growerPassport: item.growerPassport,
+        }));
+
+        // Map buyer info from buyerSnapshot
+        const buyerInfo = invoice.buyerSnapshot ? {
+          companyName: invoice.buyerSnapshot.companyName,
+          firstName: invoice.buyerSnapshot.firstName,
+          lastName: invoice.buyerSnapshot.lastName,
+          nip: invoice.buyerSnapshot.nip,
+          address: invoice.buyerSnapshot.street,
+          city: invoice.buyerSnapshot.city,
+          postalCode: invoice.buyerSnapshot.postalCode,
+        } : undefined;
+
+        // Map recipient info from recipientSnapshot
+        const recipientInfo = invoice.recipientSnapshot ? {
+          companyName: invoice.recipientSnapshot.companyName,
+          firstName: invoice.recipientSnapshot.firstName,
+          lastName: invoice.recipientSnapshot.lastName,
+          address: invoice.recipientSnapshot.street,
+          city: invoice.recipientSnapshot.city,
+          postalCode: invoice.recipientSnapshot.postalCode,
+          phone: invoice.recipientSnapshot.phone,
+        } : undefined;
+
+        // Build invoice data for template
+        const invoiceData = {
+          id: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          orderId: invoice.orderId,
+          issueDate: invoice.issueDate,
+          saleDate: invoice.saleDate,
+          paymentDeadline: invoice.paymentDeadline,
+          paymentMethod: invoice.paymentMethod,
+          paymentSplits: invoice.paymentSplits,
+          paymentStatus: invoice.paymentStatus,
+          items: mappedItems,
+          subtotalNet: invoice.subtotalNet,
+          totalVat: invoice.totalVat,
+          totalGross: invoice.totalGross,
+          paidAmount: invoice.paidAmount,
+          notes: invoice.notes,
+          buyerInfo,
+          recipientInfo,
+        };
+
+        return (
+          <div key={invoice.id} className="page-break">
+            <InvoiceTemplate data={invoiceData} />
+          </div>
+        );
+      })}
     </div>
   );
 }
