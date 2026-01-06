@@ -84,16 +84,21 @@ class ApiService {
   }
 
   // Orders
-  async checkout(items: { productId: number; quantity: number }[], customerNotes?: string): Promise<{
+  async checkout(items: { productId: number; quantity: number }[], customerNotes?: string, customerId?: number): Promise<{
     message: string;
     orderNumber: string;
     orderId: number;
     totalAmount: number;
+    customerName?: string;
   }> {
+    const body: any = { items };
+    if (customerNotes) body.customerNotes = customerNotes;
+    if (customerId) body.customerId = customerId;
+    
     const response = await fetch(API_URL + '/shop/cart/checkout', {
       method: 'POST',
       headers: this.getHeaders(),
-      body: JSON.stringify({ items, customerNotes }),
+      body: JSON.stringify(body),
     });
     return this.handleResponse(response);
   }
@@ -126,6 +131,14 @@ class ApiService {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    return this.handleResponse(response);
+  }
+
+  // Get customers for employee order placement
+  async getCustomers(): Promise<{ customers: Array<{ id: number; name: string; customerCode?: string; nip?: string; city?: string }> }> {
+    const response = await fetch(API_URL + '/shop/customers', {
+      headers: this.getHeaders(),
     });
     return this.handleResponse(response);
   }

@@ -350,6 +350,7 @@ app.get('/shop/products/:id', optionalAuth, ShopController.getProduct);
 app.get('/shop/my-orders', requireAuth, requireRoleOrPermission([UserRole.CUSTOMER], 'shop:view'), ShopController.getMyOrders);
 app.get('/shop/my-orders/:id', requireAuth, requireRoleOrPermission([UserRole.CUSTOMER], 'shop:view'), ShopController.getMyOrder);
 app.get('/shop/profile', requireAuth, requireRoleOrPermission([UserRole.CUSTOMER], 'shop:view'), ShopController.getCustomerProfile);
+app.get('/shop/customers', requireAuth, requireRoleOrPermission([], 'shop:order'), ShopController.getCustomersForShop);
 app.post('/shop/change-password', requireAuth, ShopController.changeMyPassword);
 
 // ============================================

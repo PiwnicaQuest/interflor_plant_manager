@@ -1,17 +1,63 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 
+interface CustomerOption {
+  id: number;
+  name: string;
+  customerCode?: string;
+  nip?: string;
+  city?: string;
+}
+
 export function CartPage() {
   const { items, updatePalletCount, removeItem, clearCart, totalPrice, totalPallets } = useCart();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   
   const [customerNotes, setCustomerNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // For employee customer selection
+  const [customers, setCustomers] = useState<CustomerOption[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState('');
+
+  const isEmployee = user && user.role !== 'customer';
+
+  // Load customers for employees
+  useEffect(() => {
+    if (isEmployee && isAuthenticated) {
+      loadCustomers();
+    }
+  }, [isEmployee, isAuthenticated]);
+
+  const loadCustomers = async () => {
+    try {
+      setLoadingCustomers(true);
+      const result = await api.getCustomers();
+      setCustomers(result.customers);
+    } catch (err) {
+      console.error('Error loading customers:', err);
+    } finally {
+      setLoadingCustomers(false);
+    }
+  };
+
+  const filteredCustomers = customers.filter(c => {
+    if (!customerSearch) return true;
+    const search = customerSearch.toLowerCase();
+    return (
+      c.name.toLowerCase().includes(search) ||
+      (c.customerCode && c.customerCode.toLowerCase().includes(search)) ||
+      (c.nip && c.nip.includes(search)) ||
+      (c.city && c.city.toLowerCase().includes(search))
+    );
+  });
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('pl-PL', {
@@ -30,6 +76,12 @@ export function CartPage() {
       return;
     }
 
+    // For employees, require customer selection
+    if (isEmployee && !selectedCustomerId) {
+      setError('Musisz wybrać klienta dla którego składasz zamówienie');
+      return;
+    }
+
     try {
       setSubmitting(true);
       setError(null);
@@ -39,14 +91,19 @@ export function CartPage() {
         quantity: item.quantity,
       }));
 
-      const result = await api.checkout(orderItems, customerNotes || undefined);
+      const result = await api.checkout(
+        orderItems, 
+        customerNotes || undefined,
+        isEmployee ? selectedCustomerId! : undefined
+      );
       
       clearCart();
       navigate('/orders', { 
         state: { 
           success: true, 
           orderNumber: result.orderNumber,
-          totalAmount: result.totalAmount 
+          totalAmount: result.totalAmount,
+          customerName: result.customerName
         } 
       });
     } catch (err: any) {
@@ -182,6 +239,73 @@ export function CartPage() {
               </div>
             </div>
 
+            {/* Customer selector for employees */}
+            {isEmployee && (
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Wybierz klienta <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    className="input w-full"
+                    placeholder="Szukaj po nazwie, kodzie, NIP lub mieście..."
+                    value={customerSearch}
+                    onChange={(e) => {
+                      setCustomerSearch(e.target.value);
+                      if (!e.target.value) setSelectedCustomerId(null);
+                    }}
+                  />
+                  {loadingCustomers && (
+                    <p className="text-sm text-gray-500 mt-1">Ładowanie klientów...</p>
+                  )}
+                  {!loadingCustomers && customerSearch && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {filteredCustomers.length === 0 ? (
+                        <p className="p-3 text-sm text-gray-500">Nie znaleziono klientów</p>
+                      ) : (
+                        <>
+                          <p className="px-3 py-2 text-xs text-gray-500 bg-gray-50 border-b">
+                            Znaleziono: {filteredCustomers.length} z {customers.length}
+                          </p>
+                          {filteredCustomers.slice(0, 50).map(c => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              className={`w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-b-0 ${selectedCustomerId === c.id ? 'bg-blue-100' : ''}`}
+                              onClick={() => {
+                                setSelectedCustomerId(c.id);
+                                setCustomerSearch(c.customerCode ? `[${c.customerCode}] ${c.name}` : c.name);
+                              }}
+                            >
+                              <div className="font-medium text-sm">
+                                {c.customerCode && <span className="text-blue-600">[{c.customerCode}]</span>} {c.name}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {c.nip && <span>NIP: {c.nip}</span>}
+                                {c.nip && c.city && <span> • </span>}
+                                {c.city && <span>{c.city}</span>}
+                              </div>
+                            </button>
+                          ))}
+                          {filteredCustomers.length > 50 && (
+                            <p className="px-3 py-2 text-xs text-gray-500 bg-gray-50">
+                              Pokazano 50 z {filteredCustomers.length} wyników. Zawęź wyszukiwanie.
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {selectedCustomerId && (
+                  <p className="text-sm text-green-600 mt-1">
+                    ✓ Wybrany: {customers.find(c => c.id === selectedCustomerId)?.name}
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Notes */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -209,10 +333,18 @@ export function CartPage() {
               </div>
             )}
 
+            {isEmployee && !selectedCustomerId && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-blue-800">
+                  Jako pracownik musisz wybrać klienta dla którego składasz zamówienie
+                </p>
+              </div>
+            )}
+
             <button
               onClick={handleCheckout}
-              disabled={submitting}
-              className="btn btn-primary w-full py-3 text-lg"
+              disabled={submitting || (!!isEmployee && !selectedCustomerId)}
+              className="btn btn-primary w-full py-3 text-lg disabled:opacity-50"
             >
               {submitting ? 'Składanie zamówienia...' : (
                 isAuthenticated ? 'Złóż zamówienie' : 'Zaloguj się i zamów'

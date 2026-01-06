@@ -514,4 +514,45 @@ export class ShopController {
       return res.status(500).json({ error: 'Błąd zmiany hasła' });
     }
   }
+
+  static async getCustomersForShop(req: AuthRequest, res: Response) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Musisz być zalogowany' });
+      }
+
+      // Only for non-customer users (employees)
+      if (req.user.role === UserRole.CUSTOMER) {
+        return res.status(403).json({ error: 'Klienci nie potrzebują wybierać klienta' });
+      }
+
+      // Get active customers
+      const result = await query<any>(`
+        SELECT 
+          c.id, 
+          c.company_name as "companyName",
+          c.customer_code as "customerCode",
+          c.first_name as "firstName",
+          c.last_name as "lastName",
+          c.nip,
+          c.city
+        FROM customers c
+        
+        ORDER BY c.company_name, c.last_name
+      `);
+
+      return res.json({
+        customers: result.rows.map(c => ({
+          id: c.id,
+          name: c.companyName || `${c.firstName || ''} ${c.lastName || ''}`.trim() || 'Bez nazwy',
+          customerCode: c.customerCode,
+          nip: c.nip,
+          city: c.city,
+        }))
+      });
+    } catch (error) {
+      console.error('Get customers for shop error:', error);
+      return res.status(500).json({ error: 'Błąd serwera' });
+    }
+  }
 }
