@@ -388,7 +388,7 @@ export function CatalogPage() {
 
                   {/* Info */}
                   <div className="p-4">
-                    <h3 className="font-semibold text-gray-900 mb-1 truncate" title={product.plantName}>
+                    <h3 className="font-semibold text-gray-900 mb-1" title={product.plantName}>
                       {product.plantName}
                     </h3>
                     <div className="text-sm text-gray-500 mb-2 space-y-0.5">

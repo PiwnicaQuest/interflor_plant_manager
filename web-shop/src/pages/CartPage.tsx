@@ -100,7 +100,7 @@ export function CartPage() {
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900 truncate">{item.product.plantName}</h3>
+                  <h3 className="font-semibold text-gray-900">{item.product.plantName}</h3>
                   <p className="text-sm text-gray-500">
                     {item.product.potSize && `${item.product.potSize} • `}
                     {formatPrice(item.product.price)} / szt.
