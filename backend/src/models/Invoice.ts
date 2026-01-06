@@ -273,9 +273,10 @@ export class InvoiceModel {
         const unitPriceGross = item.unitPriceGross;
         const unitPriceNet = round2(unitPriceGross / (1 + vatRate / 100));
 
-        const itemTotalNet = round2(unitPriceNet * item.quantity);
-        const itemTotalVat = round2(itemTotalNet * (vatRate / 100));
-        const itemTotalGross = round2(itemTotalNet + itemTotalVat);
+        // Calculate from gross first (preserves original price, avoids rounding error)
+        const itemTotalGross = round2(unitPriceGross * item.quantity);
+        const itemTotalNet = round2(itemTotalGross / (1 + vatRate / 100));
+        const itemTotalVat = round2(itemTotalGross - itemTotalNet);
 
         subtotalNet += itemTotalNet;
         totalVat += itemTotalVat;
@@ -496,9 +497,10 @@ export class InvoiceModel {
         const unitPriceGross = item.unitPriceGross;
         const unitPriceNet = round2(unitPriceGross / (1 + vatRate / 100));
 
-        const itemTotalNet = round2(unitPriceNet * item.quantity);
-        const itemTotalVat = round2(itemTotalNet * (vatRate / 100));
-        const itemTotalGross = round2(itemTotalNet + itemTotalVat);
+        // Calculate from gross first (preserves original price, avoids rounding error)
+        const itemTotalGross = round2(unitPriceGross * item.quantity);
+        const itemTotalNet = round2(itemTotalGross / (1 + vatRate / 100));
+        const itemTotalVat = round2(itemTotalGross - itemTotalNet);
 
         subtotalNet += itemTotalNet;
         totalVat += itemTotalVat;
