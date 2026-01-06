@@ -209,6 +209,7 @@ export class ProductModel {
       'vatRate',
       'grower',
       'tags',
+      'createdAt',
     ];
 
     const columnMap: { [key: string]: string } = {
@@ -234,6 +235,7 @@ export class ProductModel {
       vatRate: 'vat_rate',
       grower: 'grower',
       tags: 'tags',
+      createdAt: 'created_at',
     };
 
     const snakeToCamel = (str: string): string => {
