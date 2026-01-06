@@ -40,11 +40,13 @@ function CustomerSearchInput({
     : customers.filter(c => {
         const searchLower = searchTerm.toLowerCase();
         const companyName = (c.companyName || '').toLowerCase();
+        const customerCode = (c.customerCode || '').toLowerCase();
         const firstName = (c.firstName || '').toLowerCase();
         const lastName = (c.lastName || '').toLowerCase();
         const nip = String(c.nip || '').replace(/[^0-9]/g, '');
         const searchNip = searchTerm.replace(/[^0-9]/g, '');
-        return companyName.includes(searchLower) ||
+        return customerCode.includes(searchLower) ||
+               companyName.includes(searchLower) ||
                firstName.includes(searchLower) ||
                lastName.includes(searchLower) ||
                (c.firstName && c.lastName && (firstName + ' ' + lastName).includes(searchLower)) ||
@@ -52,7 +54,10 @@ function CustomerSearchInput({
       });
 
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
-  const formatCustomerName = (customer: Customer) => customer.companyName || ((customer.firstName || '') + ' ' + (customer.lastName || '')).trim();
+  const formatCustomerName = (customer: Customer) => {
+    const name = customer.companyName || ((customer.firstName || '') + ' ' + (customer.lastName || '')).trim();
+    return customer.customerCode ? '[' + customer.customerCode + '] ' + name : name;
+  };
 
   useEffect(() => {
     if (selectedCustomer && !isOpen) setSearchTerm(formatCustomerName(selectedCustomer));

@@ -174,7 +174,7 @@ export function ScannerOrdersPage() {
                 {/* Row 2: Customer name */}
                 {order.customerName && (
                   <div className="text-sm text-gray-700 mt-0.5 truncate">
-                    {order.customerName}
+                    {order.customerCode ? `[${order.customerCode}] ${order.customerName}` : order.customerName}
                   </div>
                 )}
 

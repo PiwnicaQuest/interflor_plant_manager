@@ -486,7 +486,7 @@ export function ProformaPage() {
                     <option value="">-- Wybierz klienta --</option>
                     {customers.map((customer) => (
                       <option key={customer.id} value={customer.id}>
-                        {customer.companyName || `${customer.firstName} ${customer.lastName}`}
+                        {customer.customerCode ? `[${customer.customerCode}] ` : ""}{customer.companyName || `${customer.firstName} ${customer.lastName}`}
                         {customer.nip ? ` (NIP: ${customer.nip})` : ''}
                       </option>
                     ))}

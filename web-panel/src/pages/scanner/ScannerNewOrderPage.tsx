@@ -355,7 +355,7 @@ export function ScannerNewOrderPage() {
                   onClick={() => selectCustomer(customer)}
                   className="w-full bg-white rounded-lg p-3 shadow-sm border border-gray-100 text-left active:bg-gray-50 transition-colors"
                 >
-                  <div className="font-semibold text-gray-900 text-sm">{customer.companyName}</div>
+                  <div className="font-semibold text-gray-900 text-sm">{customer.customerCode ? `[${customer.customerCode}] ${customer.companyName}` : customer.companyName}</div>
                   {customer.firstName && (
                     <div className="text-xs text-gray-500 mt-0.5">{customer.firstName}</div>
                   )}
@@ -377,7 +377,7 @@ export function ScannerNewOrderPage() {
             <div className="flex justify-between items-center">
               <div>
                 <div className="text-xs text-green-600">Klient:</div>
-                <div className="font-semibold text-green-800 text-sm">{selectedCustomer?.companyName}</div>
+                <div className="font-semibold text-green-800 text-sm">{selectedCustomer?.customerCode ? `[${selectedCustomer.customerCode}] ${selectedCustomer.companyName}` : selectedCustomer?.companyName}</div>
               </div>
               <button
                 onClick={() => setStep('customer')}
@@ -620,7 +620,7 @@ export function ScannerNewOrderPage() {
             <div className="flex justify-between items-start">
               <div>
                 <div className="text-xs text-gray-500">Klient</div>
-                <div className="font-bold text-gray-900 text-sm">{selectedCustomer?.companyName}</div>
+                <div className="font-bold text-gray-900 text-sm">{selectedCustomer?.customerCode ? `[${selectedCustomer.customerCode}] ${selectedCustomer.companyName}` : selectedCustomer?.companyName}</div>
                 {selectedCustomer?.firstName && (
                   <div className="text-xs text-gray-600">{selectedCustomer.firstName}</div>
                 )}

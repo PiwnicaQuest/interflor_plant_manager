@@ -223,7 +223,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                     <option value="">Wybierz klienta...</option>
                     {customers.map(c => (
                       <option key={c.id} value={c.id}>
-                        {c.companyName || `${c.firstName} ${c.lastName}`}
+                        {c.customerCode ? `[${c.customerCode}] ` : ""}{c.companyName || `${c.firstName} ${c.lastName}`}
                       </option>
                     ))}
                   </select>
