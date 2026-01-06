@@ -389,29 +389,6 @@ export function OrderTemplate({ data, companyInfo = defaultCompanyInfo, showPric
         </div>
       )}
 
-      {/* Timeline / Status */}
-      <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-        <h3 className="text-[10px] font-semibold text-gray-500 uppercase mb-2">Historia zamówienia</h3>
-        <div className="flex items-center gap-3 text-[10px]">
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500">Utworzone:</span>
-            <span className="font-semibold">{formatDateShort(data.createdAt)}</span>
-          </div>
-          {data.updatedAt && data.updatedAt !== data.createdAt && (
-            <div className="flex items-center gap-1">
-              <span className="text-gray-500">Aktualizacja:</span>
-              <span className="font-semibold">{formatDateShort(data.updatedAt)}</span>
-            </div>
-          )}
-          {data.completedAt && (
-            <div className="flex items-center gap-1">
-              <span className="text-gray-500">Zakończone:</span>
-              <span className="font-semibold">{formatDateShort(data.completedAt)}</span>
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Print Button */}
       <div className="no-print mt-6 text-center space-x-4">
         <button
