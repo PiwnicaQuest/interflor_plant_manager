@@ -11,7 +11,7 @@ interface AuthContextType extends AuthState {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 // Roles that can access the shop
-const ALLOWED_ROLES = ['customer', 'admin', 'warehouse', 'seller'];
+const ALLOWED_ROLES = ['customer', 'admin', 'warehouse', 'seller', 'pos'];
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
