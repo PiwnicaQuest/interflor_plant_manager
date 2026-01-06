@@ -12,6 +12,7 @@ interface InvoiceItem {
   vatRate: number;
   vatAmount: number;
   unitsPerPallet?: number;
+  growerPassport?: string;
 }
 
 interface BuyerInfo {
@@ -225,8 +226,6 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
             <tr className="bg-gray-100">
               <th className="border border-gray-300 p-2 text-left w-8">Lp.</th>
               <th className="border border-gray-300 p-2 text-left">Nazwa</th>
-              <th className="border border-gray-300 p-2 text-center w-12">Szt/pal</th>
-              <th className="border border-gray-300 p-2 text-center w-12">Palety</th>
               <th className="border border-gray-300 p-2 text-center w-10">Ilość</th>
               <th className="border border-gray-300 p-2 text-center w-10">J.m.</th>
               <th className="border border-gray-300 p-2 text-right w-16">Cena netto</th>
@@ -237,14 +236,10 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
           </thead>
           <tbody>
             {data.items?.map((item, index) => {
-              const unitsPerPallet = item.unitsPerPallet || 0;
-              const palletCount = unitsPerPallet > 0 ? (item.quantity / unitsPerPallet).toFixed(2) : "-";
               return (
                 <tr key={index} className="hover:bg-gray-50">
                   <td className="border border-gray-300 p-2 text-center">{index + 1}</td>
-                  <td className="border border-gray-300 p-2">{item.name}</td>
-                  <td className="border border-gray-300 p-2 text-center">{unitsPerPallet || "-"}</td>
-                  <td className="border border-gray-300 p-2 text-center">{palletCount}</td>
+                  <td className="border border-gray-300 p-2"><div>{item.name}</div>{item.growerPassport && <div className="text-gray-500 text-[10px]">Paszport: {item.growerPassport}</div>}</td>
                   <td className="border border-gray-300 p-2 text-center font-semibold">{item.quantity}</td>
                   <td className="border border-gray-300 p-2 text-center">{item.unit}</td>
                   <td className="border border-gray-300 p-2 text-right">{(Number(item.unitPriceNet) || 0).toFixed(2)}</td>

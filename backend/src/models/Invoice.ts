@@ -255,6 +255,7 @@ export class InvoiceModel {
         quantity: number;
         unitPriceNet: number;
         vatRate: number;
+        growerPassport?: string;
       }> = [];
 
       for (const item of orderItems) {
@@ -271,7 +272,7 @@ export class InvoiceModel {
         totalGross += itemTotalGross;
 
         const productSnapshot = item.productSnapshot || {};
-        const description = (productSnapshot.plantName || 'Produkt') + (productSnapshot.potSize ? ' ' + productSnapshot.potSize : '');
+        const description = productSnapshot.plantName || 'Produkt';
 
         invoiceItems.push({
           productId: item.productId,
@@ -279,6 +280,7 @@ export class InvoiceModel {
           quantity: item.quantity,
           unitPriceNet,
           vatRate,
+          growerPassport: productSnapshot.growerPassport,
         });
       }
 
@@ -469,6 +471,7 @@ export class InvoiceModel {
         quantity: number;
         unitPriceNet: number;
         vatRate: number;
+        growerPassport?: string;
       }> = [];
 
       for (const item of orderItems) {
@@ -485,7 +488,7 @@ export class InvoiceModel {
         totalGross += itemTotalGross;
 
         const productSnapshot = item.productSnapshot || {};
-        const description = (productSnapshot.plantName || 'Produkt') + (productSnapshot.potSize ? ' ' + productSnapshot.potSize : '');
+        const description = productSnapshot.plantName || 'Produkt';
 
         invoiceItems.push({
           productId: item.productId,
@@ -493,6 +496,7 @@ export class InvoiceModel {
           quantity: item.quantity,
           unitPriceNet,
           vatRate,
+          growerPassport: productSnapshot.growerPassport,
         });
       }
 
@@ -694,3 +698,5 @@ export class InvoiceModel {
     return result.rows[0] || null;
   }
 }
+
+

@@ -182,6 +182,7 @@ export interface Product {
 }
 
 export interface ProductSnapshot {
+  growerPassport?: string;
   id: number;
   plantName: string;
   potSize?: string;

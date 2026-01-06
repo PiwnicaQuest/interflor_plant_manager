@@ -78,6 +78,7 @@ export class OrderModel {
           imageUrl: productSnapshot.image_url || productSnapshot.imageUrl,
           createdAt: productSnapshot.created_at || productSnapshot.createdAt,
           unitsPerPallet: productSnapshot.units_per_pallet || productSnapshot.unitsPerPallet,
+          growerPassport: productSnapshot.grower_passport || productSnapshot.growerPassport,
         };
         productSnapshot = converted;
       }
@@ -196,6 +197,7 @@ export class OrderModel {
           image_url: product.imageUrl,
           created_at: product.createdAt,
           units_per_pallet: product.unitsPerPallet,
+          grower_passport: product.growerPassport,
         };
 
         // Calculate pallet info - use provided values or calculate from quantity
@@ -548,6 +550,7 @@ export class OrderModel {
             image_url: product.imageUrl,
             created_at: product.createdAt,
             units_per_pallet: product.unitsPerPallet,
+          grower_passport: product.growerPassport,
           };
         }
 
