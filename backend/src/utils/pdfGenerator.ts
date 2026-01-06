@@ -173,7 +173,7 @@ export async function generateInvoicePDF(invoice: InvoiceWithItems): Promise<PDF
   // Items table
   const tableTop = yPosition;
   const tableHeaders = ['Lp.', 'Nazwa towaru/usługi', 'Ilość', 'J.m.', 'Cena netto', 'VAT %', 'Wartość netto', 'Wartość VAT', 'Wartość brutto'];
-  const colWidths = [25, 140, 35, 30, 55, 40, 65, 60, 70];
+  const colWidths = [20, 175, 30, 25, 48, 32, 55, 50, 60];
   const colPositions = [50];
 
   for (let i = 0; i < colWidths.length - 1; i++) {
