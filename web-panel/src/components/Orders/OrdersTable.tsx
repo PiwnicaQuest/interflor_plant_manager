@@ -62,6 +62,7 @@ export function OrdersTable({
                 />
               </th>
               <th>Nr zamówienia</th>
+              <th>Kod</th>
               <th>Klient</th>
               <th>Data</th>
               <th>Pozycje</th>
@@ -82,6 +83,7 @@ export function OrdersTable({
                   />
                 </td>
                 <td className="font-medium">{order.orderNumber}</td>
+                <td className="text-sm text-gray-600 font-mono">{order.customerCode || '-'}</td>
                 <td>{order.customerName || 'Brak klienta'}</td>
                 <td className="text-sm">{formatDate(order.createdAt)}</td>
                 <td className="text-center">{order.itemCount || '-'}</td>
