@@ -230,7 +230,8 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
               <th className="border border-gray-300 p-2 text-center w-10">J.m.</th>
               <th className="border border-gray-300 p-2 text-right w-16">Cena netto</th>
               <th className="border border-gray-300 p-2 text-center w-10">VAT</th>
-              <th className="border border-gray-300 p-2 text-right w-16">Wart. netto</th>
+              <th className="border border-gray-300 p-2 text-right w-14">Wart. netto</th>
+              <th className="border border-gray-300 p-2 text-right w-12">Wart. VAT</th>
               <th className="border border-gray-300 p-2 text-right w-16">Wart. brutto</th>
             </tr>
           </thead>
@@ -245,6 +246,7 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
                   <td className="border border-gray-300 p-2 text-right">{(Number(item.unitPriceNet) || 0).toFixed(2)}</td>
                   <td className="border border-gray-300 p-2 text-center">{item.vatRate}%</td>
                   <td className="border border-gray-300 p-2 text-right">{(Number(item.totalNet) || 0).toFixed(2)}</td>
+                  <td className="border border-gray-300 p-2 text-right">{(Number(item.vatAmount) || 0).toFixed(2)}</td>
                   <td className="border border-gray-300 p-2 text-right font-semibold">{(Number(item.totalGross) || 0).toFixed(2)}</td>
                 </tr>
               );
@@ -252,9 +254,10 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
           </tbody>
           <tfoot>
             <tr className="bg-gray-100 font-bold">
-              <td colSpan={4} className="border border-gray-300 p-2 text-right">RAZEM:</td>
+              <td colSpan={2} className="border border-gray-300 p-2 text-right">RAZEM:</td>
               <td className="border border-gray-300 p-2 text-center">{totalQuantity}</td>
-              <td colSpan={3} className="border border-gray-300 p-2 text-right">{(Number(data.subtotalNet) || 0).toFixed(2)} zł</td>
+              <td colSpan={3} className="border border-gray-300 p-2"></td>
+              <td className="border border-gray-300 p-2 text-right">{(Number(data.subtotalNet) || 0).toFixed(2)} zł</td>
               <td className="border border-gray-300 p-2 text-right">{(Number(data.totalVat) || 0).toFixed(2)} zł</td>
               <td className="border border-gray-300 p-2 text-right text-blue-600">{(Number(data.totalGross) || 0).toFixed(2)} zł</td>
             </tr>
