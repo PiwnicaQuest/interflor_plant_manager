@@ -653,3 +653,22 @@ export interface UserWithProfile extends User {
   profileId?: number;
   profileName?: string;
 }
+
+// Merge History
+export interface MergeHistoryEntry {
+  id: number;
+  masterProductId: number;
+  mergedProductIds: number[];
+  mergedBarcodes: string[];
+  totalPalletsAdded: number;
+  totalUnitsAdded: number;
+  priceBefore: number;
+  priceAfter: number;
+  mergedBy: number | null;
+  mergedByEmail?: string;
+  masterPlantName?: string;
+  masterPotSize?: string;
+  masterBarcode?: string;
+  notes?: string;
+  createdAt: string;
+}

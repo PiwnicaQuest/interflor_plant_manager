@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import type { AuthResponse, Product, Order, OrderWithItems, Customer, Invoice, Proforma, Receipt, ReceiptWithItems, InventoryMovement, OrderStatusHistoryItem, SalesReport, TopProduct, RevenueSummary, User, CreateUserRequest, UpdateUserRequest, ChangePasswordRequest, PriceGroup, CreatePriceGroupRequest, UpdatePriceGroupRequest, MovementType, PaymentMethod, PermissionProfile, PermissionCategories, CreatePermissionProfileRequest, UpdatePermissionProfileRequest } from '../types';
+import type { AuthResponse, Product, Order, OrderWithItems, Customer, Invoice, Proforma, Receipt, ReceiptWithItems, InventoryMovement, OrderStatusHistoryItem, SalesReport, TopProduct, RevenueSummary, User, CreateUserRequest, UpdateUserRequest, ChangePasswordRequest, PriceGroup, CreatePriceGroupRequest, UpdatePriceGroupRequest, MovementType, PaymentMethod, PermissionProfile, PermissionCategories, CreatePermissionProfileRequest, UpdatePermissionProfileRequest, MergeHistoryEntry } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -872,6 +872,11 @@ class ApiClient {
     return response.data;
   }
 
+
+  async getMergeHistory(limit = 100): Promise<{ history: MergeHistoryEntry[] }> {
+    const response = await this.client.get("/inventory/merge-history", { params: { limit } });
+    return response.data;
+  }
   // ============================================
   // LOSSES (STRATY)
   // ============================================

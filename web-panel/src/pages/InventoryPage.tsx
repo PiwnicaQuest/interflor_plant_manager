@@ -1261,7 +1261,7 @@ export function InventoryPage() {
       <SimilarProductsModal
         isOpen={showSimilarProductsModal}
         onClose={() => setShowSimilarProductsModal(false)}
-        onProductsMerged={fetchProducts}
+        onMergeComplete={fetchProducts}
       />
 
       {/* Bulk Tags Modal */}

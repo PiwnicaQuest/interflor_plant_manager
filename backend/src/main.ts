@@ -101,6 +101,7 @@ app.get('/inventory/csv-template', requireAuth, requireRole([UserRole.ADMIN, Use
 // Similar products and merging (must be before :id routes)
 app.get('/inventory/similar-products', requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE]), InventoryController.getSimilarProducts);
 app.post('/inventory/merge', requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE]), InventoryController.mergeProducts);
+app.get("/inventory/merge-history", requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE]), InventoryController.getMergeHistory);
 app.post('/inventory/scan-barcode', requireAuth, InventoryController.scanBarcodeWithMerged);
 app.post("/inventory/import-csv", requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE]), csvUpload.single("file"), CSVImportController.importCSV);
 app.post("/inventory/import-excel", requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE]), excelUpload.single("file"), ExcelImportController.importExcel);

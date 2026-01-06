@@ -498,7 +498,7 @@ export class InventoryController {
         });
       }
 
-      const result = await ProductModel.mergeProducts(masterId, idsToMerge);
+      const result = await ProductModel.mergeProducts(masterId, idsToMerge, req.user?.userId || null);
 
       if (!result.success) {
         return res.status(400).json({ error: result.error });
@@ -526,6 +526,19 @@ export class InventoryController {
   }
 
   // Unmerge a product
+  // Get merge history
+  static async getMergeHistory(req: AuthRequest, res: Response) {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const history = await ProductModel.getMergeHistory(limit);
+      return res.json({ history });
+    } catch (error) {
+      console.error("Get merge history error:", error);
+      return res.status(500).json({ error: "Błąd serwera" });
+    }
+  }
+
+
   static async unmergeProduct(req: AuthRequest, res: Response) {
     try {
       const productId = parseInt(req.params.id);

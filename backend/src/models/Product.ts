@@ -509,7 +509,7 @@ static async getMovements(productId: number, limit = 50): Promise<InventoryMovem
   // Merge products into master product
   // masterId - the product that will remain active
   // productIdsToMerge - products that will be merged into master
-  static async mergeProducts(masterId: number, productIdsToMerge: number[]): Promise<{
+  static async mergeProducts(masterId: number, productIdsToMerge: number[], userId: number | null = null): Promise<{
     success: boolean;
     masterProduct?: Product;
     error?: string;
@@ -654,6 +654,23 @@ static async getMovements(productId: number, limit = 50): Promise<InventoryMovem
         [masterId, totalAddedUnits, totalAddedPallets, `Połączono produkty: ${mergedNames}`, masterId]
       );
     }
+
+    // Save merge history
+    const barcodesCollected = productsToMerge
+      .map(p => p.barcode)
+      .filter((b): b is string => !!b);
+    
+    await this.saveMergeHistory(
+      masterId,
+      productIdsToMerge,
+      barcodesCollected,
+      totalAddedPallets,
+      totalAddedUnits,
+      masterProduct.basePriceGross || 0,
+      bestPrice,
+      userId,
+      undefined
+    );
 
     // Return updated master product
     const updatedMaster = await this.getById(masterId);
@@ -812,5 +829,58 @@ static async getMovements(productId: number, limit = 50): Promise<InventoryMovem
     }
 
     return { updated, failed };
+  }
+
+  // ============================================
+  // MERGE HISTORY METHODS
+  // ============================================
+
+  static async saveMergeHistory(
+    masterProductId: number,
+    mergedProductIds: number[],
+    mergedBarcodes: string[],
+    totalPalletsAdded: number,
+    totalUnitsAdded: number,
+    priceBefore: number,
+    priceAfter: number,
+    mergedBy: number | null,
+    notes?: string
+  ): Promise<void> {
+    await query(
+      `INSERT INTO merge_history (
+        master_product_id, merged_product_ids, merged_barcodes,
+        total_pallets_added, total_units_added, price_before, price_after,
+        merged_by, notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        masterProductId,
+        mergedProductIds,
+        mergedBarcodes,
+        totalPalletsAdded,
+        totalUnitsAdded,
+        priceBefore,
+        priceAfter,
+        mergedBy,
+        notes || null,
+      ]
+    );
+  }
+
+  static async getMergeHistory(limit = 100): Promise<any[]> {
+    const result = await query(
+      `SELECT 
+        mh.*,
+        p.plant_name as master_plant_name,
+        p.pot_size as master_pot_size,
+        p.barcode as master_barcode,
+        u.email as merged_by_email
+      FROM merge_history mh
+      LEFT JOIN products p ON mh.master_product_id = p.id
+      LEFT JOIN users u ON mh.merged_by = u.id
+      ORDER BY mh.created_at DESC
+      LIMIT $1`,
+      [limit]
+    );
+    return result.rows;
   }
 }
