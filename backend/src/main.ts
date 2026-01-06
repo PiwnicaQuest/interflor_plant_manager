@@ -355,9 +355,9 @@ app.post('/shop/change-password', requireAuth, ShopController.changeMyPassword);
 // MOBILE ROUTES
 // ============================================
 
-app.post('/mobile/scan-barcode', requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE]), InventoryController.scanBarcode);
-app.get('/mobile/orders', requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE]), OrderController.getAll);
-app.get("/mobile/search-products", requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE]), InventoryController.getAll);
+app.post('/mobile/scan-barcode', requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE, UserRole.POS]), InventoryController.scanBarcode);
+app.get('/mobile/orders', requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE, UserRole.POS]), OrderController.getAll);
+app.get("/mobile/search-products", requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE, UserRole.POS]), InventoryController.getAll);
 
 // ============================================
 // IMAGE PROXY (for Excel export)
