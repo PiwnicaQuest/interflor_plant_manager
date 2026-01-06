@@ -1,6 +1,7 @@
 import { OrderItem } from '../../types';
 
 interface CustomerInfo {
+  customerCode?: string;
   companyName?: string;
   firstName?: string;
   lastName?: string;
@@ -69,11 +70,19 @@ export function ReceiptA4Template({ data, companyInfo = defaultCompanyInfo }: Re
   };
 
   const getCustomerName = () => {
-    if (data.customerInfo?.companyName) return data.customerInfo.companyName;
-    if (data.customerInfo?.firstName || data.customerInfo?.lastName) {
-      return (data.customerInfo.firstName || '') + ' ' + (data.customerInfo.lastName || '');
+    let name = '';
+    if (data.customerInfo?.companyName) {
+      name = data.customerInfo.companyName;
+    } else if (data.customerInfo?.firstName || data.customerInfo?.lastName) {
+      name = (data.customerInfo.firstName || '') + ' ' + (data.customerInfo.lastName || '');
+    } else {
+      name = data.customerName || 'Klient detaliczny';
     }
-    return data.customerName || 'Klient detaliczny';
+    // Add customerCode prefix if available
+    if (data.customerInfo?.customerCode) {
+      return '[' + data.customerInfo.customerCode + '] ' + name;
+    }
+    return name;
   };
 
   const totalQuantity = data.items.reduce((sum, item) => sum + item.quantity, 0);

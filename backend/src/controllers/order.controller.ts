@@ -61,6 +61,7 @@ export class OrderController {
       }
 
       const customerSnapshot = {
+        customerCode: customer.customerCode,
         companyName: customer.companyName,
         firstName: customer.firstName,
         lastName: customer.lastName,

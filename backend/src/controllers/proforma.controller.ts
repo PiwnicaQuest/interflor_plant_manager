@@ -87,6 +87,7 @@ export class ProformaController {
 
       const buyerSnapshot = {
         companyName: customer.companyName,
+        customerCode: customer.customerCode,
         firstName: customer.firstName,
         lastName: customer.lastName,
         nip: customer.nip,
@@ -144,6 +145,7 @@ export class ProformaController {
 
       const buyerSnapshot = {
         companyName: customer.companyName,
+        customerCode: customer.customerCode,
         firstName: customer.firstName,
         lastName: customer.lastName,
         nip: customer.nip,

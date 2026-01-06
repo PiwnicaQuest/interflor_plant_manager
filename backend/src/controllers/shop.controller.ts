@@ -342,6 +342,7 @@ export class ShopController {
       // Create customer snapshot
       const customerSnapshot = {
         companyName: customer.companyName,
+        customerCode: customer.customerCode,
         firstName: customer.firstName,
         lastName: customer.lastName,
         nip: customer.nip,

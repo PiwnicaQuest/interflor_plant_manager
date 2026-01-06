@@ -15,6 +15,7 @@ interface InvoiceItem {
 }
 
 interface BuyerInfo {
+  customerCode?: string;
   companyName?: string;
   firstName?: string;
   lastName?: string;
@@ -113,11 +114,19 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
   };
 
   const getBuyerName = () => {
-    if (data.buyerInfo?.companyName) return data.buyerInfo.companyName;
-    if (data.buyerInfo?.firstName || data.buyerInfo?.lastName) {
-      return `${data.buyerInfo.firstName || ""} ${data.buyerInfo.lastName || ""}`.trim();
+    let name = '';
+    if (data.buyerInfo?.companyName) {
+      name = data.buyerInfo.companyName;
+    } else if (data.buyerInfo?.firstName || data.buyerInfo?.lastName) {
+      name = `${data.buyerInfo.firstName || ""} ${data.buyerInfo.lastName || ""}`.trim();
+    } else {
+      name = 'Nabywca';
     }
-    return "Nabywca";
+    // Add customerCode prefix if available
+    if (data.buyerInfo?.customerCode) {
+      return '[' + data.buyerInfo.customerCode + '] ' + name;
+    }
+    return name;
   };
 
   const getRecipientName = () => {

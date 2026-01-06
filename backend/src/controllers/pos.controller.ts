@@ -73,6 +73,7 @@ export class POSController {
           if (customer) {
             buyerSnapshot = {
               companyName: customer.companyName,
+              customerCode: customer.customerCode,
               firstName: customer.firstName,
               lastName: customer.lastName,
               nip: customer.nip,

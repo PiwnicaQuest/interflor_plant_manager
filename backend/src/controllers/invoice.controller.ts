@@ -53,6 +53,7 @@ export class InvoiceController {
         }
 
         const buyerSnapshot = {
+          customerCode: customer.customerCode,
           companyName: customer.companyName,
           firstName: customer.firstName,
           lastName: customer.lastName,
@@ -93,6 +94,7 @@ export class InvoiceController {
         }
 
         const buyerSnapshot = {
+          customerCode: customer.customerCode,
           companyName: customer.companyName,
           firstName: customer.firstName,
           lastName: customer.lastName,
