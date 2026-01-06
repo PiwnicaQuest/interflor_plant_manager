@@ -34,7 +34,7 @@ export class ShopController {
           customerId = customer?.id;
           if (customer?.priceGroupId) {
             const pgResult = await query<{ name: string }>(
-              'SELECT name FROM price_groups WHERE id = ',
+              'SELECT name FROM price_groups WHERE id = $1',
               [customer.priceGroupId]
             );
             priceGroupName = pgResult.rows[0]?.name;
@@ -168,7 +168,7 @@ export class ShopController {
           price = await CustomerModel.getPriceForCustomer(customer.id, product.id);
           if (customer.priceGroupId) {
             const pgResult = await query<{ name: string }>(
-              'SELECT name FROM price_groups WHERE id = ',
+              'SELECT name FROM price_groups WHERE id = $1',
               [customer.priceGroupId]
             );
             priceGroupName = pgResult.rows[0]?.name;
@@ -426,7 +426,7 @@ export class ShopController {
         let priceGroupName = 'podstawowa';
         if (customer.priceGroupId) {
           const pgResult = await query<{ name: string, discount_percentage: number }>(
-            'SELECT name, discount_percentage FROM price_groups WHERE id = ',
+            'SELECT name, discount_percentage FROM price_groups WHERE id = $1',
             [customer.priceGroupId]
           );
           if (pgResult.rows[0]) {
