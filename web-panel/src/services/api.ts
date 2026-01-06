@@ -761,8 +761,10 @@ class ApiClient {
   async importExcel(file: File): Promise<any> {
     const formData = new FormData();
     formData.append("file", file);
-    const response = await this.client.post("/inventory/import-excel", formData, {
-      // headers removed - axios sets correct Content-Type with boundary automatically
+    // Use axios directly to avoid default Content-Type header from this.client
+    const token = localStorage.getItem("token");
+    const response = await axios.post(`${import.meta.env.VITE_API_URL || "http://localhost:4000"}/inventory/import-excel`, formData, {
+      headers: { Authorization: `Bearer ${token}` }
     });
     return response.data;
   }
