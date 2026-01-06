@@ -80,7 +80,7 @@ class EmailService {
     password: string,
     customerName?: string
   ): Promise<boolean> {
-    const shopUrl = process.env.SHOP_URL || 'https://polflor.fast-site.pl/shop';
+    const shopUrl = process.env.SHOP_URL || 'https://sklep.fast-site.pl';
 
     const greeting = customerName ? `Szanowny/a ${customerName}` : 'Szanowny Kliencie';
 
@@ -168,7 +168,7 @@ Zespol PlantManager
     newPassword: string,
     customerName?: string
   ): Promise<boolean> {
-    const shopUrl = process.env.SHOP_URL || 'https://polflor.fast-site.pl/shop';
+    const shopUrl = process.env.SHOP_URL || 'https://sklep.fast-site.pl';
 
     const greeting = customerName ? `Szanowny/a ${customerName}` : 'Szanowny Kliencie';
 
