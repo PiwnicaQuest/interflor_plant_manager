@@ -249,13 +249,13 @@ export function ScannerOrderDetailPage() {
 
     const existingIndex = editedItems.findIndex(item => item.productId === product.id);
     if (existingIndex >= 0) {
-      // Increase value by 1 (pallet or unit depending on mode)
-      const newItems = [...editedItems];
-      newItems[existingIndex].inputValue += 1;
-      setEditedItems(newItems);
+      // Increase value by 1 and move to top of list
+      const updatedItem = { ...editedItems[existingIndex], inputValue: editedItems[existingIndex].inputValue + 1 };
+      const otherItems = editedItems.filter((_, i) => i !== existingIndex);
+      setEditedItems([updatedItem, ...otherItems]);
     } else {
       // Add new
-      setEditedItems([...editedItems, {
+      setEditedItems([{
         productId: product.id,
         quantityMode: 'pallets',
         inputValue: 1,
@@ -263,7 +263,7 @@ export function ScannerOrderDetailPage() {
         productName: product.plantName,
         unitPrice: product.basePriceGross || 0,
         imageUrl: product.imageUrl,
-      }]);
+      }, ...editedItems]);
     }
   };
 
