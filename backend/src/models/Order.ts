@@ -1049,17 +1049,15 @@ export class OrderModel {
             const newPalletCount = Math.floor(newQuantity / unitsPerPallet);
 
             // Update existing item in master order
+            // Note: total_price is a generated column, updated automatically
             await client.query(
               `UPDATE order_items
                SET quantity = $1,
-                   pallet_count = $2,
-                   total_price_gross = $3,
-                   updated_at = CURRENT_TIMESTAMP
-               WHERE id = $4`,
+                   pallet_count = $2
+               WHERE id = $3`,
               [
                 newQuantity,
                 newPalletCount,
-                newQuantity * existingMasterItem.unitPriceGross,
                 existingMasterItem.id
               ]
             );
@@ -1073,18 +1071,18 @@ export class OrderModel {
           } else {
             // Product doesn't exist in master order - transfer item
             // Insert new item into master order with same product snapshot and price
+            // Note: total_price is a generated column, computed automatically
             const insertResult = await client.query<OrderItem>(
               `INSERT INTO order_items (
-                order_id, product_id, quantity, unit_price_gross, total_price_gross,
-                pallet_count, units_per_pallet, product_snapshot, created_at, updated_at
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                order_id, product_id, quantity, unit_price_gross,
+                pallet_count, units_per_pallet, product_snapshot
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7)
               RETURNING *`,
               [
                 masterOrderId,
                 item.productId,
                 item.quantity,
                 item.unitPriceGross,
-                item.quantity * item.unitPriceGross,
                 item.palletCount,
                 item.unitsPerPallet,
                 JSON.stringify(item.productSnapshot)
@@ -1127,7 +1125,7 @@ export class OrderModel {
 
       // Recalculate master order total
       const newTotalResult = await client.query<{ total: number }>(
-        'SELECT COALESCE(SUM(total_price_gross), 0) as total FROM order_items WHERE order_id = $1',
+        'SELECT COALESCE(SUM(total_price), 0) as total FROM order_items WHERE order_id = $1',
         [masterOrderId]
       );
 
