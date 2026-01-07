@@ -134,8 +134,8 @@ export async function exportOrderToExcel(order: OrderWithItems): Promise<void> {
     row.getCell(5).value = item.palletCount || 1;
     row.getCell(6).value = item.unitsPerPallet || item.quantity;
     row.getCell(7).value = item.quantity;
-    row.getCell(8).value = `${Number(item.unitPriceGross).toFixed(2)} PLN`;
-    row.getCell(9).value = `${(Number(item.unitPriceGross) * item.quantity).toFixed(2)} PLN`;
+    row.getCell(8).value = Number(item.unitPriceGross);
+    row.getCell(9).value = Number(item.unitPriceGross) * item.quantity;
 
     const bgColor = index % 2 === 0 ? 'FFFFFFFF' : 'FFF5F5F5';
     for (let i = 1; i <= 9; i++) {
