@@ -50,7 +50,7 @@ export class OrderController {
 
       console.log('[ORDER CREATE] Received data:', JSON.stringify(data, null, 2));
 
-      if (!data.customerId || !data.items || data.items.length === 0) {
+      if (!data.customerId) {
         console.log('[ORDER CREATE] Validation failed:', {
           hasCustomerId: !!data.customerId,
           hasItems: !!data.items,
@@ -96,7 +96,7 @@ export class OrderController {
       }
       // Get prices for each item - use custom price if provided, otherwise get from price group
       const itemsWithPrices = [];
-      for (const item of data.items) {
+      for (const item of (data.items || [])) {
         let price: number;
 
         // Check if custom unitPriceGross is provided and valid

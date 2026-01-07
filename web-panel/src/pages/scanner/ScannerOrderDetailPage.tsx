@@ -140,6 +140,10 @@ export function ScannerOrderDetailPage() {
           imageUrl: item.productSnapshot?.imageUrl,
         };
       }));
+      // Auto-enable edit mode for empty orders
+      if (result.order.items.length === 0 && ['pending', 'in_progress'].includes(result.order.status)) {
+        setEditMode(true);
+      }
     } catch (err: any) {
       setError('Nie udalo sie pobrac zamowienia');
     } finally {
@@ -197,9 +201,9 @@ export function ScannerOrderDetailPage() {
     // Debounce search
     searchDebounceRef.current = setTimeout(async () => {
       try {
-        const result = await API.getInventory({ 
-          search: query, 
-          isArchived: false 
+        const result = await API.getInventory({
+          search: query,
+          isArchived: false
         });
         setSearchResults(result.products.slice(0, 10)); // Max 10 results
         setShowSearchDropdown(result.products.length > 0);
