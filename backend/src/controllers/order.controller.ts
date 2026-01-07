@@ -21,7 +21,7 @@ export class OrderController {
       const orders = await OrderModel.getAll(filters);
 
       return res.json({ orders });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Get orders error:', error);
       return res.status(500).json({ error: 'Błąd serwera' });
     }
@@ -38,7 +38,7 @@ export class OrderController {
       }
 
       return res.json({ order });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Get order error:', error);
       return res.status(500).json({ error: 'Błąd serwera' });
     }
@@ -129,8 +129,12 @@ export class OrderController {
         orderNumber: order.orderNumber,
         orderId: order.id,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Create order error:', error);
+      // Pass through stock validation errors
+      if (error.message && error.message.includes('Niewystarczający stan')) {
+        return res.status(400).json({ error: error.message });
+      }
       return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
@@ -154,7 +158,7 @@ export class OrderController {
         message: 'Status zmieniony',
         order,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Update order status error:', error);
       return res.status(500).json({ error: 'Błąd serwera' });
     }
@@ -207,8 +211,12 @@ export class OrderController {
         message: 'Zamówienie zaktualizowane',
         order,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Update order error:', error);
+      // Pass through stock validation errors
+      if (error.message && error.message.includes('Niewystarczający stan')) {
+        return res.status(400).json({ error: error.message });
+      }
       return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
@@ -224,7 +232,7 @@ export class OrderController {
       const history = await OrderModel.getStatusHistory(id);
 
       return res.json({ history });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Get status history error:', error);
       return res.status(500).json({ error: 'Błąd serwera' });
     }
@@ -241,7 +249,7 @@ export class OrderController {
       }
 
       return res.json({ message: 'Zamówienie usunięte' });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Delete order error:', error);
       return res.status(500).json({ error: 'Błąd serwera' });
     }
