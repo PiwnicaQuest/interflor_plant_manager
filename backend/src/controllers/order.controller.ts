@@ -7,11 +7,16 @@ import { CreateOrderRequest, UpdateOrderStatusRequest, CancelOrderRequest, Order
 export class OrderController {
   static async getAll(req: AuthRequest, res: Response) {
     try {
-      const { status, customerId } = req.query;
+      const { status, customerId, customerName, customerCode, customerNip, startDate, endDate } = req.query;
 
       const filters: any = {};
       if (status) filters.status = status as OrderStatus;
       if (customerId) filters.customerId = parseInt(customerId as string);
+      if (customerName) filters.customerName = customerName as string;
+      if (customerCode) filters.customerCode = customerCode as string;
+      if (customerNip) filters.customerNip = customerNip as string;
+      if (startDate) filters.startDate = startDate as string;
+      if (endDate) filters.endDate = endDate as string;
 
       const orders = await OrderModel.getAll(filters);
 

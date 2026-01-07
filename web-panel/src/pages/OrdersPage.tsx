@@ -14,6 +14,9 @@ export function OrdersPage() {
   const [editingOrder, setEditingOrder] = useState<OrderWithItems | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<OrderWithItems | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [customerSearch, setCustomerSearch] = useState<string>('');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const [selectedOrders, setSelectedOrders] = useState<number[]>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkCancelModal, setShowBulkCancelModal] = useState(false);
@@ -24,7 +27,15 @@ export function OrdersPage() {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const filters = statusFilter ? { status: statusFilter } : {};
+      const filters: any = {};
+      if (statusFilter) filters.status = statusFilter;
+      if (customerSearch) {
+        filters.customerName = customerSearch;
+        filters.customerCode = customerSearch;
+        filters.customerNip = customerSearch;
+      }
+      if (startDate) filters.startDate = startDate;
+      if (endDate) filters.endDate = endDate;
       const data = await api.getOrders(filters);
       setOrders(data.orders);
       setSelectedOrders([]);
@@ -37,7 +48,7 @@ export function OrdersPage() {
 
   useEffect(() => {
     fetchOrders();
-  }, [statusFilter]);
+  }, [statusFilter, customerSearch, startDate, endDate]);
 
   const handleAdd = () => {
     setShowForm(true);
@@ -410,23 +421,83 @@ export function OrdersPage() {
 
       {/* Filters */}
       <div className="card p-4">
-        <div className="max-w-md">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Filtruj po statusie
-          </label>
-          <select
-            className="input"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="">Wszystkie</option>
-            <option value={OrderStatus.PENDING}>Oczekuje</option>
-            <option value={OrderStatus.IN_PROGRESS}>W realizacji</option>
-            <option value={OrderStatus.READY_FOR_PICKUP}>Gotowe do odbioru</option>
-            <option value={OrderStatus.COMPLETED}>Zakończone</option>
-            <option value={OrderStatus.CANCELLED}>Anulowane</option>
-          </select>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Status Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Status
+            </label>
+            <select
+              className="input"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">Wszystkie</option>
+              <option value={OrderStatus.PENDING}>Oczekuje</option>
+              <option value={OrderStatus.IN_PROGRESS}>W realizacji</option>
+              <option value={OrderStatus.READY_FOR_PICKUP}>Gotowe do odbioru</option>
+              <option value={OrderStatus.COMPLETED}>Zakończone</option>
+              <option value={OrderStatus.CANCELLED}>Anulowane</option>
+            </select>
+          </div>
+
+          {/* Customer Search */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Kontrahent (nazwa/kod/NIP)
+            </label>
+            <input
+              type="text"
+              className="input"
+              placeholder="Szukaj kontrahenta..."
+              value={customerSearch}
+              onChange={(e) => setCustomerSearch(e.target.value)}
+            />
+          </div>
+
+          {/* Start Date */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Data od
+            </label>
+            <input
+              type="date"
+              className="input"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+          </div>
+
+          {/* End Date */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Data do
+            </label>
+            <input
+              type="date"
+              className="input"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+          </div>
         </div>
+
+        {/* Clear Filters */}
+        {(statusFilter || customerSearch || startDate || endDate) && (
+          <div className="mt-3 pt-3 border-t">
+            <button
+              onClick={() => {
+                setStatusFilter('');
+                setCustomerSearch('');
+                setStartDate('');
+                setEndDate('');
+              }}
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              ✕ Wyczyść filtry
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Selection Action Bar */}

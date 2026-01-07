@@ -6,6 +6,11 @@ export class OrderModel {
   static async getAll(filters?: {
     status?: OrderStatus;
     customerId?: number;
+    customerName?: string;
+    customerCode?: string;
+    customerNip?: string;
+    startDate?: string;
+    endDate?: string;
   }): Promise<Order[]> {
     let sql = `
       SELECT o.*,
@@ -28,6 +33,31 @@ export class OrderModel {
     if (filters?.customerId) {
       sql += ` AND o.customer_id = $${paramIndex}`;
       params.push(filters.customerId);
+      paramIndex++;
+    }
+
+    // Customer search - OR logic for name, code, NIP
+    if (filters?.customerName || filters?.customerCode || filters?.customerNip) {
+      const searchTerm = filters.customerName || filters.customerCode || filters.customerNip;
+      sql += ` AND (
+        c.company_name ILIKE $${paramIndex} 
+        OR CONCAT(c.first_name, ' ', c.last_name) ILIKE $${paramIndex}
+        OR c.customer_code ILIKE $${paramIndex}
+        OR c.nip ILIKE $${paramIndex}
+      )`;
+      params.push(`%${searchTerm}%`);
+      paramIndex++;
+    }
+
+    if (filters?.startDate) {
+      sql += ` AND o.created_at >= $${paramIndex}`;
+      params.push(filters.startDate);
+      paramIndex++;
+    }
+
+    if (filters?.endDate) {
+      sql += ` AND o.created_at < $${paramIndex}::date + interval '1 day'`;
+      params.push(filters.endDate);
       paramIndex++;
     }
 

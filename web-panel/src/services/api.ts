@@ -174,7 +174,7 @@ class ApiClient {
   // ORDERS (TODO: implement on backend)
   // ============================================
 
-  async getOrders(filters?: { status?: string; customerId?: number }): Promise<{ orders: Order[] }> {
+  async getOrders(filters?: { status?: string; customerId?: number; customerName?: string; customerCode?: string; customerNip?: string; startDate?: string; endDate?: string }): Promise<{ orders: Order[] }> {
     const response = await this.client.get('/orders', { params: filters });
     return response.data;
   }
