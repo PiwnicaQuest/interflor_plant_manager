@@ -17,31 +17,35 @@ export class POSController {
         return res.status(400).json({ error: 'Brak wymaganych pól' });
       }
 
-      // Validate payment: either single payment or split payments
-      if (!data.paymentMethod && !data.paymentSplits) {
-        return res.status(400).json({ error: 'Wymagana metoda płatności lub podział płatności' });
+      // Validate payment: required for INVOICE and RECEIPT, NOT for PROFORMA
+      if (data.documentType !== DocumentType.PROFORMA) {
+        if (!data.paymentMethod && !data.paymentSplits) {
+          return res.status(400).json({ error: 'Wymagana metoda płatności lub podział płatności' });
+        }
       }
 
       // Determine payment method and splits
       let paymentMethod: PaymentMethod;
       let paymentSplits: PaymentSplit[] | undefined;
 
-      if (data.paymentSplits && data.paymentSplits.length > 0) {
-        // Split payment
-        paymentSplits = data.paymentSplits;
+      if (data.documentType !== DocumentType.PROFORMA) {
+        if (data.paymentSplits && data.paymentSplits.length > 0) {
+          // Split payment
+          paymentSplits = data.paymentSplits;
 
-        // Primary payment method is the one with the highest amount
-        const primarySplit = paymentSplits.reduce((max, split) =>
-          split.amount > max.amount ? split : max
-        , paymentSplits[0]);
+          // Primary payment method is the one with the highest amount
+          const primarySplit = paymentSplits.reduce((max, split) =>
+            split.amount > max.amount ? split : max
+          , paymentSplits[0]);
 
-        paymentMethod = primarySplit.paymentMethod;
-      } else if (data.paymentMethod) {
-        // Single payment (legacy)
-        paymentMethod = data.paymentMethod;
-        paymentSplits = undefined;
-      } else {
-        return res.status(400).json({ error: 'Nieprawidłowa konfiguracja płatności' });
+          paymentMethod = primarySplit.paymentMethod;
+        } else if (data.paymentMethod) {
+          // Single payment (legacy)
+          paymentMethod = data.paymentMethod;
+          paymentSplits = undefined;
+        } else {
+          return res.status(400).json({ error: 'Nieprawidłowa konfiguracja płatności' });
+        }
       }
 
       // Get order
@@ -96,7 +100,30 @@ export class POSController {
           vatRate: 8.0, // Default VAT rate
         }));
 
-        if (data.documentType === DocumentType.INVOICE) {
+        if (data.documentType === DocumentType.PROFORMA) {
+          // PROFORMA - create proforma, do NOT close order
+          if (!customer) {
+            throw new Error('Proforma wymaga danych klienta');
+          }
+
+          // Calculate validity date (default 14 days)
+          const validUntil = new Date();
+          validUntil.setDate(validUntil.getDate() + 14);
+
+          const proforma = await InvoiceModel.createProformaFromOrder(
+            order.id,
+            order.customerId!,
+            buyerSnapshot!,
+            validUntil,
+            undefined, // notes
+            req.user?.userId
+          );
+
+          documentNumber = proforma.invoiceNumber;
+          documentId = proforma.id;
+          
+          // DO NOT update order status - keep it open
+        } else if (data.documentType === DocumentType.INVOICE) {
           if (!customer) {
             throw new Error('Klient nie znaleziony - faktura wymaga danych klienta');
           }
@@ -119,7 +146,7 @@ export class POSController {
             order.id,
             order.customerId!,
             buyerSnapshot!,
-            paymentMethod,
+            paymentMethod!,
             paymentDeadline,
             req.user?.userId,
             paymentSplits,
@@ -128,11 +155,14 @@ export class POSController {
 
           documentNumber = invoice.invoiceNumber;
           documentId = invoice.id;
+
+          // Mark order as completed for INVOICE
+          await OrderModel.updateStatus(order.id, OrderStatus.COMPLETED, req.user?.userId, 'Sprzedaż zamknięta');
         } else {
           // Create receipt with customer info and items - pass transaction client
           const receipt = await ReceiptModel.create(
             order.id,
-            paymentMethod,
+            paymentMethod!,
             order.totalAmount || documentItems.reduce((sum, item) => sum + (item.quantity * item.unitPriceGross), 0),
             req.user?.userId,
             undefined, // notes
@@ -146,10 +176,10 @@ export class POSController {
 
           documentNumber = receipt.receiptNumber;
           documentId = receipt.id;
-        }
 
-        // Mark order as completed
-        await OrderModel.updateStatus(order.id, OrderStatus.COMPLETED, req.user?.userId, 'Sprzedaż zamknięta');
+          // Mark order as completed for RECEIPT
+          await OrderModel.updateStatus(order.id, OrderStatus.COMPLETED, req.user?.userId, 'Sprzedaż zamknięta');
+        }
 
         return {
           documentType: data.documentType,
@@ -159,8 +189,12 @@ export class POSController {
         };
       });
 
+      const message = data.documentType === DocumentType.PROFORMA 
+        ? 'Proforma utworzona' 
+        : 'Sprzedaż zamknięta';
+
       return res.json({
-        message: 'Sprzedaż zamknięta',
+        message,
         ...result,
       });
     } catch (error: any) {

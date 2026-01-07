@@ -43,7 +43,8 @@ export enum PaymentMethod {
 
 export enum DocumentType {
   INVOICE = 'invoice',
-  RECEIPT = 'receipt'
+  RECEIPT = 'receipt',
+  PROFORMA = 'proforma'
 }
 
 export enum InvoiceType {

@@ -1,0 +1,35 @@
+{
+  "name": "Skaner Magazynowy - PlantManager",
+  "short_name": "Skaner",
+  "description": "Aplikacja do skanowania kodów i zarządzania zamówieniami magazynowymi",
+  "start_url": "/scanner/scan",
+  "scope": "/scanner/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#16a34a",
+  "background_color": "#f3f4f6",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/scanner-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/scanner-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/scanner-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [],
+  "related_applications": [],
+  "prefer_related_applications": false
+}

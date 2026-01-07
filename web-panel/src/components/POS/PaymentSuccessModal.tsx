@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 interface PaymentSuccessModalProps {
-  documentType: 'invoice' | 'receipt';
+  documentType: 'invoice' | 'receipt' | 'proforma';
   documentNumber: string;
   documentId: number;
   totalAmount: number;
@@ -45,7 +45,7 @@ export function PaymentSuccessModal({
     }
   };
 
-  const documentLabel = documentType === 'invoice' ? 'Faktura' : 'Paragon';
+  const documentLabel = documentType === 'invoice' ? 'Faktura' : documentType === 'proforma' ? 'Pro Forma' : 'Paragon';
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -56,17 +56,17 @@ export function PaymentSuccessModal({
         className="bg-white rounded-lg max-w-md w-full border border-gray-200 shadow-xl outline-none"
       >
         {/* Success Header */}
-        <div className="p-6 text-center border-b border-gray-100 bg-green-50 rounded-t-lg">
-          <div className="w-14 h-14 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3">
+        <div className={`p-6 text-center border-b border-gray-100 rounded-t-lg ${documentType === 'proforma' ? 'bg-violet-50' : 'bg-green-50'}`}>
+          <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3 ${documentType === 'proforma' ? 'bg-violet-500' : 'bg-green-500'}`}>
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-green-700 mb-1">
-            Płatność zakończona!
+          <h2 className={`text-xl font-bold mb-1 ${documentType === 'proforma' ? 'text-violet-700' : 'text-green-700'}`}>
+            {documentType === 'proforma' ? 'Pro Forma wygenerowana!' : 'Płatność zakończona!'}
           </h2>
-          <p className="text-sm text-green-600">
-            Transakcja zrealizowana pomyślnie
+          <p className={`text-sm ${documentType === 'proforma' ? 'text-violet-600' : 'text-green-600'}`}>
+            {documentType === 'proforma' ? 'Dokument został utworzony pomyślnie' : 'Transakcja zrealizowana pomyślnie'}
           </p>
         </div>
 

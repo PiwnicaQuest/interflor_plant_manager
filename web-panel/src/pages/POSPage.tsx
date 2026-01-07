@@ -14,7 +14,7 @@ const formatPrice = (value: number | string | null | undefined): string => {
 };
 
 interface CheckoutResult {
-  documentType: 'invoice' | 'receipt';
+  documentType: 'invoice' | 'receipt' | 'proforma';
   documentNumber: string;
   documentId: number;
   totalAmount: number;
@@ -112,7 +112,7 @@ export function POSPage() {
     return () => clearInterval(interval);
   }, [isActivelyWorking]);
 
-  const handleCheckout = async (paymentMethod: PaymentMethod, receivedAmount?: number, paymentDeadlineDays?: number) => {
+  const handleCheckout = async (paymentMethod?: PaymentMethod, receivedAmount?: number, paymentDeadlineDays?: number) => {
     if (!selectedOrder) return;
 
     try {
@@ -134,14 +134,14 @@ export function POSPage() {
       }
 
       // Get payment method label
-      const methodLabel = paymentMethod === 'card' ? 'Karta' : paymentMethod === 'cash' ? 'Gotówka' : 'Przelew';
+      const methodLabel = paymentMethod === 'card' ? 'Karta' : paymentMethod === 'cash' ? 'Gotówka' : paymentMethod === 'transfer' ? 'Przelew' : undefined;
 
       setCheckoutResult({
-        documentType: result.documentType as 'invoice' | 'receipt',
+        documentType: result.documentType as 'invoice' | 'receipt' | 'proforma',
         documentNumber: result.documentNumber,
         documentId: result.documentId,
         totalAmount: result.totalAmount,
-        paymentDetails: `${methodLabel}: ${formatPrice(result.totalAmount)} PLN`,
+        paymentDetails: methodLabel ? `${methodLabel}: ${formatPrice(result.totalAmount)} PLN` : undefined,
         change,
       });
       setShowSuccessModal(true);
@@ -158,6 +158,10 @@ export function POSPage() {
     } finally {
       setProcessing(false);
     }
+  };
+
+  const handleProformaGenerate = () => {
+    handleCheckout(); // No payment method for proforma
   };
 
   const handleSplitPayment = () => {
@@ -228,9 +232,14 @@ export function POSPage() {
   const handlePrint = () => {
     if (!checkoutResult) return;
 
-    const printUrl = checkoutResult.documentType === 'invoice'
-      ? `/print/invoice/${checkoutResult.documentId}`
-      : `/print/receipt/${checkoutResult.documentId}`;
+    let printUrl: string;
+    if (checkoutResult.documentType === 'invoice') {
+      printUrl = `/print/invoice/${checkoutResult.documentId}`;
+    } else if (checkoutResult.documentType === 'proforma') {
+      printUrl = `/print/proforma/${checkoutResult.documentId}`;
+    } else {
+      printUrl = `/print/receipt/${checkoutResult.documentId}`;
+    }
 
     window.open(printUrl, '_blank');
   };
@@ -238,9 +247,14 @@ export function POSPage() {
   const handleViewDocument = () => {
     if (!checkoutResult) return;
 
-    const viewUrl = checkoutResult.documentType === 'invoice'
-      ? `/print/invoice/${checkoutResult.documentId}`
-      : `/print/receipt/${checkoutResult.documentId}`;
+    let viewUrl: string;
+    if (checkoutResult.documentType === 'invoice') {
+      viewUrl = `/print/invoice/${checkoutResult.documentId}`;
+    } else if (checkoutResult.documentType === 'proforma') {
+      viewUrl = `/print/proforma/${checkoutResult.documentId}`;
+    } else {
+      viewUrl = `/print/receipt/${checkoutResult.documentId}`;
+    }
 
     window.open(viewUrl, '_blank');
   };
@@ -253,17 +267,27 @@ export function POSPage() {
 
   const handleHistoryPrint = (order: CompletedOrderSummary) => {
     if (!order.document) return;
-    const printUrl = order.document.type === 'invoice'
-      ? `/print/invoice/${order.document.id}`
-      : `/print/receipt/${order.document.id}`;
+    let printUrl: string;
+    if (order.document.type === 'invoice') {
+      printUrl = `/print/invoice/${order.document.id}`;
+    } else if (order.document.type === 'proforma') {
+      printUrl = `/print/proforma/${order.document.id}`;
+    } else {
+      printUrl = `/print/receipt/${order.document.id}`;
+    }
     window.open(printUrl, '_blank');
   };
 
   const handleHistoryView = (order: CompletedOrderSummary) => {
     if (!order.document) return;
-    const viewUrl = order.document.type === 'invoice'
-      ? `/print/invoice/${order.document.id}`
-      : `/print/receipt/${order.document.id}`;
+    let viewUrl: string;
+    if (order.document.type === 'invoice') {
+      viewUrl = `/print/invoice/${order.document.id}`;
+    } else if (order.document.type === 'proforma') {
+      viewUrl = `/print/proforma/${order.document.id}`;
+    } else {
+      viewUrl = `/print/receipt/${order.document.id}`;
+    }
     window.open(viewUrl, '_blank');
   };
 
@@ -298,8 +322,10 @@ export function POSPage() {
     }
   };
 
-  const getDocumentLabel = (type: 'invoice' | 'receipt'): string => {
-    return type === 'invoice' ? 'FV' : 'PAR';
+  const getDocumentLabel = (type: 'invoice' | 'receipt' | 'proforma'): string => {
+    if (type === 'invoice') return 'FV';
+    if (type === 'proforma') return 'PF';
+    return 'PAR';
   };
 
   return (
@@ -490,40 +516,62 @@ export function POSPage() {
                         >
                           Faktura
                         </button>
+                        {selectedOrder.customerId && (
+                          <button
+                            onClick={() => setDocumentType(DocumentType.PROFORMA)}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                              documentType === DocumentType.PROFORMA
+                                ? 'bg-violet-100 text-violet-700 ring-1 ring-violet-300'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            Pro Forma
+                          </button>
+                        )}
                       </div>
                     </div>
 
-                    {/* Payment Methods - Grid */}
-                    <div className="grid grid-cols-2 gap-2">
+                    {/* Payment Methods - Grid (hidden for PROFORMA) */}
+                    {documentType === DocumentType.PROFORMA ? (
                       <button
-                        onClick={() => setShowCardPaymentModal(true)}
+                        onClick={handleProformaGenerate}
                         disabled={processing}
-                        className="py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+                        className="w-full py-3 bg-violet-600 hover:bg-violet-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
                       >
-                        <span>Karta</span>
+                        <span>{processing ? 'Generowanie...' : 'Generuj Pro Formę'}</span>
                       </button>
-                      <button
-                        onClick={() => setShowCashPaymentModal(true)}
-                        disabled={processing}
-                        className="py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
-                      >
-                        <span>Gotówka</span>
-                      </button>
-                      <button
-                        onClick={() => setShowTransferModal(true)}
-                        disabled={processing}
-                        className="py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
-                      >
-                        <span>Przelew</span>
-                      </button>
-                      <button
-                        onClick={handleSplitPayment}
-                        disabled={processing}
-                        className="py-3 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
-                      >
-                        <span>Podziel płatność</span>
-                      </button>
-                    </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => setShowCardPaymentModal(true)}
+                          disabled={processing}
+                          className="py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+                        >
+                          <span>Karta</span>
+                        </button>
+                        <button
+                          onClick={() => setShowCashPaymentModal(true)}
+                          disabled={processing}
+                          className="py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+                        >
+                          <span>Gotówka</span>
+                        </button>
+                        <button
+                          onClick={() => setShowTransferModal(true)}
+                          disabled={processing}
+                          className="py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+                        >
+                          <span>Przelew</span>
+                        </button>
+                        <button
+                          onClick={handleSplitPayment}
+                          disabled={processing}
+                          className="py-3 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+                        >
+                          <span>Podziel płatność</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </>
               ) : (
@@ -598,9 +646,11 @@ export function POSPage() {
                                 <span className={`inline-block px-1.5 py-0.5 rounded ${
                                   order.document.type === 'invoice'
                                     ? 'bg-blue-100 text-blue-700'
+                                    : order.document.type === 'proforma'
+                                    ? 'bg-violet-100 text-violet-700'
                                     : 'bg-gray-100 text-gray-700'
                                 }`}>
-                                  {getDocumentLabel(order.document.type)}
+                                  {getDocumentLabel(order.document.type as 'invoice' | 'receipt' | 'proforma')}
                                 </span>
                                 <div className="text-gray-500 mt-0.5 text-[10px]">
                                   {order.document.number}

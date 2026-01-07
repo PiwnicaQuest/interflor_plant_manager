@@ -52,7 +52,7 @@ export class ReportModel {
         COALESCE(SUM(i.subtotal_net), 0) as "totalNet",
         COALESCE(SUM(i.total_vat), 0) as "totalVat"
       FROM invoices i
-      WHERE i.issue_date >= $1::date AND i.issue_date <= $2::date
+      WHERE i.issue_date >= $1::date AND i.issue_date <= $2::date AND i.invoice_type != 'proforma'
       GROUP BY DATE(i.issue_date)
       ORDER BY DATE(i.issue_date) ASC`,
       [startDate, endDate]
@@ -105,7 +105,7 @@ export class ReportModel {
       FROM products p
       INNER JOIN invoice_items ii ON p.id = ii.product_id
       INNER JOIN invoices i ON ii.invoice_id = i.id
-      WHERE i.issue_date >= $1::date AND i.issue_date <= $2::date
+      WHERE i.issue_date >= $1::date AND i.issue_date <= $2::date AND i.invoice_type != 'proforma'
       GROUP BY p.id, p.plant_name
       ORDER BY revenue DESC
       LIMIT $3`,
@@ -139,7 +139,7 @@ export class ReportModel {
         COALESCE(SUM(i.total_vat), 0) as "totalVat",
         COUNT(i.id) as "ordersCount"
       FROM invoices i
-      WHERE i.issue_date >= $1::date AND i.issue_date <= $2::date`,
+      WHERE i.issue_date >= $1::date AND i.issue_date <= $2::date AND i.invoice_type != 'proforma'`,
       [startDate, endDate]
     );
 

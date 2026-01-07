@@ -10,6 +10,7 @@ const TEMPLATE_TYPE_LABELS: Record<TemplateType, string> = {
   receipt: 'Paragon',
   order: 'Zamówienie',
   report: 'Raport',
+  proforma: 'Pro Forma',
 };
 
 export function TemplatesPage() {
@@ -53,6 +54,7 @@ export function TemplatesPage() {
         receipt: { width: 80, height: 200 },
         order: { width: 210, height: 297 },
         report: { width: 210, height: 297 },
+        proforma: { width: 210, height: 297 },
       };
 
       const size = defaultSizes[newTemplateType];

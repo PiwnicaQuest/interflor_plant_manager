@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="64" fill="#16a34a"/>
+  <g fill="white">
+    <!-- QR code frame -->
+    <rect x="96" y="96" width="100" height="100" rx="12"/>
+    <rect x="316" y="96" width="100" height="100" rx="12"/>
+    <rect x="96" y="316" width="100" height="100" rx="12"/>
+    <!-- Inner squares -->
+    <rect x="120" y="120" width="52" height="52" rx="4" fill="#16a34a"/>
+    <rect x="340" y="120" width="52" height="52" rx="4" fill="#16a34a"/>
+    <rect x="120" y="340" width="52" height="52" rx="4" fill="#16a34a"/>
+    <!-- Center dots -->
+    <rect x="136" y="136" width="20" height="20" rx="2"/>
+    <rect x="356" y="136" width="20" height="20" rx="2"/>
+    <rect x="136" y="356" width="20" height="20" rx="2"/>
+    <!-- Scan line -->
+    <rect x="64" y="246" width="384" height="20" rx="10" fill="#bbf7d0"/>
+    <!-- Barcode lines bottom right -->
+    <rect x="316" y="316" width="12" height="100" rx="2"/>
+    <rect x="340" y="340" width="12" height="76" rx="2"/>
+    <rect x="364" y="316" width="12" height="100" rx="2"/>
+    <rect x="388" y="356" width="12" height="60" rx="2"/>
+    <rect x="404" y="316" width="12" height="100" rx="2"/>
+  </g>
+  <!-- Plant leaf accent -->
+  <path d="M256 440 Q220 400 240 360 Q260 320 256 280 Q252 320 272 360 Q292 400 256 440" fill="#bbf7d0" opacity="0.8"/>
+</svg>

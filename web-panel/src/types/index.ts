@@ -49,7 +49,8 @@ export interface PaymentSplit {
 
 export enum DocumentType {
   INVOICE = 'invoice',
-  RECEIPT = 'receipt'
+  RECEIPT = 'receipt',
+  PROFORMA = 'proforma'
 }
 
 export enum InvoiceType {
@@ -475,6 +476,7 @@ export enum TemplateType {
   ORDER = 'order',
   INVOICE = 'invoice',
   RECEIPT = 'receipt',
+  PROFORMA = 'proforma',
   REPORT = 'report'
 }
 
