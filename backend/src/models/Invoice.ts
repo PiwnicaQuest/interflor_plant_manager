@@ -149,10 +149,10 @@ export class InvoiceModel {
   ): Promise<InvoiceWithItems> {
     return transaction(async (client) => {
       // Generate proforma number
-      const proformaNumberResult = await client.query<{ get_next_proforma_number: string }>(
+      const proformaNumberResult = await client.query<{ getNextProformaNumber: string }>(
         "SELECT get_next_proforma_number()"
       );
-      const proformaNumber = proformaNumberResult.rows[0].get_next_proforma_number;
+      const proformaNumber = proformaNumberResult.rows[0].getNextProformaNumber;
 
       // Calculate totals
       let subtotalNet = 0;
@@ -238,10 +238,10 @@ export class InvoiceModel {
   ): Promise<InvoiceWithItems> {
     return transaction(async (client) => {
       // Generate proforma number
-      const proformaNumberResult = await client.query<{ get_next_proforma_number: string }>(
+      const proformaNumberResult = await client.query<{ getNextProformaNumber: string }>(
         "SELECT get_next_proforma_number()"
       );
-      const proformaNumber = proformaNumberResult.rows[0].get_next_proforma_number;
+      const proformaNumber = proformaNumberResult.rows[0].getNextProformaNumber;
 
       // Get order items
       const orderItemsResult = await client.query(
