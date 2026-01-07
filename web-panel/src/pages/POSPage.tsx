@@ -83,16 +83,34 @@ export function POSPage() {
     }
   };
 
+  // Check if user is actively working (modal open or processing)
+  const isActivelyWorking = processing ||
+    showCashPaymentModal ||
+    showCardPaymentModal ||
+    showTransferModal ||
+    showSplitPaymentModal ||
+    showSuccessModal;
+
   useEffect(() => {
+    // Initial fetch
     fetchReadyOrders();
     fetchTodayCompleted();
-    // Refresh every 30 seconds
+  }, []);
+
+  useEffect(() => {
+    // Auto-refresh every 30 seconds, but only when NOT actively working
+    // This prevents orders from jumping/changing during payment processing
+    if (isActivelyWorking) {
+      return; // Don't set up interval when actively working
+    }
+
     const interval = setInterval(() => {
       fetchReadyOrders();
       fetchTodayCompleted();
     }, 30000);
+
     return () => clearInterval(interval);
-  }, []);
+  }, [isActivelyWorking]);
 
   const handleCheckout = async (paymentMethod: PaymentMethod, receivedAmount?: number, paymentDeadlineDays?: number) => {
     if (!selectedOrder) return;
