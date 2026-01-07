@@ -570,12 +570,18 @@ export function ScannerOrderDetailPage() {
                         <div className={`font-medium truncate ${isOutOfStock ? 'text-gray-500' : 'text-gray-900'}`}>
                           {product.plantName}
                         </div>
-                        <div className="text-xs text-gray-500 flex items-center gap-1">
+                        <div className="text-xs text-gray-500 flex items-center gap-1 flex-wrap">
                           {product.potSize && <span>{product.potSize}</span>}
                           {product.potSize && product.plantHeightCm && <span> • </span>}
                           {product.plantHeightCm && <span>{product.plantHeightCm}cm</span>}
                           {(product.potSize || product.plantHeightCm) && <span> • </span>}
                           <span>{product.unitsPerPallet || 1} szt./pal.</span>
+                          {product.createdAt && (
+                            <>
+                              <span> • </span>
+                              <span className="text-gray-400">{new Date(product.createdAt).toLocaleDateString('pl-PL')}</span>
+                            </>
+                          )}
                         </div>
                       </div>
 
