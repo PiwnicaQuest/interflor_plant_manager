@@ -1,15 +1,31 @@
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
+import { ROLE_LABELS } from '../types';
 
 export function Layout() {
-  const { isAuthenticated, customer, logout } = useAuth();
+  const { isAuthenticated, customer, user, logout } = useAuth();
   const { totalItems } = useCart();
   const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
     navigate('/');
+  };
+
+  // Get display name: prefer customer company name, then user name, then email
+  const getDisplayName = () => {
+    if (customer?.companyName) return customer.companyName;
+    if (customer?.firstName) return customer.firstName;
+    if (user?.firstName) return user.firstName;
+    if (user?.email) return user.email.split('@')[0];
+    return 'Użytkownik';
+  };
+
+  // Get role label in Polish
+  const getRoleLabel = () => {
+    if (!user?.role) return '';
+    return ROLE_LABELS[user.role] || user.role;
   };
 
   return (
@@ -50,27 +66,32 @@ export function Layout() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
                   </a>
+
+                  {/* Cart - ONLY visible when authenticated */}
+                  <Link to="/cart" className="relative p-2 text-gray-600 hover:text-green-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    {totalItems > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-green-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                        {totalItems}
+                      </span>
+                    )}
+                  </Link>
                 </>
               )}
-
-              {/* Cart */}
-              <Link to="/cart" className="relative p-2 text-gray-600 hover:text-green-600">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                {totalItems > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-green-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                    {totalItems}
-                  </span>
-                )}
-              </Link>
 
               {/* Auth */}
               {isAuthenticated ? (
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-600">
-                    {customer?.companyName || customer?.firstName || 'Klient'}
-                  </span>
+                  <div className="text-right">
+                    <div className="text-sm font-medium text-gray-700">
+                      {getDisplayName()}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {getRoleLabel()}
+                    </div>
+                  </div>
                   <button
                     onClick={handleLogout}
                     className="text-sm text-red-600 hover:text-red-700 font-medium"

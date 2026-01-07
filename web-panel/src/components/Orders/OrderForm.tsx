@@ -16,6 +16,7 @@ interface OrderItem {
   palletCount: number;
   unitsPerPallet: number;
   inputMode: 'pallets' | 'units';
+  originalQuantity?: number; // Track original quantity for edit mode validation
 }
 
 function CustomerSearchInput({
@@ -105,13 +106,14 @@ function CustomerSearchInput({
   );
 }
 
-function ProductSearchInput({ products, selectedProductId, onSelect, disabled }: { products: Product[]; selectedProductId: number; onSelect: (productId: number, product: Product | undefined) => void; disabled?: boolean; }) {
+function ProductSearchInput({ products, selectedProductId, onSelect, disabled, orderProductIds = [] }: { products: Product[]; selectedProductId: number; onSelect: (productId: number, product: Product | undefined) => void; disabled?: boolean; orderProductIds?: number[]; }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const availableProducts = products.filter(p => p.totalUnits > 1);
+  // Include products with stock > 1 OR products already in the order (for edit mode)
+  const availableProducts = products.filter(p => p.totalUnits > 1 || orderProductIds.includes(p.id));
   const filteredProducts = searchTerm.trim() === '' ? availableProducts : availableProducts.filter(p => p.plantName.toLowerCase().includes(searchTerm.toLowerCase()) || (p.potSize && String(p.potSize).toLowerCase().includes(searchTerm.toLowerCase())));
   const selectedProduct = products.find(p => p.id === selectedProductId);
 
@@ -173,12 +175,35 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
         setCustomers(customersData.customers);
         setProducts(productsData.products);
         if (order && order.items) {
+          const snapshotProducts: Product[] = []; // Products created from snapshots (not in inventory)
           const orderItems: OrderItem[] = order.items.map(item => {
-            const product = productsData.products.find((p: Product) => p.id === item.productId);
+            let product = productsData.products.find((p: Product) => p.id === item.productId);
+            // Fallback: if product not in inventory (zero stock), create from productSnapshot
+            if (!product && item.productSnapshot) {
+              const snap = item.productSnapshot as any;
+              product = {
+                id: snap.id || item.productId,
+                plantName: snap.plantName || item.productName || 'Nieznany produkt',
+                potSize: snap.potSize || null,
+                plantHeightCm: snap.plantHeightCm || null,
+                unitsPerPallet: snap.unitsPerPallet || item.unitsPerPallet || 1,
+                totalUnits: 0, // Product is out of stock
+                palletCount: 0,
+                basePriceGross: parseFloat(String(item.unitPriceGross)) || 0,
+                barcode: snap.barcode || null,
+                imageUrl: snap.imageUrl || null,
+              } as Product;
+              snapshotProducts.push(product);
+            }
             const unitsPerPallet = item.unitsPerPallet || product?.unitsPerPallet || 1;
             return { productId: item.productId!, product, quantity: item.quantity, price: item.unitPriceGross,
-              palletCount: item.palletCount || Math.floor(item.quantity / unitsPerPallet), unitsPerPallet, inputMode: 'units' as const };
+              palletCount: item.palletCount || Math.floor(item.quantity / unitsPerPallet), unitsPerPallet, inputMode: 'units' as const,
+              originalQuantity: item.quantity };
           });
+          // Add snapshot products to the products list so ProductSearchInput can find them
+          if (snapshotProducts.length > 0) {
+            setProducts([...productsData.products, ...snapshotProducts]);
+          }
           setItems(orderItems);
           if (order.customerId) { const customer = customersData.customers.find((c: Customer) => c.id === order.customerId); setSelectedCustomer(customer); }
         }
@@ -286,17 +311,17 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
                 {items.map((item, index) => (
                   <div key={index} className="bg-gray-50 p-3 rounded-lg">
                     <div className="grid grid-cols-12 gap-3 items-end">
-                      <div className="col-span-5"><label className="block text-xs text-gray-600 mb-1">Produkt</label><ProductSearchInput products={products} selectedProductId={item.productId} onSelect={(productId, product) => handleProductSelect(index, productId, product)} /></div>
+                      <div className="col-span-5"><label className="block text-xs text-gray-600 mb-1">Produkt</label><ProductSearchInput products={products} selectedProductId={item.productId} onSelect={(productId, product) => handleProductSelect(index, productId, product)} orderProductIds={items.map(i => i.productId).filter(Boolean)} /></div>
                       <div className="col-span-2">
                         <label className="block text-xs text-gray-600 mb-1">{item.inputMode === 'pallets' ? 'Palety' : 'Sztuki'}<button type="button" onClick={() => toggleInputMode(index)} className="ml-1 text-blue-500 text-xs hover:underline">({item.inputMode === 'pallets' ? 'wpisz szt.' : 'wpisz pal.'})</button></label>
-                        {item.inputMode === 'pallets' ? <input type="number" className="input" min="0" value={item.palletCount} onChange={(e) => updateItemPalletCount(index, parseInt(e.target.value))} /> : <input type="number" className="input" min="1" max={item.product?.totalUnits || 999} value={item.quantity} onChange={(e) => updateItemQuantity(index, parseInt(e.target.value))} />}
+                        {item.inputMode === 'pallets' ? <input type="number" className="input" min="0" value={item.palletCount} onChange={(e) => updateItemPalletCount(index, parseInt(e.target.value))} /> : <input type="number" className="input" min="1" max={(item.product?.totalUnits || 0) + (item.originalQuantity || 0)} value={item.quantity} onChange={(e) => updateItemQuantity(index, parseInt(e.target.value))} />}
                       </div>
                       <div className="col-span-2"><label className="block text-xs text-gray-600 mb-1">Szt/paleta</label><input type="text" className="input bg-gray-100" value={item.unitsPerPallet} readOnly /></div>
                       <div className="col-span-2"><label className="block text-xs text-gray-600 mb-1">Cena jedn.</label><input type="text" className="input bg-white" value={(item.price || 0).toFixed(2)} readOnly /></div>
                       <div className="col-span-1"><button type="button" onClick={() => removeItem(index)} className="btn btn-danger w-full">X</button></div>
                     </div>
                     {item.product && item.quantity > 0 && (<div className="mt-2 text-sm text-gray-600 flex justify-between items-center border-t pt-2"><span><strong>{item.palletCount}</strong> palet x <strong>{item.unitsPerPallet}</strong> szt/paleta = <strong>{item.quantity}</strong> szt.</span><span className="font-semibold text-gray-800">Wartosc: {(item.price * item.quantity).toFixed(2)} PLN</span></div>)}
-                    {item.product && item.quantity > item.product.totalUnits && <p className="text-xs text-red-500 mt-1">Przekroczono dostepny stan: max {item.product.totalUnits} szt.</p>}
+                    {item.product && item.quantity > (item.product.totalUnits + (item.originalQuantity || 0)) && <p className="text-xs text-red-500 mt-1">Przekroczono dostepny stan: max {item.product.totalUnits + (item.originalQuantity || 0)} szt.</p>}
                   </div>
                 ))}
               </div>

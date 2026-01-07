@@ -20,11 +20,15 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
   const [transferItems, setTransferItems] = useState<TransferItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showDifferentCustomerWarning, setShowDifferentCustomerWarning] = useState(false);
+
+  // Get source order customer ID
+  const sourceCustomerId = sourceOrder.customerId;
 
   useEffect(() => {
     const fetchTargetOrders = async () => {
       try {
-        // Pobierz tylko zamówienia w statusie pending lub in_progress (nie zakończone/anulowane)
+        // Pobierz tylko zamowienia w statusie pending lub in_progress (nie zakonczone/anulowane)
         const data = await api.getOrders({});
         const validOrders = data.orders.filter(
           (order) =>
@@ -35,7 +39,7 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
         setTargetOrders(validOrders);
       } catch (err) {
         console.error('Error fetching target orders:', err);
-        setError('Błąd podczas ładowania zamówień docelowych');
+        setError('Blad podczas ladowania zamowien docelowych');
       }
     };
 
@@ -53,6 +57,20 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
     }
   }, [sourceOrder]);
 
+  // Check if selected target order has different customer
+  useEffect(() => {
+    if (selectedTargetOrderId) {
+      const targetOrder = targetOrders.find(o => o.id === selectedTargetOrderId);
+      if (targetOrder && targetOrder.customerId !== sourceCustomerId) {
+        setShowDifferentCustomerWarning(true);
+      } else {
+        setShowDifferentCustomerWarning(false);
+      }
+    } else {
+      setShowDifferentCustomerWarning(false);
+    }
+  }, [selectedTargetOrderId, targetOrders, sourceCustomerId]);
+
   const updateTransferQuantity = (index: number, quantity: number) => {
     const newTransferItems = [...transferItems];
     const maxQty = newTransferItems[index].maxQuantity;
@@ -62,7 +80,7 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
 
   const handleTransfer = async () => {
     if (!selectedTargetOrderId) {
-      setError('Wybierz zamówienie docelowe');
+      setError('Wybierz zamowienie docelowe');
       return;
     }
 
@@ -83,7 +101,12 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
         api.getOrder(selectedTargetOrderId),
       ]);
 
+      // Check if different customer - prices will be adjusted to target customer's price group
+      const targetOrder = targetOrders.find(o => o.id === selectedTargetOrderId);
+      const isDifferentCustomer = targetOrder?.customerId !== sourceCustomerId;
+
       // Step 2: Calculate new items for source order (remove transferred quantities)
+      // Always pass unitPriceGross for source order (same customer)
       const newSourceItems = sourceOrderData.order.items
         .map((item) => {
           const transferItem = itemsToTransfer.find(
@@ -92,9 +115,15 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
           if (transferItem) {
             const remainingQty = item.quantity - transferItem.transferQuantity;
             if (remainingQty > 0) {
+              // Przelicz palety proporcjonalnie
+              const unitsPerPallet = item.unitsPerPallet || 1;
+              const newPalletCount = Math.floor(remainingQty / unitsPerPallet);
               return {
                 productId: item.productId!,
                 quantity: remainingQty,
+                unitPriceGross: item.unitPriceGross, // Zachowaj cene dla zamowienia zrodlowego
+                palletCount: newPalletCount,
+                unitsPerPallet: item.unitsPerPallet,
               };
             }
             return null; // Remove item if quantity is 0
@@ -102,14 +131,22 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
           return {
             productId: item.productId!,
             quantity: item.quantity,
+            unitPriceGross: item.unitPriceGross,
+            palletCount: item.palletCount,
+            unitsPerPallet: item.unitsPerPallet,
           };
         })
         .filter((item) => item !== null);
 
       // Step 3: Calculate new items for target order (add transferred items)
+      // If different customer - DON'T pass unitPriceGross so backend uses target customer's price group
+      // If same customer - pass unitPriceGross to preserve prices
       const existingTargetItems = targetOrderData.order.items.map((item) => ({
         productId: item.productId!,
         quantity: item.quantity,
+        unitPriceGross: item.unitPriceGross, // Zachowaj istniejace ceny
+        palletCount: item.palletCount,
+        unitsPerPallet: item.unitsPerPallet,
       }));
 
       const newTargetItems = [...existingTargetItems];
@@ -120,30 +157,50 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
         );
 
         if (existingItemIndex >= 0) {
-          // Product already exists in target order - increase quantity
-          newTargetItems[existingItemIndex].quantity += transferItem.transferQuantity;
+          // Product already exists in target order - increase quantity, keep existing price
+          const existingItem = newTargetItems[existingItemIndex];
+          const newQuantity = existingItem.quantity + transferItem.transferQuantity;
+          const unitsPerPallet = existingItem.unitsPerPallet || transferItem.orderItem.unitsPerPallet || 1;
+          newTargetItems[existingItemIndex] = {
+            ...existingItem,
+            quantity: newQuantity,
+            palletCount: Math.floor(newQuantity / unitsPerPallet),
+          };
         } else {
-          // Product doesn't exist - add new item
-          newTargetItems.push({
+          // Product doesn't exist in target order - add new item
+          const unitsPerPallet = transferItem.orderItem.unitsPerPallet || 1;
+
+          // If different customer - don't pass price, let backend use target customer's price group
+          // If same customer - use original price
+          const newItem: any = {
             productId: transferItem.orderItem.productId!,
             quantity: transferItem.transferQuantity,
-          });
+            palletCount: Math.floor(transferItem.transferQuantity / unitsPerPallet),
+            unitsPerPallet: unitsPerPallet,
+          };
+
+          if (!isDifferentCustomer) {
+            // Same customer - preserve original price
+            newItem.unitPriceGross = transferItem.orderItem.unitPriceGross;
+          }
+          // Different customer - don't set unitPriceGross, backend will use target customer's price group
+
+          newTargetItems.push(newItem);
         }
       });
 
       // Step 4: Update both orders
-      await Promise.all([
-        newSourceItems.length > 0
-          ? api.updateOrder(sourceOrder.id, { items: newSourceItems })
-          : Promise.resolve(), // Skip if no items left
-        api.updateOrder(selectedTargetOrderId, { items: newTargetItems }),
-      ]);
+      // IMPORTANT: Update source first, then target to avoid inventory conflicts
+      if (newSourceItems.length > 0) {
+        await api.updateOrder(sourceOrder.id, { items: newSourceItems });
+      }
+      await api.updateOrder(selectedTargetOrderId, { items: newTargetItems });
 
-      // Step 5: If source order has no items left, optionally cancel it
+      // Step 5: If source order has no items left, cancel it
       if (newSourceItems.length === 0) {
         await api.cancelOrder(
           sourceOrder.id,
-          'Wszystkie produkty zostały przeniesione do innego zamówienia'
+          'Wszystkie produkty zostaly przeniesione do innego zamowienia'
         );
       }
 
@@ -151,7 +208,7 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
       onClose();
     } catch (err: any) {
       console.error('Transfer error:', err);
-      setError(err.response?.data?.error || 'Błąd podczas przenoszenia produktów');
+      setError(err.response?.data?.error || err.message || 'Blad podczas przenoszenia produktow');
     } finally {
       setLoading(false);
     }
@@ -161,12 +218,16 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
     return transferItems.reduce((sum, item) => sum + item.transferQuantity, 0);
   };
 
+  // Filter orders by same customer (optional - can show all with warning)
+  const sameCustomerOrders = targetOrders.filter(o => o.customerId === sourceCustomerId);
+  const differentCustomerOrders = targetOrders.filter(o => o.customerId !== sourceCustomerId);
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            Przenieś produkty - {sourceOrder.orderNumber}
+            Przenies produkty - {sourceOrder.orderNumber}
           </h2>
 
           {error && (
@@ -178,27 +239,49 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
           {/* Target Order Selection */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Zamówienie docelowe <span className="text-red-500">*</span>
+              Zamowienie docelowe <span className="text-red-500">*</span>
             </label>
             <select
               className="input"
               value={selectedTargetOrderId || ''}
               onChange={(e) => setSelectedTargetOrderId(parseInt(e.target.value))}
             >
-              <option value="">-- Wybierz zamówienie docelowe --</option>
-              {targetOrders.map((order) => (
-                <option key={order.id} value={order.id}>
-                  {order.orderNumber} - {order.customerName || 'Brak klienta'} (
-                  {order.totalAmount?.toFixed(2) || '0.00'} PLN)
-                </option>
-              ))}
+              <option value="">-- Wybierz zamowienie docelowe --</option>
+              {sameCustomerOrders.length > 0 && (
+                <optgroup label="Ten sam kontrahent">
+                  {sameCustomerOrders.map((order) => (
+                    <option key={order.id} value={order.id}>
+                      {order.orderNumber} - {order.customerName || 'Brak klienta'} (
+                      {order.totalAmount?.toFixed(2) || '0.00'} PLN)
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {differentCustomerOrders.length > 0 && (
+                <optgroup label="Inny kontrahent">
+                  {differentCustomerOrders.map((order) => (
+                    <option key={order.id} value={order.id}>
+                      {order.orderNumber} - {order.customerName || 'Brak klienta'} (
+                      {order.totalAmount?.toFixed(2) || '0.00'} PLN)
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
             {targetOrders.length === 0 && (
               <p className="text-sm text-gray-500 mt-2">
-                Brak dostępnych zamówień docelowych. Wszystkie inne zamówienia są zakończone lub anulowane.
+                Brak dostepnych zamowien docelowych. Wszystkie inne zamowienia sa zakonczone lub anulowane.
               </p>
             )}
           </div>
+
+          {/* Different Customer Warning */}
+          {showDifferentCustomerWarning && (
+            <div className="bg-yellow-50 border border-yellow-400 text-yellow-800 px-4 py-3 rounded mb-6">
+              <strong>Uwaga:</strong> Wybrane zamowienie docelowe nalezy do innego kontrahenta.
+              Ceny produktow zostana dostosowane do grupy cenowej nowego kontrahenta.
+            </div>
+          )}
 
           {/* Products to Transfer */}
           <div className="mb-6">
@@ -210,15 +293,28 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
                 <thead>
                   <tr>
                     <th>Produkt</th>
-                    <th className="text-center">Dostępna ilość</th>
-                    <th className="text-center">Ile przenieść</th>
+                    <th className="text-center">Dostepna ilosc</th>
+                    <th className="text-center">Ile przeniesc</th>
                     <th className="text-right">Cena jedn.</th>
                   </tr>
                 </thead>
                 <tbody>
                   {transferItems.map((item, index) => (
                     <tr key={item.orderItem.id}>
-                      <td>{item.orderItem.productName || `Produkt #${item.orderItem.productId}`}</td>
+                      <td>
+                        <div>
+                          {item.orderItem.productSnapshot?.plantName ||
+                           item.orderItem.productName ||
+                           `Produkt #${item.orderItem.productId}`}
+                        </div>
+                        {item.orderItem.productSnapshot?.potSize && (
+                          <div className="text-xs text-gray-500">
+                            {item.orderItem.productSnapshot.potSize}
+                            {item.orderItem.productSnapshot.plantHeightCm &&
+                              ` / ${item.orderItem.productSnapshot.plantHeightCm}cm`}
+                          </div>
+                        )}
+                      </td>
                       <td className="text-center font-semibold">{item.maxQuantity} szt.</td>
                       <td className="text-center">
                         <div className="flex items-center justify-center gap-2">
@@ -263,6 +359,11 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
                       </td>
                       <td className="text-right">
                         {(item.orderItem.unitPriceGross || 0).toFixed(2)} PLN
+                        {showDifferentCustomerWarning && (
+                          <div className="text-xs text-yellow-600">
+                            (cena zmieni sie)
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -276,7 +377,7 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <div className="flex justify-between items-center">
                 <span className="text-blue-900 font-semibold">
-                  Łączna ilość do przeniesienia:
+                  Laczna ilosc do przeniesienia:
                 </span>
                 <span className="text-blue-900 text-xl font-bold">
                   {getTotalTransferredItems()} szt.
@@ -292,7 +393,7 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
               disabled={loading || !selectedTargetOrderId || getTotalTransferredItems() === 0}
               className="btn btn-primary flex-1"
             >
-              {loading ? 'Przenoszenie...' : 'Przenieś produkty'}
+              {loading ? 'Przenoszenie...' : 'Przenies produkty'}
             </button>
             <button onClick={onClose} className="btn btn-secondary flex-1">
               Anuluj
@@ -302,7 +403,7 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
           {getTotalTransferredItems() === transferItems.reduce((sum, item) => sum + item.maxQuantity, 0) &&
             getTotalTransferredItems() > 0 && (
               <p className="text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded p-3 mt-4">
-                <strong>Uwaga:</strong> Przenosisz wszystkie produkty z tego zamówienia. Zamówienie źródłowe zostanie automatycznie anulowane.
+                <strong>Uwaga:</strong> Przenosisz wszystkie produkty z tego zamowienia. Zamowienie zrodlowe zostanie automatycznie anulowane.
               </p>
             )}
         </div>

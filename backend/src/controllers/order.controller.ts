@@ -285,4 +285,50 @@ export class OrderController {
       return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
+
+  static async mergeOrders(req: AuthRequest, res: Response) {
+    try {
+      const masterOrderId = parseInt(req.params.id);
+      const { orderIds }: { orderIds: number[] } = req.body;
+
+      if (isNaN(masterOrderId)) {
+        return res.status(400).json({ error: 'Nieprawidłowe ID zamówienia głównego' });
+      }
+
+      if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+        return res.status(400).json({ error: 'Brak zamówień do połączenia' });
+      }
+
+      // Validate orderIds are numbers
+      const validOrderIds = orderIds.filter(id => typeof id === 'number' && !isNaN(id));
+      if (validOrderIds.length !== orderIds.length) {
+        return res.status(400).json({ error: 'Nieprawidłowe ID zamówień' });
+      }
+
+      // Cannot merge order with itself
+      if (validOrderIds.includes(masterOrderId)) {
+        return res.status(400).json({ error: 'Nie można połączyć zamówienia z samym sobą' });
+      }
+
+      const mergedOrder = await OrderModel.mergeOrders(
+        masterOrderId,
+        validOrderIds,
+        req.user?.userId
+      );
+
+      return res.json({
+        message: `Połączono ${validOrderIds.length} zamówień`,
+        order: mergedOrder,
+      });
+    } catch (error: any) {
+      console.error('Merge orders error:', error);
+
+      // Handle validation errors
+      if (error.message) {
+        return res.status(400).json({ error: error.message });
+      }
+
+      return res.status(500).json({ error: 'Błąd serwera podczas łączenia zamówień' });
+    }
+  }
 }

@@ -6,6 +6,7 @@ import { CancelOrderModal } from './CancelOrderModal';
 import { ProductDetailsModal } from './ProductDetailsModal';
 import { OrderItem } from '../../types';
 import { TransferProductsModal } from './TransferProductsModal';
+import { MergeOrdersModal } from './MergeOrdersModal';
 import { ReopenOrderModal } from './ReopenOrderModal';
 
 interface OrderDetailsProps {
@@ -28,6 +29,7 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showMergeModal, setShowMergeModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showDocumentModal, setShowDocumentModal] = useState(false);
   const [showReopenModal, setShowReopenModal] = useState(false);
@@ -197,6 +199,11 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
     return order.status !== OrderStatus.COMPLETED && order.status !== OrderStatus.CANCELLED && order.items && order.items.length > 0;
   };
 
+  const canMergeOrders = () => {
+    // Can merge if order is not completed/cancelled and has a customer
+    return order.status !== OrderStatus.COMPLETED && order.status !== OrderStatus.CANCELLED && order.customerId;
+  };
+
   const canCreateDocument = () => {
     return order.status === OrderStatus.READY_FOR_PICKUP || order.status === OrderStatus.IN_PROGRESS || order.status === OrderStatus.PENDING;
   };
@@ -245,6 +252,19 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
   const handleTransferSuccess = () => {
     setSuccessMessage('Produkty zostały pomyślnie przeniesione!');
     setShowTransferModal(false);
+
+    if (onOrderUpdated) {
+      onOrderUpdated();
+    }
+
+    setTimeout(() => {
+      onClose();
+    }, 2000);
+  };
+
+  const handleMergeSuccess = () => {
+    setSuccessMessage('Zamówienia zostały pomyślnie połączone!');
+    setShowMergeModal(false);
 
     if (onOrderUpdated) {
       onOrderUpdated();
@@ -735,6 +755,14 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
                 Przenieś produkty
               </button>
             )}
+            {canMergeOrders() && (
+              <button
+                onClick={() => setShowMergeModal(true)}
+                className="btn flex-1 min-w-[120px] bg-purple-600 hover:bg-purple-700 text-white border-purple-600"
+              >
+                Połącz zamówienia
+              </button>
+            )}
             {canEditOrder() && onEdit && (
               <button
                 onClick={onEdit}
@@ -799,6 +827,15 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
           sourceOrder={order}
           onClose={() => setShowTransferModal(false)}
           onSuccess={handleTransferSuccess}
+        />
+      )}
+
+      {/* Modal łączenia zamówień */}
+      {showMergeModal && order.customerId && (
+        <MergeOrdersModal
+          masterOrder={order}
+          onClose={() => setShowMergeModal(false)}
+          onSuccess={handleMergeSuccess}
         />
       )}
 

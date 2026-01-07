@@ -964,4 +964,249 @@ export class OrderModel {
       };
     });
   }
+
+  /**
+   * Merge multiple orders into one master order
+   * All items from secondary orders are transferred to the master order
+   * Secondary orders are cancelled after merge
+   */
+  static async mergeOrders(
+    masterOrderId: number,
+    orderIdsToMerge: number[],
+    userId?: number
+  ): Promise<OrderWithItems> {
+    return transaction(async (client) => {
+      // Get master order
+      const masterOrderResult = await client.query<Order>(
+        'SELECT * FROM orders WHERE id = $1',
+        [masterOrderId]
+      );
+
+      if (masterOrderResult.rows.length === 0) {
+        throw new Error('Zamówienie główne nie istnieje');
+      }
+
+      const masterOrder = masterOrderResult.rows[0];
+
+      // Validate master order status
+      if (masterOrder.status === 'completed' || masterOrder.status === 'cancelled') {
+        throw new Error('Nie można łączyć zamówień o statusie zakończone lub anulowane');
+      }
+
+      // Get orders to merge
+      const ordersToMergeResult = await client.query<Order>(
+        'SELECT * FROM orders WHERE id = ANY($1)',
+        [orderIdsToMerge]
+      );
+
+      if (ordersToMergeResult.rows.length !== orderIdsToMerge.length) {
+        throw new Error('Niektóre zamówienia do połączenia nie istnieją');
+      }
+
+      const ordersToMerge = ordersToMergeResult.rows;
+
+      // Validate all orders belong to the same customer
+      for (const order of ordersToMerge) {
+        if (order.customerId !== masterOrder.customerId) {
+          throw new Error(`Zamówienie ${order.orderNumber} należy do innego kontrahenta. Można łączyć tylko zamówienia tego samego kontrahenta.`);
+        }
+        if (order.status === 'completed' || order.status === 'cancelled') {
+          throw new Error(`Zamówienie ${order.orderNumber} ma status ${order.status} i nie może być połączone`);
+        }
+      }
+
+      // Get master order items
+      const masterItemsResult = await client.query<OrderItem>(
+        'SELECT * FROM order_items WHERE order_id = $1',
+        [masterOrderId]
+      );
+
+      // Build map of existing items in master order by productId
+      const masterItemsMap = new Map<number, OrderItem>();
+      for (const item of masterItemsResult.rows) {
+        if (item.productId) {
+          masterItemsMap.set(item.productId, item);
+        }
+      }
+
+      // Process each order to merge
+      for (const orderToMerge of ordersToMerge) {
+        // Get items from order to merge
+        const itemsResult = await client.query<OrderItem>(
+          'SELECT * FROM order_items WHERE order_id = $1',
+          [orderToMerge.id]
+        );
+
+        for (const item of itemsResult.rows) {
+          if (!item.productId) continue;
+
+          const existingMasterItem = masterItemsMap.get(item.productId);
+
+          if (existingMasterItem) {
+            // Product exists in master order - increase quantity
+            const newQuantity = existingMasterItem.quantity + item.quantity;
+            const unitsPerPallet = existingMasterItem.unitsPerPallet || item.unitsPerPallet || 1;
+            const newPalletCount = Math.floor(newQuantity / unitsPerPallet);
+
+            // Update existing item in master order
+            await client.query(
+              `UPDATE order_items
+               SET quantity = $1,
+                   pallet_count = $2,
+                   total_price_gross = $3,
+                   updated_at = CURRENT_TIMESTAMP
+               WHERE id = $4`,
+              [
+                newQuantity,
+                newPalletCount,
+                newQuantity * existingMasterItem.unitPriceGross,
+                existingMasterItem.id
+              ]
+            );
+
+            // Update map
+            masterItemsMap.set(item.productId, {
+              ...existingMasterItem,
+              quantity: newQuantity,
+              palletCount: newPalletCount,
+            });
+          } else {
+            // Product doesn't exist in master order - transfer item
+            // Insert new item into master order with same product snapshot and price
+            const insertResult = await client.query<OrderItem>(
+              `INSERT INTO order_items (
+                order_id, product_id, quantity, unit_price_gross, total_price_gross,
+                pallet_count, units_per_pallet, product_snapshot, created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+              RETURNING *`,
+              [
+                masterOrderId,
+                item.productId,
+                item.quantity,
+                item.unitPriceGross,
+                item.quantity * item.unitPriceGross,
+                item.palletCount,
+                item.unitsPerPallet,
+                JSON.stringify(item.productSnapshot)
+              ]
+            );
+
+            // Add to map
+            masterItemsMap.set(item.productId, insertResult.rows[0]);
+          }
+
+          // Delete item from source order (don't restore stock - it stays reserved)
+          await client.query(
+            'DELETE FROM order_items WHERE order_id = $1 AND product_id = $2',
+            [orderToMerge.id, item.productId]
+          );
+        }
+
+        // Cancel the merged order (without restoring stock since items were transferred)
+        await client.query(
+          `UPDATE orders
+           SET status = 'cancelled',
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1`,
+          [orderToMerge.id]
+        );
+
+        // Log the cancellation
+        await client.query(
+          `INSERT INTO order_status_log (order_id, old_status, new_status, changed_by_user_id, notes)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [
+            orderToMerge.id,
+            orderToMerge.status,
+            'cancelled',
+            userId,
+            `Połączono z zamówieniem ${masterOrder.orderNumber}`
+          ]
+        );
+      }
+
+      // Recalculate master order total
+      const newTotalResult = await client.query<{ total: number }>(
+        'SELECT COALESCE(SUM(total_price_gross), 0) as total FROM order_items WHERE order_id = $1',
+        [masterOrderId]
+      );
+
+      const newTotal = newTotalResult.rows[0].total;
+
+      // Update master order total and notes
+      const mergedOrderNumbers = ordersToMerge.map(o => o.orderNumber).join(', ');
+      const existingNotes = masterOrder.customerNotes || '';
+      const newNotes = existingNotes
+        ? `${existingNotes}\n[Połączono zamówienia: ${mergedOrderNumbers}]`
+        : `[Połączono zamówienia: ${mergedOrderNumbers}]`;
+
+      await client.query(
+        `UPDATE orders
+         SET total_amount = $1,
+             customer_notes = $2,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $3`,
+        [newTotal, newNotes, masterOrderId]
+      );
+
+      // Log the merge in status log
+      await client.query(
+        `INSERT INTO order_status_log (order_id, old_status, new_status, changed_by_user_id, notes)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          masterOrderId,
+          masterOrder.status,
+          masterOrder.status, // Status stays the same
+          userId,
+          `Połączono ${ordersToMerge.length} zamówień: ${mergedOrderNumbers}`
+        ]
+      );
+
+      // Get updated master order with items
+      const updatedOrderResult = await client.query<Order>(
+        'SELECT * FROM orders WHERE id = $1',
+        [masterOrderId]
+      );
+
+      const updatedOrder = updatedOrderResult.rows[0];
+
+      const updatedItemsResult = await client.query<OrderItem>(
+        'SELECT * FROM order_items WHERE order_id = $1 ORDER BY id',
+        [masterOrderId]
+      );
+
+      // Get customer info
+      const customerResult = await client.query<{ companyName?: string; firstName?: string; lastName?: string; customerCode?: string }>(
+        'SELECT company_name, first_name, last_name, customer_code FROM customers WHERE id = $1',
+        [updatedOrder.customerId]
+      );
+
+      let customerName: string | undefined;
+      let customerCode: string | undefined;
+      if (customerResult.rows.length > 0) {
+        const customer = customerResult.rows[0];
+        customerName = customer.companyName || `${customer.firstName} ${customer.lastName}`;
+        customerCode = customer.customerCode;
+      }
+
+      // Broadcast merge event
+      broadcast('orders', {
+        type: 'orders:merged',
+        data: {
+          masterOrderId: masterOrderId,
+          masterOrderNumber: updatedOrder.orderNumber,
+          mergedOrderIds: orderIdsToMerge,
+          mergedOrderNumbers: ordersToMerge.map(o => o.orderNumber),
+          timestamp: new Date(),
+        },
+      });
+
+      return {
+        ...updatedOrder,
+        items: updatedItemsResult.rows,
+        customerName,
+        customerCode,
+      };
+    });
+  }
 }

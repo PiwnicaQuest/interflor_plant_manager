@@ -66,7 +66,7 @@ export interface OrderItem {
   totalPrice: number;
 }
 
-export type OrderStatus = 
+export type OrderStatus =
   | 'pending'
   | 'in_progress'
   | 'ready_for_pickup'
@@ -92,7 +92,18 @@ export interface User {
   id: number;
   email: string;
   role: string;
+  firstName?: string;
+  lastName?: string;
 }
+
+// Role labels in Polish
+export const ROLE_LABELS: Record<string, string> = {
+  'admin': 'Administrator',
+  'pos': 'Kasjer',
+  'warehouse': 'Magazynier',
+  'seller': 'Sprzedawca',
+  'customer': 'Klient',
+};
 
 export interface AuthState {
   user: User | null;

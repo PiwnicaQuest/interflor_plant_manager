@@ -146,6 +146,7 @@ app.patch('/orders/:id/status', requireAuth, OrderController.updateStatus);
 app.patch('/orders/:id/cancel', requireAuth, OrderController.cancelOrder);
 app.put('/orders/:id', requireAuth, OrderController.update);
 app.delete('/orders/:id', requireAuth, requireRole([UserRole.ADMIN]), OrderController.delete);
+app.post('/orders/:id/merge', requireAuth, OrderController.mergeOrders);
 // Order items management for scanner app
 app.post('/orders/:id/items', requireAuth, ScannerController.addOrderItem);
 app.put('/orders/:id/items/:itemId', requireAuth, ScannerController.updateOrderItem);

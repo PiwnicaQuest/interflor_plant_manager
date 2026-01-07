@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { AuthState } from '../types';
 import { api } from '../services/api';
@@ -28,12 +28,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (token) {
         try {
           const result = await api.getMe();
-          const user = result.user as { role: string; id: number; email: string };
+          const user = result.user as { role: string; id: number; email: string; firstName?: string; lastName?: string };
           if (!ALLOWED_ROLES.includes(user.role)) {
             throw new Error('Brak dostępu do sklepu');
           }
           setState({
-            user: { id: user.id, email: user.email, role: user.role },
+            user: { id: user.id, email: user.email, role: user.role, firstName: user.firstName, lastName: user.lastName },
             customer: result.customer || null,
             token,
             isAuthenticated: true,
@@ -59,19 +59,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const result = await api.login(email, password);
-    const user = result.user as { role: string; id: number; email: string };
-    
+    const user = result.user as { role: string; id: number; email: string; firstName?: string; lastName?: string };
+
     if (!ALLOWED_ROLES.includes(user.role)) {
       throw new Error('Brak dostępu do sklepu');
     }
 
     localStorage.setItem('shop_token', result.token);
-    
+
     // Get customer data (may be null for non-customer roles)
     const meResult = await api.getMe();
-    
+
     setState({
-      user: { id: user.id, email: user.email, role: user.role },
+      user: { id: user.id, email: user.email, role: user.role, firstName: user.firstName, lastName: user.lastName },
       customer: meResult.customer || null,
       token: result.token,
       isAuthenticated: true,
@@ -79,8 +79,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
+    // Clear user's cart from localStorage
+    if (state.user?.id) {
+      localStorage.removeItem(`shop_cart_user_${state.user.id}`);
+    }
+    // Also clear any legacy global cart
+    localStorage.removeItem('shop_cart');
     localStorage.removeItem('shop_token');
+
     setState({
       user: null,
       customer: null,
@@ -88,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: false,
       isLoading: false,
     });
-  };
+  }, [state.user?.id]);
 
   return (
     <AuthContext.Provider value={{ ...state, login, logout }}>

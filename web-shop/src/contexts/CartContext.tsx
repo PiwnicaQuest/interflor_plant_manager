@@ -1,6 +1,7 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { CartItem, Product } from '../types';
+import { useAuth } from './AuthContext';
 
 interface CartContextType {
   items: CartItem[];
@@ -15,20 +16,45 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | null>(null);
 
-export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>(() => {
-    const saved = localStorage.getItem('shop_cart');
-    return saved ? JSON.parse(saved) : [];
-  });
+// Get cart storage key for specific user
+const getCartKey = (userId: number | null) => {
+  return userId ? `shop_cart_user_${userId}` : null;
+};
 
+export function CartProvider({ children }: { children: ReactNode }) {
+  const { user, isAuthenticated } = useAuth();
+  const [items, setItems] = useState<CartItem[]>([]);
+
+  // Load cart when user changes
   useEffect(() => {
-    localStorage.setItem('shop_cart', JSON.stringify(items));
-  }, [items]);
+    if (isAuthenticated && user?.id) {
+      const cartKey = getCartKey(user.id);
+      if (cartKey) {
+        const saved = localStorage.getItem(cartKey);
+        setItems(saved ? JSON.parse(saved) : []);
+      }
+    } else {
+      // Not authenticated - clear cart state
+      setItems([]);
+    }
+  }, [user?.id, isAuthenticated]);
+
+  // Save cart when items change (only for authenticated users)
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      const cartKey = getCartKey(user.id);
+      if (cartKey) {
+        localStorage.setItem(cartKey, JSON.stringify(items));
+      }
+    }
+  }, [items, user?.id, isAuthenticated]);
 
   const getUnitsPerPallet = (product: Product) => product.unitsPerPallet || 1;
   const getMaxPallets = (product: Product) => product.palletCount || Math.floor(product.availableUnits / getUnitsPerPallet(product));
 
-  const addItem = (product: Product, palletCount = 1) => {
+  const addItem = useCallback((product: Product, palletCount = 1) => {
+    if (!isAuthenticated) return; // Don't allow adding if not authenticated
+
     const unitsPerPallet = getUnitsPerPallet(product);
     const maxPallets = getMaxPallets(product);
     const quantity = palletCount * unitsPerPallet;
@@ -46,13 +72,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
       return [...prev, { product, quantity: Math.min(quantity, maxPallets * unitsPerPallet) }];
     });
-  };
+  }, [isAuthenticated]);
 
-  const removeItem = (productId: number) => {
+  const removeItem = useCallback((productId: number) => {
     setItems(prev => prev.filter(item => item.product.id !== productId));
-  };
+  }, []);
 
-  const updatePalletCount = (productId: number, palletCount: number) => {
+  const updatePalletCount = useCallback((productId: number, palletCount: number) => {
     if (palletCount <= 0) {
       removeItem(productId);
       return;
@@ -68,11 +94,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return item;
       })
     );
-  };
+  }, [removeItem]);
 
-  const clearCart = () => {
+  const clearCart = useCallback(() => {
     setItems([]);
-  };
+    // Also clear from localStorage
+    if (user?.id) {
+      const cartKey = getCartKey(user.id);
+      if (cartKey) {
+        localStorage.removeItem(cartKey);
+      }
+    }
+  }, [user?.id]);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalPallets = items.reduce((sum, item) => {

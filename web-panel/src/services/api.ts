@@ -221,6 +221,11 @@ class ApiClient {
     return response.data;
   }
 
+  async mergeOrders(masterOrderId: number, orderIds: number[]): Promise<{ message: string; order: OrderWithItems }> {
+    const response = await this.client.post(`/orders/${masterOrderId}/merge`, { orderIds });
+    return response.data;
+  }
+
   // ============================================
   // CUSTOMERS (TODO: implement on backend)
   // ============================================
