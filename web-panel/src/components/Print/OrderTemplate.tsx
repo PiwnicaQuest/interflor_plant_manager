@@ -279,8 +279,8 @@ export function OrderTemplate({ data, companyInfo = defaultCompanyInfo, showPric
               <th className="border border-gray-300 p-1 text-left text-[10px] font-semibold w-8">Lp.</th>
               <th className="border border-gray-300 p-1 text-center text-[10px] font-semibold w-10">Foto</th>
               <th className="border border-gray-300 p-1 text-left text-[10px] font-semibold">Nazwa produktu</th>
-              <th className="border border-gray-300 p-1 text-center text-[10px] font-semibold w-10">Szt/pal</th>
               <th className="border border-gray-300 p-1 text-center text-[10px] font-semibold w-10">Palety</th>
+              <th className="border border-gray-300 p-1 text-center text-[10px] font-semibold w-10">Szt/pal</th>
               <th className="border border-gray-300 p-1 text-center text-[10px] font-semibold w-12">Szt.</th>
               {showPrices && (
                 <th className="border border-gray-300 p-1 text-right text-[10px] font-semibold w-16">Cena</th>
@@ -319,12 +319,21 @@ export function OrderTemplate({ data, companyInfo = defaultCompanyInfo, showPric
                     <span className="font-medium text-[11px]">
                       {item.productName || item.productSnapshot?.plantName || 'Produkt #' + item.productId}
                     </span>
-                  </td>
-                  <td className="border border-gray-300 p-1 text-center text-[11px]">
-                    {unitsPerPallet || '-'}
+                    {item.productSnapshot?.createdAt && (
+                      <div className="text-[9px] text-gray-500 mt-0.5">
+                        {new Date(item.productSnapshot.createdAt).toLocaleDateString('pl-PL', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric'
+                        })}
+                      </div>
+                    )}
                   </td>
                   <td className="border border-gray-300 p-1 text-center text-[11px]">
                     {palletCount}
+                  </td>
+                  <td className="border border-gray-300 p-1 text-center text-[11px]">
+                    {unitsPerPallet || '-'}
                   </td>
                   <td className="border border-gray-300 p-1 text-center font-bold text-sm">
                     {item.quantity}

@@ -329,6 +329,18 @@ export function ScannerScanPage() {
                       <span className="font-mono text-xs">{selectedProduct.barcode}</span>
                     </div>
                   )}
+                  {selectedProduct.createdAt && (
+                    <div className="col-span-2 flex justify-between py-1.5 border-b border-gray-100">
+                      <span className="text-gray-500">Data dodania</span>
+                      <span className="font-medium">
+                        {new Date(selectedProduct.createdAt).toLocaleDateString('pl-PL', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric'
+                        })}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

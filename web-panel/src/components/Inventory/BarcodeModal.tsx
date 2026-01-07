@@ -191,7 +191,6 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
       labelsHtml = Array(labelCount).fill('').map(() =>
         '<div class="label">' +
         '<div class="product-name">' + (product?.plantName || '') + '</div>' +
-        '<div class="product-info">' + (product?.potSize || '') + (product?.plantHeightCm ? ' / ' + product.plantHeightCm + 'cm' : '') + '</div>' +
         '<svg class="barcode-svg" id="print-barcode"></svg>' +
         '<div class="units-info">' + (product?.unitsPerPallet || '-') + ' szt./paleta</div>' +
         '</div>'
@@ -207,8 +206,7 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
       'body { margin: 0; padding: 0; font-family: Arial, sans-serif; }' +
       '.label-container { display: flex; flex-wrap: wrap; gap: 1mm; }' +
       '.label { width: ' + (paperWidth - 2) + 'mm; height: ' + (paperHeight - 2) + 'mm; border: 1px solid #ddd; padding: 1mm; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; page-break-inside: avoid; }' +
-      '.product-name { font-size: 11.5px; font-weight: bold; margin-bottom: 1mm; text-align: center; max-width: ' + (paperWidth - 4) + 'mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }' +
-      '.product-info { font-size: 7px; color: #333; margin-bottom: 1mm; }' +
+      '.product-name { font-size: 10px; font-weight: bold; margin-bottom: 1mm; text-align: center; max-width: ' + (paperWidth - 4) + 'mm; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.2; }' +
       '.barcode-svg { max-width: ' + (paperWidth - 6) + 'mm; height: auto; }' +
       '.units-info { font-size: 7px; font-weight: bold; margin-top: 1mm; color: #333; }' +
       '@media print { .label { border: none; } }' +
