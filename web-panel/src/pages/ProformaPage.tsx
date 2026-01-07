@@ -3,6 +3,28 @@ import { api } from '../services/api';
 import { parsePrice } from '../utils/priceUtils';
 import { Proforma, PaymentMethod, Customer, Order, Product } from '../types';
 
+// Stats type definition
+interface ProformaStats {
+  total: number;
+  byStatus: {
+    draft: number;
+    sent: number;
+    accepted: number;
+    expired: number;
+    converted: number;
+  };
+  conversionRate: number;
+  totalValue: number;
+  convertedValue: number;
+  averageConversionTimeDays: number | null;
+  last30Days: {
+    total: number;
+    converted: number;
+    totalValue: number;
+    convertedValue: number;
+  };
+}
+
 interface ProformaItem {
   description: string;
   quantity: number;
@@ -37,6 +59,17 @@ export function ProformaPage() {
   const [paymentDeadline, setPaymentDeadline] = useState('');
   const [converting, setConverting] = useState(false);
 
+  // Stats state
+  const [stats, setStats] = useState<ProformaStats | null>(null);
+  const [showStats, setShowStats] = useState(false);
+  const [loadingStats, setLoadingStats] = useState(false);
+
+  // Notifications state
+  const [expiringProformas, setExpiringProformas] = useState<Proforma[]>([]);
+  const [expiredProformas, setExpiredProformas] = useState<Proforma[]>([]);
+  const [showExpiringList, setShowExpiringList] = useState(false);
+  const [showExpiredList, setShowExpiredList] = useState(false);
+
   const fetchProformas = async () => {
     try {
       setLoading(true);
@@ -50,6 +83,31 @@ export function ProformaPage() {
       console.error('Error fetching proformas:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const [expiringData, expiredData] = await Promise.all([
+        api.getExpiringProformas(7),
+        api.getExpiredProformas()
+      ]);
+      setExpiringProformas(expiringData.proformas || []);
+      setExpiredProformas(expiredData.proformas || []);
+    } catch (error) {
+      console.error('Error fetching proforma notifications:', error);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      setLoadingStats(true);
+      const data = await api.getProformaStats();
+      setStats(data);
+    } catch (error) {
+      console.error("Error fetching proforma stats:", error);
+    } finally {
+      setLoadingStats(false);
     }
   };
 
@@ -83,10 +141,13 @@ export function ProformaPage() {
 
   useEffect(() => {
     fetchProformas();
+    fetchStats();
+    fetchNotifications();
   }, []);
 
   const handleFilter = () => {
     fetchProformas();
+    fetchStats();
   };
 
   const handleClearFilter = () => {
@@ -183,6 +244,7 @@ export function ProformaPage() {
       alert('Faktura pro forma została utworzona');
       handleCloseCreateModal();
       fetchProformas();
+    fetchStats();
     } catch (error: any) {
       console.error('Create error:', error);
       alert(error.response?.data?.error || 'Błąd podczas tworzenia faktury pro forma');
@@ -212,6 +274,7 @@ export function ProformaPage() {
       setShowConvertModal(false);
       setProformaToConvert(null);
       fetchProformas();
+    fetchStats();
     } catch (error: any) {
       console.error('Convert error:', error);
       alert(error.response?.data?.error || 'Błąd podczas konwersji');
@@ -226,9 +289,22 @@ export function ProformaPage() {
     try {
       await api.deleteProforma(id);
       fetchProformas();
+    fetchStats();
     } catch (error: any) {
       console.error('Delete error:', error);
       alert(error.response?.data?.error || 'Błąd podczas usuwania');
+    }
+  };
+
+  const handleClone = async (id: number) => {
+    try {
+      const result = await api.cloneProforma(id);
+      alert(result.message || "Faktura pro forma zostala sklonowana");
+      fetchProformas();
+    fetchStats();
+    } catch (error: any) {
+      console.error("Clone error:", error);
+      alert(error.response?.data?.error || "Blad podczas klonowania");
     }
   };
 
@@ -265,6 +341,230 @@ export function ProformaPage() {
           + Nowa Pro Forma
         </button>
       </div>
+
+      {/* Notifications */}
+      {(expiringProformas.length > 0 || expiredProformas.length > 0) && (
+        <div className="space-y-3">
+          {/* Expiring soon banner */}
+          {expiringProformas.length > 0 && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <svg className="h-5 w-5 text-yellow-400 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span className="text-yellow-800 font-medium">
+                    {expiringProformas.length} {expiringProformas.length === 1 ? 'proforma wygasa' : 'proform wygasa'} w ciagu 7 dni
+                  </span>
+                </div>
+                <button
+                  onClick={() => setShowExpiringList(!showExpiringList)}
+                  className="text-yellow-700 hover:text-yellow-900 font-medium text-sm"
+                >
+                  {showExpiringList ? 'Ukryj' : 'Pokaz'}
+                </button>
+              </div>
+              {showExpiringList && (
+                <div className="mt-3 border-t border-yellow-200 pt-3">
+                  <ul className="space-y-2">
+                    {expiringProformas.map(p => (
+                      <li key={p.id} className="flex justify-between items-center text-sm text-yellow-800">
+                        <span>{p.invoiceNumber} - {p.customerName || 'Brak klienta'}</span>
+                        <span>Wygasa: {p.validUntil ? new Date(p.validUntil).toLocaleDateString('pl-PL') : '-'}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Expired banner */}
+          {expiredProformas.length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <svg className="h-5 w-5 text-red-400 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-red-800 font-medium">
+                    {expiredProformas.length} {expiredProformas.length === 1 ? 'proforma wygasla' : 'proform wygaslo'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setShowExpiredList(!showExpiredList)}
+                  className="text-red-700 hover:text-red-900 font-medium text-sm"
+                >
+                  {showExpiredList ? 'Ukryj' : 'Pokaz'}
+                </button>
+              </div>
+              {showExpiredList && (
+                <div className="mt-3 border-t border-red-200 pt-3">
+                  <ul className="space-y-2">
+                    {expiredProformas.map(p => (
+                      <li key={p.id} className="flex justify-between items-center text-sm text-red-800">
+                        <span>{p.invoiceNumber} - {p.customerName || 'Brak klienta'}</span>
+                        <span>Wygasla: {p.validUntil ? new Date(p.validUntil).toLocaleDateString('pl-PL') : '-'}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      
+      {/* Statistics Section */}
+      {stats && (
+        <div className="card mb-6">
+          <button
+            onClick={() => setShowStats(!showStats)}
+            className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <span className="font-semibold text-gray-900">Statystyki Konwersji</span>
+            </div>
+            <svg
+              className={`w-5 h-5 text-gray-500 transform transition-transform ${showStats ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {showStats && (
+            <div className="px-4 pb-4 pt-2 border-t">
+              {/* Main metrics */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                {/* Total */}
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-blue-500 p-2 rounded-lg">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm text-blue-600 font-medium">Wszystkie proformy</p>
+                      <p className="text-2xl font-bold text-blue-900">{stats.total}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Conversion Rate */}
+                <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-xl border border-green-200">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-green-500 p-2 rounded-lg">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm text-green-600 font-medium">Wspolczynnik konwersji</p>
+                      <p className="text-2xl font-bold text-green-900">{stats.conversionRate.toFixed(1)}%</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Total Value */}
+                <div className="bg-gradient-to-br from-amber-50 to-amber-100 p-4 rounded-xl border border-amber-200">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-amber-500 p-2 rounded-lg">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm text-amber-600 font-medium">Suma wartosci</p>
+                      <p className="text-xl font-bold text-amber-900">{stats.totalValue.toFixed(2)} PLN</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Converted Value */}
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-purple-500 p-2 rounded-lg">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm text-purple-600 font-medium">Przekonwertowane</p>
+                      <p className="text-xl font-bold text-purple-900">{stats.convertedValue.toFixed(2)} PLN</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status breakdown */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+                <div className="p-3 rounded-lg border-2 bg-gray-100 text-gray-800 border-gray-300 text-center">
+                  <p className="text-xs font-medium uppercase tracking-wide opacity-75">Szkice</p>
+                  <p className="text-2xl font-bold mt-1">{stats.byStatus.draft}</p>
+                </div>
+                <div className="p-3 rounded-lg border-2 bg-blue-100 text-blue-800 border-blue-300 text-center">
+                  <p className="text-xs font-medium uppercase tracking-wide opacity-75">Wyslane</p>
+                  <p className="text-2xl font-bold mt-1">{stats.byStatus.sent}</p>
+                </div>
+                <div className="p-3 rounded-lg border-2 bg-green-100 text-green-800 border-green-300 text-center">
+                  <p className="text-xs font-medium uppercase tracking-wide opacity-75">Zaakceptowane</p>
+                  <p className="text-2xl font-bold mt-1">{stats.byStatus.accepted}</p>
+                </div>
+                <div className="p-3 rounded-lg border-2 bg-red-100 text-red-800 border-red-300 text-center">
+                  <p className="text-xs font-medium uppercase tracking-wide opacity-75">Wygasle</p>
+                  <p className="text-2xl font-bold mt-1">{stats.byStatus.expired}</p>
+                </div>
+                <div className="p-3 rounded-lg border-2 bg-purple-100 text-purple-800 border-purple-300 text-center">
+                  <p className="text-xs font-medium uppercase tracking-wide opacity-75">Przekonwertowane</p>
+                  <p className="text-2xl font-bold mt-1">{stats.byStatus.converted}</p>
+                </div>
+              </div>
+
+              {/* Additional info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-gray-50 p-4 rounded-lg border">
+                  <p className="text-sm text-gray-600 font-medium mb-1">Sredni czas konwersji</p>
+                  <p className="text-xl font-bold text-gray-900">
+                    {stats.averageConversionTimeDays !== null 
+                      ? `${stats.averageConversionTimeDays} dni`
+                      : 'Brak danych'}
+                  </p>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-lg border">
+                  <p className="text-sm text-gray-600 font-medium mb-2">Ostatnie 30 dni</p>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="text-gray-500">Proformy:</span>
+                      <span className="font-semibold ml-1">{stats.last30Days.total}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Przekonwertowane:</span>
+                      <span className="font-semibold ml-1">{stats.last30Days.converted}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Wartosc:</span>
+                      <span className="font-semibold ml-1">{stats.last30Days.totalValue.toFixed(2)} PLN</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Skonwertowane:</span>
+                      <span className="font-semibold ml-1">{stats.last30Days.convertedValue.toFixed(2)} PLN</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="card p-4">
@@ -384,6 +684,13 @@ export function ProformaPage() {
                         className="text-primary-600 hover:text-primary-800 mr-3"
                       >
                         Szczegóły
+                      </button>
+                      <button
+                        onClick={() => handleClone(proforma.id)}
+                        className="text-emerald-600 hover:text-emerald-800 mr-3"
+                        title="Klonuj pro forme"
+                      >
+                        Klonuj
                       </button>
                       <button
                         onClick={() => handleConvertClick(proforma)}

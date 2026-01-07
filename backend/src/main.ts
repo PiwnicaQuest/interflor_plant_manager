@@ -169,11 +169,18 @@ app.get('/invoices/:id/pdf', requireAuth, InvoiceController.getPDF);
 // ============================================
 
 app.get("/proforma", requireAuth, ProformaController.getAll);
+app.get("/proforma/stats", requireAuth, ProformaController.getStats);
+app.get("/proforma/expiring", requireAuth, ProformaController.getExpiring);
+app.get("/proforma/expired", requireAuth, ProformaController.getExpired);
 app.get("/proforma/:id", requireAuth, ProformaController.getById);
 app.post("/proforma", requireAuth, requireRole([UserRole.ADMIN, UserRole.POS]), ProformaController.create);
 app.post("/proforma/from-order/:orderId", requireAuth, requireRole([UserRole.ADMIN, UserRole.POS]), ProformaController.createFromOrder);
 app.post("/proforma/:id/convert", requireAuth, requireRole([UserRole.ADMIN, UserRole.POS]), ProformaController.convertToInvoice);
+app.post("/proforma/:id/clone", requireAuth, requireRole([UserRole.ADMIN, UserRole.POS]), ProformaController.clone);
 app.delete("/proforma/:id", requireAuth, requireRole([UserRole.ADMIN]), ProformaController.delete);
+app.put("/proforma/:id", requireAuth, requireRole([UserRole.ADMIN, UserRole.POS]), ProformaController.update);
+app.patch("/proforma/:id/status", requireAuth, requireRole([UserRole.ADMIN, UserRole.POS]), ProformaController.updateStatus);
+app.post("/proforma/:id/send-email", requireAuth, requireRole([UserRole.ADMIN, UserRole.POS]), ProformaController.sendEmail);
 
 // CUSTOMERS ROUTES
 // ============================================

@@ -4,6 +4,7 @@ import { InvoiceModel } from '../models/Invoice';
 import { CustomerModel } from '../models/Customer';
 import { OrderModel } from '../models/Order';
 import { PaymentMethod } from '../types';
+import { emailService } from '../services/emailService';
 
 export class ProformaController {
   /**
@@ -29,13 +30,13 @@ export class ProformaController {
       return res.json({ proformas });
     } catch (error: any) {
       console.error('Get proformas error:', error);
-      return res.status(500).json({ error: error.message || 'Błąd podczas pobierania faktur pro forma' });
+      return res.status(500).json({ error: error.message || 'Blad podczas pobierania faktur pro forma' });
     }
   }
 
   /**
    * GET /proforma/:id
-   * Szczegóły faktury pro forma
+   * Szczegoly faktury pro forma
    */
   static async getById(req: AuthRequest, res: Response) {
     try {
@@ -54,7 +55,7 @@ export class ProformaController {
       return res.json({ proforma });
     } catch (error: any) {
       console.error('Get proforma error:', error);
-      return res.status(500).json({ error: error.message || 'Błąd podczas pobierania faktury pro forma' });
+      return res.status(500).json({ error: error.message || 'Blad podczas pobierania faktury pro forma' });
     }
   }
 
@@ -114,13 +115,13 @@ export class ProformaController {
       });
     } catch (error: any) {
       console.error('Create proforma error:', error);
-      return res.status(500).json({ error: error.message || 'Błąd podczas tworzenia faktury pro forma' });
+      return res.status(500).json({ error: error.message || 'Blad podczas tworzenia faktury pro forma' });
     }
   }
 
   /**
    * POST /proforma/from-order/:orderId
-   * Utworzenie faktury pro forma z zamówienia
+   * Utworzenie faktury pro forma z zamowienia
    */
   static async createFromOrder(req: AuthRequest, res: Response) {
     try {
@@ -130,11 +131,11 @@ export class ProformaController {
       // Get order
       const order = await OrderModel.getById(orderId);
       if (!order) {
-        return res.status(404).json({ error: 'Zamówienie nie znalezione' });
+        return res.status(404).json({ error: 'Zamowienie nie znalezione' });
       }
 
       if (!order.customerId) {
-        return res.status(400).json({ error: 'Zamówienie nie ma przypisanego klienta' });
+        return res.status(400).json({ error: 'Zamowienie nie ma przypisanego klienta' });
       }
 
       // Get customer data
@@ -167,18 +168,18 @@ export class ProformaController {
       );
 
       return res.status(201).json({
-        message: 'Faktura pro forma utworzona z zamówienia',
+        message: 'Faktura pro forma utworzona z zamowienia',
         proforma,
       });
     } catch (error: any) {
       console.error('Create proforma from order error:', error);
-      return res.status(500).json({ error: error.message || 'Błąd podczas tworzenia faktury pro forma' });
+      return res.status(500).json({ error: error.message || 'Blad podczas tworzenia faktury pro forma' });
     }
   }
 
   /**
    * POST /proforma/:id/convert
-   * Konwersja faktury pro forma na fakturę VAT
+   * Konwersja faktury pro forma na fakture VAT
    */
   static async convertToInvoice(req: AuthRequest, res: Response) {
     try {
@@ -186,11 +187,11 @@ export class ProformaController {
       const { paymentMethod, paymentDeadline } = req.body;
 
       if (!paymentMethod) {
-        return res.status(400).json({ error: 'Brak metody płatności' });
+        return res.status(400).json({ error: 'Brak metody platnosci' });
       }
 
       if (!paymentDeadline) {
-        return res.status(400).json({ error: 'Brak terminu płatności' });
+        return res.status(400).json({ error: 'Brak terminu platnosci' });
       }
 
       const invoice = await InvoiceModel.convertProformaToInvoice(
@@ -201,18 +202,195 @@ export class ProformaController {
       );
 
       return res.status(201).json({
-        message: 'Faktura pro forma przekonwertowana na fakturę VAT',
+        message: 'Faktura pro forma przekonwertowana na fakture VAT',
         invoice,
       });
     } catch (error: any) {
       console.error('Convert proforma error:', error);
-      return res.status(500).json({ error: error.message || 'Błąd podczas konwersji faktury pro forma' });
+      return res.status(500).json({ error: error.message || 'Blad podczas konwersji faktury pro forma' });
+    }
+  }
+
+  /**
+   * POST /proforma/:id/clone
+   * Klonowanie faktury pro forma
+   */
+  static async clone(req: AuthRequest, res: Response) {
+    try {
+      const id = parseInt(req.params.id);
+
+      // Get original proforma
+      const originalProforma = await InvoiceModel.getById(id);
+
+      if (!originalProforma) {
+        return res.status(404).json({ error: 'Faktura pro forma nie znaleziona' });
+      }
+
+      if (originalProforma.invoiceType !== 'proforma') {
+        return res.status(400).json({ error: 'To nie jest faktura pro forma' });
+      }
+
+      if (!originalProforma.customerId) {
+        return res.status(400).json({ error: 'Proforma nie ma przypisanego klienta' });
+      }
+
+      const cloneCustomerId = originalProforma.customerId;
+
+      // Get customer data
+      const customer = await CustomerModel.getById(cloneCustomerId);
+      if (!customer) {
+        return res.status(404).json({ error: 'Klient nie znaleziony' });
+      }
+
+      const buyerSnapshot = {
+        companyName: customer.companyName,
+        customerCode: customer.customerCode,
+        firstName: customer.firstName,
+        lastName: customer.lastName,
+        nip: customer.nip,
+        street: customer.street,
+        postalCode: customer.postalCode,
+        city: customer.city,
+        country: customer.country,
+        phone: customer.phone,
+        email: customer.email,
+      };
+
+      // Prepare items for cloning
+      const items = originalProforma.items.map(item => ({
+        productId: item.productId,
+        description: item.description,
+        quantity: item.quantity,
+        unitPriceNet: item.unitPriceNet,
+        vatRate: item.vatRate,
+        growerPassport: item.growerPassport,
+      }));
+
+      // Set new validUntil to today + 14 days
+      const newValidUntil = new Date();
+      newValidUntil.setDate(newValidUntil.getDate() + 14);
+
+      // Create cloned proforma
+      const clonedProforma = await InvoiceModel.createProforma(
+        cloneCustomerId,
+        buyerSnapshot,
+        items,
+        newValidUntil,
+        originalProforma.notes,
+        req.user?.userId
+      );
+
+      return res.status(201).json({
+        message: 'Faktura pro forma sklonowana',
+        proforma: clonedProforma,
+      });
+    } catch (error: any) {
+      console.error('Clone proforma error:', error);
+      return res.status(500).json({ error: error.message || 'Blad podczas klonowania faktury pro forma' });
+    }
+  }
+
+  /**
+   * POST /proforma/:id/send-email
+   * Wyslanie faktury pro forma emailem
+   */
+  static async sendEmail(req: AuthRequest, res: Response) {
+    try {
+      const proformaId = parseInt(req.params.id);
+      const { email, subject, message } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ error: 'Brak adresu email' });
+      }
+
+      // Get proforma
+      const proforma = await InvoiceModel.getById(proformaId);
+
+      if (!proforma) {
+        return res.status(404).json({ error: 'Faktura pro forma nie znaleziona' });
+      }
+
+      if (proforma.invoiceType !== 'proforma') {
+        return res.status(400).json({ error: 'To nie jest faktura pro forma' });
+      }
+
+      // Check if email service is configured
+      if (!emailService.isConfigured()) {
+        return res.status(500).json({
+          error: 'Usluga email nie jest skonfigurowana. Skontaktuj sie z administratorem.'
+        });
+      }
+
+      // Build print URL
+      const baseUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173';
+      const printUrl = baseUrl + '/print/proforma/' + proformaId;
+
+      // Get customer name from buyer snapshot
+      const customerName = proforma.buyerSnapshot?.companyName ||
+        (proforma.buyerSnapshot?.firstName && proforma.buyerSnapshot?.lastName
+          ? proforma.buyerSnapshot.firstName + ' ' + proforma.buyerSnapshot.lastName
+          : undefined);
+
+      // Send email
+      const sent = await emailService.sendProformaEmail(
+        email,
+        proforma.invoiceNumber,
+        printUrl,
+        subject,
+        message,
+        customerName,
+        proforma.totalGross
+      );
+
+      if (!sent) {
+        return res.status(500).json({ error: 'Nie udalo sie wyslac emaila' });
+      }
+
+      return res.json({
+        message: 'Email zostal wyslany',
+        sentTo: email,
+        proformaNumber: proforma.invoiceNumber
+      });
+    } catch (error: any) {
+      console.error('Send proforma email error:', error);
+      return res.status(500).json({ error: error.message || 'Blad podczas wysylania emaila' });
+    }
+  }
+
+  /**
+   * PUT /proforma/:id
+   * Aktualizacja faktury pro forma
+   */
+  static async update(req: AuthRequest, res: Response) {
+    try {
+      const id = parseInt(req.params.id);
+      const { validUntil, notes } = req.body;
+
+      // Check if it's a proforma
+      const proforma = await InvoiceModel.getById(id);
+      if (!proforma) {
+        return res.status(404).json({ error: 'Faktura pro forma nie znaleziona' });
+      }
+
+      if (proforma.invoiceType !== 'proforma') {
+        return res.status(400).json({ error: 'To nie jest faktura pro forma' });
+      }
+
+      const updated = await InvoiceModel.updateProformaBasic(id, {
+        validUntil: validUntil ? new Date(validUntil) : undefined,
+        notes
+      });
+
+      return res.json({ message: 'Faktura pro forma zaktualizowana', proforma: updated });
+    } catch (error: any) {
+      console.error('Update proforma error:', error);
+      return res.status(500).json({ error: error.message || 'Blad podczas aktualizacji faktury pro forma' });
     }
   }
 
   /**
    * DELETE /proforma/:id
-   * Usunięcie faktury pro forma
+   * Usuniecie faktury pro forma
    */
   static async delete(req: AuthRequest, res: Response) {
     try {
@@ -234,10 +412,91 @@ export class ProformaController {
         return res.status(404).json({ error: 'Faktura pro forma nie znaleziona' });
       }
 
-      return res.json({ message: 'Faktura pro forma usunięta' });
+      return res.json({ message: 'Faktura pro forma usunieta' });
     } catch (error: any) {
       console.error('Delete proforma error:', error);
-      return res.status(500).json({ error: error.message || 'Błąd podczas usuwania faktury pro forma' });
+      return res.status(500).json({ error: error.message || 'Blad podczas usuwania faktury pro forma' });
+    }
+  }
+
+  /**
+   * PATCH /proforma/:id/status
+   * Aktualizacja statusu faktury pro forma
+   */
+  static async updateStatus(req: AuthRequest, res: Response) {
+    try {
+      const id = parseInt(req.params.id);
+      const { status } = req.body;
+
+      if (!status) {
+        return res.status(400).json({ error: 'Brak statusu' });
+      }
+
+      // Check if proforma exists
+      const proforma = await InvoiceModel.getById(id);
+      if (!proforma) {
+        return res.status(404).json({ error: 'Faktura pro forma nie znaleziona' });
+      }
+
+      if (proforma.invoiceType !== 'proforma') {
+        return res.status(400).json({ error: 'To nie jest faktura pro forma' });
+      }
+
+      const updated = await InvoiceModel.updateProformaStatus(id, status);
+
+      return res.json({
+        message: 'Status faktury pro forma zaktualizowany',
+        proforma: updated,
+      });
+    } catch (error: any) {
+      console.error('Update proforma status error:', error);
+      return res.status(500).json({ error: error.message || 'Blad podczas aktualizacji statusu faktury pro forma' });
+    }
+  }
+
+  /**
+   * GET /proforma/expiring
+   * Lista proform wygasajacych w ciagu X dni
+   */
+  static async getExpiring(req: AuthRequest, res: Response) {
+    try {
+      const days = parseInt(req.query.days as string) || 7;
+
+      const proformas = await InvoiceModel.getExpiringProformas(days);
+
+      return res.json({ proformas });
+    } catch (error: any) {
+      console.error("Get expiring proformas error:", error);
+      return res.status(500).json({ error: error.message || "Blad podczas pobierania wygasajacych proform" });
+    }
+  }
+
+  /**
+   * GET /proforma/expired
+   * Lista wygaslych proform
+   */
+  static async getExpired(req: AuthRequest, res: Response) {
+    try {
+      const proformas = await InvoiceModel.getExpiredProformas();
+
+      return res.json({ proformas });
+    } catch (error: any) {
+      console.error("Get expired proformas error:", error);
+      return res.status(500).json({ error: error.message || "Blad podczas pobierania wygaslych proform" });
+    }
+  }
+
+  /**
+   * GET /proforma/stats
+   * Statystyki faktur pro forma
+   */
+  static async getStats(req: AuthRequest, res: Response) {
+    try {
+      const stats = await InvoiceModel.getProformaStats();
+      return res.json(stats);
+    } catch (error: any) {
+      console.error('Get proforma stats error:', error);
+      return res.status(500).json({ error: error.message || 'Blad podczas pobierania statystyk proform' });
     }
   }
 }

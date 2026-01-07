@@ -75,6 +75,99 @@ class EmailService {
     }
   }
 
+  async sendProformaEmail(
+    email: string,
+    proformaNumber: string,
+    printUrl: string,
+    subject?: string,
+    message?: string,
+    customerName?: string,
+    totalGross?: number
+  ): Promise<boolean> {
+    const greeting = customerName ? `Szanowny/a ${customerName}` : 'Szanowny Kliencie';
+    const defaultSubject = subject || `Faktura Pro Forma ${proformaNumber}`;
+    const customMessage = message ? `<p style="margin: 20px 0; white-space: pre-line;">${message}</p>` : '';
+    const totalInfo = totalGross ? `<p><strong>Kwota do zaplaty:</strong> ${totalGross.toFixed(2)} PLN</p>` : '';
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background-color: #16a34a; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+    .content { background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; }
+    .proforma-info { background-color: #fff; border: 2px solid #16a34a; border-radius: 8px; padding: 20px; margin: 20px 0; }
+    .proforma-info p { margin: 10px 0; }
+    .proforma-info strong { color: #16a34a; }
+    .button { display: inline-block; background-color: #16a34a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 20px; }
+    .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Faktura Pro Forma</h1>
+    </div>
+    <div class="content">
+      <p>${greeting},</p>
+
+      <p>W zalaczeniu przesylamy fakture pro forma.</p>
+
+      ${customMessage}
+
+      <div class="proforma-info">
+        <p><strong>Numer dokumentu:</strong> ${proformaNumber}</p>
+        ${totalInfo}
+      </div>
+
+      <p>Fakture pro forma mozesz pobrac klikajac ponizszy przycisk:</p>
+
+      <p style="text-align: center;">
+        <a href="${printUrl}" class="button">Pobierz Pro Forme</a>
+      </p>
+
+      <p style="margin-top: 30px; font-size: 14px; color: #6b7280;">
+        W razie pytan prosimy o kontakt.
+      </p>
+    </div>
+    <div class="footer">
+      <p>PlantManager - System zarzadzania magazynem roslin</p>
+      <p>Ta wiadomosc zostala wygenerowana automatycznie.</p>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    const text = `
+${greeting},
+
+W zalaczeniu przesylamy fakture pro forma.
+
+${message || ''}
+
+Numer dokumentu: ${proformaNumber}
+${totalGross ? `Kwota do zaplaty: ${totalGross.toFixed(2)} PLN` : ''}
+
+Link do pobrania: ${printUrl}
+
+W razie pytan prosimy o kontakt.
+
+Pozdrawiamy,
+Zespol PlantManager
+    `;
+
+    return this.sendEmail({
+      to: email,
+      subject: defaultSubject,
+      text,
+      html,
+    });
+  }
+
   async sendShopCredentials(
     email: string,
     password: string,

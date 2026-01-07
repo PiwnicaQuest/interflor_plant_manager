@@ -363,6 +363,34 @@ class ApiClient {
     return response.data;
   }
 
+  async getExpiringProformas(days: number = 7): Promise<{ proformas: Proforma[] }> {
+    const response = await this.client.get('/proforma/expiring', { params: { days } });
+    return response.data;
+  }
+
+  async getExpiredProformas(): Promise<{ proformas: Proforma[] }> {
+    const response = await this.client.get('/proforma/expired');
+    return response.data;
+  }
+
+  async cloneProforma(id: number): Promise<{ proforma: Proforma; message: string }> {
+    const response = await this.client.post(`/proforma/${id}/clone`);
+    return response.data;
+  }
+
+  async getProformaStats(): Promise<{
+    total: number;
+    byStatus: { draft: number; sent: number; accepted: number; expired: number; converted: number };
+    conversionRate: number;
+    totalValue: number;
+    convertedValue: number;
+    averageConversionTimeDays: number | null;
+    last30Days: { total: number; converted: number; totalValue: number; convertedValue: number };
+  }> {
+    const response = await this.client.get('/proforma/stats');
+    return response.data;
+  }
+
   // ============================================
   // RECEIPTS
   // ============================================

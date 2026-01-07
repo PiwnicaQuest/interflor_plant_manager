@@ -51,6 +51,14 @@ export enum InvoiceType {
   PROFORMA = 'proforma'
 }
 
+export enum ProformaStatus {
+  DRAFT = "draft",
+  SENT = "sent",
+  ACCEPTED = "accepted",
+  EXPIRED = "expired",
+  CONVERTED = "converted"
+}
+
 export enum PaymentStatus {
   UNPAID = 'unpaid',
   PARTIALLY_PAID = 'partially_paid',
@@ -279,6 +287,7 @@ export interface Invoice {
   updatedAt: Date;
   invoiceType?: InvoiceType;
   proformaId?: number;
+  proformaStatus?: ProformaStatus;
 }
 
 // Invoice Item
