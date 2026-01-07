@@ -11,6 +11,7 @@ const formatPrice = (value: number): string => {
 };
 
 const DEADLINE_OPTIONS = [
+  { value: 1, label: '1 dzień' },
   { value: 7, label: '7 dni' },
   { value: 14, label: '14 dni' },
   { value: 21, label: '21 dni' },
@@ -20,7 +21,7 @@ const DEADLINE_OPTIONS = [
 ];
 
 export function TransferPaymentModal({ totalAmount, onConfirm, onCancel }: TransferPaymentModalProps) {
-  const [selectedDays, setSelectedDays] = useState(14);
+  const [selectedDays, setSelectedDays] = useState(1);
 
   const handleConfirm = () => {
     onConfirm(selectedDays);
