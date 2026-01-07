@@ -142,7 +142,15 @@ export function ScannerScanPage() {
             ref={inputRef}
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              // Clear selected product when user starts typing to show search results
+              if (e.target.value && selectedProduct) {
+                setSelectedProduct(null);
+                setMovements([]);
+                setError(null);
+              }
+            }}
             placeholder="Skanuj kod lub wpisz nazwe..."
             className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 pr-10"
             autoComplete="off"
