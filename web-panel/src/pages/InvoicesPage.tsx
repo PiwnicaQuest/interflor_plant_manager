@@ -16,6 +16,7 @@ export function InvoicesPage() {
   const [invoiceToUpdatePayment, setInvoiceToUpdatePayment] = useState<Invoice | null>(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('');
 
   // New: Search and sort state
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,9 +26,10 @@ export function InvoicesPage() {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const filters: { startDate?: string; endDate?: string } = {};
+      const filters: { startDate?: string; endDate?: string; paymentStatus?: string } = {};
       if (startDate) filters.startDate = startDate;
       if (endDate) filters.endDate = endDate;
+      if (paymentStatusFilter) filters.paymentStatus = paymentStatusFilter;
 
       const data = await api.getInvoices(filters);
       setInvoices(data.invoices);
@@ -106,6 +108,7 @@ export function InvoicesPage() {
     setStartDate('');
     setEndDate('');
     setSearchQuery('');
+    setPaymentStatusFilter('');
     setTimeout(() => fetchInvoices(), 0);
   };
 
@@ -185,7 +188,7 @@ export function InvoicesPage() {
 
       {/* Filters */}
       <div className="card p-4">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           {/* Search by customer name */}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -235,6 +238,23 @@ export function InvoicesPage() {
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Status płatności
+            </label>
+            <select
+              className="input"
+              value={paymentStatusFilter}
+              onChange={(e) => setPaymentStatusFilter(e.target.value)}
+            >
+              <option value="">Wszystkie</option>
+              <option value="not_paid">Niezapłacone</option>
+              <option value="unpaid">Nieopłacone</option>
+              <option value="partially_paid">Częściowo</option>
+              <option value="overdue">Po terminie</option>
+              <option value="paid">Zapłacone</option>
+            </select>
           </div>
           <div className="flex items-end gap-2">
             <button onClick={handleFilter} className="btn btn-primary">

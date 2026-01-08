@@ -8,12 +8,13 @@ import { generateInvoicePDF } from '../utils/pdfGenerator';
 export class InvoiceController {
   static async getAll(req: AuthRequest, res: Response) {
     try {
-      const { startDate, endDate, customerId } = req.query;
+      const { startDate, endDate, customerId, paymentStatus } = req.query;
 
       const filters: any = {};
       if (startDate) filters.startDate = new Date(startDate as string);
       if (endDate) filters.endDate = new Date(endDate as string);
       if (customerId) filters.customerId = parseInt(customerId as string);
+      if (paymentStatus) filters.paymentStatus = paymentStatus as string;
 
       const invoices = await InvoiceModel.getAll(filters);
 

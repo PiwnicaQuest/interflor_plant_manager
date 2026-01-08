@@ -298,7 +298,7 @@ class ApiClient {
   // INVOICES (TODO: implement on backend)
   // ============================================
 
-  async getInvoices(filters?: { startDate?: string; endDate?: string; customerId?: number }): Promise<{ invoices: Invoice[] }> {
+  async getInvoices(filters?: { startDate?: string; endDate?: string; customerId?: number; paymentStatus?: string }): Promise<{ invoices: Invoice[] }> {
     const response = await this.client.get('/invoices', { params: filters });
     return response.data;
   }

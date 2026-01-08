@@ -10,6 +10,7 @@ export class InvoiceModel {
     endDate?: Date;
     customerId?: number;
     invoiceType?: InvoiceType;
+    paymentStatus?: string;
   }): Promise<(Invoice & { customerName?: string })[]> {
     let sql = `SELECT *,
       COALESCE(
@@ -36,6 +37,17 @@ export class InvoiceModel {
       sql += ` AND customer_id = $${paramIndex}`;
       params.push(filters.customerId);
       paramIndex++;
+    }
+
+    if (filters?.paymentStatus) {
+      if (filters.paymentStatus === 'not_paid') {
+        // Special filter: all not fully paid (unpaid, partially_paid, overdue)
+        sql += ` AND payment_status IN ('unpaid', 'partially_paid', 'overdue')`;
+      } else {
+        sql += ` AND payment_status = $${paramIndex}`;
+        params.push(filters.paymentStatus);
+        paramIndex++;
+      }
     }
 
     if (filters?.invoiceType) {
