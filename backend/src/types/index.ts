@@ -603,3 +603,53 @@ export interface OrderWithDocument extends Order {
     paymentMethod?: string;
   };
 }
+
+// ============================================
+// DAILY REPORT TYPES
+// ============================================
+
+export interface DailyReportTransaction {
+  time: string;
+  documentNumber: string;
+  documentType: 'invoice' | 'receipt' | 'proforma';
+  customerName: string;
+  paymentMethod: string;
+  amount: number;
+}
+
+export interface DailyReportPaymentSummary {
+  method: 'cash' | 'card' | 'transfer';
+  transactionCount: number;
+  total: number;
+}
+
+export interface DailyReportDocumentSummary {
+  type: 'invoice' | 'receipt' | 'proforma';
+  count: number;
+  total: number;
+}
+
+export interface DailyReportVatSummary {
+  vatRate: number;
+  netTotal: number;
+  vatTotal: number;
+  grossTotal: number;
+}
+
+export interface DailyReportData {
+  reportDate: string;
+  generatedAt: string;
+  operatorName: string;
+  companyName: string;
+  transactions: DailyReportTransaction[];
+  paymentSummary: DailyReportPaymentSummary[];
+  documentSummary: DailyReportDocumentSummary[];
+  vatSummary: DailyReportVatSummary[];
+  totals: {
+    transactionCount: number;
+    grandTotal: number;
+    netTotal: number;
+    vatTotal: number;
+    grossTotal: number;
+  };
+}

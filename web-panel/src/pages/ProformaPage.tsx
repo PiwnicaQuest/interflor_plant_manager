@@ -41,6 +41,9 @@ export function ProformaPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
+  // Selection state for mass print
+  const [selectedProformas, setSelectedProformas] = useState<number[]>([]);
+
   // Create proforma modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createMode, setCreateMode] = useState<'standalone' | 'fromOrder'>('standalone');
@@ -306,6 +309,40 @@ export function ProformaPage() {
       console.error("Clone error:", error);
       alert(error.response?.data?.error || "Blad podczas klonowania");
     }
+  };
+
+  // Selection handlers for mass print
+  const handleSelectProforma = (id: number) => {
+    setSelectedProformas(prev =>
+      prev.includes(id)
+        ? prev.filter(pid => pid !== id)
+        : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedProformas.length === proformas.length) {
+      setSelectedProformas([]);
+    } else {
+      setSelectedProformas(proformas.map(p => p.id));
+    }
+  };
+
+  const handlePrintSelected = () => {
+    if (selectedProformas.length === 0) {
+      alert('Wybierz przynajmniej jedną pro formę do druku');
+      return;
+    }
+    // Open each selected proforma in print view
+    selectedProformas.forEach((id, index) => {
+      setTimeout(() => {
+        window.open('/print/proforma/' + id, '_blank');
+      }, index * 300); // Stagger opening to avoid browser blocking
+    });
+  };
+
+  const handlePrintSingle = (id: number) => {
+    window.open('/print/proforma/' + id, '_blank');
   };
 
   const formatDate = (dateString: string) => {
@@ -617,7 +654,20 @@ export function ProformaPage() {
       ) : (
         <>
           <div className="flex justify-between items-center text-sm text-gray-600">
-            <p>Znaleziono: {proformas.length} faktur pro forma</p>
+            <div className="flex items-center gap-4">
+              <p>Znaleziono: {proformas.length} faktur pro forma</p>
+              {selectedProformas.length > 0 && (
+                <button
+                  onClick={handlePrintSelected}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  </svg>
+                  Drukuj wybrane ({selectedProformas.length})
+                </button>
+              )}
+            </div>
             <div className="space-x-4">
               <span>
                 <strong>Suma netto:</strong>{' '}
@@ -634,6 +684,14 @@ export function ProformaPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-4 py-3 text-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedProformas.length === proformas.length && proformas.length > 0}
+                      onChange={handleSelectAll}
+                      className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    />
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Numer
                   </th>
@@ -659,7 +717,15 @@ export function ProformaPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {proformas.map((proforma) => (
-                  <tr key={proforma.id} className="hover:bg-gray-50">
+                  <tr key={proforma.id} className={`hover:bg-gray-50 ${selectedProformas.includes(proforma.id) ? 'bg-primary-50' : ''}`}>
+                    <td className="px-4 py-4 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedProformas.includes(proforma.id)}
+                        onChange={() => handleSelectProforma(proforma.id)}
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {proforma.invoiceNumber}
                     </td>
@@ -679,6 +745,13 @@ export function ProformaPage() {
                       {(proforma.totalGross || 0).toFixed(2)} PLN
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                      <button
+                        onClick={() => handlePrintSingle(proforma.id)}
+                        className="text-blue-600 hover:text-blue-800 mr-3"
+                        title="Drukuj / Podgląd"
+                      >
+                        Drukuj
+                      </button>
                       <button
                         onClick={() => handleViewDetails(proforma)}
                         className="text-primary-600 hover:text-primary-800 mr-3"
@@ -1066,6 +1139,15 @@ export function ProformaPage() {
               )}
 
               <div className="flex gap-3">
+                <button
+                  onClick={() => handlePrintSingle(selectedProforma.id)}
+                  className="btn bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  </svg>
+                  Drukuj
+                </button>
                 <button
                   onClick={() => {
                     handleCloseDetails();

@@ -55,7 +55,7 @@ export class ReceiptModel {
 
     // Pobierz pozycje paragonu
     const itemsResult = await query<ReceiptItem>(
-      `SELECT * FROM receipt_items WHERE receipt_id = $1 ORDER BY id`,
+      `SELECT * FROM receipt_items WHERE receipt_id = $1 ORDER BY description ASC NULLS LAST, id ASC`,
       [id]
     );
 
@@ -79,7 +79,7 @@ export class ReceiptModel {
     const receipt = receiptResult.rows[0];
 
     const itemsResult = await query<ReceiptItem>(
-      'SELECT * FROM receipt_items WHERE receipt_id = $1 ORDER BY id',
+      'SELECT * FROM receipt_items WHERE receipt_id = $1 ORDER BY description ASC NULLS LAST, id ASC',
       [receipt.id]
     );
 

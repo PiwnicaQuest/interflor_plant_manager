@@ -66,6 +66,10 @@ class ApiClient {
     // Handle 401 errors and convert response from snake_case to camelCase
     this.client.interceptors.response.use(
       (response) => {
+        // Skip conversion for binary responses (Blob, ArrayBuffer)
+        if (response.data instanceof Blob || response.data instanceof ArrayBuffer) {
+          return response;
+        }
         // Convert response data from snake_case to camelCase
         if (response.data) {
           response.data = snakeToCamel(response.data);
@@ -434,6 +438,14 @@ class ApiClient {
     };
   }> {
     const response = await this.client.get('/pos/today-completed');
+    return response.data;
+
+  }
+  async downloadDailyReportPDF(date?: string): Promise<Blob> {
+    const params = date ? "?date=" + date : "";
+    const response = await this.client.get("/pos/daily-report/pdf" + params, {
+      responseType: "blob",
+    });
     return response.data;
   }
 

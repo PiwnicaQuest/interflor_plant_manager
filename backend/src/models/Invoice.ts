@@ -109,7 +109,7 @@ export class InvoiceModel {
     const invoice = invoiceResult.rows[0];
 
     const itemsResult = await query<InvoiceItem>(
-      'SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY id',
+      'SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY description ASC NULLS LAST, id ASC',
       [id]
     );
 

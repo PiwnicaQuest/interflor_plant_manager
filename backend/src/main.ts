@@ -207,6 +207,7 @@ app.delete("/customers/:id/permanent", requireAuth, requireRole([UserRole.ADMIN]
 
 app.post('/pos/checkout', requireAuth, requireRole([UserRole.ADMIN, UserRole.POS]), POSController.checkout);
 app.get('/pos/today-completed', requireAuth, requireRole([UserRole.ADMIN, UserRole.POS]), POSController.getTodayCompleted);
+app.get("/pos/daily-report/pdf", requireAuth, requireRole([UserRole.ADMIN, UserRole.POS]), POSController.getDailyReportPDF);
 
 // ============================================
 // RECEIPTS ROUTES

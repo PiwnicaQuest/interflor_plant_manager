@@ -290,7 +290,7 @@ export function OrdersPage() {
   };
 
   // Print selected orders
-  const handlePrintOrders = async () => {
+  const handlePrintOrders = () => {
     const ordersToprint = selectedOrders.length > 0
       ? getSelectedOrdersData()
       : orders;
@@ -300,105 +300,10 @@ export function OrdersPage() {
       return;
     }
 
-    // Fetch full details for each order
-    const fullOrders: OrderWithItems[] = [];
-    for (const order of ordersToprint) {
-      try {
-        const data = await api.getOrder(order.id);
-        fullOrders.push(data.order);
-      } catch (error) {
-        console.error(`Failed to fetch order ${order.id}:`, error);
-      }
-    }
-
-    const statusLabels: Record<OrderStatus, string> = {
-      [OrderStatus.PENDING]: 'Oczekuje',
-      [OrderStatus.IN_PROGRESS]: 'W realizacji',
-      [OrderStatus.READY_FOR_PICKUP]: 'Gotowe do odbioru',
-      [OrderStatus.COMPLETED]: 'Zakończone',
-      [OrderStatus.CANCELLED]: 'Anulowane',
-    };
-
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Zamówienia - wydruk</title>
-        <style>
-          body { font-family: Arial, sans-serif; font-size: 12px; margin: 20px; }
-          .order { page-break-after: always; border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; }
-          .order:last-child { page-break-after: auto; }
-          .header { border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 15px; }
-          .header h2 { margin: 0; }
-          .customer { margin-bottom: 15px; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-          th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
-          th { background: #f5f5f5; }
-          .total { text-align: right; font-size: 14px; font-weight: bold; }
-          .status { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
-          .status-pending { background: #e0f2fe; color: #0369a1; }
-          .status-in_progress { background: #fef3c7; color: #92400e; }
-          .status-ready { background: #d1fae5; color: #065f46; }
-          .status-completed { background: #d1fae5; color: #065f46; }
-          .status-cancelled { background: #fee2e2; color: #991b1b; }
-          @media print { .order { page-break-after: always; } }
-        </style>
-      </head>
-      <body>
-        ${fullOrders.map(order => `
-          <div class="order">
-            <div class="header">
-              <h2>${order.orderNumber}</h2>
-              <span class="status status-${order.status}">${statusLabels[order.status]}</span>
-              <div style="float: right; text-align: right;">
-                <div>Data: ${new Date(order.createdAt).toLocaleDateString('pl-PL')}</div>
-              </div>
-            </div>
-            <div class="customer">
-              <strong>Klient:</strong> ${order.customerName || 'Brak danych'}
-            </div>
-            <table>
-              <thead>
-                <tr>
-                  <th>Produkt</th>
-                  <th style="width: 60px; text-align: center;">Palety</th>
-                  <th style="width: 60px; text-align: center;">Szt.</th>
-                  <th style="width: 80px; text-align: right;">Cena</th>
-                  <th style="width: 80px; text-align: right;">Wartość</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${(order.items || []).map(item => `
-                  <tr>
-                    <td>${item.productSnapshot?.plantName || item.productName || 'Produkt #' + item.productId}</td>
-                    <td style="text-align: center;">${item.palletCount || 0}</td>
-                    <td style="text-align: center;">${item.quantity}</td>
-                    <td style="text-align: right;">${(item.unitPriceGross || 0).toFixed(2)} PLN</td>
-                    <td style="text-align: right;">${(item.totalPrice || 0).toFixed(2)} PLN</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-            <div class="total">
-              Łącznie palet: ${(order.items || []).reduce((sum, item) => sum + (item.palletCount || 0), 0)} |
-              Łącznie sztuk: ${(order.items || []).reduce((sum, item) => sum + item.quantity, 0)} |
-              <strong>SUMA: ${(order.totalAmount || 0).toFixed(2)} PLN</strong>
-            </div>
-            ${order.customerNotes ? `<div style="margin-top: 10px; padding: 8px; background: #f9f9f9; border-radius: 4px;"><strong>Uwagi:</strong> ${order.customerNotes}</div>` : ''}
-          </div>
-        `).join('')}
-      </body>
-      </html>
-    `;
-
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-      printWindow.print();
-    }
+    // Get order IDs and navigate to bulk print page
+    const orderIds = ordersToprint.map(order => order.id).join(',');
+    window.open(`/print/orders/bulk?ids=${orderIds}`, '_blank');
   };
-
   // Count eligible orders for bulk actions
   const eligibleForStatusChange = getSelectedOrdersData().filter(
     o => o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED

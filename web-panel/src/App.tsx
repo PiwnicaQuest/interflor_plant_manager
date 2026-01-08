@@ -21,6 +21,7 @@ import { PrintInvoicePage } from "./pages/PrintInvoicePage";
 import { PrintProformaPage } from "./pages/PrintProformaPage";
 import { PrintReceiptPage } from "./pages/PrintReceiptPage";
 import { PrintReceiptA4Page } from "./pages/PrintReceiptA4Page";
+import { BulkPrintOrdersPage } from "./pages/BulkPrintOrdersPage";
 
 // Scanner app components
 import {
@@ -94,6 +95,7 @@ function App() {
           <Route path="/print/proforma/:id" element={<PrintProformaPage />} />
           <Route path="/print/receipt/:id" element={<PrintReceiptPage />} />
           <Route path="/print/receipt-a4/:id" element={<PrintReceiptA4Page />} />
+          <Route path="/print/orders/bulk" element={<BulkPrintOrdersPage />} />
         </Routes>
       </AuthGuard>
     </NotificationProvider>

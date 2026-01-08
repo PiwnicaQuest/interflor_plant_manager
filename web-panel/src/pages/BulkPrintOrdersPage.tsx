@@ -2,11 +2,28 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { OrderTemplate } from '../components/Print/OrderTemplate';
-import { OrderWithItems, Customer } from '../types';
+import { OrderWithItems } from '../types';
+
+interface CompanySettings {
+  companyName: string;
+  nip: string;
+  regon: string;
+  street: string;
+  postalCode: string;
+  city: string;
+  country: string;
+  phone: string;
+  email: string;
+  website: string;
+  bankName: string;
+  bankAccount: string;
+  bankSwift: string;
+}
 
 export function BulkPrintOrdersPage() {
   const [searchParams] = useSearchParams();
-  const [ordersData, setOrdersData] = useState<Array<{ order: OrderWithItems; customer?: Customer }>>([]);
+  const [ordersData, setOrdersData] = useState<OrderWithItems[]>([]);
+  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,19 +39,15 @@ export function BulkPrintOrdersPage() {
       }
 
       try {
+        // Fetch company settings once
+        const companyResponse = await api.getCompanySettings().catch(() => null);
+        setCompanySettings(companyResponse);
+
+        // Fetch all orders - customerSnapshot is already included in each order
         const results = await Promise.all(
           ids.map(async (id) => {
             const orderResponse = await api.getOrder(id);
-            let customer: Customer | undefined;
-            if (orderResponse.order.customerId) {
-              try {
-                const customerResponse = await api.getCustomer(orderResponse.order.customerId);
-                customer = customerResponse.customer;
-              } catch (e) {
-                console.warn('Could not fetch customer:', e);
-              }
-            }
-            return { order: orderResponse.order, customer };
+            return orderResponse.order;
           })
         );
         setOrdersData(results);
@@ -78,6 +91,17 @@ export function BulkPrintOrdersPage() {
     );
   }
 
+  // Map company settings to companyInfo format (same as PrintOrderPage)
+  const companyInfo = companySettings ? {
+    name: companySettings.companyName,
+    nip: companySettings.nip,
+    address: companySettings.street,
+    city: companySettings.city,
+    postalCode: companySettings.postalCode,
+    phone: companySettings.phone,
+    email: companySettings.email,
+  } : undefined;
+
   return (
     <div className="bulk-print-container">
       <style>{`
@@ -106,16 +130,46 @@ export function BulkPrintOrdersPage() {
         }
       `}</style>
 
-      {ordersData.map(({ order, customer }, index) => (
-        <div key={order.id} className="page-break">
-          
+      {ordersData.map((order) => {
+        // Use customerSnapshot from order directly (no need to fetch customer separately)
+        const snapshot = (order as any).customerSnapshot;
+        const customerInfo = snapshot ? {
+          customerCode: snapshot.customerCode,
+          companyName: snapshot.companyName,
+          firstName: snapshot.firstName,
+          lastName: snapshot.lastName,
+          nip: snapshot.nip,
+          address: snapshot.street,
+          city: snapshot.city,
+          postalCode: snapshot.postalCode,
+          email: snapshot.email,
+          phone: snapshot.phone,
+        } : undefined;
+
+        return (
+          <div key={order.id} className="page-break">
             <OrderTemplate
-            data={order as any}
-            
-            showPrices={showPrices}
-          />
-        </div>
-      ))}
+              data={{
+                id: order.id,
+                orderNumber: order.orderNumber,
+                status: order.status,
+                customerId: order.customerId,
+                customerName: order.customerName,
+                customerInfo,
+                items: order.items,
+                totalAmount: order.totalAmount,
+                notes: order.notes,
+                customerNotes: order.customerNotes,
+                createdAt: order.createdAt,
+                updatedAt: order.updatedAt,
+                completedAt: order.completedAt,
+              }}
+              companyInfo={companyInfo}
+              showPrices={showPrices}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }

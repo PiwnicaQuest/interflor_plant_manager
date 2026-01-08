@@ -80,7 +80,7 @@ export class OrderModel {
     const order = orderResult.rows[0];
 
     const itemsResult = await query<OrderItem>(
-      'SELECT * FROM order_items WHERE order_id = $1 ORDER BY id',
+      `SELECT * FROM order_items WHERE order_id = $1 ORDER BY product_snapshot->>'plant_name' ASC NULLS LAST, id ASC`,
       [id]
     );
 
@@ -1169,7 +1169,7 @@ export class OrderModel {
       const updatedOrder = updatedOrderResult.rows[0];
 
       const updatedItemsResult = await client.query<OrderItem>(
-        'SELECT * FROM order_items WHERE order_id = $1 ORDER BY id',
+        `SELECT * FROM order_items WHERE order_id = $1 ORDER BY product_snapshot->>'plant_name' ASC NULLS LAST, id ASC`,
         [masterOrderId]
       );
 
@@ -1206,5 +1206,121 @@ export class OrderModel {
         customerCode,
       };
     });
+  }
+
+  /**
+   * Get completed orders for a specific date (for daily report)
+   * Includes proformas created on that date as well
+   */
+  static async getCompletedByDate(dateStr: string): Promise<any[]> {
+    // Get completed orders with their documents
+    const ordersSql = `
+      SELECT
+        o.*,
+        COALESCE(c.company_name, CONCAT(c.first_name, ' ', c.last_name)) as customer_name,
+        c.customer_code as customer_code,
+        (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) as item_count,
+        -- Invoice info (if exists)
+        i.id as invoice_id,
+        i.invoice_number,
+        i.payment_method as invoice_payment_method,
+        i.payment_splits as invoice_payment_splits,
+        -- Receipt info (if exists)
+        r.id as receipt_id,
+        r.receipt_number,
+        r.payment_method as receipt_payment_method,
+        r.payment_splits as receipt_payment_splits
+      FROM orders o
+      LEFT JOIN customers c ON o.customer_id = c.id
+      LEFT JOIN invoices i ON i.order_id = o.id AND (i.invoice_type = 'invoice' OR i.invoice_type IS NULL)
+      LEFT JOIN receipts r ON r.order_id = o.id
+      WHERE o.status = 'completed'
+        AND DATE(o.completed_at) = $1
+      ORDER BY o.completed_at DESC
+    `;
+
+    const ordersResult = await query(ordersSql, [dateStr]);
+
+    // Get proformas created on that date (not converted yet)
+    const proformaSql = `
+      SELECT
+        p.*,
+        o.order_number,
+        o.id as order_id,
+        COALESCE(c.company_name, CONCAT(c.first_name, ' ', c.last_name)) as customer_name,
+        c.customer_code as customer_code
+      FROM invoices p
+      JOIN orders o ON p.order_id = o.id
+      LEFT JOIN customers c ON o.customer_id = c.id
+      WHERE p.invoice_type = 'proforma'
+        AND DATE(p.created_at) = $1
+      ORDER BY p.created_at DESC
+    `;
+
+    const proformaResult = await query(proformaSql, [dateStr]);
+
+    // Transform orders
+    const orders = ordersResult.rows.map((row: any) => {
+      let document: { type: 'invoice' | 'receipt'; id: number; number: string; paymentMethod?: string; paymentSplits?: any } | undefined;
+
+      if (row.invoiceId) {
+        document = {
+          type: 'invoice',
+          id: row.invoiceId,
+          number: row.invoiceNumber,
+          paymentMethod: row.invoicePaymentMethod,
+          paymentSplits: row.invoicePaymentSplits,
+        };
+      } else if (row.receiptId) {
+        document = {
+          type: 'receipt',
+          id: row.receiptId,
+          number: row.receiptNumber,
+          paymentMethod: row.receiptPaymentMethod,
+          paymentSplits: row.receiptPaymentSplits,
+        };
+      }
+
+      return {
+        id: row.id,
+        orderNumber: row.orderNumber,
+        customerId: row.customerId,
+        customerName: row.customerName,
+        customerCode: row.customerCode,
+        totalAmount: row.totalAmount,
+        status: row.status,
+        completedAt: row.completedAt,
+        createdAt: row.createdAt,
+        itemCount: row.itemCount,
+        document,
+      };
+    });
+
+    // Transform proformas (only those not already counted in orders)
+    const orderIds = new Set(orders.map((o: any) => o.id));
+    const proformas = proformaResult.rows
+      .filter((row: any) => !orderIds.has(row.orderId) || !orders.find((o: any) => o.id === row.orderId && o.document))
+      .map((row: any) => ({
+        id: row.orderId,
+        orderNumber: row.orderNumber,
+        customerId: row.customerId,
+        customerName: row.customerName,
+        customerCode: row.customerCode,
+        totalAmount: row.totalGross,
+        status: 'proforma',
+        completedAt: row.createdAt,
+        createdAt: row.createdAt,
+        document: {
+          type: 'proforma' as const,
+          id: row.id,
+          number: row.invoiceNumber,
+          paymentMethod: null,
+        },
+      }));
+
+    // Combine and sort by time
+    return [...orders, ...proformas].sort((a, b) =>
+      new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+    );
   }
 }
