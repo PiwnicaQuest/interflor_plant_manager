@@ -87,69 +87,69 @@ export function ProfilePage() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Mój profil</h1>
+      <h1 className="text-xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-8">Mój profil</h1>
 
-      <div className="grid gap-8 md:grid-cols-2">
+      <div className="grid gap-4 sm:gap-8 md:grid-cols-2">
         {/* Profile Info */}
-        <div className="card p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
-            <span className="text-2xl">👤</span>
+        <div className="card p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6 flex items-center gap-2">
+            <span className="text-xl sm:text-2xl">👤</span>
             Dane konta
           </h2>
 
           {loading ? (
-            <div className="text-center py-8">
+            <div className="text-center py-6 sm:py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
-              <p className="mt-2 text-gray-600">Ładowanie danych...</p>
+              <p className="mt-2 text-gray-600 text-sm">Ładowanie danych...</p>
             </div>
           ) : error ? (
-            <div className="text-center py-8">
-              <p className="text-red-600">{error}</p>
+            <div className="text-center py-6 sm:py-8">
+              <p className="text-red-600 text-sm">{error}</p>
             </div>
           ) : customer ? (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {/* Company name */}
               {customer.companyName && (
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Firma</label>
-                  <p className="text-gray-900 font-medium">{customer.companyName}</p>
+                  <label className="text-xs sm:text-sm font-medium text-gray-500">Firma</label>
+                  <p className="text-sm sm:text-base text-gray-900 font-medium">{customer.companyName}</p>
                 </div>
               )}
 
               {/* Name */}
               {(customer.firstName || customer.lastName) && (
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Imię i nazwisko</label>
-                  <p className="text-gray-900">{customer.firstName} {customer.lastName}</p>
+                  <label className="text-xs sm:text-sm font-medium text-gray-500">Imię i nazwisko</label>
+                  <p className="text-sm sm:text-base text-gray-900">{customer.firstName} {customer.lastName}</p>
                 </div>
               )}
 
               {/* NIP */}
               {customer.nip && (
                 <div>
-                  <label className="text-sm font-medium text-gray-500">NIP</label>
-                  <p className="text-gray-900">{customer.nip}</p>
+                  <label className="text-xs sm:text-sm font-medium text-gray-500">NIP</label>
+                  <p className="text-sm sm:text-base text-gray-900">{customer.nip}</p>
                 </div>
               )}
 
               {/* Email */}
               <div>
-                <label className="text-sm font-medium text-gray-500">Email</label>
-                <p className="text-gray-900">{customer.email}</p>
+                <label className="text-xs sm:text-sm font-medium text-gray-500">Email</label>
+                <p className="text-sm sm:text-base text-gray-900 break-all">{customer.email}</p>
               </div>
 
               {/* Phone */}
               <div>
-                <label className="text-sm font-medium text-gray-500">Telefon</label>
-                <p className="text-gray-900">{customer.phone}</p>
+                <label className="text-xs sm:text-sm font-medium text-gray-500">Telefon</label>
+                <p className="text-sm sm:text-base text-gray-900">{customer.phone}</p>
               </div>
 
               {/* Address */}
               <div>
-                <label className="text-sm font-medium text-gray-500">Adres</label>
-                <p className="text-gray-900">{customer.street}</p>
-                <p className="text-gray-900">{customer.postalCode} {customer.city}</p>
-                <p className="text-gray-900">{customer.country}</p>
+                <label className="text-xs sm:text-sm font-medium text-gray-500">Adres</label>
+                <p className="text-sm sm:text-base text-gray-900">{customer.street}</p>
+                <p className="text-sm sm:text-base text-gray-900">{customer.postalCode} {customer.city}</p>
+                <p className="text-sm sm:text-base text-gray-900">{customer.country}</p>
               </div>
 
             </div>
@@ -157,16 +157,16 @@ export function ProfilePage() {
         </div>
 
         {/* Password Change */}
-        <div className="card p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
-            <span className="text-2xl">🔒</span>
+        <div className="card p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6 flex items-center gap-2">
+            <span className="text-xl sm:text-2xl">🔒</span>
             Zmiana hasła
           </h2>
 
-          <form onSubmit={handlePasswordChange} className="space-y-4">
+          <form onSubmit={handlePasswordChange} className="space-y-3 sm:space-y-4">
             {/* Current password */}
             <div>
-              <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="currentPassword" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                 Obecne hasło
               </label>
               <input
@@ -174,14 +174,14 @@ export function ProfilePage() {
                 id="currentPassword"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                className="w-full px-3 sm:px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 placeholder="Wpisz obecne hasło"
               />
             </div>
 
             {/* New password */}
             <div>
-              <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="newPassword" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                 Nowe hasło
               </label>
               <input
@@ -189,14 +189,14 @@ export function ProfilePage() {
                 id="newPassword"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                className="w-full px-3 sm:px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 placeholder="Minimum 6 znaków"
               />
             </div>
 
             {/* Confirm password */}
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="confirmPassword" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                 Potwierdź nowe hasło
               </label>
               <input
@@ -204,22 +204,22 @@ export function ProfilePage() {
                 id="confirmPassword"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                className="w-full px-3 sm:px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 placeholder="Powtórz nowe hasło"
               />
             </div>
 
             {/* Error message */}
             {passwordError && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="text-red-700 text-sm">{passwordError}</p>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-2 sm:p-3">
+                <p className="text-red-700 text-xs sm:text-sm">{passwordError}</p>
               </div>
             )}
 
             {/* Success message */}
             {passwordSuccess && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                <p className="text-green-700 text-sm">{passwordSuccess}</p>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-2 sm:p-3">
+                <p className="text-green-700 text-xs sm:text-sm">{passwordSuccess}</p>
               </div>
             )}
 
@@ -227,7 +227,7 @@ export function ProfilePage() {
             <button
               type="submit"
               disabled={changingPassword}
-              className="w-full btn btn-primary py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full btn btn-primary py-2.5 sm:py-3 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {changingPassword ? (
                 <span className="flex items-center justify-center gap-2">

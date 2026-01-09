@@ -22,7 +22,8 @@ export class InventoryMovementModel {
         u.email as user_email,
         o.order_number,
         o.status as order_status,
-        COALESCE(c.company_name, CONCAT(c.first_name, ' ', c.last_name)) as order_customer_name
+        COALESCE(c.company_name, CONCAT(c.first_name, ' ', c.last_name)) as order_customer_name,
+        c.customer_code as order_customer_code
       FROM inventory_movements im
       LEFT JOIN products p ON im.product_id = p.id
       LEFT JOIN users u ON im.user_id = u.id
@@ -100,7 +101,8 @@ export class InventoryMovementModel {
         u.email as user_email,
         o.order_number,
         o.status as order_status,
-        COALESCE(c.company_name, CONCAT(c.first_name, ' ', c.last_name)) as order_customer_name
+        COALESCE(c.company_name, CONCAT(c.first_name, ' ', c.last_name)) as order_customer_name,
+        c.customer_code as order_customer_code
        FROM inventory_movements im
        LEFT JOIN products p ON im.product_id = p.id
        LEFT JOIN users u ON im.user_id = u.id

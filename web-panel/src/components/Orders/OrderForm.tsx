@@ -142,7 +142,7 @@ function ProductSearchInput({ products, selectedProductId, onSelect, disabled, o
             <div key={product.id} className={'px-3 py-2 cursor-pointer flex justify-between items-center ' + (index === highlightedIndex ? 'bg-primary-100 text-primary-900' : 'hover:bg-gray-50') + (selectedProductId === product.id ? ' bg-green-50' : '')}
               onClick={() => handleSelect(product)} onMouseEnter={() => setHighlightedIndex(index)}>
               <div><div className="font-medium">{product.plantName}</div>
-                <div className="text-sm text-gray-500">{product.potSize || '-'} | Wys: {product.plantHeightCm || '-'} cm | {product.unitsPerPallet || 1} szt/paleta</div></div>
+                <div className="text-sm text-gray-500">{product.potSize || '-'} | {product.plantHeightCm || '-'} cm | {product.unitsPerPallet || 1} szt/paleta | {product.createdAt ? new Date(product.createdAt).toLocaleDateString('pl-PL') : '-'}</div></div>
               <div className="text-right"><div className={'text-sm font-semibold ' + (product.totalUnits < 10 ? 'text-orange-600' : 'text-green-600')}>{product.palletCount || 0} pal. ({product.totalUnits} szt.)</div>
                 <div className="text-xs text-gray-500">{product.basePriceGross?.toFixed(2)} PLN</div></div>
             </div>

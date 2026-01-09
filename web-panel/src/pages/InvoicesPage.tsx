@@ -17,6 +17,7 @@ export function InvoicesPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('');
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('');
 
   // New: Search and sort state
   const [searchQuery, setSearchQuery] = useState('');
@@ -26,10 +27,11 @@ export function InvoicesPage() {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const filters: { startDate?: string; endDate?: string; paymentStatus?: string } = {};
+      const filters: { startDate?: string; endDate?: string; paymentStatus?: string; paymentMethod?: string } = {};
       if (startDate) filters.startDate = startDate;
       if (endDate) filters.endDate = endDate;
       if (paymentStatusFilter) filters.paymentStatus = paymentStatusFilter;
+      if (paymentMethodFilter) filters.paymentMethod = paymentMethodFilter;
 
       const data = await api.getInvoices(filters);
       setInvoices(data.invoices);
@@ -109,6 +111,7 @@ export function InvoicesPage() {
     setEndDate('');
     setSearchQuery('');
     setPaymentStatusFilter('');
+    setPaymentMethodFilter('');
     setTimeout(() => fetchInvoices(), 0);
   };
 
@@ -188,7 +191,7 @@ export function InvoicesPage() {
 
       {/* Filters */}
       <div className="card p-4">
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
           {/* Search by customer name */}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -254,6 +257,21 @@ export function InvoicesPage() {
               <option value="partially_paid">Częściowo</option>
               <option value="overdue">Po terminie</option>
               <option value="paid">Zapłacone</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Metoda płatności
+            </label>
+            <select
+              className="input"
+              value={paymentMethodFilter}
+              onChange={(e) => setPaymentMethodFilter(e.target.value)}
+            >
+              <option value="">Wszystkie</option>
+              <option value="cash">Gotówka</option>
+              <option value="card">Karta</option>
+              <option value="transfer">Przelew</option>
             </select>
           </div>
           <div className="flex items-end gap-2">

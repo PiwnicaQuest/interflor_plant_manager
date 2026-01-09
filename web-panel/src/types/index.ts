@@ -152,6 +152,7 @@ export interface InventoryMovement {
   orderNumber?: string;
   orderStatus?: string;
   orderCustomerName?: string;
+  orderCustomerCode?: string;
 }
 
 export interface Customer {
@@ -205,6 +206,7 @@ export interface Order {
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
+  source?: 'shop' | 'scanner' | 'panel';
 }
 
 export interface ProductSnapshot {
@@ -597,6 +599,7 @@ export interface CompletedOrderSummary {
   customerCode?: string;
   totalAmount: number;
   completedAt?: string;
+  source?: 'shop' | 'scanner' | 'panel';
   createdAt: string;
   document?: {
     type: DocumentType;

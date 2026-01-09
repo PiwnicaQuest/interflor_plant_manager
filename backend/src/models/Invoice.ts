@@ -11,6 +11,7 @@ export class InvoiceModel {
     customerId?: number;
     invoiceType?: InvoiceType;
     paymentStatus?: string;
+    paymentMethod?: string;
   }): Promise<(Invoice & { customerName?: string })[]> {
     let sql = `SELECT *,
       COALESCE(
@@ -50,6 +51,12 @@ export class InvoiceModel {
       }
     }
 
+
+    if (filters?.paymentMethod) {
+      sql += ` AND payment_method = $${paramIndex}`;
+      params.push(filters.paymentMethod);
+      paramIndex++;
+    }
     if (filters?.invoiceType) {
       sql += ` AND invoice_type = $${paramIndex}`;
       params.push(filters.invoiceType);

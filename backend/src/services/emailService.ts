@@ -134,7 +134,7 @@ class EmailService {
       </p>
     </div>
     <div class="footer">
-      <p>PlantManager - System zarzadzania magazynem roslin</p>
+      <p>POLFLOR - System zarzadzania magazynem roslin</p>
       <p>Ta wiadomosc zostala wygenerowana automatycznie.</p>
     </div>
   </div>
@@ -157,7 +157,7 @@ Link do pobrania: ${printUrl}
 W razie pytan prosimy o kontakt.
 
 Pozdrawiamy,
-Zespol PlantManager
+Zespol POLFLOR
     `;
 
     return this.sendEmail({
@@ -198,12 +198,12 @@ Zespol PlantManager
 <body>
   <div class="container">
     <div class="header">
-      <h1>PlantManager - Sklep Online</h1>
+      <h1>POLFLOR - Sklep Online</h1>
     </div>
     <div class="content">
       <p>${greeting},</p>
 
-      <p>Twoje konto w sklepie internetowym PlantManager zostalo utworzone.
+      <p>Twoje konto w sklepie internetowym POLFLOR zostalo utworzone.
       Ponizej znajdziesz dane do logowania:</p>
 
       <div class="credentials">
@@ -223,7 +223,7 @@ Zespol PlantManager
       </p>
     </div>
     <div class="footer">
-      <p>PlantManager - System zarzadzania magazynem roslin</p>
+      <p>POLFLOR - System zarzadzania magazynem roslin</p>
       <p>Ta wiadomosc zostala wygenerowana automatycznie.</p>
     </div>
   </div>
@@ -234,7 +234,7 @@ Zespol PlantManager
     const text = `
 ${greeting},
 
-Twoje konto w sklepie internetowym PlantManager zostalo utworzone.
+Twoje konto w sklepie internetowym POLFLOR zostalo utworzone.
 
 Dane do logowania:
 - Email (login): ${email}
@@ -245,12 +245,12 @@ Link do sklepu: ${shopUrl}
 Zalecamy zmiane hasla po pierwszym logowaniu.
 
 Pozdrawiamy,
-Zespol PlantManager
+Zespol POLFLOR
     `;
 
     return this.sendEmail({
       to: email,
-      subject: 'Twoje konto w sklepie PlantManager',
+      subject: 'Twoje konto w sklepie POLFLOR',
       text,
       html,
     });
@@ -286,12 +286,12 @@ Zespol PlantManager
 <body>
   <div class="container">
     <div class="header">
-      <h1>PlantManager - Reset hasla</h1>
+      <h1>POLFLOR - Reset hasla</h1>
     </div>
     <div class="content">
       <p>${greeting},</p>
 
-      <p>Twoje haslo do sklepu internetowego PlantManager zostalo zresetowane.
+      <p>Twoje haslo do sklepu internetowego POLFLOR zostalo zresetowane.
       Ponizej znajdziesz nowe dane do logowania:</p>
 
       <div class="credentials">
@@ -311,7 +311,7 @@ Zespol PlantManager
       </p>
     </div>
     <div class="footer">
-      <p>PlantManager - System zarzadzania magazynem roslin</p>
+      <p>POLFLOR - System zarzadzania magazynem roslin</p>
       <p>Ta wiadomosc zostala wygenerowana automatycznie.</p>
     </div>
   </div>
@@ -322,7 +322,7 @@ Zespol PlantManager
     const text = `
 ${greeting},
 
-Twoje haslo do sklepu internetowego PlantManager zostalo zresetowane.
+Twoje haslo do sklepu internetowego POLFLOR zostalo zresetowane.
 
 Nowe dane do logowania:
 - Email (login): ${email}
@@ -333,12 +333,12 @@ Link do sklepu: ${shopUrl}
 Zalecamy zmiane hasla po zalogowaniu.
 
 Pozdrawiamy,
-Zespol PlantManager
+Zespol POLFLOR
     `;
 
     return this.sendEmail({
       to: email,
-      subject: 'Reset hasla - PlantManager',
+      subject: 'Reset hasla - POLFLOR',
       text,
       html,
     });

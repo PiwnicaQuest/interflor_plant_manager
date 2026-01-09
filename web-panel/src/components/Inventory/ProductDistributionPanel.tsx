@@ -293,7 +293,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                               </span>
                             </div>
                             <div className="flex items-center justify-between text-xs text-gray-500">
-                              <span>{o.customerName || '-'}</span>
+                              <span>{o.customerCode ? `[${o.customerCode}] ` : ""}{o.customerName || "-"}</span>
                               <span>{formatDateShort(o.createdAt)}</span>
                             </div>
                           </div>
@@ -422,7 +422,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                             ) : '-'}
                           </td>
                           <td className="px-2 py-1 text-gray-700 truncate max-w-[120px]" title={m.orderCustomerName || ''}>
-                            {m.orderCustomerName || '-'}
+                            {m.orderCustomerCode ? `[${m.orderCustomerCode}] ` : ''}{m.orderCustomerName || '-'}
                           </td>
                           <td className={`px-2 py-1 text-right font-medium ${m.deltaUnits >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                             {m.deltaUnits >= 0 ? '+' : ''}{m.deltaUnits}
@@ -459,7 +459,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                       return (
                         <tr key={o.id} className="border-b hover:bg-gray-50">
                           <td className="px-2 py-1 font-medium text-primary-700">{o.orderNumber}</td>
-                          <td className="px-2 py-1 text-gray-700">{o.customerName || '-'}</td>
+                          <td className="px-2 py-1 text-gray-700">{o.customerCode ? `[${o.customerCode}] ` : ""}{o.customerName || '-'}</td>
                           <td className="px-2 py-1">
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${statusInfo.color}`}>
                               {statusInfo.text}

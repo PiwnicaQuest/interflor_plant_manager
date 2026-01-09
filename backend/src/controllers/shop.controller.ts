@@ -5,8 +5,10 @@ import { OrderModel } from '../models/Order';
 import { CustomerModel } from '../models/Customer';
 import { UserModel } from '../models/User';
 import { SettingsModel } from "../models/Settings";
+import { InvoiceModel } from '../models/Invoice';
 import { UserRole } from '../types';
 import { query } from '../models/database';
+import { generateInvoicePDF } from '../utils/pdfGenerator';
 
 export class ShopController {
   static async getCatalog(req: AuthRequest, res: Response) {
@@ -70,6 +72,9 @@ export class ShopController {
         })
       );
 
+      // Filter out products with zero pallets (can't be purchased in shop)
+      products = products.filter(p => p.palletCount > 0);
+
       // Filter by potSize
       if (potSize) {
         products = products.filter(p => p.potSize === potSize);
@@ -95,9 +100,22 @@ export class ShopController {
       // Sort products
       if (sortBy) {
         const order = sortOrder === 'desc' ? -1 : 1;
+        // Fields that should be sorted numerically (prices from DB may come as strings)
+        const numericFields = ['price', 'availableUnits', 'palletCount', 'unitsPerPallet', 'looseUnits'];
+        const isNumericField = numericFields.includes(sortBy as string);
+
         products.sort((a, b) => {
-          const aVal = (a as any)[sortBy as string] ?? 0;
-          const bVal = (b as any)[sortBy as string] ?? 0;
+          let aVal = (a as any)[sortBy as string] ?? 0;
+          let bVal = (b as any)[sortBy as string] ?? 0;
+
+          if (isNumericField) {
+            // Convert to numbers for proper numeric comparison
+            aVal = parseFloat(aVal) || 0;
+            bVal = parseFloat(bVal) || 0;
+            return (aVal - bVal) * order;
+          }
+
+          // String comparison for text fields
           if (typeof aVal === 'string') {
             return aVal.localeCompare(bVal) * order;
           }
@@ -118,8 +136,8 @@ export class ShopController {
       try {
         const definedTagsSetting = await SettingsModel.getSetting('available_tags');
         if (definedTagsSetting) {
-          availableCategories = Array.isArray(definedTagsSetting) 
-            ? definedTagsSetting 
+          availableCategories = Array.isArray(definedTagsSetting)
+            ? definedTagsSetting
             : JSON.parse(definedTagsSetting);
         } else {
           availableCategories = allTags;
@@ -224,7 +242,7 @@ export class ShopController {
       }
 
       const result = await query<any>(
-        `SELECT o.id, o.order_number as "orderNumber", o.status, 
+        `SELECT o.id, o.order_number as "orderNumber", o.status,
                 o.total_amount as "totalAmount", o.customer_notes as "customerNotes",
                 o.notes, o.created_at as "createdAt", o.updated_at as "updatedAt",
                 o.completed_at as "completedAt",
@@ -328,7 +346,7 @@ export class ShopController {
       } else {
         // For employees - they must specify which customer to order for
         if (!requestedCustomerId) {
-          return res.status(400).json({ 
+          return res.status(400).json({
             error: 'Jako pracownik musisz wybrać klienta dla którego składasz zamówienie',
             requiresCustomerSelection: true
           });
@@ -394,7 +412,9 @@ export class ShopController {
         itemsWithPrices,
         customerSnapshot,
         req.user.userId,
-        customerNotes
+        customerNotes,
+        undefined,
+        'shop'
       );
 
       return res.status(201).json({
@@ -528,8 +548,8 @@ export class ShopController {
 
       // Get active customers
       const result = await query<any>(`
-        SELECT 
-          c.id, 
+        SELECT
+          c.id,
           c.company_name as "companyName",
           c.customer_code as "customerCode",
           c.first_name as "firstName",
@@ -537,7 +557,7 @@ export class ShopController {
           c.nip,
           c.city
         FROM customers c
-        
+
         ORDER BY c.company_name, c.last_name
       `);
 
@@ -553,6 +573,238 @@ export class ShopController {
     } catch (error) {
       console.error('Get customers for shop error:', error);
       return res.status(500).json({ error: 'Błąd serwera' });
+    }
+  }
+
+  // ===== INVOICE METHODS FOR CUSTOMERS =====
+
+  static async getMyInvoices(req: AuthRequest, res: Response) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Musisz być zalogowany' });
+      }
+
+      // Get customer ID for the authenticated user
+      let customerId: number;
+
+      if (req.user.role === UserRole.CUSTOMER) {
+        const customer = await CustomerModel.getByUserId(req.user.userId);
+        if (!customer) {
+          return res.status(404).json({ error: 'Dane klienta nie znalezione' });
+        }
+        customerId = customer.id;
+      } else {
+        // Employees don't have invoices in customer panel
+        return res.json({ invoices: [] });
+      }
+
+      // Get invoices for this customer (only regular invoices, not proforma)
+      const invoices = await InvoiceModel.getAll({ customerId });
+
+      // Format response
+      const formattedInvoices = invoices.map(inv => ({
+        id: inv.id,
+        invoiceNumber: inv.invoiceNumber,
+        orderId: inv.orderId,
+        issueDate: inv.issueDate,
+        saleDate: inv.saleDate,
+        paymentDeadline: inv.paymentDeadline,
+        paymentStatus: inv.paymentStatus,
+        totalGross: inv.totalGross,
+        paidAmount: inv.paidAmount,
+        buyerName: inv.customerName ||
+          (inv.buyerSnapshot as any)?.companyName ||
+          `${(inv.buyerSnapshot as any)?.firstName || ''} ${(inv.buyerSnapshot as any)?.lastName || ''}`.trim(),
+      }));
+
+      return res.json({ invoices: formattedInvoices });
+    } catch (error) {
+      console.error('Get my invoices error:', error);
+      return res.status(500).json({ error: 'Błąd serwera' });
+    }
+  }
+
+
+  // Get single invoice with full data for printing (HTML template)
+  static async getMyInvoice(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: "Musisz być zalogowany" });
+        return;
+      }
+
+      const invoiceId = parseInt(req.params.id);
+
+      if (isNaN(invoiceId)) {
+        res.status(400).json({ error: "Nieprawidłowe ID faktury" });
+        return;
+      }
+
+      // Get customer ID for the authenticated user
+      let customerId: number;
+
+      if (req.user.role === UserRole.CUSTOMER) {
+        const customer = await CustomerModel.getByUserId(req.user.userId);
+        if (!customer) {
+          res.status(404).json({ error: "Dane klienta nie znalezione" });
+          return;
+        }
+        customerId = customer.id;
+      } else {
+        res.status(403).json({ error: "Brak dostępu" });
+        return;
+      }
+
+      // Get invoice with items
+      const invoice = await InvoiceModel.getById(invoiceId);
+
+      if (!invoice) {
+        res.status(404).json({ error: "Faktura nie znaleziona" });
+        return;
+      }
+
+      // Verify invoice belongs to this customer
+      if (invoice.customerId !== customerId) {
+        res.status(403).json({ error: "Brak dostępu do tej faktury" });
+        return;
+      }
+
+      // Get company settings for seller info
+      const companySettings = await SettingsModel.getCompanySettings();
+
+      // Get order number if order exists
+      let orderNumber: string | undefined;
+      if (invoice.orderId) {
+        const order = await OrderModel.getById(invoice.orderId);
+        orderNumber = order?.orderNumber;
+      }
+
+      // Format invoice data for template
+      const invoiceData = {
+        id: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        orderId: invoice.orderId,
+        orderNumber,
+        issueDate: invoice.issueDate,
+        saleDate: invoice.saleDate,
+        paymentDeadline: invoice.paymentDeadline,
+        paymentMethod: invoice.paymentMethod,
+        paymentSplits: invoice.paymentSplits,
+        paymentStatus: invoice.paymentStatus,
+        subtotalNet: invoice.subtotalNet,
+        totalVat: invoice.totalVat,
+        totalGross: invoice.totalGross,
+        paidAmount: invoice.paidAmount,
+        notes: invoice.notes,
+        buyerInfo: invoice.buyerSnapshot ? {
+          customerCode: invoice.buyerSnapshot.customerCode,
+          companyName: invoice.buyerSnapshot.companyName,
+          firstName: invoice.buyerSnapshot.firstName,
+          lastName: invoice.buyerSnapshot.lastName,
+          nip: invoice.buyerSnapshot.nip,
+          address: invoice.buyerSnapshot.street,
+          city: invoice.buyerSnapshot.city,
+          postalCode: invoice.buyerSnapshot.postalCode,
+        } : undefined,
+        recipientInfo: invoice.recipientSnapshot ? {
+          companyName: invoice.recipientSnapshot.companyName,
+          firstName: invoice.recipientSnapshot.firstName,
+          lastName: invoice.recipientSnapshot.lastName,
+          address: invoice.recipientSnapshot.street,
+          city: invoice.recipientSnapshot.city,
+          postalCode: invoice.recipientSnapshot.postalCode,
+          phone: invoice.recipientSnapshot.phone,
+        } : undefined,
+        items: invoice.items?.map(item => ({
+          id: item.id,
+          name: item.description || "Produkt",
+          quantity: item.quantity,
+          unit: "szt.",
+          unitPriceNet: item.unitPriceNet,
+          unitPriceGross: item.unitPriceNet * (1 + item.vatRate / 100),
+          totalNet: item.totalNet,
+          totalGross: item.totalGross,
+          vatRate: item.vatRate,
+          vatAmount: item.totalVat,
+          growerPassport: item.growerPassport,
+        })),
+      };
+
+      // Seller info from company settings
+      const sellerInfo = {
+        name: companySettings.companyName || "Firma",
+        address: companySettings.street || "",
+        city: companySettings.city || "",
+        postalCode: companySettings.postalCode || "",
+        nip: companySettings.nip || "",
+        phone: companySettings.phone || undefined,
+        email: companySettings.email || undefined,
+        bankAccount: companySettings.bankAccount || undefined,
+        bankName: companySettings.bankName || undefined,
+        invoiceComment: companySettings.invoiceComment || undefined,
+      };
+
+      res.json({ invoice: invoiceData, sellerInfo });
+    } catch (error) {
+      console.error("Get my invoice error:", error);
+      res.status(500).json({ error: "Błąd serwera" });
+    }
+  }
+  static async getMyInvoicePdf(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'Musisz być zalogowany' });
+        return;
+      }
+
+      const invoiceId = parseInt(req.params.id);
+
+      if (isNaN(invoiceId)) {
+        res.status(400).json({ error: 'Nieprawidłowe ID faktury' });
+        return;
+      }
+
+      // Get customer ID for the authenticated user
+      let customerId: number;
+
+      if (req.user.role === UserRole.CUSTOMER) {
+        const customer = await CustomerModel.getByUserId(req.user.userId);
+        if (!customer) {
+          res.status(404).json({ error: 'Dane klienta nie znalezione' });
+          return;
+        }
+        customerId = customer.id;
+      } else {
+        res.status(403).json({ error: 'Brak dostępu' });
+        return;
+      }
+
+      // Get invoice with items
+      const invoice = await InvoiceModel.getById(invoiceId);
+
+      if (!invoice) {
+        res.status(404).json({ error: 'Faktura nie znaleziona' });
+        return;
+      }
+
+      // Verify invoice belongs to this customer
+      if (invoice.customerId !== customerId) {
+        res.status(403).json({ error: 'Brak dostępu do tej faktury' });
+        return;
+      }
+
+      // Generate PDF
+      const pdfDoc = await generateInvoicePDF(invoice);
+
+      // Set response headers
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=Faktura_${invoice.invoiceNumber.replace(/\//g, '-')}.pdf`);
+
+      // Pipe PDF to response
+      pdfDoc.pipe(res);
+    } catch (error) {
+      console.error('Get my invoice PDF error:', error);
+      res.status(500).json({ error: 'Błąd serwera podczas generowania PDF' });
     }
   }
 }

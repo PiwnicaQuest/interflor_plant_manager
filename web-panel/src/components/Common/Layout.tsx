@@ -133,7 +133,9 @@ export function Layout() {
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-8">
-              <h1 className="text-2xl font-bold text-primary-600">PlantManager</h1>
+              <div className="flex items-center gap-2">
+                <img src="/polflor-logo.png" alt="POLFLOR" className="h-8" />
+              </div>
               <nav className="hidden md:flex items-center">
                 {navGroups.map((group, groupIndex) => (
                   <div key={groupIndex} className="flex items-center">

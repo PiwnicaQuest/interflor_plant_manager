@@ -18,6 +18,8 @@ export function CatalogPage() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [usedTags, setUsedTags] = useState<string[]>([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [enlargedImage, setEnlargedImage] = useState<{url: string, name: string} | null>(null);
+  const [palletQuantities, setPalletQuantities] = useState<Record<number, number>>({});
 
   const { addItem } = useCart();
   const { isAuthenticated } = useAuth();
@@ -25,6 +27,17 @@ export function CatalogPage() {
   useEffect(() => {
     fetchProducts();
   }, [search, potSize, sortBy, sortOrder, selectedCategories]);
+
+  // Escape key handler for lightbox
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setEnlargedImage(null);
+    };
+    if (enlargedImage) {
+      window.addEventListener('keydown', handleEscape);
+      return () => window.removeEventListener('keydown', handleEscape);
+    }
+  }, [enlargedImage]);
 
   const fetchProducts = async () => {
     try {
@@ -47,8 +60,18 @@ export function CatalogPage() {
     }
   };
 
+  const getPalletQuantity = (productId: number) => palletQuantities[productId] || 1;
+
+  const setPalletQuantity = (productId: number, quantity: number, maxPallets: number) => {
+    const clampedQuantity = Math.max(1, Math.min(quantity, maxPallets));
+    setPalletQuantities(prev => ({ ...prev, [productId]: clampedQuantity }));
+  };
+
   const handleAddToCart = (product: Product) => {
-    addItem(product, 1);
+    const quantity = getPalletQuantity(product.id);
+    addItem(product, quantity);
+    // Reset quantity to 1 after adding
+    setPalletQuantities(prev => ({ ...prev, [product.id]: 1 }));
   };
 
   const handleCategoryToggle = (category: string) => {
@@ -73,7 +96,6 @@ export function CatalogPage() {
   };
 
   const getUnitsPerPallet = (product: Product) => product.unitsPerPallet || 1;
-  const getPalletPrice = (product: Product) => product.price * getUnitsPerPallet(product);
 
   // Category sidebar component
   const CategorySidebar = ({ mobile = false }: { mobile?: boolean }) => (
@@ -168,7 +190,7 @@ export function CatalogPage() {
   );
 
   return (
-    <div className="flex gap-8">
+    <div className="flex gap-4 lg:gap-8">
       {/* Sidebar - desktop */}
       <aside className="hidden lg:block w-64 flex-shrink-0">
         <div className="card p-4">
@@ -179,10 +201,10 @@ export function CatalogPage() {
       {/* Main content */}
       <div className="flex-1 min-w-0">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Katalog roslin</h1>
+        <div className="mb-4 sm:mb-6">
+          <h1 className="text-xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">Katalog roslin</h1>
           {!isAuthenticated && (
-            <p className="text-gray-600">
+            <p className="text-sm sm:text-base text-gray-600">
               Zaloguj sie, aby zobaczyc ceny i skladac zamowienia
             </p>
           )}
@@ -227,14 +249,14 @@ export function CatalogPage() {
         )}
 
         {/* Filters bar */}
-        <div className="card p-4 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="card p-3 sm:p-4 mb-4 sm:mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
             {/* Search */}
-            <div className="md:col-span-2">
+            <div className="col-span-2">
               <input
                 type="text"
                 placeholder="Szukaj rosliny..."
-                className="input"
+                className="input text-sm sm:text-base"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -243,11 +265,11 @@ export function CatalogPage() {
             {/* Pot size filter */}
             <div>
               <select
-                className="input"
+                className="input text-sm sm:text-base"
                 value={potSize}
                 onChange={(e) => setPotSize(e.target.value)}
               >
-                <option value="">Wszystkie rozmiary</option>
+                <option value="">Rozmiar</option>
                 {potSizes.map(size => (
                   <option key={size} value={size}>{size}</option>
                 ))}
@@ -255,9 +277,9 @@ export function CatalogPage() {
             </div>
 
             {/* Sort */}
-            <div className="flex gap-2">
+            <div className="flex gap-1 sm:gap-2">
               <select
-                className="input flex-1"
+                className="input flex-1 text-sm sm:text-base"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
               >
@@ -266,7 +288,7 @@ export function CatalogPage() {
                 <option value="availableUnits">Dostepnosc</option>
               </select>
               <button
-                className="btn btn-secondary px-3"
+                className="btn btn-secondary px-2 sm:px-3"
                 onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
               >
                 {sortOrder === 'asc' ? '^' : 'v'}
@@ -311,7 +333,7 @@ export function CatalogPage() {
 
         {/* Results count */}
         {!loading && !error && (
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
             Znaleziono: {products.length} {products.length === 1 ? 'produkt' : products.length < 5 ? 'produkty' : 'produktow'}
           </p>
         )}
@@ -339,16 +361,19 @@ export function CatalogPage() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-4 md:gap-6">
             {products.map(product => {
               const unitsPerPallet = getUnitsPerPallet(product);
-              const palletPrice = getPalletPrice(product);
               const availablePallets = product.palletCount || 0;
+              const currentQuantity = getPalletQuantity(product.id);
 
               return (
                 <div key={product.id} className="card overflow-hidden group">
                   {/* Image */}
-                  <div className="aspect-square bg-gray-100 relative">
+                  <div
+                    className={"aspect-square bg-gray-100 relative " + (product.imageUrl ? "cursor-pointer group/img" : "")}
+                    onClick={() => product.imageUrl && setEnlargedImage({ url: product.imageUrl, name: product.plantName })}
+                  >
                     {product.imageUrl ? (
                       <img
                         src={product.imageUrl}
@@ -356,8 +381,16 @@ export function CatalogPage() {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-6xl">
+                      <div className="w-full h-full flex items-center justify-center text-3xl sm:text-6xl">
                         🌿
+                      </div>
+                    )}
+                    {/* Hover overlay with zoom icon */}
+                    {product.imageUrl && (
+                      <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/30 flex items-center justify-center transition-all duration-200 pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 sm:h-10 sm:w-10 text-white opacity-0 group-hover/img:opacity-100 transition-opacity drop-shadow-lg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
                       </div>
                     )}
                     {isAuthenticated && availablePallets <= 0 && (
@@ -368,18 +401,18 @@ export function CatalogPage() {
 
                     {/* Tags on image */}
                     {product.tags && product.tags.length > 0 && (
-                      <div className="absolute top-2 left-2 flex flex-wrap gap-1 max-w-[80%]">
-                        {product.tags.slice(0, 2).map(tag => (
+                      <div className="absolute top-1 left-1 sm:top-2 sm:left-2 flex flex-wrap gap-0.5 sm:gap-1 max-w-[85%]">
+                        {product.tags.slice(0, 1).map(tag => (
                           <span
                             key={tag}
-                            className="px-2 py-0.5 bg-green-600 bg-opacity-90 text-white text-xs rounded-full"
+                            className="px-1.5 sm:px-2 py-0.5 bg-green-600 bg-opacity-90 text-white text-[10px] sm:text-xs rounded-full truncate max-w-full"
                           >
                             {tag}
                           </span>
                         ))}
-                        {product.tags.length > 2 && (
-                          <span className="px-2 py-0.5 bg-gray-600 bg-opacity-90 text-white text-xs rounded-full">
-                            +{product.tags.length - 2}
+                        {product.tags.length > 1 && (
+                          <span className="px-1.5 sm:px-2 py-0.5 bg-gray-600 bg-opacity-90 text-white text-[10px] sm:text-xs rounded-full">
+                            +{product.tags.length - 1}
                           </span>
                         )}
                       </div>
@@ -387,49 +420,78 @@ export function CatalogPage() {
                   </div>
 
                   {/* Info */}
-                  <div className="p-4">
-                    <h3 className="font-semibold text-gray-900 mb-1" title={product.plantName}>
+                  <div className="p-2 sm:p-4">
+                    <h3 className="font-semibold text-gray-900 mb-0.5 sm:mb-1 text-sm sm:text-base line-clamp-2" title={product.plantName}>
                       {product.plantName}
                     </h3>
-                    <div className="text-sm text-gray-500 mb-2 space-y-0.5">
+                    <div className="text-[11px] sm:text-sm text-gray-500 mb-1 sm:mb-2 space-y-0">
                       {product.potSize && <p>Doniczka: {product.potSize}</p>}
-                      {product.plantHeightCm && <p>Wysokosc: {product.plantHeightCm} cm</p>}
+                      {product.plantHeightCm && <p className="hidden sm:block">Wysokosc: {product.plantHeightCm} cm</p>}
                     </div>
 
                     {/* Prices and availability - only when authenticated */}
                     {isAuthenticated ? (
                       <>
-                        <p className="text-sm font-medium text-gray-700 mb-2">
-                          Dostepne: {availablePallets} palet x {unitsPerPallet} szt.
+                        <p className="text-[10px] sm:text-sm text-gray-500 mb-1 sm:mb-2">
+                          {availablePallets} pal. x {unitsPerPallet} szt.
                         </p>
-                        <div className="border-t pt-2 mt-2 space-y-1">
-                          <div className="flex justify-between text-sm text-gray-500">
-                            <span>Cena/szt.:</span>
-                            <span>{formatPrice(product.price)}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="font-medium text-gray-700">Cena/paleta:</span>
-                            <span className="text-xl font-bold text-green-600">
-                              {formatPrice(palletPrice)}
+
+                        {/* Unit price as main price */}
+                        <div className="border-t pt-1 sm:pt-2 mt-1 sm:mt-2">
+                          <div className="text-center mb-2">
+                            <span className="text-lg sm:text-2xl font-bold text-green-600">
+                              {formatPrice(product.price)}
                             </span>
+                            <span className="text-xs sm:text-sm text-gray-500 ml-1">/ szt.</span>
                           </div>
+                        </div>
+
+                        {/* Pallet quantity selector */}
+                        <div className="flex items-center justify-center gap-1 sm:gap-2 mb-2">
+                          <span className="text-[10px] sm:text-xs text-gray-600">Palety:</span>
+                          <div className="flex items-center border rounded-lg overflow-hidden">
+                            <button
+                              onClick={() => setPalletQuantity(product.id, currentQuantity - 1, availablePallets)}
+                              disabled={currentQuantity <= 1 || availablePallets <= 0}
+                              className="px-2 py-1 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base font-medium"
+                            >
+                              -
+                            </button>
+                            <input
+                              type="number"
+                              min="1"
+                              max={availablePallets}
+                              value={currentQuantity}
+                              onChange={(e) => setPalletQuantity(product.id, parseInt(e.target.value) || 1, availablePallets)}
+                              disabled={availablePallets <= 0}
+                              className="w-10 sm:w-12 text-center text-sm sm:text-base py-1 border-x focus:outline-none disabled:bg-gray-100"
+                            />
+                            <button
+                              onClick={() => setPalletQuantity(product.id, currentQuantity + 1, availablePallets)}
+                              disabled={currentQuantity >= availablePallets || availablePallets <= 0}
+                              className="px-2 py-1 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base font-medium"
+                            >
+                              +
+                            </button>
+                          </div>
+                          <span className="text-[10px] sm:text-xs text-gray-400">/ {availablePallets}</span>
                         </div>
 
                         <button
                           onClick={() => handleAddToCart(product)}
                           disabled={availablePallets <= 0}
-                          className="btn btn-primary w-full mt-3 text-sm"
+                          className="btn btn-primary w-full text-xs sm:text-sm py-1.5 sm:py-2"
                         >
                           Dodaj
                         </button>
                       </>
                     ) : (
-                      <div className="border-t pt-3 mt-2">
+                      <div className="border-t pt-2 sm:pt-3 mt-1 sm:mt-2">
                         <Link
                           to="/login"
-                          className="btn btn-secondary w-full text-sm text-center block"
+                          className="btn btn-secondary w-full text-[10px] sm:text-sm text-center block py-1.5 sm:py-2"
                         >
-                          Zaloguj sie, aby zobaczyc cene
+                          Zaloguj sie
                         </Link>
                       </div>
                     )}
@@ -440,6 +502,33 @@ export function CatalogPage() {
           </div>
         )}
       </div>
+
+      {/* Lightbox Modal */}
+      {enlargedImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          onClick={() => setEnlargedImage(null)}
+        >
+          <div className="absolute inset-0 bg-black bg-opacity-80" />
+          <div
+            className="relative max-w-4xl max-h-[90vh] flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setEnlargedImage(null)}
+              className="absolute -top-10 right-0 text-white text-2xl hover:text-gray-300 transition-colors"
+            >
+              ✕
+            </button>
+            <img
+              src={enlargedImage.url}
+              alt={enlargedImage.name}
+              className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl"
+            />
+            <p className="text-white text-center mt-3 text-lg font-medium">{enlargedImage.name}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

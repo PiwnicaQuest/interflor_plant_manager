@@ -131,6 +131,7 @@ export interface Customer {
   recipientPostalCode?: string;
   recipientCity?: string;
   recipientPhone?: string;
+  source?: 'shop' | 'scanner' | 'panel';
 }
 
 export interface CustomerSnapshot {
@@ -235,6 +236,7 @@ export interface Order {
   recipientPostalCode?: string;
   recipientCity?: string;
   recipientPhone?: string;
+  source?: 'shop' | 'scanner' | 'panel';
   totalAmount: number;
   createdAt: Date;
   updatedAt: Date;
@@ -483,6 +485,7 @@ export interface CreateOrderRequest {
   recipientPostalCode?: string;
   recipientCity?: string;
   recipientPhone?: string;
+  source?: 'shop' | 'scanner' | 'panel';
 }
 
 export interface UpdateOrderStatusRequest {

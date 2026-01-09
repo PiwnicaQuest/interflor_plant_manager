@@ -4,17 +4,19 @@ import { InvoiceModel } from '../models/Invoice';
 import { CustomerModel } from '../models/Customer';
 import { PaymentMethod } from '../types';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
+import { generateInvoiceHtml } from '../utils/invoiceHtmlGenerator';
 
 export class InvoiceController {
   static async getAll(req: AuthRequest, res: Response) {
     try {
-      const { startDate, endDate, customerId, paymentStatus } = req.query;
+      const { startDate, endDate, customerId, paymentStatus, paymentMethod } = req.query;
 
       const filters: any = {};
       if (startDate) filters.startDate = new Date(startDate as string);
       if (endDate) filters.endDate = new Date(endDate as string);
       if (customerId) filters.customerId = parseInt(customerId as string);
       if (paymentStatus) filters.paymentStatus = paymentStatus as string;
+      if (paymentMethod) filters.paymentMethod = paymentMethod as string;
 
       const invoices = await InvoiceModel.getAll(filters);
 
@@ -189,6 +191,32 @@ export class InvoiceController {
     } catch (error) {
       console.error('Update payment status error:', error);
       return res.status(500).json({ error: 'Błąd serwera' });
+    }
+  }
+
+  static async getHTML(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const id = parseInt(req.params.id);
+
+      if (isNaN(id)) {
+        res.status(400).json({ error: "Nieprawidłowe ID faktury" });
+        return;
+      }
+
+      const invoice = await InvoiceModel.getById(id);
+
+      if (!invoice) {
+        res.status(404).json({ error: "Faktura nie znaleziona" });
+        return;
+      }
+
+      const html = await generateInvoiceHtml(invoice);
+
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.send(html);
+    } catch (error) {
+      console.error("Get HTML error:", error);
+      res.status(500).json({ error: "Błąd serwera podczas generowania HTML" });
     }
   }
 }

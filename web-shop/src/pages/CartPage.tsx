@@ -16,11 +16,11 @@ export function CartPage() {
   const { items, updatePalletCount, removeItem, clearCart, totalPrice, totalPallets } = useCart();
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
-  
+
   const [customerNotes, setCustomerNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // For employee customer selection
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
@@ -92,19 +92,19 @@ export function CartPage() {
       }));
 
       const result = await api.checkout(
-        orderItems, 
+        orderItems,
         customerNotes || undefined,
         isEmployee ? selectedCustomerId! : undefined
       );
-      
+
       clearCart();
-      navigate('/orders', { 
-        state: { 
-          success: true, 
+      navigate('/orders', {
+        state: {
+          success: true,
           orderNumber: result.orderNumber,
           totalAmount: result.totalAmount,
           customerName: result.customerName
-        } 
+        }
       });
     } catch (err: any) {
       setError(err.message || 'Błąd składania zamówienia');
@@ -115,11 +115,11 @@ export function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className="text-center py-16">
-        <div className="text-6xl mb-4">🛒</div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Koszyk jest pusty</h2>
-        <p className="text-gray-600 mb-6">Dodaj produkty do koszyka, aby złożyć zamówienie</p>
-        <Link to="/" className="btn btn-primary">
+      <div className="text-center py-8 sm:py-16">
+        <div className="text-4xl sm:text-6xl mb-4">🛒</div>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Koszyk jest pusty</h2>
+        <p className="text-sm sm:text-base text-gray-600 mb-6">Dodaj produkty do koszyka, aby złożyć zamówienie</p>
+        <Link to="/" className="btn btn-primary text-sm sm:text-base">
           Przejdź do katalogu
         </Link>
       </div>
@@ -128,55 +128,66 @@ export function CartPage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Koszyk</h1>
+      <h1 className="text-xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-8">Koszyk</h1>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8">
         {/* Cart items */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-3 sm:space-y-4">
           {items.map(item => {
             const palletCount = getPalletCount(item);
             const unitsPerPallet = getUnitsPerPallet(item.product);
             const maxPallets = getMaxPallets(item.product);
-            
+
             return (
-              <div key={item.product.id} className="card p-4 flex gap-4">
-                {/* Image */}
-                <div className="w-24 h-24 bg-gray-100 rounded-lg flex-shrink-0">
-                  {item.product.imageUrl ? (
-                    <img
-                      src={item.product.imageUrl}
-                      alt={item.product.plantName}
-                      className="w-full h-full object-cover rounded-lg"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-3xl">
-                      🌿
-                    </div>
-                  )}
+              <div key={item.product.id} className="card p-3 sm:p-4">
+                {/* Mobile layout - stacked */}
+                <div className="flex gap-3 sm:gap-4">
+                  {/* Image */}
+                  <div className="w-16 h-16 sm:w-24 sm:h-24 bg-gray-100 rounded-lg flex-shrink-0">
+                    {item.product.imageUrl ? (
+                      <img
+                        src={item.product.imageUrl}
+                        alt={item.product.plantName}
+                        className="w-full h-full object-cover rounded-lg"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-2xl sm:text-3xl">
+                        🌿
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Info - flex grows */}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 text-sm sm:text-base line-clamp-1">{item.product.plantName}</h3>
+                    <p className="text-xs sm:text-sm text-gray-500">
+                      {item.product.potSize && `${item.product.potSize} • `}
+                      {formatPrice(item.product.price)} / szt.
+                    </p>
+                    <p className="text-xs text-gray-500 hidden sm:block">
+                      1 paleta = {unitsPerPallet} szt. • Dostępne: {maxPallets} palet
+                    </p>
+                    <p className="text-xs text-gray-400 sm:hidden">
+                      {unitsPerPallet} szt./paleta • max {maxPallets}
+                    </p>
+                  </div>
+
+                  {/* Price - mobile */}
+                  <div className="text-right sm:hidden">
+                    <span className="font-bold text-green-600 text-sm">
+                      {formatPrice(item.product.price * item.quantity)}
+                    </span>
+                  </div>
                 </div>
 
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900">{item.product.plantName}</h3>
-                  <p className="text-sm text-gray-500">
-                    {item.product.potSize && `${item.product.potSize} • `}
-                    {formatPrice(item.product.price)} / szt.
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    1 paleta = {unitsPerPallet} szt.
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    Dostępne palety: {maxPallets}
-                  </p>
-                </div>
-
-                {/* Pallet Quantity */}
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-xs text-gray-500">Palety</span>
+                {/* Controls row */}
+                <div className="flex items-center justify-between mt-3 pt-3 border-t sm:border-0 sm:pt-0 sm:mt-0">
+                  {/* Pallet Quantity */}
                   <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Palety:</span>
                     <button
                       onClick={() => updatePalletCount(item.product.id, palletCount - 1)}
-                      className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-sm"
                     >
                       -
                     </button>
@@ -186,27 +197,35 @@ export function CartPage() {
                       max={maxPallets}
                       value={palletCount}
                       onChange={(e) => updatePalletCount(item.product.id, parseInt(e.target.value) || 1)}
-                      className="w-16 text-center border rounded-lg py-1"
+                      className="w-12 sm:w-16 text-center border rounded-lg py-1 text-sm"
                     />
                     <button
                       onClick={() => updatePalletCount(item.product.id, palletCount + 1)}
                       disabled={palletCount >= maxPallets}
-                      className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center disabled:opacity-50"
+                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center disabled:opacity-50 text-sm"
                     >
                       +
                     </button>
+                    <span className="text-xs text-gray-500">({item.quantity} szt.)</span>
                   </div>
-                  <span className="text-xs text-gray-500">({item.quantity} szt.)</span>
-                </div>
 
-                {/* Price & Remove */}
-                <div className="flex flex-col items-end justify-between">
-                  <span className="font-bold text-green-600">
-                    {formatPrice(item.product.price * item.quantity)}
-                  </span>
+                  {/* Price & Remove - desktop */}
+                  <div className="hidden sm:flex flex-col items-end justify-between">
+                    <span className="font-bold text-green-600">
+                      {formatPrice(item.product.price * item.quantity)}
+                    </span>
+                    <button
+                      onClick={() => removeItem(item.product.id)}
+                      className="text-red-500 hover:text-red-700 text-sm"
+                    >
+                      Usuń
+                    </button>
+                  </div>
+
+                  {/* Remove - mobile */}
                   <button
                     onClick={() => removeItem(item.product.id)}
-                    className="text-red-500 hover:text-red-700 text-sm"
+                    className="sm:hidden text-red-500 hover:text-red-700 text-xs"
                   >
                     Usuń
                   </button>
@@ -218,10 +237,10 @@ export function CartPage() {
 
         {/* Summary */}
         <div className="lg:col-span-1">
-          <div className="card p-6 sticky top-24">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Podsumowanie</h2>
-            
-            <div className="space-y-2 mb-4">
+          <div className="card p-4 sm:p-6 sticky top-16 sm:top-24">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Podsumowanie</h2>
+
+            <div className="space-y-2 mb-4 text-sm sm:text-base">
               <div className="flex justify-between text-gray-600">
                 <span>Palety</span>
                 <span>{totalPallets} szt.</span>
@@ -232,8 +251,8 @@ export function CartPage() {
               </div>
             </div>
 
-            <div className="border-t pt-4 mb-6">
-              <div className="flex justify-between text-xl font-bold">
+            <div className="border-t pt-4 mb-4 sm:mb-6">
+              <div className="flex justify-between text-lg sm:text-xl font-bold">
                 <span>Razem</span>
                 <span className="text-green-600">{formatPrice(totalPrice)}</span>
               </div>
@@ -241,15 +260,15 @@ export function CartPage() {
 
             {/* Customer selector for employees */}
             {isEmployee && (
-              <div className="mb-6">
+              <div className="mb-4 sm:mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Wybierz klienta <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <input
                     type="text"
-                    className="input w-full"
-                    placeholder="Szukaj po nazwie, kodzie, NIP lub mieście..."
+                    className="input w-full text-sm"
+                    placeholder="Szukaj po nazwie, kodzie, NIP..."
                     value={customerSearch}
                     onChange={(e) => {
                       setCustomerSearch(e.target.value);
@@ -257,12 +276,12 @@ export function CartPage() {
                     }}
                   />
                   {loadingCustomers && (
-                    <p className="text-sm text-gray-500 mt-1">Ładowanie klientów...</p>
+                    <p className="text-xs sm:text-sm text-gray-500 mt-1">Ładowanie klientów...</p>
                   )}
                   {!loadingCustomers && customerSearch && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 sm:max-h-60 overflow-y-auto">
                       {filteredCustomers.length === 0 ? (
-                        <p className="p-3 text-sm text-gray-500">Nie znaleziono klientów</p>
+                        <p className="p-3 text-xs sm:text-sm text-gray-500">Nie znaleziono klientów</p>
                       ) : (
                         <>
                           <p className="px-3 py-2 text-xs text-gray-500 bg-gray-50 border-b">
@@ -278,7 +297,7 @@ export function CartPage() {
                                 setCustomerSearch(c.customerCode ? `[${c.customerCode}] ${c.name}` : c.name);
                               }}
                             >
-                              <div className="font-medium text-sm">
+                              <div className="font-medium text-xs sm:text-sm">
                                 {c.customerCode && <span className="text-blue-600">[{c.customerCode}]</span>} {c.name}
                               </div>
                               <div className="text-xs text-gray-500">
@@ -290,7 +309,7 @@ export function CartPage() {
                           ))}
                           {filteredCustomers.length > 50 && (
                             <p className="px-3 py-2 text-xs text-gray-500 bg-gray-50">
-                              Pokazano 50 z {filteredCustomers.length} wyników. Zawęź wyszukiwanie.
+                              Pokazano 50 z {filteredCustomers.length} wyników.
                             </p>
                           )}
                         </>
@@ -299,7 +318,7 @@ export function CartPage() {
                   )}
                 </div>
                 {selectedCustomerId && (
-                  <p className="text-sm text-green-600 mt-1">
+                  <p className="text-xs sm:text-sm text-green-600 mt-1">
                     ✓ Wybrany: {customers.find(c => c.id === selectedCustomerId)?.name}
                   </p>
                 )}
@@ -307,12 +326,12 @@ export function CartPage() {
             )}
 
             {/* Notes */}
-            <div className="mb-6">
+            <div className="mb-4 sm:mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Uwagi do zamówienia (opcjonalne)
+                Uwagi (opcjonalne)
               </label>
               <textarea
-                className="input h-24 resize-none"
+                className="input h-20 sm:h-24 resize-none text-sm"
                 placeholder="Np. preferowany termin dostawy..."
                 value={customerNotes}
                 onChange={(e) => setCustomerNotes(e.target.value)}
@@ -321,13 +340,13 @@ export function CartPage() {
 
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-                <p className="text-sm text-red-800">{error}</p>
+                <p className="text-xs sm:text-sm text-red-800">{error}</p>
               </div>
             )}
 
             {!isAuthenticated && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-                <p className="text-sm text-yellow-800">
+                <p className="text-xs sm:text-sm text-yellow-800">
                   Musisz być zalogowany, aby złożyć zamówienie
                 </p>
               </div>
@@ -335,8 +354,8 @@ export function CartPage() {
 
             {isEmployee && !selectedCustomerId && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                <p className="text-sm text-blue-800">
-                  Jako pracownik musisz wybrać klienta dla którego składasz zamówienie
+                <p className="text-xs sm:text-sm text-blue-800">
+                  Jako pracownik musisz wybrać klienta
                 </p>
               </div>
             )}
@@ -344,9 +363,9 @@ export function CartPage() {
             <button
               onClick={handleCheckout}
               disabled={submitting || (!!isEmployee && !selectedCustomerId)}
-              className="btn btn-primary w-full py-3 text-lg disabled:opacity-50"
+              className="btn btn-primary w-full py-2.5 sm:py-3 text-sm sm:text-lg disabled:opacity-50"
             >
-              {submitting ? 'Składanie zamówienia...' : (
+              {submitting ? 'Składanie...' : (
                 isAuthenticated ? 'Złóż zamówienie' : 'Zaloguj się i zamów'
               )}
             </button>

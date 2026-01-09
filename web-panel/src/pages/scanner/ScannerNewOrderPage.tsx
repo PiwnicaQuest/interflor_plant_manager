@@ -73,6 +73,7 @@ export function ScannerNewOrderPage() {
       const orderData = {
         customerId: selectedCustomer.id,
         items: [], // Empty items - products will be added on order detail page
+        source: 'scanner' as const,
       };
 
       const result = await API.createOrder(orderData);

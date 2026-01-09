@@ -1147,7 +1147,7 @@ export function SettingsPage() {
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Print Agent - Drukowanie z systemu</h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  Aby drukować bezpośrednio z PlantManager na drukarki lokalne (termiczne, laserowe),
+                  Aby drukować bezpośrednio z POLFLOR na drukarki lokalne (termiczne, laserowe),
                   zainstaluj Print Agent na komputerze z podłączonymi drukarkami.
                 </p>
 
@@ -1196,7 +1196,7 @@ export function SettingsPage() {
                 </div>
 
                 <a
-                  href="/api/downloads/install-print-agent.bat"
+                  href="/downloads/print-agent.zip"
                   download
                   className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
                 >

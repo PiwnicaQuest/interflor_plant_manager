@@ -112,3 +112,97 @@ export interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
 }
+
+// Invoice types for customer panel
+export type PaymentStatus = 'unpaid' | 'partially_paid' | 'paid' | 'overdue';
+
+export interface Invoice {
+  id: number;
+  invoiceNumber: string;
+  orderId: number;
+  issueDate: string;
+  saleDate: string;
+  paymentDeadline: string;
+  paymentStatus: PaymentStatus;
+  totalGross: number;
+  paidAmount: number;
+  buyerName: string;
+}
+
+export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  'unpaid': 'Nieopłacona',
+  'partially_paid': 'Częściowo opłacona',
+  'paid': 'Opłacona',
+  'overdue': 'Zaległa',
+};
+
+export const PAYMENT_STATUS_COLORS: Record<PaymentStatus, string> = {
+  'unpaid': 'bg-yellow-100 text-yellow-800',
+  'partially_paid': 'bg-blue-100 text-blue-800',
+  'paid': 'bg-green-100 text-green-800',
+  'overdue': 'bg-red-100 text-red-800',
+};
+
+// Invoice data for printing HTML template
+export interface InvoiceForPrint {
+  id: number;
+  invoiceNumber: string;
+  orderId?: number;
+  orderNumber?: string;
+  issueDate: string;
+  saleDate: string;
+  paymentDeadline?: string;
+  paymentMethod?: 'card' | 'cash' | 'transfer';
+  paymentSplits?: Array<{ paymentMethod: 'card' | 'cash' | 'transfer'; amount: number }>;
+  paymentStatus: PaymentStatus;
+  subtotalNet: number;
+  totalVat: number;
+  totalGross: number;
+  paidAmount: number;
+  notes?: string;
+  buyerInfo?: {
+    customerCode?: string;
+    companyName?: string;
+    firstName?: string;
+    lastName?: string;
+    nip?: string;
+    address?: string;
+    city?: string;
+    postalCode?: string;
+  };
+  recipientInfo?: {
+    companyName?: string;
+    firstName?: string;
+    lastName?: string;
+    address?: string;
+    city?: string;
+    postalCode?: string;
+    phone?: string;
+  };
+  items?: Array<{
+    id: number;
+    name: string;
+    quantity: number;
+    unit: string;
+    unitPriceNet: number;
+    unitPriceGross: number;
+    totalNet: number;
+    totalGross: number;
+    vatRate: number;
+    vatAmount: number;
+    growerPassport?: string;
+  }>;
+}
+
+export interface SellerInfo {
+  name: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  nip: string;
+  phone?: string;
+  email?: string;
+  bankAccount?: string;
+  bankName?: string;
+  invoiceComment?: string;
+}

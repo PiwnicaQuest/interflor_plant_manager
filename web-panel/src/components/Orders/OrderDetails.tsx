@@ -288,7 +288,7 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
     };
 
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'PlantManager';
+    workbook.creator = 'POLFLOR';
     workbook.created = new Date();
     
     const worksheet = workbook.addWorksheet(order.orderNumber.replace(/\//g, '-'), {

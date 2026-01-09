@@ -17,6 +17,7 @@ export function OrdersPage() {
   const [customerSearch, setCustomerSearch] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+  const [sourceFilter, setSourceFilter] = useState<string>('');
   const [selectedOrders, setSelectedOrders] = useState<number[]>([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkCancelModal, setShowBulkCancelModal] = useState(false);
@@ -36,6 +37,7 @@ export function OrdersPage() {
       }
       if (startDate) filters.startDate = startDate;
       if (endDate) filters.endDate = endDate;
+      if (sourceFilter) filters.source = sourceFilter;
       const data = await api.getOrders(filters);
       setOrders(data.orders);
       setSelectedOrders([]);
@@ -48,7 +50,7 @@ export function OrdersPage() {
 
   useEffect(() => {
     fetchOrders();
-  }, [statusFilter, customerSearch, startDate, endDate]);
+  }, [statusFilter, customerSearch, startDate, endDate, sourceFilter]);
 
   const handleAdd = () => {
     setShowForm(true);
@@ -326,7 +328,7 @@ export function OrdersPage() {
 
       {/* Filters */}
       <div className="card p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Status Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -346,7 +348,24 @@ export function OrdersPage() {
             </select>
           </div>
 
-          {/* Customer Search */}
+                    {/* Source Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Źródło
+            </label>
+            <select
+              className="input"
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value)}
+            >
+              <option value="">Wszystkie</option>
+              <option value="shop">Sklep internetowy</option>
+              <option value="scanner">Scanner PWA</option>
+              <option value="panel">Panel</option>
+            </select>
+          </div>
+
+{/* Customer Search */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Kontrahent (nazwa/kod/NIP)
@@ -388,7 +407,7 @@ export function OrdersPage() {
         </div>
 
         {/* Clear Filters */}
-        {(statusFilter || customerSearch || startDate || endDate) && (
+        {(statusFilter || customerSearch || startDate || endDate || sourceFilter) && (
           <div className="mt-3 pt-3 border-t">
             <button
               onClick={() => {
@@ -396,6 +415,7 @@ export function OrdersPage() {
                 setCustomerSearch('');
                 setStartDate('');
                 setEndDate('');
+                setSourceFilter('');
               }}
               className="text-sm text-gray-500 hover:text-gray-700"
             >

@@ -161,6 +161,7 @@ app.get('/invoices/:id', requireAuth, InvoiceController.getById);
 app.post('/invoices', requireAuth, requireRole([UserRole.ADMIN, UserRole.POS]), InvoiceController.create);
 app.patch('/invoices/:id/payment-status', requireAuth, requireRole([UserRole.ADMIN, UserRole.POS]), InvoiceController.updatePaymentStatus);
 app.get('/invoices/:id/pdf', requireAuth, InvoiceController.getPDF);
+app.get("/invoices/:id/html", requireAuth, InvoiceController.getHTML);
 
 // ============================================
 
@@ -172,6 +173,7 @@ app.get("/proforma", requireAuth, ProformaController.getAll);
 app.get("/proforma/stats", requireAuth, ProformaController.getStats);
 app.get("/proforma/expiring", requireAuth, ProformaController.getExpiring);
 app.get("/proforma/expired", requireAuth, ProformaController.getExpired);
+app.get("/proforma/:id/html", requireAuth, ProformaController.getHTML);
 app.get("/proforma/:id", requireAuth, ProformaController.getById);
 app.post("/proforma", requireAuth, requireRole([UserRole.ADMIN, UserRole.POS]), ProformaController.create);
 app.post("/proforma/from-order/:orderId", requireAuth, requireRole([UserRole.ADMIN, UserRole.POS]), ProformaController.createFromOrder);
@@ -215,6 +217,7 @@ app.get("/pos/daily-report/pdf", requireAuth, requireRole([UserRole.ADMIN, UserR
 
 app.get('/receipts', requireAuth, ReceiptController.getAll);
 app.get('/receipts/number/:receiptNumber', requireAuth, ReceiptController.getByReceiptNumber);
+app.get("/receipts/:id/html", requireAuth, ReceiptController.getHTML);
 app.get('/receipts/:id', requireAuth, ReceiptController.getById);
 app.put('/receipts/:id', requireAuth, requireRole([UserRole.ADMIN]), ReceiptController.update);
 app.delete('/receipts/:id', requireAuth, requireRole([UserRole.ADMIN]), ReceiptController.delete);
@@ -358,6 +361,9 @@ app.post('/shop/cart/checkout', requireAuth, requireRoleOrPermission([UserRole.C
 app.get('/shop/products/:id', optionalAuth, ShopController.getProduct);
 app.get('/shop/my-orders', requireAuth, requireRoleOrPermission([UserRole.CUSTOMER], 'shop:view'), ShopController.getMyOrders);
 app.get('/shop/my-orders/:id', requireAuth, requireRoleOrPermission([UserRole.CUSTOMER], 'shop:view'), ShopController.getMyOrder);
+app.get('/shop/my-invoices', requireAuth, requireRoleOrPermission([UserRole.CUSTOMER], 'shop:view'), ShopController.getMyInvoices);
+app.get("/shop/my-invoices/:id", requireAuth, requireRoleOrPermission([UserRole.CUSTOMER], "shop:view"), ShopController.getMyInvoice);
+app.get('/shop/my-invoices/:id/pdf', requireAuth, requireRoleOrPermission([UserRole.CUSTOMER], 'shop:view'), ShopController.getMyInvoicePdf);
 app.get('/shop/profile', requireAuth, requireRoleOrPermission([UserRole.CUSTOMER], 'shop:view'), ShopController.getCustomerProfile);
 app.get('/shop/customers', requireAuth, requireRoleOrPermission([], 'shop:order'), ShopController.getCustomersForShop);
 app.post('/shop/change-password', requireAuth, ShopController.changeMyPassword);

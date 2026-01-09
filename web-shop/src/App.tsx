@@ -5,8 +5,10 @@ import { Layout } from './components/Layout';
 import { CatalogPage } from './pages/CatalogPage';
 import { CartPage } from './pages/CartPage';
 import { OrdersPage } from './pages/OrdersPage';
+import { InvoicesPage } from './pages/InvoicesPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { PrintInvoicePage } from './pages/PrintInvoicePage';
 
 function App() {
   return (
@@ -18,9 +20,12 @@ function App() {
               <Route path="/" element={<CatalogPage />} />
               <Route path="/cart" element={<CartPage />} />
               <Route path="/orders" element={<OrdersPage />} />
+              <Route path="/invoices" element={<InvoicesPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/login" element={<LoginPage />} />
             </Route>
+            {/* Print pages without layout */}
+            <Route path="/print/invoice/:id" element={<PrintInvoicePage />} />
           </Routes>
         </CartProvider>
       </AuthProvider>

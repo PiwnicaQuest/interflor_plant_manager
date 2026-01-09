@@ -11,6 +11,7 @@ export class OrderModel {
     customerNip?: string;
     startDate?: string;
     endDate?: string;
+    source?: 'shop' | 'scanner' | 'panel';
   }): Promise<Order[]> {
     let sql = `
       SELECT o.*,
@@ -58,6 +59,12 @@ export class OrderModel {
     if (filters?.endDate) {
       sql += ` AND o.created_at < $${paramIndex}::date + interval '1 day'`;
       params.push(filters.endDate);
+      paramIndex++;
+    }
+
+    if (filters?.source) {
+      sql += ` AND o.source = $${paramIndex}`;
+      params.push(filters.source);
       paramIndex++;
     }
 
@@ -161,7 +168,8 @@ export class OrderModel {
     customerSnapshot: CustomerSnapshot,
     createdByUserId?: number,
     customerNotes?: string,
-    recipientSnapshot?: CustomerSnapshot
+    recipientSnapshot?: CustomerSnapshot,
+    source?: 'shop' | 'scanner' | 'panel'
   ): Promise<OrderWithItems> {
     return transaction(async (client) => {
       // Generate order number
@@ -180,8 +188,8 @@ export class OrderModel {
       const orderResult = await client.query<Order>(
         `INSERT INTO orders (
           order_number, customer_id, created_by_user_id, customer_snapshot,
-          customer_notes, recipient_snapshot, total_amount, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          customer_notes, recipient_snapshot, total_amount, status, source
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *`,
         [
           orderNumber,
@@ -192,6 +200,7 @@ export class OrderModel {
           recipientSnapshot ? JSON.stringify(recipientSnapshot) : null,
           totalAmount,
           'pending',
+          source || null,
         ]
       );
 

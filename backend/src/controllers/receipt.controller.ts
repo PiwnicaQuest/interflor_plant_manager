@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { ReceiptModel } from '../models/Receipt';
+import { generateReceiptHtml } from '../utils/receiptHtmlGenerator';
 
 export class ReceiptController {
   /**
@@ -134,6 +135,30 @@ export class ReceiptController {
     } catch (error) {
       console.error('Error deleting receipt:', error);
       return res.status(500).json({ error: 'Błąd serwera podczas usuwania paragonu' });
+    }
+  }
+
+  /**
+   * GET /receipts/:id/html - Get receipt as printable HTML
+   */
+  static async getHTML(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        res.status(400).json({ error: "Nieprawidlowe ID paragonu" });
+        return;
+      }
+      const receipt = await ReceiptModel.getById(id);
+      if (!receipt) {
+        res.status(404).json({ error: "Paragon nie znaleziony" });
+        return;
+      }
+      const html = await generateReceiptHtml(receipt);
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.send(html);
+    } catch (error) {
+      console.error("Get HTML error:", error);
+      res.status(500).json({ error: "Blad serwera podczas generowania HTML" });
     }
   }
 }

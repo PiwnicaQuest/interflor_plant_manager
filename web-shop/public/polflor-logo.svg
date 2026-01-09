@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50" fill="none">
+  <!-- Leaf icon -->
+  <g transform="translate(5, 5)">
+    <!-- Green outer leaf -->
+    <path d="M20 2C12 8 6 16 4 25C2 34 4 40 10 42C18 44 24 38 26 30C28 22 26 14 20 2Z" fill="#16a34a"/>
+    <!-- Pink inner leaf -->
+    <path d="M20 8C14 12 10 18 8 24C6 30 8 34 12 36C18 38 22 34 24 28C26 22 24 16 20 8Z" fill="#ec4899"/>
+    <!-- Stem -->
+    <path d="M18 38L16 48" stroke="#16a34a" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <!-- POLFLOR text -->
+  <text x="50" y="35" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="bold" fill="#16a34a">
+    POLFLOR
+  </text>
+</svg>

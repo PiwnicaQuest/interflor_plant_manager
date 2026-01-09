@@ -7,7 +7,7 @@ import { CreateOrderRequest, UpdateOrderStatusRequest, CancelOrderRequest, Order
 export class OrderController {
   static async getAll(req: AuthRequest, res: Response) {
     try {
-      const { status, customerId, customerName, customerCode, customerNip, startDate, endDate } = req.query;
+      const { status, customerId, customerName, customerCode, customerNip, startDate, endDate, source } = req.query;
 
       const filters: any = {};
       if (status) filters.status = status as OrderStatus;
@@ -17,6 +17,7 @@ export class OrderController {
       if (customerNip) filters.customerNip = customerNip as string;
       if (startDate) filters.startDate = startDate as string;
       if (endDate) filters.endDate = endDate as string;
+      if (source) filters.source = source as string;
 
       const orders = await OrderModel.getAll(filters);
 
@@ -121,7 +122,8 @@ export class OrderController {
         customerSnapshot,
         req.user?.userId,
         data.customerNotes,
-        recipientSnapshot
+        recipientSnapshot,
+        data.source || 'panel'
       );
 
       return res.status(201).json({

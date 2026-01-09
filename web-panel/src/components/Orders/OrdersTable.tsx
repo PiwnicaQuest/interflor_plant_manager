@@ -18,6 +18,13 @@ const statusConfig: Record<OrderStatus, { label: string; class: string }> = {
   [OrderStatus.CANCELLED]: { label: 'Anulowane', class: 'badge-danger' },
 };
 
+const sourceConfig: Record<string, string> = {
+  shop: 'Sklep internetowy',
+  scanner: 'Scanner PWA',
+  panel: 'Panel',
+
+};
+
 export function OrdersTable({
   orders,
   selectedOrders,
@@ -68,6 +75,7 @@ export function OrdersTable({
               <th>Pozycje</th>
               <th>Kwota</th>
               <th>Status</th>
+              <th>Źródło</th>
               <th>Akcje</th>
             </tr>
           </thead>
@@ -91,6 +99,11 @@ export function OrdersTable({
                 <td>
                   <span className={`badge ${statusConfig[order.status].class}`}>
                     {statusConfig[order.status].label}
+                  </span>
+                </td>
+                <td>
+                  <span className="text-sm text-gray-600">
+                    {order.source ? sourceConfig[order.source] || order.source : '-'}
                   </span>
                 </td>
                 <td>

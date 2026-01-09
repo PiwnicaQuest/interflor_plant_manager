@@ -6,6 +6,7 @@ import { CashPaymentModal } from '../components/POS/CashPaymentModal';
 import { PaymentSuccessModal } from '../components/POS/PaymentSuccessModal';
 import { TransferPaymentModal } from '../components/POS/TransferPaymentModal';
 import { CardPaymentModal } from '../components/POS/CardPaymentModal';
+import { usePrint } from '../hooks/usePrint';
 
 // Helper function to safely format numbers
 const formatPrice = (value: number | string | null | undefined): string => {
@@ -43,6 +44,18 @@ export function POSPage() {
   const [checkoutResult, setCheckoutResult] = useState<CheckoutResult | null>(null);
   const [cashReceived, setCashReceived] = useState<number>(0);
   const [downloadingReport, setDownloadingReport] = useState(false);
+  const [printLoading, setPrintLoading] = useState(false);
+
+  // Print Agent hook
+  const { printInvoice, printReceipt } = usePrint({
+    onError: (error) => {
+      console.error("Print error:", error);
+      setError("Blad drukowania: " + error);
+    },
+    onQueued: (jobId) => {
+      console.log("Print job queued:", jobId);
+    },
+  });
 
   const fetchReadyOrders = async () => {
     try {
@@ -230,19 +243,38 @@ export function POSPage() {
     handleCheckout(PaymentMethod.CARD);
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (!checkoutResult) return;
 
-    let printUrl: string;
-    if (checkoutResult.documentType === 'invoice') {
-      printUrl = `/print/invoice/${checkoutResult.documentId}`;
-    } else if (checkoutResult.documentType === 'proforma') {
-      printUrl = `/print/proforma/${checkoutResult.documentId}`;
-    } else {
-      printUrl = `/print/receipt/${checkoutResult.documentId}`;
-    }
+    try {
+      setPrintLoading(true);
+      setError('');
 
-    window.open(printUrl, '_blank');
+      let html: string;
+      if (checkoutResult.documentType === 'invoice') {
+        html = await api.getInvoiceHtml(checkoutResult.documentId);
+        await printInvoice(html, {
+          title: `Faktura ${checkoutResult.documentNumber}`,
+          invoiceId: checkoutResult.documentId,
+        });
+      } else if (checkoutResult.documentType === 'proforma') {
+        html = await api.getProformaHtml(checkoutResult.documentId);
+        await printInvoice(html, {
+          title: `Proforma ${checkoutResult.documentNumber}`,
+          invoiceId: checkoutResult.documentId,
+        });
+      } else {
+        html = await api.getReceiptHtml(checkoutResult.documentId);
+        await printReceipt(html, {
+          title: `Paragon ${checkoutResult.documentNumber}`,
+        });
+      }
+    } catch (err: any) {
+      console.error('Print error:', err);
+      setError(err.message || 'Blad drukowania');
+    } finally {
+      setPrintLoading(false);
+    }
   };
 
   const handleViewDocument = () => {
@@ -266,17 +298,38 @@ export function POSPage() {
     setCashReceived(0);
   };
 
-  const handleHistoryPrint = (order: CompletedOrderSummary) => {
+  const handleHistoryPrint = async (order: CompletedOrderSummary) => {
     if (!order.document) return;
-    let printUrl: string;
-    if (order.document.type === 'invoice') {
-      printUrl = `/print/invoice/${order.document.id}`;
-    } else if (order.document.type === 'proforma') {
-      printUrl = `/print/proforma/${order.document.id}`;
-    } else {
-      printUrl = `/print/receipt/${order.document.id}`;
+
+    try {
+      setPrintLoading(true);
+      setError('');
+
+      let html: string;
+      if (order.document.type === 'invoice') {
+        html = await api.getInvoiceHtml(order.document.id);
+        await printInvoice(html, {
+          title: `Faktura ${order.document.number}`,
+          invoiceId: order.document.id,
+        });
+      } else if (order.document.type === 'proforma') {
+        html = await api.getProformaHtml(order.document.id);
+        await printInvoice(html, {
+          title: `Proforma ${order.document.number}`,
+          invoiceId: order.document.id,
+        });
+      } else {
+        html = await api.getReceiptHtml(order.document.id);
+        await printReceipt(html, {
+          title: `Paragon ${order.document.number}`,
+        });
+      }
+    } catch (err: any) {
+      console.error('Print error:', err);
+      setError(err.message || 'Blad drukowania');
+    } finally {
+      setPrintLoading(false);
     }
-    window.open(printUrl, '_blank');
   };
 
   const handleHistoryView = (order: CompletedOrderSummary) => {

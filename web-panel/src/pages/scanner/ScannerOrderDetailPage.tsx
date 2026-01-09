@@ -497,7 +497,7 @@ export function ScannerOrderDetailPage() {
           </button>
         </div>
         {order.customerName && (
-          <p className="text-xs font-medium text-gray-700 mt-1 ml-7">{order.customerName}</p>
+          <p className="text-xs font-medium text-gray-700 mt-1 ml-7">{order.customerCode ? `[${order.customerCode}] ${order.customerName}` : order.customerName}</p>
         )}
       </div>
 

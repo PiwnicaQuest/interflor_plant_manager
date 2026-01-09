@@ -177,7 +177,7 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
 
     try {
       const workbook = new ExcelJS.Workbook();
-      workbook.creator = 'PlantManager';
+      workbook.creator = 'POLFLOR';
       workbook.created = new Date();
 
       const worksheet = workbook.addWorksheet('Oferta', {

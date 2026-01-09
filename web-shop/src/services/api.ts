@@ -1,4 +1,4 @@
-import type { Product, Order, Customer } from '../types';
+import type { Product, Order, Customer, Invoice, InvoiceForPrint, SellerInfo } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -94,7 +94,7 @@ class ApiService {
     const body: any = { items };
     if (customerNotes) body.customerNotes = customerNotes;
     if (customerId) body.customerId = customerId;
-    
+
     const response = await fetch(API_URL + '/shop/cart/checkout', {
       method: 'POST',
       headers: this.getHeaders(),
@@ -115,6 +115,57 @@ class ApiService {
       headers: this.getHeaders(),
     });
     return this.handleResponse(response);
+  }
+
+  // Invoices
+  async getMyInvoices(): Promise<{ invoices: Invoice[] }> {
+    const response = await fetch(API_URL + '/shop/my-invoices', {
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  // Get single invoice with full data for printing
+  async getMyInvoice(invoiceId: number): Promise<{ invoice: InvoiceForPrint; sellerInfo: SellerInfo }> {
+    const response = await fetch(API_URL + "/shop/my-invoices/" + invoiceId, {
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  async downloadInvoicePdf(invoiceId: number): Promise<void> {
+    const token = localStorage.getItem('shop_token');
+    const response = await fetch(API_URL + '/shop/my-invoices/' + invoiceId + '/pdf', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Błąd pobierania faktury' }));
+      throw new Error(error.error || 'HTTP error ' + response.status);
+    }
+
+    // Get filename from Content-Disposition header if available
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = 'faktura.pdf';
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename="?([^";\n]+)"?/);
+      if (match) {
+        filename = match[1];
+      }
+    }
+
+    // Download the file
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
   }
 
   // Profile

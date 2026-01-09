@@ -55,12 +55,10 @@ export function ScannerLoginPage() {
         {/* Logo - COMPACT */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-full shadow-lg mb-3">
-            <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-            </svg>
+            <img src="/polflor-icon-192.png" alt="POLFLOR" className="w-12 h-12" />
           </div>
           <h1 className="text-2xl font-bold text-white">Skaner Magazynowy</h1>
-          <p className="text-green-100 mt-1 text-sm">PlantManager</p>
+          <p className="text-green-100 mt-1 text-sm">POLFLOR</p>
           {isStandalone && (
             <span className="inline-block mt-2 px-2 py-0.5 bg-green-800 text-green-100 text-xs rounded-full">
               📱 Tryb aplikacji

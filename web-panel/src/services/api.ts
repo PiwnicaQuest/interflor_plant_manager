@@ -178,7 +178,7 @@ class ApiClient {
   // ORDERS (TODO: implement on backend)
   // ============================================
 
-  async getOrders(filters?: { status?: string; customerId?: number; customerName?: string; customerCode?: string; customerNip?: string; startDate?: string; endDate?: string }): Promise<{ orders: Order[] }> {
+  async getOrders(filters?: { status?: string; customerId?: number; customerName?: string; customerCode?: string; customerNip?: string; startDate?: string; endDate?: string; source?: string }): Promise<{ orders: Order[] }> {
     const response = await this.client.get('/orders', { params: filters });
     return response.data;
   }
@@ -200,6 +200,7 @@ class ApiClient {
     recipientPostalCode?: string;
     recipientCity?: string;
     recipientPhone?: string;
+    source?: 'shop' | 'scanner' | 'panel';
   }): Promise<{ message: string; orderNumber: string; orderId: number }> {
     const response = await this.client.post("/orders", data);
     return response.data;
@@ -298,13 +299,18 @@ class ApiClient {
   // INVOICES (TODO: implement on backend)
   // ============================================
 
-  async getInvoices(filters?: { startDate?: string; endDate?: string; customerId?: number; paymentStatus?: string }): Promise<{ invoices: Invoice[] }> {
+  async getInvoices(filters?: { startDate?: string; endDate?: string; customerId?: number; paymentStatus?: string; paymentMethod?: string }): Promise<{ invoices: Invoice[] }> {
     const response = await this.client.get('/invoices', { params: filters });
     return response.data;
   }
 
   async getInvoice(id: number): Promise<{ invoice: Invoice }> {
     const response = await this.client.get(`/invoices/${id}`);
+    return response.data;
+  }
+
+  async getInvoiceHtml(id: number): Promise<string> {
+    const response = await this.client.get(`/invoices/${id}/html`, { responseType: "text" });
     return response.data;
   }
 
@@ -333,6 +339,11 @@ class ApiClient {
 
   async getProforma(id: number): Promise<{ proforma: Proforma }> {
     const response = await this.client.get(`/proforma/${id}`);
+    return response.data;
+  }
+
+  async getProformaHtml(id: number): Promise<string> {
+    const response = await this.client.get(`/proforma/${id}/html`, { responseType: "text" });
     return response.data;
   }
 
@@ -849,6 +860,11 @@ class ApiClient {
     return response.data;
   }
 
+  async getReceiptHtml(id: number): Promise<string> {
+    const response = await this.client.get(`/receipts/${id}/html`, { responseType: "text" });
+    return response.data;
+  }
+
   async updateReceipt(id: number, data: any): Promise<{ receipt: ReceiptWithItems }> {
     const response = await this.client.put(`/receipts/${id}`, data);
     return response.data;
@@ -864,32 +880,32 @@ class ApiClient {
   // ============================================
 
   async getPrintTemplates(type?: string): Promise<any[]> {
-    const response = await this.client.get("/print/templates", { params: type ? { type } : {} });
+    const response = await this.client.get("/print-templates", { params: type ? { type } : {} });
     return response.data.templates || response.data;
   }
 
   async createPrintTemplate(data: any): Promise<any> {
-    const response = await this.client.post("/print/templates", data);
+    const response = await this.client.post("/print-templates", data);
     return response.data.template || response.data;
   }
 
   async updatePrintTemplate(id: number, data: any): Promise<{ template: any }> {
-    const response = await this.client.put(`/print/templates/${id}`, data);
+    const response = await this.client.put(`/print-templates/${id}`, data);
     return response.data;
   }
 
   async deletePrintTemplate(id: number): Promise<{ message: string }> {
-    const response = await this.client.delete(`/print/templates/${id}`);
+    const response = await this.client.delete(`/print-templates/${id}`);
     return response.data;
   }
 
   async setTemplateAsDefault(id: number): Promise<{ template: any }> {
-    const response = await this.client.patch(`/print/templates/${id}/set-default`);
+    const response = await this.client.patch(`/print-templates/${id}/set-default`);
     return response.data;
   }
 
   async duplicatePrintTemplate(id: number): Promise<any> {
-    const response = await this.client.post(`/print/templates/${id}/duplicate`);
+    const response = await this.client.post(`/print-templates/${id}/duplicate`);
     return response.data.template || response.data;
   }
 

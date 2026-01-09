@@ -60,6 +60,13 @@ interface PrinterInfo {
   isDefault: boolean;
 }
 
+// Paper size can be a standard format or custom dimensions
+interface PaperConfig {
+  format?: string;
+  width?: string;
+  height?: string;
+}
+
 class PrintAgent {
   private api: AxiosInstance;
   private isRunning: boolean = false;
@@ -131,10 +138,8 @@ class PrintAgent {
     try {
       if (process.platform === 'win32') {
         // Windows: Use wmic command with CSV format
-        // CSV format: Node,Column1,Column2,...
         const { stdout } = await execAsync('wmic printer get name,default /format:csv');
 
-        // Split by line, handling both \r\n and \n
         const lines = stdout.split(/\r?\n/).filter(line => line.trim());
 
         if (lines.length < 2) {
@@ -143,7 +148,6 @@ class PrintAgent {
           return;
         }
 
-        // Parse header to find column indices dynamically
         const header = lines[0].toLowerCase().split(',');
         const nameIndex = header.findIndex(h => h.trim() === 'name');
         const defaultIndex = header.findIndex(h => h.trim() === 'default');
@@ -158,7 +162,7 @@ class PrintAgent {
         }
 
         this.printers = lines
-          .slice(1) // Skip header
+          .slice(1)
           .filter(line => line.trim())
           .map(line => {
             const parts = line.split(',');
@@ -176,14 +180,12 @@ class PrintAgent {
         const lines = stdout.trim().split('\n');
 
         let defaultPrinter = '';
-        // Handle both English and Polish output
         const defaultMatch = stdout.match(/(?:system default destination|domyslny cel systemowy): (.+)/);
         if (defaultMatch) {
           defaultPrinter = defaultMatch[1].trim();
         }
 
         this.printers = lines
-          // Handle both "printer" (English) and "drukarka" (Polish)
           .filter(line => line.startsWith('printer') || line.startsWith('drukarka'))
           .map(line => {
             const match = line.match(/(?:printer|drukarka) (\S+)/);
@@ -254,7 +256,6 @@ class PrintAgent {
           printers: this.printers.map(p => p.name),
         });
 
-        // Process any pending jobs returned with heartbeat
         const pendingJobs = response.data.pendingJobs || [];
         if (pendingJobs.length > 0) {
           console.log(`Heartbeat: ${pendingJobs.length} pending job(s)`);
@@ -262,7 +263,6 @@ class PrintAgent {
 
       } catch (error: any) {
         console.error('Heartbeat error:', error.message);
-        // Try to re-register
         await this.register();
       }
 
@@ -277,7 +277,6 @@ class PrintAgent {
       if (!this.isRunning) return;
 
       try {
-        // Get pending jobs for this agent
         const response = await this.api.post(`/agents/${CONFIG.agentId}/heartbeat`, {
           printers: this.printers.map(p => p.name),
         });
@@ -289,7 +288,6 @@ class PrintAgent {
         }
 
       } catch (error: any) {
-        // Silently ignore polling errors (will retry)
         if (error.code !== 'ECONNREFUSED') {
           console.error('Polling error:', error.message);
         }
@@ -306,9 +304,9 @@ class PrintAgent {
     console.log(`  Type: ${job.documentType}`);
     console.log(`  Title: ${job.title || 'Untitled'}`);
     console.log(`  Printer: ${job.printerName || 'Default'}`);
+    console.log(`  Paper Size: ${job.paperSize || 'Default'}`);
 
     try {
-      // Claim the job
       const claimResponse = await this.api.post(`/jobs/${job.jobId}/claim`, {
         agentId: CONFIG.agentId,
       });
@@ -318,7 +316,6 @@ class PrintAgent {
         return;
       }
 
-      // Get the content to print
       let content = job.content;
       if (!content && job.contentUrl) {
         const contentResponse = await axios.get(job.contentUrl);
@@ -329,7 +326,6 @@ class PrintAgent {
         throw new Error('No content to print');
       }
 
-      // Print based on content type
       if (job.contentType === 'html') {
         await this.printHtml(content, job);
       } else if (job.contentType === 'pdf') {
@@ -338,14 +334,12 @@ class PrintAgent {
         await this.printRaw(content, job);
       }
 
-      // Mark job as completed
       await this.api.post(`/jobs/${job.jobId}/complete`);
       console.log(`  Job completed successfully`);
 
     } catch (error: any) {
       console.error(`  Job failed: ${error.message}`);
 
-      // Report failure
       try {
         await this.api.post(`/jobs/${job.jobId}/fail`, {
           errorMessage: error.message,
@@ -357,7 +351,6 @@ class PrintAgent {
   }
 
   private async printHtml(html: string, job: PrintJob): Promise<void> {
-    // Use Puppeteer to render and print HTML
     const puppeteer = await import('puppeteer');
 
     const browser = await puppeteer.default.launch({
@@ -367,26 +360,77 @@ class PrintAgent {
 
     try {
       const page = await browser.newPage();
+
+      // Get paper configuration (format or custom dimensions)
+      const paperConfig = this.mapPaperSize(job.paperSize);
+
+      console.log(`  Paper config: ${JSON.stringify(paperConfig)}`);
+
+      // Set high DPI viewport for all documents (minimum 300 DPI)
+      // deviceScaleFactor: 4 = 96 * 4 = 384 DPI
+      const mmToPx = 3.7795; // 96 DPI conversion
+
+      if (paperConfig.width && paperConfig.height) {
+        // Custom dimensions (labels, receipts with custom size)
+        const widthMm = parseFloat(paperConfig.width.replace('mm', ''));
+        const heightMm = parseFloat(paperConfig.height.replace('mm', ''));
+
+        await page.setViewport({
+          width: Math.round(widthMm * mmToPx),
+          height: Math.round(heightMm * mmToPx),
+          deviceScaleFactor: 4, // ~384 DPI for sharp text and barcodes
+        });
+      } else {
+        // Standard formats (A4, A5, etc.) - set appropriate viewport
+        const formatSizes: Record<string, { width: number; height: number }> = {
+          'A4': { width: 210, height: 297 },
+          'A5': { width: 148, height: 210 },
+          'A6': { width: 105, height: 148 },
+          'Letter': { width: 216, height: 279 },
+          'Legal': { width: 216, height: 356 },
+          '75mm': { width: 75, height: 297 }, // Receipt paper 75mm width
+          '80mm': { width: 80, height: 297 }, // Receipt paper 80mm width
+          '58mm': { width: 58, height: 200 }, // Receipt paper 58mm width
+        };
+
+        const size = formatSizes[paperConfig.format || 'A4'] || formatSizes['A4'];
+        const isLandscape = job.orientation === 'landscape';
+
+        await page.setViewport({
+          width: Math.round((isLandscape ? size.height : size.width) * mmToPx),
+          height: Math.round((isLandscape ? size.width : size.height) * mmToPx),
+          deviceScaleFactor: 4, // ~384 DPI for high quality print
+        });
+      }
+
       await page.setContent(html, { waitUntil: 'networkidle0' });
 
-      // Generate PDF from HTML
       const pdfPath = path.join(CONFIG.tempDir, `${job.jobId}.pdf`);
 
-      // Map paper size
-      const paperFormat = this.mapPaperSize(job.paperSize);
-
-      await page.pdf({
+      // Build PDF options
+      const pdfOptions: any = {
         path: pdfPath,
-        format: paperFormat as any,
         landscape: job.orientation === 'landscape',
         printBackground: true,
-        margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' },
-      });
+        preferCSSPageSize: true, // Respect CSS @page rules
+      };
 
-      // Print the PDF
+      if (paperConfig.format) {
+        // Standard format (A4, A5, Letter, etc.)
+        pdfOptions.format = paperConfig.format;
+        pdfOptions.margin = { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' };
+      } else if (paperConfig.width && paperConfig.height) {
+        // Custom dimensions for labels
+        pdfOptions.width = paperConfig.width;
+        pdfOptions.height = paperConfig.height;
+        pdfOptions.margin = { top: '0mm', bottom: '0mm', left: '0mm', right: '0mm' };
+        pdfOptions.scale = 1; // No scaling
+      }
+
+      await page.pdf(pdfOptions);
+
       await this.printFile(pdfPath, job);
 
-      // Cleanup
       fs.unlinkSync(pdfPath);
 
     } finally {
@@ -395,7 +439,6 @@ class PrintAgent {
   }
 
   private async printPdf(base64Content: string, job: PrintJob): Promise<void> {
-    // Decode base64 PDF and save to temp file
     const pdfPath = path.join(CONFIG.tempDir, `${job.jobId}.pdf`);
     const buffer = Buffer.from(base64Content, 'base64');
     fs.writeFileSync(pdfPath, buffer);
@@ -408,7 +451,6 @@ class PrintAgent {
   }
 
   private async printRaw(content: string, job: PrintJob): Promise<void> {
-    // Save raw content to temp file
     const filePath = path.join(CONFIG.tempDir, `${job.jobId}.txt`);
     fs.writeFileSync(filePath, content);
 
@@ -427,7 +469,6 @@ class PrintAgent {
     console.log(`  Copies: ${copies}`);
 
     if (process.platform === 'win32') {
-      // Windows: Use pdf-to-printer or native print command
       try {
         const pdfToPrinter = await import('pdf-to-printer');
         await pdfToPrinter.print(filePath, {
@@ -435,7 +476,6 @@ class PrintAgent {
           copies: copies,
         });
       } catch (e) {
-        // Fallback to native print command
         const printerArg = printerName ? `/d:"${printerName}"` : '';
         for (let i = 0; i < copies; i++) {
           await execAsync(`print ${printerArg} "${filePath}"`);
@@ -443,12 +483,10 @@ class PrintAgent {
       }
 
     } else if (process.platform === 'darwin') {
-      // macOS: Use lpr command
       const printerArg = printerName ? `-P "${printerName}"` : '';
       await execAsync(`lpr ${printerArg} -# ${copies} "${filePath}"`);
 
     } else {
-      // Linux: Use lpr command
       const printerArg = printerName ? `-P "${printerName}"` : '';
       await execAsync(`lpr ${printerArg} -# ${copies} "${filePath}"`);
     }
@@ -459,20 +497,56 @@ class PrintAgent {
     return defaultPrinter?.name;
   }
 
-  private mapPaperSize(size: string | null): string {
-    // Map custom sizes to Puppeteer format
-    const sizeMap: Record<string, string> = {
+  private mapPaperSize(size: string | null): PaperConfig {
+    // Standard format mapping
+    const standardFormats: Record<string, string> = {
       'A4': 'A4',
       'A5': 'A5',
+      'A6': 'A6',
       'Letter': 'Letter',
       'Legal': 'Legal',
-      '100x50mm': 'A7', // Closest standard size for labels
-      '100x150mm': 'A6',
-      '80mm': 'A7', // Receipt printer
-      '57mm': 'A8',
     };
 
-    return sizeMap[size || 'A4'] || 'A4';
+    // Custom size mapping (width x height in mm)
+    const customSizes: Record<string, { width: string; height: string }> = {
+      '50x30mm': { width: '50mm', height: '30mm' },
+      '50x30': { width: '50mm', height: '30mm' },
+      '57x30mm': { width: '57mm', height: '30mm' },
+      '57x30': { width: '57mm', height: '30mm' },
+      '100x50mm': { width: '100mm', height: '50mm' },
+      '100x50': { width: '100mm', height: '50mm' },
+      '100x150mm': { width: '100mm', height: '150mm' },
+      '100x150': { width: '100mm', height: '150mm' },
+      '75mm': { width: '75mm', height: '297mm' }, // Receipt roll 75mm - continuous
+      '80mm': { width: '80mm', height: '297mm' }, // Receipt roll 80mm - continuous
+      '57mm': { width: '57mm', height: '30mm' }, // Common label size
+      '58mm': { width: '58mm', height: '40mm' }, // Common label size
+    };
+
+    const sizeKey = size || 'A4';
+
+    // Check for standard format first
+    if (standardFormats[sizeKey]) {
+      return { format: standardFormats[sizeKey] };
+    }
+
+    // Check for custom size
+    if (customSizes[sizeKey]) {
+      return customSizes[sizeKey];
+    }
+
+    // Try to parse custom format like "WxHmm" or "W x H mm"
+    const customMatch = sizeKey.match(/(\d+)\s*x\s*(\d+)\s*mm?/i);
+    if (customMatch) {
+      return {
+        width: `${customMatch[1]}mm`,
+        height: `${customMatch[2]}mm`,
+      };
+    }
+
+    // Default to A4
+    console.log(`  Warning: Unknown paper size "${sizeKey}", defaulting to A4`);
+    return { format: 'A4' };
   }
 }
 
