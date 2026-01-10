@@ -189,7 +189,7 @@ app.post("/proforma/:id/send-email", requireAuth, requireRole([UserRole.ADMIN, U
 
 app.get('/customers', requireAuth, CustomerController.getAll);
 app.get('/customers/:id', requireAuth, CustomerController.getById);
-app.post('/customers', requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE]), CustomerController.create);
+app.post('/customers', requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE, UserRole.POS]), CustomerController.create);
 app.put('/customers/:id', requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE]), CustomerController.update);
 app.delete('/customers/:id', requireAuth, requireRole([UserRole.ADMIN]), CustomerController.delete);
 app.post('/customers/lookup-nip', requireAuth, CustomerController.lookupNIP);
