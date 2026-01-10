@@ -287,7 +287,7 @@ export function ScannerPage() {
 
               <div className="flex items-baseline gap-2 mb-4">
                 <span className="text-2xl font-bold text-green-600">
-                  {scannedProduct.price.toFixed(2)} PLN
+                  {Number(scannedProduct.price || 0).toFixed(2)} PLN
                 </span>
                 <span className="text-sm text-gray-500">/ szt.</span>
               </div>
@@ -343,7 +343,7 @@ export function ScannerPage() {
                         {quantity} pal. x {scannedProduct.unitsPerPallet} szt. = {quantity * scannedProduct.unitsPerPallet} szt.
                       </span>
                       <span className="font-bold text-lg text-green-600">
-                        {(scannedProduct.price * quantity * scannedProduct.unitsPerPallet).toFixed(2)} PLN
+                        {(Number(scannedProduct.price || 0) * quantity * (scannedProduct.unitsPerPallet || 1)).toFixed(2)} PLN
                       </span>
                     </div>
                   </div>
