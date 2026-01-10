@@ -807,4 +807,58 @@ export class ShopController {
       res.status(500).json({ error: 'Błąd serwera podczas generowania PDF' });
     }
   }
+
+  // Scan barcode for shop customers
+  static async scanBarcode(req: AuthRequest, res: Response) {
+    try {
+      const { barcode } = req.params;
+
+      if (!barcode) {
+        return res.status(400).json({ error: 'Kod kreskowy jest wymagany' });
+      }
+
+      // Get product by barcode
+      const product = await ProductModel.getByBarcodeIncludingMerged(barcode);
+
+      if (!product) {
+        return res.status(404).json({ error: 'Produkt nie znaleziony' });
+      }
+
+      // Check if product is visible in shop
+      if (!product.visibleInShop) {
+        return res.status(404).json({ error: 'Produkt niedostepny w sklepie' });
+      }
+
+      // Get customer pricing
+      let price = product.basePriceGross;
+      let customerId: number | undefined;
+
+      if (req.user && req.user.role === UserRole.CUSTOMER) {
+        const customer = await CustomerModel.getByUserId(req.user.userId);
+        if (customer) {
+          customerId = customer.id;
+          price = await CustomerModel.getPriceForCustomer(customerId, product.id);
+        }
+      }
+
+      return res.json({
+        product: {
+          id: product.id,
+          plantName: product.plantName,
+          potSize: product.potSize,
+          plantHeightCm: product.plantHeightCm,
+          unitsPerPallet: product.unitsPerPallet || 1,
+          palletCount: product.palletCount,
+          looseUnits: product.looseUnits,
+          totalUnits: product.totalUnits,
+          price: price,
+          imageUrl: product.imageUrl,
+          barcode: product.barcode,
+        }
+      });
+    } catch (error) {
+      console.error('Shop scan barcode error:', error);
+      return res.status(500).json({ error: 'Blad serwera' });
+    }
+  }
 }

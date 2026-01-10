@@ -367,6 +367,7 @@ app.get('/shop/my-invoices/:id/pdf', requireAuth, requireRoleOrPermission([UserR
 app.get('/shop/profile', requireAuth, requireRoleOrPermission([UserRole.CUSTOMER], 'shop:view'), ShopController.getCustomerProfile);
 app.get('/shop/customers', requireAuth, requireRoleOrPermission([], 'shop:order'), ShopController.getCustomersForShop);
 app.post('/shop/change-password', requireAuth, ShopController.changeMyPassword);
+app.get('/shop/scan/:barcode', requireAuth, requireRoleOrPermission([UserRole.CUSTOMER], 'shop:view'), ShopController.scanBarcode);
 
 // ============================================
 // MOBILE ROUTES

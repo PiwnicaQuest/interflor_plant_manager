@@ -9,6 +9,7 @@ import { InvoicesPage } from './pages/InvoicesPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { PrintInvoicePage } from './pages/PrintInvoicePage';
+import { ScannerPage } from './pages/ScannerPage';
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/login" element={<LoginPage />} />
             </Route>
+            <Route path="/scan" element={<ScannerPage />} />
             {/* Print pages without layout */}
             <Route path="/print/invoice/:id" element={<PrintInvoicePage />} />
           </Routes>

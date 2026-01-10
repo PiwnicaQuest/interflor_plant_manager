@@ -187,6 +187,14 @@ class ApiService {
   }
 
   // Get customers for employee order placement
+  // Scan barcode
+  async scanBarcode(barcode: string): Promise<{ product: any }> {
+    const response = await fetch(API_URL + "/shop/scan/" + encodeURIComponent(barcode), {
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
   async getCustomers(): Promise<{ customers: Array<{ id: number; name: string; customerCode?: string; nip?: string; city?: string }> }> {
     const response = await fetch(API_URL + '/shop/customers', {
       headers: this.getHeaders(),

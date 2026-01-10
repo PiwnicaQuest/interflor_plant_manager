@@ -67,3 +67,14 @@ body {
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   border: 1px solid #f3f4f6;
 }
+
+/* Scanner video styles */
+#scanner-container video {
+  width: 100% !important;
+  height: auto !important;
+  object-fit: cover;
+}
+
+#scanner-container canvas {
+  display: none;
+}
