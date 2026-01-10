@@ -178,7 +178,8 @@ class ApiClient {
   // ORDERS (TODO: implement on backend)
   // ============================================
 
-  async getOrders(filters?: { status?: string; customerId?: number; customerName?: string; customerCode?: string; customerNip?: string; startDate?: string; endDate?: string; source?: string }): Promise<{ orders: Order[] }> {
+  async getOrders(filters?: { status?: string; customerId?: number; customerName?: string; customerCode?: string; customerNip?: string; startDate?: string; endDate?: string;
+    search?: string; source?: string }): Promise<{ orders: Order[] }> {
     const response = await this.client.get('/orders', { params: filters });
     return response.data;
   }
@@ -299,7 +300,8 @@ class ApiClient {
   // INVOICES (TODO: implement on backend)
   // ============================================
 
-  async getInvoices(filters?: { startDate?: string; endDate?: string; customerId?: number; paymentStatus?: string; paymentMethod?: string }): Promise<{ invoices: Invoice[] }> {
+  async getInvoices(filters?: { startDate?: string; endDate?: string;
+    search?: string; customerId?: number; paymentStatus?: string; paymentMethod?: string }): Promise<{ invoices: Invoice[] }> {
     const response = await this.client.get('/invoices', { params: filters });
     return response.data;
   }
@@ -332,7 +334,8 @@ class ApiClient {
   // PROFORMA INVOICES
   // ============================================
 
-  async getProformas(filters?: { startDate?: string; endDate?: string; customerId?: number }): Promise<{ proformas: Proforma[] }> {
+  async getProformas(filters?: { startDate?: string; endDate?: string;
+    search?: string; customerId?: number }): Promise<{ proformas: Proforma[] }> {
     const response = await this.client.get('/proforma', { params: filters });
     return response.data;
   }
@@ -609,6 +612,7 @@ class ApiClient {
     type?: MovementType;
     startDate?: string;
     endDate?: string;
+    search?: string;
     limit?: number;
     offset?: number;
   }): Promise<{
@@ -632,6 +636,7 @@ class ApiClient {
   async getInventoryMovementStatistics(filters?: {
     startDate?: string;
     endDate?: string;
+    search?: string;
     productId?: number;
   }): Promise<{
     totalMovements: number;
@@ -942,7 +947,8 @@ class ApiClient {
   // LOSSES (STRATY)
   // ============================================
 
-  async getLosses(filters?: { startDate?: string; endDate?: string; productId?: number; showReversed?: boolean }): Promise<{ losses: any[]; totalValue: number; totalQuantity: number; count: number }> {
+  async getLosses(filters?: { startDate?: string; endDate?: string;
+    search?: string; productId?: number; showReversed?: boolean }): Promise<{ losses: any[]; totalValue: number; totalQuantity: number; count: number }> {
     const params = new URLSearchParams();
     if (filters?.startDate) params.append('startDate', filters.startDate);
     if (filters?.endDate) params.append('endDate', filters.endDate);

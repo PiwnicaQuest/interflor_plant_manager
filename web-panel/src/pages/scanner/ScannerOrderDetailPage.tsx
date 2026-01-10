@@ -305,6 +305,13 @@ export function ScannerOrderDetailPage() {
     setEditedItems(newItems);
   };
 
+  const handlePriceChange = (index: number, value: string) => {
+    const newItems = [...editedItems];
+    const newPrice = parseFloat(value) || 0;
+    newItems[index].unitPrice = Math.max(0, newPrice);
+    setEditedItems(newItems);
+  };
+
   const handleRemoveItem = (index: number) => {
     const newItems = [...editedItems];
     newItems.splice(index, 1);
@@ -352,6 +359,7 @@ export function ScannerOrderDetailPage() {
           quantity: getItemUnits(item), // Send total units
           palletCount: Math.ceil(getItemPallets(item)),
           unitsPerPallet: item.unitsPerPallet,
+          unitPriceGross: item.unitPrice,
         })),
       });
       await loadOrder();
@@ -567,7 +575,7 @@ export function ScannerOrderDetailPage() {
 
                       {/* Product info */}
                       <div className="flex-1 min-w-0">
-                        <div className={`font-medium truncate ${isOutOfStock ? 'text-gray-500' : 'text-gray-900'}`}>
+                        <div className={`font-medium text-xs ${isOutOfStock ? 'text-gray-500' : 'text-gray-900'}`}>
                           {product.plantName}
                         </div>
                         <div className="text-xs text-gray-500 flex items-center gap-1 flex-wrap">
@@ -587,6 +595,7 @@ export function ScannerOrderDetailPage() {
 
                       {/* Stock indicator and action */}
                       <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-blue-600">{product.basePriceGross?.toFixed(2) || "0"} PLN</span>
                         <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
                           isOutOfStock
                             ? 'bg-red-100 text-red-700'
@@ -711,7 +720,7 @@ export function ScannerOrderDetailPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start">
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-gray-900 truncate">{item.productName}</div>
+                        <div className="text-xs font-medium text-gray-900">{item.productName}</div>
                         <div className="text-xs text-gray-500">
                           {item.unitPrice.toFixed(2)} PLN/szt. ({item.unitsPerPallet} szt./pal.)
                         </div>
@@ -758,48 +767,68 @@ export function ScannerOrderDetailPage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={() => handleQuantityChange(index, -1)}
-                              className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                              </svg>
-                            </button>
-                            <input
-                              type="number"
-                              inputMode="numeric"
-                              min="0"
-                              value={item.inputValue}
-                              onChange={(e) => handleInputValueChange(index, e.target.value)}
-                              className="w-16 h-9 text-center text-lg font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                            />
-                            <span className={`text-xs font-medium ${
-                              item.quantityMode === 'pallets' ? 'text-green-600' : 'text-blue-600'
-                            }`}>
-                              {item.quantityMode === 'pallets' ? 'pal.' : 'szt.'}
-                            </span>
-                            <button
-                              onClick={() => handleQuantityChange(index, 1)}
-                              className="w-8 h-8 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg flex items-center justify-center"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                              </svg>
-                            </button>
+                        <div className="space-y-2">
+                          {/* Row 1: Quantity controls + Total */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => handleQuantityChange(index, -1)}
+                                className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                                </svg>
+                              </button>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min="0"
+                                value={item.inputValue}
+                                onChange={(e) => handleInputValueChange(index, e.target.value)}
+                                className="w-14 h-8 text-center text-base font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                              />
+                              <span className={`text-xs font-medium ${
+                                item.quantityMode === 'pallets' ? 'text-green-600' : 'text-blue-600'
+                              }`}>
+                                {item.quantityMode === 'pallets' ? 'pal.' : 'szt.'}
+                              </span>
+                              <button
+                                onClick={() => handleQuantityChange(index, 1)}
+                                className="w-8 h-8 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg flex items-center justify-center"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                              </button>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-base font-bold text-green-600">
+                                {getItemTotal(item).toFixed(2)} PLN
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {item.quantityMode === 'pallets'
+                                  ? `= ${getItemUnits(item)} szt.`
+                                  : `= ${getItemPallets(item).toFixed(2)} pal.`
+                                }
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-base font-bold text-green-600">
-                              {getItemTotal(item).toFixed(2)} PLN
+                          {/* Row 2: Price edit */}
+                          <div className="flex items-center justify-between bg-blue-50 rounded-lg px-2 py-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-600">Cena:</span>
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                step="0.01"
+                                min="0"
+                                value={item.unitPrice}
+                                onChange={(e) => handlePriceChange(index, e.target.value)}
+                                className="w-16 h-7 text-center text-sm font-medium border border-blue-300 rounded bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              />
+                              <span className="text-xs text-gray-600">PLN/szt.</span>
                             </div>
-                            <div className="text-xs text-gray-500">
-                              {item.quantityMode === 'pallets'
-                                ? `= ${getItemUnits(item)} szt.`
-                                : `= ${getItemPallets(item).toFixed(2)} pal.`
-                              }
-                            </div>
+                            <span className="text-xs text-blue-600 font-medium">{getPalletPrice(item).toFixed(2)} PLN/pal.</span>
                           </div>
                         </div>
                       </>

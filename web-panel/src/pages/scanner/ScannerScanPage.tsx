@@ -216,17 +216,23 @@ export function ScannerScanPage() {
 
                   {/* Info - COMPACT */}
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-gray-900 text-sm truncate">{product.plantName}</div>
+                    <div className="font-semibold text-gray-900 text-xs">{product.plantName}</div>
                     <div className="text-xs text-gray-500 flex flex-wrap gap-1.5">
                       {product.potSize && <span>{product.potSize}</span>}
                       {product.plantHeightCm && <span>{product.plantHeightCm}cm</span>}
                     </div>
                   </div>
 
-                  {/* Stock - COMPACT */}
-                  <div className="text-right flex-shrink-0">
-                    <div className="font-bold text-green-600 text-base">{product.totalUnits}</div>
-                    <div className="text-xs text-gray-500">szt.</div>
+                  {/* Stock & Price */}
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <div className="text-right">
+                      <div className="font-bold text-green-600 text-sm">{product.totalUnits}</div>
+                      <div className="text-xs text-gray-500">szt.</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-blue-600 text-sm">{product.basePriceGross?.toFixed(2) || "0"}</div>
+                      <div className="text-xs text-gray-500">PLN</div>
+                    </div>
                   </div>
                 </div>
               </button>

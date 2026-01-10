@@ -240,7 +240,7 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
               return (
                 <tr key={index} className="hover:bg-gray-50">
                   <td className="border border-gray-300 p-2 text-center">{index + 1}</td>
-                  <td className="border border-gray-300 p-2"><div>{item.name}</div>{item.growerPassport && <div className="text-gray-500 text-[10px]">Paszport: {item.growerPassport}</div>}</td>
+                  <td className="border border-gray-300 p-2"><div>{item.name}</div>{item.growerPassport && <div className="text-gray-500 text-[10px]">Paszport: {item.growerPassport}</div>}<div className="text-gray-500 text-[10px]">PKWiU: 01.30.10.0</div></td>
                   <td className="border border-gray-300 p-2 text-center font-semibold">{item.quantity}</td>
                   <td className="border border-gray-300 p-2 text-center">{item.unit}</td>
                   <td className="border border-gray-300 p-2 text-right">{(Number(item.unitPriceNet) || 0).toFixed(2)}</td>

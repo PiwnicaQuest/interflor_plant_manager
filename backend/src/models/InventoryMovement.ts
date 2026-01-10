@@ -11,6 +11,7 @@ export class InventoryMovementModel {
     type?: MovementType;
     startDate?: string;
     endDate?: string;
+    search?: string;
     limit?: number;
     offset?: number;
   }): Promise<{ movements: InventoryMovement[]; total: number }> {
@@ -62,6 +63,12 @@ export class InventoryMovementModel {
     if (filters?.endDate) {
       sql += ` AND im.created_at <= $${paramIndex}`;
       params.push(filters.endDate);
+      paramIndex++;
+    }
+
+    if (filters?.search) {
+      sql += ` AND (p.plant_name ILIKE $${paramIndex} OR p.barcode ILIKE $${paramIndex})`;
+      params.push(`%${filters.search}%`);
       paramIndex++;
     }
 

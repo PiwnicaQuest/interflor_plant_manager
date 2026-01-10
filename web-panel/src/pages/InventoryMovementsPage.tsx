@@ -80,20 +80,11 @@ export function InventoryMovementsPage() {
       if (selectedUserId) filters.userId = selectedUserId;
       if (startDate) filters.startDate = startDate;
       if (endDate) filters.endDate = endDate;
+      if (searchTerm) filters.search = searchTerm;
 
       const data = await api.getInventoryMovements(filters);
 
-      let filteredMovements = data.movements;
-
-      // Client-side search filter (search by product name)
-      if (searchTerm) {
-        filteredMovements = filteredMovements.filter(m =>
-          m.plantName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          m.barcode?.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-      }
-
-      setMovements(filteredMovements);
+      setMovements(data.movements);
       setTotal(data.total);
 
       // Fetch statistics
@@ -129,6 +120,11 @@ export function InventoryMovementsPage() {
     if (offset > 0) params.offset = offset.toString();
     setSearchParams(params);
   }, [searchTerm, selectedType, selectedUserId, startDate, endDate, offset, setSearchParams]);
+
+  // Reset offset when search term changes
+  useEffect(() => {
+    setOffset(0);
+  }, [searchTerm]);
 
   const handleReset = () => {
     setSearchTerm('');

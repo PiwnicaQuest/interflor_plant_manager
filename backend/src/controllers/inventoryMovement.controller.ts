@@ -15,6 +15,7 @@ export class InventoryMovementController {
         type,
         startDate,
         endDate,
+        search,
         limit = 50,
         offset = 0,
       } = req.query;
@@ -25,6 +26,7 @@ export class InventoryMovementController {
         type: type as any,
         startDate: startDate as string,
         endDate: endDate as string,
+        search: search as string,
         limit: parseInt(limit as string),
         offset: parseInt(offset as string),
       };
