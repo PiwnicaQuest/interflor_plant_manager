@@ -246,7 +246,7 @@ export function PrinterSettingsTab() {
               <strong>Jak zainstalować:</strong>
               <ol className="list-decimal list-inside mt-2 space-y-1">
                 <li>Pobierz instalator (przycisk powyżej)</li>
-                <li>Uruchom pobrany plik <code className="bg-yellow-100 px-1 rounded">install-print-agent.bat</code></li>
+                <li>Uruchom pobrany plik <code className="bg-yellow-100 px-1 rounded">POLFLOR-PrintAgent-Installer.bat</code></li>
                 <li>Gotowe! Agent uruchomi się automatycznie</li>
               </ol>
             </div>

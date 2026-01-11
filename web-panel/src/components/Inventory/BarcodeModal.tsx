@@ -94,10 +94,19 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
   }, [barcode]);
 
   const generateNewBarcode = () => {
-    const timestamp = Date.now().toString().slice(-6);
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    const code = 'PLM' + timestamp + random;
-    setBarcode(code);
+    // Generowanie kodu EAN-13 (tylko cyfry)
+    const prefix = '590'; // Prefix dla Polski
+    let code = prefix;
+    for (let i = 0; i < 9; i++) {
+      code += Math.floor(Math.random() * 10).toString();
+    }
+    // Oblicz cyfrę kontrolną EAN-13
+    let sum = 0;
+    for (let i = 0; i < 12; i++) {
+      sum += parseInt(code[i]) * (i % 2 === 0 ? 1 : 3);
+    }
+    const checkDigit = (10 - (sum % 10)) % 10;
+    setBarcode(code + checkDigit.toString());
   };
 
   const handleSaveBarcode = async () => {

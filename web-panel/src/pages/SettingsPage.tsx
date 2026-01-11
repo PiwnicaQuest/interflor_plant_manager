@@ -1314,7 +1314,7 @@ export function SettingsPage() {
                 </div>
 
                 <a
-                  href="/downloads/print-agent.zip"
+                  href="/downloads/POLFLOR-PrintAgent-Installer.bat"
                   download
                   className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
                 >

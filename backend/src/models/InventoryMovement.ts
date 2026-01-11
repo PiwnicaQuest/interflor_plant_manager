@@ -267,15 +267,15 @@ export class InventoryMovementModel {
     const typeResult = await query<any>(typeSql, typeParams);
 
     return {
-      totalMovements: parseInt(stats.total_movements) || 0,
-      totalUnitsIn: parseInt(stats.total_units_in) || 0,
-      totalUnitsOut: parseInt(stats.total_units_out) || 0,
-      totalPalletsIn: parseInt(stats.total_pallets_in) || 0,
-      totalPalletsOut: parseInt(stats.total_pallets_out) || 0,
+      totalMovements: parseInt(stats.totalMovements) || 0,
+      totalUnitsIn: parseInt(stats.totalUnitsIn) || 0,
+      totalUnitsOut: parseInt(stats.totalUnitsOut) || 0,
+      totalPalletsIn: parseInt(stats.totalPalletsIn) || 0,
+      totalPalletsOut: parseInt(stats.totalPalletsOut) || 0,
       byType: typeResult.rows.map(row => ({
-        movementType: row.movement_type,
+        movementType: row.movementType,
         count: parseInt(row.count),
-        totalUnits: parseInt(row.total_units)
+        totalUnits: parseInt(row.totalUnits)
       }))
     };
   }
