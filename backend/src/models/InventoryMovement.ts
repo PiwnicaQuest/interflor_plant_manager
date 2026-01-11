@@ -30,7 +30,7 @@ export class InventoryMovementModel {
       LEFT JOIN users u ON im.user_id = u.id
       LEFT JOIN orders o ON im.reference_type = 'order' AND im.reference_id = o.id
       LEFT JOIN customers c ON o.customer_id = c.id
-      WHERE 1=1
+      WHERE (hidden IS NULL OR hidden = false)
     `;
     const params: any[] = [];
     let paramIndex = 1;
@@ -115,7 +115,7 @@ export class InventoryMovementModel {
        LEFT JOIN users u ON im.user_id = u.id
        LEFT JOIN orders o ON im.reference_type = 'order' AND im.reference_id = o.id
        LEFT JOIN customers c ON o.customer_id = c.id
-       WHERE im.product_id = $1
+       WHERE im.product_id = $1 AND (im.hidden IS NULL OR im.hidden = false)
        ORDER BY im.created_at DESC
        LIMIT $2`,
       [productId, limit]
@@ -136,7 +136,7 @@ export class InventoryMovementModel {
        FROM inventory_movements im
        LEFT JOIN products p ON im.product_id = p.id
        LEFT JOIN users u ON im.user_id = u.id
-       WHERE im.user_id = $1
+       WHERE im.user_id = $1 AND (im.hidden IS NULL OR im.hidden = false)
        ORDER BY im.created_at DESC`,
       [userId]
     );
@@ -156,7 +156,7 @@ export class InventoryMovementModel {
        FROM inventory_movements im
        LEFT JOIN products p ON im.product_id = p.id
        LEFT JOIN users u ON im.user_id = u.id
-       WHERE im.movement_type = $1
+       WHERE im.movement_type = $1 AND (im.hidden IS NULL OR im.hidden = false)
        ORDER BY im.created_at DESC`,
       [type]
     );
@@ -176,7 +176,7 @@ export class InventoryMovementModel {
        FROM inventory_movements im
        LEFT JOIN products p ON im.product_id = p.id
        LEFT JOIN users u ON im.user_id = u.id
-       WHERE im.created_at >= $1 AND im.created_at <= $2
+       WHERE im.created_at >= $1 AND im.created_at <= $2 AND (im.hidden IS NULL OR im.hidden = false)
        ORDER BY im.created_at DESC`,
       [startDate, endDate]
     );
@@ -206,7 +206,7 @@ export class InventoryMovementModel {
         SUM(CASE WHEN delta_pallets > 0 THEN delta_pallets ELSE 0 END) as total_pallets_in,
         SUM(CASE WHEN delta_pallets < 0 THEN ABS(delta_pallets) ELSE 0 END) as total_pallets_out
       FROM inventory_movements
-      WHERE 1=1
+      WHERE (hidden IS NULL OR hidden = false)
     `;
     const params: any[] = [];
     let paramIndex = 1;
@@ -239,7 +239,7 @@ export class InventoryMovementModel {
         COUNT(*) as count,
         SUM(ABS(delta_units)) as total_units
       FROM inventory_movements
-      WHERE 1=1
+      WHERE (hidden IS NULL OR hidden = false)
     `;
     const typeParams: any[] = [];
     let typeParamIndex = 1;
@@ -278,5 +278,28 @@ export class InventoryMovementModel {
         totalUnits: parseInt(row.totalUnits)
       }))
     };
+  }
+
+  /**
+   * Hide a movement by ID (soft delete - marks as hidden)
+   */
+  static async hide(id: number): Promise<boolean> {
+    const result = await query(
+      'UPDATE inventory_movements SET hidden = true WHERE id = $1',
+      [id]
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  /**
+   * Hide multiple movements by IDs (soft delete)
+   */
+  static async hideMany(ids: number[]): Promise<number> {
+    if (ids.length === 0) return 0;
+    const result = await query(
+      'UPDATE inventory_movements SET hidden = true WHERE id = ANY($1)',
+      [ids]
+    );
+    return result.rowCount ?? 0;
   }
 }

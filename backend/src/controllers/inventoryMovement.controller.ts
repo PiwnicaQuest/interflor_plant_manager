@@ -89,4 +89,67 @@ export class InventoryMovementController {
       res.status(500).json({ error: 'Nie udało się pobrać statystyk ruchów' });
     }
   }
+
+  // Lista użytkowników uprawnionych do ukrywania historii
+  private static AUTHORIZED_HIDE_EMAILS = [
+    'damian@polflor.wroclaw.pl',
+    'admin@plantmanager.pl'
+  ];
+
+  /**
+   * DELETE /inventory-movements/:id
+   * Hide a single movement (soft delete - only for authorized users)
+   */
+  static async hide(req: AuthRequest, res: Response) {
+    try {
+      const userEmail = req.user?.email;
+      
+      if (!userEmail || !InventoryMovementController.AUTHORIZED_HIDE_EMAILS.includes(userEmail)) {
+        return res.status(403).json({ error: 'Brak uprawnień do ukrywania historii ruchów' });
+      }
+
+      const { id } = req.params;
+      const hidden = await InventoryMovementModel.hide(parseInt(id));
+
+      if (hidden) {
+        res.json({ success: true, message: 'Ruch magazynowy został ukryty' });
+      } else {
+        res.status(404).json({ error: 'Nie znaleziono ruchu magazynowego' });
+      }
+    } catch (error) {
+      console.error('Error hiding inventory movement:', error);
+      res.status(500).json({ error: 'Nie udało się ukryć ruchu magazynowego' });
+    }
+  }
+
+  /**
+   * DELETE /inventory-movements
+   * Hide multiple movements (soft delete - only for authorized users)
+   */
+  static async hideMany(req: AuthRequest, res: Response) {
+    try {
+      const userEmail = req.user?.email;
+      
+      if (!userEmail || !InventoryMovementController.AUTHORIZED_HIDE_EMAILS.includes(userEmail)) {
+        return res.status(403).json({ error: 'Brak uprawnień do ukrywania historii ruchów' });
+      }
+
+      const { ids } = req.body;
+      
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: 'Wymagana lista ID do ukrycia' });
+      }
+
+      const hiddenCount = await InventoryMovementModel.hideMany(ids);
+
+      res.json({ 
+        success: true, 
+        message: `Ukryto ${hiddenCount} ruchów magazynowych`,
+        hiddenCount 
+      });
+    } catch (error) {
+      console.error('Error hiding inventory movements:', error);
+      res.status(500).json({ error: 'Nie udało się ukryć ruchów magazynowych' });
+    }
+  }
 }

@@ -38,6 +38,23 @@ export function InventoryMovementsPage() {
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [statistics, setStatistics] = useState<any>(null);
+  const [selectedMovements, setSelectedMovements] = useState<number[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Get user email from JWT token
+  const getUserEmail = () => {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.email;
+    } catch {
+      return null;
+    }
+  };
+  
+  const userEmail = getUserEmail();
+  const canDelete = userEmail === 'damian@polflor.wroclaw.pl' || userEmail === 'admin@plantmanager.pl';
 
   // Filters
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
@@ -135,6 +152,54 @@ export function InventoryMovementsPage() {
     setOffset(0);
   };
 
+  const handleSelectMovement = (id: number) => {
+    setSelectedMovements(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedMovements.length === movements.length) {
+      setSelectedMovements([]);
+    } else {
+      setSelectedMovements(movements.map(m => m.id));
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedMovements.length === 0) return;
+
+    if (!confirm(`Czy na pewno chcesz usunąć ${selectedMovements.length} ruchów magazynowych? Rekordy zostaną ukryte.`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await api.deleteInventoryMovements(selectedMovements);
+      setSelectedMovements([]);
+      fetchMovements();
+    } catch (error) {
+      console.error('Error deleting movements:', error);
+      alert('Błąd podczas usuwania ruchów magazynowych');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteSingle = async (id: number) => {
+    if (!confirm('Czy na pewno chcesz usunąć ten ruch magazynowy? Rekordy zostaną ukryte.')) {
+      return;
+    }
+
+    try {
+      await api.deleteInventoryMovement(id);
+      fetchMovements();
+    } catch (error) {
+      console.error('Error deleting movement:', error);
+      alert('Błąd podczas usuwania ruchu magazynowego');
+    }
+  };
+
   const handleExportCSV = () => {
     const csvContent = [
       ['Data', 'Produkt', 'Kod kreskowy', 'Typ ruchu', 'Jednostki (delta)', 'Palety (delta)', 'Użytkownik', 'Notatki'],
@@ -169,12 +234,23 @@ export function InventoryMovementsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Historia ruchów magazynowych</h1>
           <p className="text-gray-600 mt-1">Szczegółowy audit log zmian stanów magazynowych</p>
         </div>
-        <button
-          onClick={handleExportCSV}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-        >
-          Eksportuj do CSV
-        </button>
+        <div className="flex gap-2">
+          {canDelete && selectedMovements.length > 0 && (
+            <button
+              onClick={handleDeleteSelected}
+              disabled={isDeleting}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+            >
+              {isDeleting ? 'Usuwanie...' : `Usuń zaznaczone (${selectedMovements.length})`}
+            </button>
+          )}
+          <button
+            onClick={handleExportCSV}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            Eksportuj do CSV
+          </button>
+        </div>
       </div>
 
       {/* Statistics Cards */}
@@ -311,6 +387,16 @@ export function InventoryMovementsPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                {canDelete && (
+                  <th className="px-3 py-3 text-center">
+                    <input
+                      type="checkbox"
+                      checked={movements.length > 0 && selectedMovements.length === movements.length}
+                      onChange={handleSelectAll}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </th>
+                )}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Data
                 </th>
@@ -332,6 +418,11 @@ export function InventoryMovementsPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Notatki
                 </th>
+                {canDelete && (
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Akcje
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -349,7 +440,17 @@ export function InventoryMovementsPage() {
                 </tr>
               ) : (
                 movements.map((movement) => (
-                  <tr key={movement.id} className="hover:bg-gray-50">
+                  <tr key={movement.id} className={`hover:bg-gray-50 ${selectedMovements.includes(movement.id) ? 'bg-red-50' : ''}`}>
+                    {canDelete && (
+                      <td className="px-3 py-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedMovements.includes(movement.id)}
+                          onChange={() => handleSelectMovement(movement.id)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </td>
+                    )}
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {new Date(movement.createdAt).toLocaleString('pl-PL', {
                         year: 'numeric',

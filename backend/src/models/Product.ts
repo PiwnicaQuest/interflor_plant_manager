@@ -346,7 +346,7 @@ static async getMovements(productId: number, limit = 50): Promise<InventoryMovem
        LEFT JOIN users u ON im.user_id = u.id
        LEFT JOIN orders o ON im.reference_type = 'order' AND im.reference_id = o.id
        LEFT JOIN customers c ON o.customer_id = c.id
-       WHERE im.product_id = $1
+       WHERE im.product_id = $1 AND (im.hidden IS NULL OR im.hidden = false)
        ORDER BY im.created_at DESC
        LIMIT $2`,
       [productId, limit]

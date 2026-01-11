@@ -134,6 +134,8 @@ app.post("/inventory/recalculate-prices", requireAuth, requireRole([UserRole.ADM
 app.get('/inventory-movements', requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE]), InventoryMovementController.getAll);
 app.get('/inventory-movements/statistics', requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE]), InventoryMovementController.getStatistics);
 app.get('/inventory-movements/product/:productId', requireAuth, requireRole([UserRole.ADMIN, UserRole.WAREHOUSE]), InventoryMovementController.getByProduct);
+app.delete("/inventory-movements/:id", requireAuth, InventoryMovementController.hide);
+app.delete("/inventory-movements", requireAuth, InventoryMovementController.hideMany);
 
 // ============================================
 // ORDERS ROUTES
