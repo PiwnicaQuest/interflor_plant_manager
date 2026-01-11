@@ -51,7 +51,7 @@ const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   grower: 80,
   passport: 60,
   tags: 80,
-  actions: 70,
+  actions: 120,
 };
 
 const STORAGE_KEY = 'inventory-column-widths';
@@ -191,13 +191,13 @@ export function InventoryTable({
   }, [visibleColumns]);
 
   // Get column style (for hiding columns)
-  const getColumnStyle = useCallback((columnKey: string, baseWidth?: number) => {
-    const width = baseWidth ?? columnWidths[columnKey] ?? DEFAULT_COLUMN_WIDTHS[columnKey];
+  const getColumnStyle = useCallback((columnKey: string) => {
     if (!isColumnVisible(columnKey)) {
       return { display: 'none' as const };
     }
-    return { width };
-  }, [columnWidths, isColumnVisible]);
+    // Width is controlled by explicit style - return empty for visible
+    return {};
+  }, [isColumnVisible]);
 
   // Save widths when they change
   useEffect(() => {
@@ -992,21 +992,29 @@ export function InventoryTable({
 
 
   // Resizable header cell component
-  const ResizableHeader = ({ columnKey, children, className, title }: { columnKey: string; children: React.ReactNode; className: string; title?: string }) => (
-    <th
-      className={`${className} relative select-none bg-white`}
-      style={{ ...getColumnStyle(columnKey), minWidth: isColumnVisible(columnKey) ? (columnKey === "image" ? 20 : 30) : 0, ...(columnKey === "image" ? { padding: "2px", maxWidth: "28px" } : {}) }}
-      title={title}
-    >
-      <div className="truncate pr-2">{children}</div>
-      <div
-        className="absolute right-[-6px] top-0 h-full w-4 cursor-col-resize group z-10"
-        onMouseDown={(e) => handleMouseDown(e, columnKey)}
+  const ResizableHeader = ({ columnKey, children, className, title }: { columnKey: string; children: React.ReactNode; className: string; title?: string }) => {
+    const isVisible = isColumnVisible(columnKey);
+    if (!isVisible) return null;
+    return (
+      <th
+        className={`${className} relative select-none bg-white`}
+        style={{
+          overflow: 'hidden',
+          whiteSpace: 'nowrap',
+          ...(columnKey === "image" ? { padding: "2px" } : {})
+        }}
+        title={title}
       >
-        <div className="absolute right-[5px] top-0 w-[2px] h-full bg-transparent group-hover:bg-blue-400 group-active:bg-blue-600 transition-colors" />
-      </div>
-    </th>
-  );
+        <div className="truncate pr-2">{children}</div>
+        <div
+          className="absolute right-[-6px] top-0 h-full w-4 cursor-col-resize group z-10"
+          onMouseDown={(e) => handleMouseDown(e, columnKey)}
+        >
+          <div className="absolute right-[5px] top-0 w-[2px] h-full bg-transparent group-hover:bg-blue-400 group-active:bg-blue-600 transition-colors" />
+        </div>
+      </th>
+    );
+  };
 
   return (
     <>
@@ -1029,11 +1037,11 @@ export function InventoryTable({
 
       <div className="card overflow-hidden" style={{ maxHeight: "calc(100vh - 280px)" }}>
         <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: "calc(100vh - 300px)" }}>
-          <table ref={tableRef} className="table border-separate border-spacing-0" style={{ tableLayout: 'fixed', minWidth: calculateTableMinWidth() }}>
+          <table ref={tableRef} className="table border-separate border-spacing-0" style={{ tableLayout: 'fixed', width: '100%' }}>
             <colgroup>
-              {sortedColumnKeys.map((columnKey) => {
-                const width = columnKey === "image" ? 28 : (columnWidths[columnKey] || DEFAULT_COLUMN_WIDTHS[columnKey] || 60);
-                return <col key={columnKey} style={{ width }} />;
+              {sortedColumnKeys.filter(k => isColumnVisible(k)).map((columnKey) => {
+                const width = columnWidths[columnKey] || DEFAULT_COLUMN_WIDTHS[columnKey] || 60;
+                return <col key={columnKey} style={{ width, minWidth: width, maxWidth: width }} />;
               })}
             </colgroup>
             <thead className="sticky top-0 z-20 bg-white">
@@ -1066,8 +1074,8 @@ export function InventoryTable({
                     return (
                       <th
                         key={columnKey}
-                        className={`p-0.5 border-b border-gray-300 ${leftBorder}`}
-                        style={getColumnStyle(columnKey)}
+                        className={`p-0.5 border-b border-gray-300 ${leftBorder} ${!isColumnVisible(columnKey) ? 'hidden' : ''}`}
+                      style={{ overflow: 'hidden' }}
                       >
                         {renderFilterCell(columnKey)}
                       </th>
@@ -1099,8 +1107,13 @@ export function InventoryTable({
                         return (
                           <td
                             key={columnKey}
-                            className={`${isRowSelected ? "" : colStyle} ${config.borderClass} ${config.extraClass || ""} group-hover:!bg-blue-200`}
-                            style={{...getColumnStyle(columnKey), ...(columnKey === "image" ? { padding: "2px", maxWidth: "28px" } : {})}}
+                            className={`${isRowSelected ? "" : colStyle} ${config.borderClass} ${config.extraClass || ""} group-hover:!bg-blue-200 ${!isColumnVisible(columnKey) ? 'hidden' : ''}`}
+                            style={{
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              ...(columnKey === "image" ? { padding: "2px" } : {})
+                            }}
                             title={getCellTitle(columnKey, product)}
                           >
                             {renderCellContent(columnKey, product, isRowSelected, imageUrl)}

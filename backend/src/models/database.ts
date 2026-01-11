@@ -17,15 +17,15 @@ pool.on('error', (err) => {
 });
 
 pool.on('connect', () => {
-  console.log('[POOL] New client connected. Total:', pool.totalCount, 'Idle:', pool.idleCount, 'Waiting:', pool.waitingCount);
+  // console.log('[POOL] New client connected. Total:', pool.totalCount, 'Idle:', pool.idleCount, 'Waiting:', pool.waitingCount);
 });
 
 pool.on('acquire', () => {
-  console.log('[POOL] Client acquired. Total:', pool.totalCount, 'Idle:', pool.idleCount, 'Waiting:', pool.waitingCount);
+  // console.log('[POOL] Client acquired. Total:', pool.totalCount, 'Idle:', pool.idleCount, 'Waiting:', pool.waitingCount);
 });
 
 pool.on('release', () => {
-  console.log('[POOL] Client released. Total:', pool.totalCount, 'Idle:', pool.idleCount, 'Waiting:', pool.waitingCount);
+  // console.log('[POOL] Client released. Total:', pool.totalCount, 'Idle:', pool.idleCount, 'Waiting:', pool.waitingCount);
 });
 
 // Convert snake_case keys to camelCase
@@ -68,12 +68,12 @@ export const query = async <T extends QueryResultRow = any>(
 ): Promise<QueryResult<T>> => {
   const start = Date.now();
   const queryId = Math.random().toString(36).substring(7);
-  console.log(`[QUERY ${queryId}] Starting query. Pool status - Total: ${pool.totalCount}, Idle: ${pool.idleCount}, Waiting: ${pool.waitingCount}`);
-  console.log(`[QUERY ${queryId}] SQL: ${text.substring(0, 100)}...`);
+  // console.log(`[QUERY ${queryId}] Starting query. Pool status - Total: ${pool.totalCount}, Idle: ${pool.idleCount}, Waiting: ${pool.waitingCount}`);
+  // console.log(`[QUERY ${queryId}] SQL: ${text.substring(0, 100)}...`);
   try {
     const res = await pool.query<T>(text, params);
     const duration = Date.now() - start;
-    console.log(`[QUERY ${queryId}] Completed in ${duration}ms, rows: ${res.rowCount}`);
+    // console.log(`[QUERY ${queryId}] Completed in ${duration}ms, rows: ${res.rowCount}`);
 
     // Convert rows to camelCase
     if (res.rows && res.rows.length > 0) {
