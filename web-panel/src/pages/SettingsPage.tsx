@@ -10,6 +10,7 @@ import { GrowerPassportsTab } from '../components/Settings/GrowerPassportsTab';
 import { TagsTab } from '../components/Settings/TagsTab';
 import { PrinterSettingsTab } from '../components/Settings/PrinterSettingsTab';
 import PermissionProfilesTab from '../components/settings/PermissionProfilesTab';
+import { LoginHistoryTab } from '../components/Settings/LoginHistoryTab';
 
 interface PricingSettings {
   costPercentage: number;
@@ -45,7 +46,7 @@ interface EmailImportSettings {
   enabled: boolean;
 }
 
-type TabType = 'company' | 'pricing' | 'email-import' | 'users' | 'price-groups' | 'printers' | 'grower-passports' | 'tags' | 'profiles';
+type TabType = 'company' | 'pricing' | 'email-import' | 'users' | 'login-history' | 'price-groups' | 'printers' | 'grower-passports' | 'tags' | 'profiles';
 
 export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('company');
@@ -108,6 +109,7 @@ export function SettingsPage() {
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [changingPasswordUser, setChangingPasswordUser] = useState<User | null>(null);
+  const [usersSubTab, setUsersSubTab] = useState<'employees' | 'customers'>('employees');
 
   // Price groups state
   const [priceGroups, setPriceGroups] = useState<PriceGroup[]>([]);
@@ -393,6 +395,7 @@ export function SettingsPage() {
     { id: 'pricing' as TabType, label: 'Ustawienia cenowe' },
     { id: 'email-import' as TabType, label: 'Import z email' },
     { id: 'users' as TabType, label: 'Użytkownicy' },
+    { id: 'login-history' as TabType, label: 'Historia logowań' },
     { id: 'price-groups' as TabType, label: 'Grupy cenowe' },
     { id: 'printers' as TabType, label: 'Drukarki' },
     { id: 'grower-passports' as TabType, label: 'Ogrodnicy i paszporty' },
@@ -964,74 +967,189 @@ export function SettingsPage() {
             </button>
           </div>
 
+          {/* Sub-tabs */}
+          <div className="flex space-x-1 mb-4 bg-gray-100 p-1 rounded-lg w-fit">
+            <button
+              onClick={() => setUsersSubTab('employees')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                usersSubTab === 'employees'
+                  ? 'bg-white text-green-700 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                Pracownicy
+                <span className="bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full text-xs">
+                  {users.filter(u => u.role !== UserRole.CUSTOMER).length}
+                </span>
+              </span>
+            </button>
+            <button
+              onClick={() => setUsersSubTab('customers')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                usersSubTab === 'customers'
+                  ? 'bg-white text-green-700 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                Kontrahenci (dostęp do sklepu)
+                <span className="bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full text-xs">
+                  {users.filter(u => u.role === UserRole.CUSTOMER).length}
+                </span>
+              </span>
+            </button>
+          </div>
+
           {usersLoading ? (
             <div className="text-gray-500">Ładowanie...</div>
           ) : (
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Imie</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nazwisko</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Login</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rola</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data utworzenia</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Akcje</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {users.map((user) => (
-                    <tr key={user.id}>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{(user as any).firstName || '-'}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{(user as any).lastName || '-'}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{(user as any).login || '-'}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{user.email}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleBadgeColor(user.role)}`}>
-                          {getRoleLabel(user.role)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          user.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {user.isActive ? 'Aktywny' : 'Nieaktywny'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(user.createdAt).toLocaleDateString('pl-PL')}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button onClick={() => setEditingUser(user)} className="text-blue-600 hover:text-blue-900 mr-3">Edytuj</button>
-                        <button onClick={() => setChangingPasswordUser(user)} className="text-indigo-600 hover:text-indigo-900 mr-3">Haslo</button>
-                        <button onClick={() => handleToggleUserActive(user.id)} className="text-yellow-600 hover:text-yellow-900 mr-3">
-                          {user.isActive ? 'Dezaktywuj' : 'Aktywuj'}
-                        </button>
-                        <button onClick={() => handleDeleteUser(user.id, user.email)} className="text-red-600 hover:text-red-900 mr-3">Usun</button>
-                        <button onClick={() => handlePermanentDelete(user.id, user.email)} className="text-red-800 hover:text-red-900 font-semibold">Usun trwale</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {users.length === 0 && (
-                <div className="text-center py-12">
-                  <p className="text-gray-500">Brak użytkowników</p>
+            <>
+              {/* Employees Table */}
+              {usersSubTab === 'employees' && (
+                <div className="bg-white rounded-lg shadow overflow-hidden">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Imię</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nazwisko</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Login</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rola</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data utworzenia</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Akcje</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {users.filter(u => u.role !== UserRole.CUSTOMER).map((user) => (
+                        <tr key={user.id}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{(user as any).firstName || '-'}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{(user as any).lastName || '-'}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{(user as any).login || '-'}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">{user.email}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleBadgeColor(user.role)}`}>
+                              {getRoleLabel(user.role)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              user.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {user.isActive ? 'Aktywny' : 'Nieaktywny'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(user.createdAt).toLocaleDateString('pl-PL')}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button onClick={() => setEditingUser(user)} className="text-blue-600 hover:text-blue-900 mr-3">Edytuj</button>
+                            <button onClick={() => setChangingPasswordUser(user)} className="text-indigo-600 hover:text-indigo-900 mr-3">Hasło</button>
+                            <button onClick={() => handleToggleUserActive(user.id)} className="text-yellow-600 hover:text-yellow-900 mr-3">
+                              {user.isActive ? 'Dezaktywuj' : 'Aktywuj'}
+                            </button>
+                            <button onClick={() => handleDeleteUser(user.id, user.email)} className="text-red-600 hover:text-red-900 mr-3">Usuń</button>
+                            <button onClick={() => handlePermanentDelete(user.id, user.email)} className="text-red-800 hover:text-red-900 font-semibold">Usuń trwale</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {users.filter(u => u.role !== UserRole.CUSTOMER).length === 0 && (
+                    <div className="text-center py-12">
+                      <p className="text-gray-500">Brak pracowników</p>
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
+
+              {/* Customers Table */}
+              {usersSubTab === 'customers' && (
+                <div className="bg-white rounded-lg shadow overflow-hidden">
+                  <div className="px-6 py-3 bg-blue-50 border-b border-blue-100">
+                    <p className="text-sm text-blue-700">
+                      <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Kontrahenci z dostępem do sklepu internetowego (sklep.fast-site.pl). Zarządzanie kontrahentami bez dostępu do sklepu znajduje się w module <strong>Kontrahenci</strong>.
+                    </p>
+                  </div>
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Imię</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nazwisko</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email (login)</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data utworzenia</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Akcje</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {users.filter(u => u.role === UserRole.CUSTOMER).map((user) => (
+                        <tr key={user.id}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{(user as any).firstName || '-'}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{(user as any).lastName || '-'}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">{user.email}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              user.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {user.isActive ? 'Aktywny' : 'Nieaktywny'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(user.createdAt).toLocaleDateString('pl-PL')}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button onClick={() => setEditingUser(user)} className="text-blue-600 hover:text-blue-900 mr-3">Edytuj</button>
+                            <button onClick={() => setChangingPasswordUser(user)} className="text-indigo-600 hover:text-indigo-900 mr-3">Hasło</button>
+                            <button onClick={() => handleToggleUserActive(user.id)} className="text-yellow-600 hover:text-yellow-900 mr-3">
+                              {user.isActive ? 'Dezaktywuj' : 'Aktywuj'}
+                            </button>
+                            <button onClick={() => handleDeleteUser(user.id, user.email)} className="text-red-600 hover:text-red-900 mr-3">Usuń</button>
+                            <button onClick={() => handlePermanentDelete(user.id, user.email)} className="text-red-800 hover:text-red-900 font-semibold">Usuń trwale</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {users.filter(u => u.role === UserRole.CUSTOMER).length === 0 && (
+                    <div className="text-center py-12">
+                      <p className="text-gray-500">Brak kontrahentów z dostępem do sklepu</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
+      )}
+
+      {/* Login History Tab */}
+      {activeTab === 'login-history' && (
+        <LoginHistoryTab />
       )}
 
       {/* Price Groups Tab */}

@@ -1008,6 +1008,60 @@ class ApiClient {
     const response = await this.client.delete(`/permission-profiles/${id}`);
     return response.data;
   }
+
+  // ============================================
+  // LOGIN HISTORY
+  // ============================================
+
+  async getLoginHistory(filters?: {
+    userId?: number;
+    source?: string;
+    success?: string;
+    startDate?: string;
+    endDate?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ entries: any[]; total: number }> {
+    const params = new URLSearchParams();
+    if (filters?.userId) params.append('userId', String(filters.userId));
+    if (filters?.source) params.append('source', filters.source);
+    if (filters?.success !== undefined) params.append('success', filters.success);
+    if (filters?.startDate) params.append('startDate', filters.startDate);
+    if (filters?.endDate) params.append('endDate', filters.endDate);
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.limit) params.append('limit', String(filters.limit));
+    if (filters?.offset) params.append('offset', String(filters.offset));
+    const response = await this.client.get(`/login-history?${params.toString()}`);
+    return response.data;
+  }
+
+  async getLoginHistoryStats(days = 30): Promise<{
+    totalLogins: number;
+    successfulLogins: number;
+    failedLogins: number;
+    uniqueUsers: number;
+    shopLogins: number;
+    panelLogins: number;
+  }> {
+    const response = await this.client.get(`/login-history/stats?days=${days}`);
+    return response.data;
+  }
+
+  async exportLoginHistory(filters?: {
+    startDate?: string;
+    endDate?: string;
+    source?: string;
+  }): Promise<Blob> {
+    const params = new URLSearchParams();
+    if (filters?.startDate) params.append('startDate', filters.startDate);
+    if (filters?.endDate) params.append('endDate', filters.endDate);
+    if (filters?.source) params.append('source', filters.source);
+    const response = await this.client.get(`/login-history/export?${params.toString()}`, {
+      responseType: 'blob'
+    });
+    return response.data;
+  }
 }
 
 export const api = new ApiClient();

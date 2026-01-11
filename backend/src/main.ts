@@ -46,6 +46,7 @@ import { ProformaController } from "./controllers/proforma.controller";
 import { LossesController } from "./controllers/losses.controller";
 import { TagsController } from "./controllers/tags.controller";
 import { PermissionProfileController } from "./controllers/permissionProfile.controller";
+import { LoginHistoryController } from "./controllers/loginHistory.controller";
 
 // Initialize Express
 const app = express();
@@ -252,6 +253,15 @@ app.get('/users/:id/related-data', requireAuth, requireRole([UserRole.ADMIN]), U
 app.delete('/users/:id/permanent', requireAuth, requireRole([UserRole.ADMIN]), UserController.permanentDelete);
 
 // ============================================
+// LOGIN HISTORY ROUTES (ADMIN only)
+// ============================================
+
+app.get('/login-history', requireAuth, requireRole([UserRole.ADMIN]), LoginHistoryController.getAll);
+app.get('/login-history/stats', requireAuth, requireRole([UserRole.ADMIN]), LoginHistoryController.getStats);
+app.get('/login-history/export', requireAuth, requireRole([UserRole.ADMIN]), LoginHistoryController.exportCsv);
+app.get('/login-history/user/:userId', requireAuth, requireRole([UserRole.ADMIN]), LoginHistoryController.getByUserId);
+
+// ============================================
 // PERMISSION PROFILES ROUTES
 // ============================================
 
@@ -455,10 +465,10 @@ interface WSClient extends WebSocket {
   subscriptions?: Set<string>;
 }
 
-// Helper function to get online users
+// Helper function to get online users (deduplicated by userId)
 const getOnlineUsers = () => {
-  const employees: { userId: number; email: string; role: string; connectedAt: Date }[] = [];
-  const customers: { userId: number; email: string; role: string; connectedAt: Date }[] = [];
+  const employeesMap = new Map<number, { userId: number; email: string; role: string; connectedAt: Date }>();
+  const customersMap = new Map<number, { userId: number; email: string; role: string; connectedAt: Date }>();
 
   wss.clients.forEach((client) => {
     const wsClient = client as WSClient;
@@ -470,15 +480,20 @@ const getOnlineUsers = () => {
         connectedAt: wsClient.connectedAt || new Date()
       };
 
-      if (wsClient.userRole === 'customer') {
-        customers.push(userInfo);
-      } else {
-        employees.push(userInfo);
+      const targetMap = wsClient.userRole === 'customer' ? customersMap : employeesMap;
+
+      // Only add if not already present, or update if this connection is older (first connection)
+      const existing = targetMap.get(wsClient.userId);
+      if (!existing || userInfo.connectedAt < existing.connectedAt) {
+        targetMap.set(wsClient.userId, userInfo);
       }
     }
   });
 
-  return { employees, customers };
+  return {
+    employees: Array.from(employeesMap.values()),
+    customers: Array.from(customersMap.values())
+  };
 };
 
 // Broadcast user status to all admins subscribed to 'online-users' channel

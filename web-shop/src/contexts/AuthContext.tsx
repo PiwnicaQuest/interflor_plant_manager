@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import type { ReactNode } from 'react';
 import type { AuthState } from '../types';
 import { api } from '../services/api';
+import { websocketService } from '../services/websocketService';
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
@@ -39,6 +40,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             isAuthenticated: true,
             isLoading: false,
           });
+          // Connect to WebSocket after successful auth check
+          websocketService.connect();
         } catch (_error) {
           localStorage.removeItem('shop_token');
           setState({
@@ -55,6 +58,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     checkAuth();
+
+    // Cleanup WebSocket on unmount
+    return () => {
+      websocketService.disconnect();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -77,9 +85,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: true,
       isLoading: false,
     });
+
+    // Connect/reconnect WebSocket with new token
+    websocketService.reconnect();
   };
 
   const logout = useCallback(() => {
+    // Disconnect WebSocket
+    websocketService.disconnect();
+
     // Clear user's cart from localStorage
     if (state.user?.id) {
       localStorage.removeItem(`shop_cart_user_${state.user.id}`);

@@ -31,7 +31,7 @@ class ApiService {
     const response = await fetch(API_URL + '/auth/login', {
       method: 'POST',
       headers: this.getHeaders(false),
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, source: 'shop' }),
     });
     return this.handleResponse(response);
   }

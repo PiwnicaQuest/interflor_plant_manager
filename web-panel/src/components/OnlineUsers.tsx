@@ -16,6 +16,15 @@ interface OnlineUsersData {
 export function OnlineUsers() {
   const [onlineData, setOnlineData] = useState<OnlineUsersData>({ employees: [], customers: [] });
   const [isConnected, setIsConnected] = useState(false);
+  const [, setTick] = useState(0); // Force re-render for duration updates
+
+  // Update duration every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTick(t => t + 1);
+    }, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     // Connect to WebSocket
@@ -67,17 +76,38 @@ export function OnlineUsers() {
     }
   };
 
-  const formatConnectedTime = (connectedAt: string) => {
+  // Format login time as "DD.MM.YYYY, HH:MM"
+  const formatLoginTime = (connectedAt: string) => {
+    const connected = new Date(connectedAt);
+    return connected.toLocaleString('pl-PL', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Format duration as "Xh Ym" or "Ym"
+  const formatDuration = (connectedAt: string) => {
     const connected = new Date(connectedAt);
     const now = new Date();
     const diffMs = now.getTime() - connected.getTime();
     const diffMins = Math.floor(diffMs / 60000);
 
-    if (diffMins < 1) return 'przed chwilą';
-    if (diffMins < 60) return `${diffMins} min temu`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours} godz. temu`;
-    return connected.toLocaleDateString('pl-PL');
+    if (diffMins < 1) return '< 1 min';
+    if (diffMins < 60) return `${diffMins} min`;
+
+    const hours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+
+    if (hours < 24) {
+      return mins > 0 ? `${hours}h ${mins}min` : `${hours}h`;
+    }
+
+    const days = Math.floor(hours / 24);
+    const remainingHours = hours % 24;
+    return remainingHours > 0 ? `${days}d ${remainingHours}h` : `${days}d`;
   };
 
   return (
@@ -119,12 +149,18 @@ export function OnlineUsers() {
                       </div>
                       <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{user.email}</p>
-                      <p className="text-xs text-gray-500">{formatConnectedTime(user.connectedAt)}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <span title="Czas logowania">{formatLoginTime(user.connectedAt)}</span>
+                        <span className="text-gray-300">•</span>
+                        <span className="text-green-600 font-medium" title="Czas online">
+                          {formatDuration(user.connectedAt)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(user.role)}`}>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getRoleBadgeColor(user.role)}`}>
                     {getRoleLabel(user.role)}
                   </span>
                 </div>
@@ -154,9 +190,15 @@ export function OnlineUsers() {
                       </div>
                       <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{user.email}</p>
-                      <p className="text-xs text-gray-500">{formatConnectedTime(user.connectedAt)}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <span title="Czas logowania">{formatLoginTime(user.connectedAt)}</span>
+                        <span className="text-gray-300">•</span>
+                        <span className="text-green-600 font-medium" title="Czas online">
+                          {formatDuration(user.connectedAt)}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>

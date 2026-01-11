@@ -1,11 +1,27 @@
 import { Request, Response } from 'express';
 import { UserModel } from '../models/User';
 import { CustomerModel } from '../models/Customer';
+import { LoginHistoryModel } from '../models/LoginHistory';
 import { generateToken } from '../middleware/auth';
 import { LoginRequest, RegisterRequest, UserRole } from '../types';
 
+// Helper to extract IP address from request
+const getClientIp = (req: Request): string => {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) {
+    const ips = Array.isArray(forwarded) ? forwarded[0] : forwarded.split(',')[0];
+    return ips.trim();
+  }
+  return req.socket.remoteAddress || req.ip || 'unknown';
+};
+
 export class AuthController {
   static async login(req: Request, res: Response) {
+    const ipAddress = getClientIp(req);
+    const userAgent = req.headers['user-agent'] || null;
+    // Source can be passed from frontend, defaults to 'panel'
+    const source = (req.body.source === 'shop' ? 'shop' : 'panel') as 'panel' | 'shop';
+
     try {
       const { email, password }: LoginRequest = req.body;
 
@@ -17,18 +33,53 @@ export class AuthController {
       const user = await UserModel.getByEmailOrLogin(email);
 
       if (!user) {
+        // Log failed login - user not found
+        await LoginHistoryModel.log({
+          ipAddress,
+          userAgent: userAgent || undefined,
+          source,
+          success: false,
+          errorMessage: 'Nieprawidłowy email/login'
+        });
         return res.status(401).json({ error: 'Nieprawidłowy email/login lub hasło' });
       }
 
       if (!user.isActive) {
+        // Log failed login - account inactive
+        await LoginHistoryModel.log({
+          userId: user.id,
+          ipAddress,
+          userAgent: userAgent || undefined,
+          source,
+          success: false,
+          errorMessage: 'Konto nieaktywne'
+        });
         return res.status(403).json({ error: 'Konto jest nieaktywne' });
       }
 
       const isPasswordValid = await UserModel.verifyPassword(user, password);
 
       if (!isPasswordValid) {
+        // Log failed login - wrong password
+        await LoginHistoryModel.log({
+          userId: user.id,
+          ipAddress,
+          userAgent: userAgent || undefined,
+          source,
+          success: false,
+          errorMessage: 'Nieprawidłowe hasło'
+        });
         return res.status(401).json({ error: 'Nieprawidłowy email/login lub hasło' });
       }
+
+      // Log successful login
+      await LoginHistoryModel.log({
+        userId: user.id,
+        ipAddress,
+        userAgent: userAgent || undefined,
+        source,
+        success: true
+      });
 
       const token = generateToken({
         firstName: user.firstName,
