@@ -128,17 +128,24 @@ export class OrderModel {
       };
     });
 
-    const customerResult = await query<{ companyName?: string; firstName?: string; lastName?: string; customerCode?: string }>(
-      'SELECT company_name, first_name, last_name, customer_code FROM customers WHERE id = $1',
+    const customerResult = await query<{ companyName?: string; firstName?: string; lastName?: string; customerCode?: string; priceGroupId?: number; priceGroupName?: string }>(
+      `SELECT c.company_name, c.first_name, c.last_name, c.customer_code, c.price_group_id, pg.name as price_group_name
+       FROM customers c
+       LEFT JOIN price_groups pg ON c.price_group_id = pg.id
+       WHERE c.id = $1`,
       [order.customerId]
     );
 
     let customerName: string | undefined;
     let customerCode: string | undefined;
+    let customerPriceGroupId: number | undefined;
+    let customerPriceGroupName: string | undefined;
     if (customerResult.rows.length > 0) {
       const customer = customerResult.rows[0];
       customerName = customer.companyName || `${customer.firstName} ${customer.lastName}`;
       customerCode = customer.customerCode;
+      customerPriceGroupId = customer.priceGroupId;
+      customerPriceGroupName = customer.priceGroupName;
     }
 
     return {
@@ -146,6 +153,8 @@ export class OrderModel {
       items,
       customerCode,
       customerName,
+      customerPriceGroupId,
+      customerPriceGroupName,
     };
   }
 

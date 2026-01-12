@@ -68,6 +68,32 @@ interface EditedItem {
   imageUrl?: string;
 }
 
+// Helper function to get correct price based on customer's price group
+const getCustomerPrice = (product: Product, priceGroupName?: string): number => {
+  if (!priceGroupName) return product.basePriceGross || 0;
+  
+  switch (priceGroupName) {
+    case 'rabat_10':
+      return product.priceDiscount10 || product.basePriceGross || 0;
+    case 'rabat_12':
+      return product.priceDiscount12 || product.basePriceGross || 0;
+    case 'rabat_15':
+      return product.priceDiscount15 || product.basePriceGross || 0;
+    case 'rabat_20':
+      return product.priceDiscount20 || product.basePriceGross || 0;
+    case 'rabat_25':
+      return product.priceDiscount25 || product.basePriceGross || 0;
+    case 'auchan_8':
+      return product.priceAuchan8 || product.basePriceGross || 0;
+    case 'hurt':
+      return product.pricePlus || product.basePriceGross || 0;
+    case 'detal':
+    case 'podstawowa':
+    default:
+      return product.basePriceGross || 0;
+  }
+};
+
 export function ScannerOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -261,7 +287,7 @@ export function ScannerOrderDetailPage() {
         inputValue: 1,
         unitsPerPallet: product.unitsPerPallet || 1,
         productName: product.plantName,
-        unitPrice: product.basePriceGross || 0,
+        unitPrice: getCustomerPrice(product, order?.customerPriceGroupName),
         imageUrl: product.imageUrl,
       }, ...editedItems]);
     }

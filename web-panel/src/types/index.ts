@@ -190,6 +190,8 @@ export interface Order {
   customerId?: number;
   customerName?: string;
   customerCode?: string;
+  customerPriceGroupId?: number;
+  customerPriceGroupName?: string;
   status: OrderStatus;
   totalAmount: number;
   itemCount?: number;

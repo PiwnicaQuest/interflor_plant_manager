@@ -219,6 +219,8 @@ export interface InventoryMovement {
 
 // Order
 export interface Order {
+  customerPriceGroupId?: number;
+  customerPriceGroupName?: string;
   id: number;
   orderNumber: string;
   customerId?: number;
