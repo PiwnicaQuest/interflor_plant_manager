@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '../../services/api';
 import { Order, OrderWithItems, OrderItem, Customer } from '../../types';
 
@@ -27,6 +27,13 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [creatingOrder, setCreatingOrder] = useState(false);
+
+  // Customer autocomplete states
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const customerInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Get source order customer ID
   const sourceCustomerId = sourceOrder.customerId;
@@ -255,14 +262,98 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
   const sameCustomerOrders = targetOrders.filter(o => o.customerId === sourceCustomerId);
   const differentCustomerOrders = targetOrders.filter(o => o.customerId !== sourceCustomerId);
 
-  const getCustomerDisplayName = (customer: Customer) => {
-    if (customer.companyName) {
-      return customer.customerCode
-        ? `[${customer.customerCode}] ${customer.companyName}`
-        : customer.companyName;
+  // Filter customers based on search query
+  const filteredCustomers = customerSearchQuery.length >= 2
+    ? customers.filter((customer) => {
+        const query = String(customerSearchQuery).toLowerCase();
+        const companyName = String(customer.companyName ?? '').toLowerCase();
+        const firstName = String(customer.firstName ?? '').toLowerCase();
+        const lastName = String(customer.lastName ?? '').toLowerCase();
+        const nip = String(customer.nip ?? '').toLowerCase();
+        const code = String(customer.customerCode ?? '').toLowerCase();
+        const fullName = `${firstName} ${lastName}`.trim();
+
+        return (
+          companyName.includes(query) ||
+          fullName.includes(query) ||
+          firstName.includes(query) ||
+          lastName.includes(query) ||
+          nip.includes(query) ||
+          code.includes(query)
+        );
+      })
+    : [];
+
+  // Handle customer selection from autocomplete
+  const handleSelectCustomer = (customer: Customer) => {
+    setSelectedCustomerId(customer.id);
+    setCustomerSearchQuery(getCustomerDisplayName(customer));
+    setShowCustomerDropdown(false);
+    setHighlightedIndex(-1);
+  };
+
+  // Handle keyboard navigation in autocomplete
+  const handleCustomerInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showCustomerDropdown || filteredCustomers.length === 0) {
+      if (e.key === 'ArrowDown' && customerSearchQuery.length >= 2) {
+        setShowCustomerDropdown(true);
+        setHighlightedIndex(0);
+      }
+      return;
     }
-    const name = `${customer.firstName || ''} ${customer.lastName || ''}`.trim();
-    return customer.customerCode ? `[${customer.customerCode}] ${name}` : name;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setHighlightedIndex((prev) =>
+          prev < filteredCustomers.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : 0));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (highlightedIndex >= 0 && highlightedIndex < filteredCustomers.length) {
+          handleSelectCustomer(filteredCustomers[highlightedIndex]);
+        }
+        break;
+      case 'Escape':
+        setShowCustomerDropdown(false);
+        setHighlightedIndex(-1);
+        break;
+    }
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        customerInputRef.current &&
+        !customerInputRef.current.contains(event.target as Node)
+      ) {
+        setShowCustomerDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const getCustomerDisplayName = (customer: Customer) => {
+    const companyName = customer.companyName ? String(customer.companyName) : '';
+    const code = customer.customerCode ? String(customer.customerCode) : '';
+
+    if (companyName) {
+      return code ? `[${code}] ${companyName}` : companyName;
+    }
+    const firstName = customer.firstName ? String(customer.firstName) : '';
+    const lastName = customer.lastName ? String(customer.lastName) : '';
+    const name = `${firstName} ${lastName}`.trim();
+    return code ? `[${code}] ${name}` : name;
   };
 
   return (
@@ -331,18 +422,82 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
                   Utworz nowe zamowienie
                 </h4>
                 <div className="flex gap-2">
-                  <select
-                    className="input flex-1"
-                    value={selectedCustomerId || ''}
-                    onChange={(e) => setSelectedCustomerId(parseInt(e.target.value))}
-                  >
-                    <option value="">-- Wybierz kontrahenta --</option>
-                    {customers.map((customer) => (
-                      <option key={customer.id} value={customer.id}>
-                        {getCustomerDisplayName(customer)}
-                      </option>
-                    ))}
-                  </select>
+                  {/* Customer Autocomplete */}
+                  <div className="relative flex-1">
+                    <input
+                      ref={customerInputRef}
+                      type="text"
+                      className="input w-full"
+                      placeholder="Wpisz nazwe kontrahenta, NIP lub kod..."
+                      value={customerSearchQuery}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setCustomerSearchQuery(value);
+                        setShowCustomerDropdown(value.length >= 2);
+                        setHighlightedIndex(-1);
+                        if (value.length < 2) {
+                          setSelectedCustomerId(null);
+                        }
+                      }}
+                      onFocus={() => {
+                        if (customerSearchQuery.length >= 2) {
+                          setShowCustomerDropdown(true);
+                        }
+                      }}
+                      onKeyDown={handleCustomerInputKeyDown}
+                    />
+                    {selectedCustomerId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedCustomerId(null);
+                          setCustomerSearchQuery('');
+                          setShowCustomerDropdown(false);
+                          customerInputRef.current?.focus();
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        ✕
+                      </button>
+                    )}
+                    {showCustomerDropdown && filteredCustomers.length > 0 && (
+                      <div
+                        ref={dropdownRef}
+                        className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                      >
+                        {filteredCustomers.slice(0, 20).map((customer, index) => (
+                          <div
+                            key={customer.id}
+                            onClick={() => handleSelectCustomer(customer)}
+                            className={`px-4 py-2 cursor-pointer ${
+                              index === highlightedIndex
+                                ? 'bg-blue-100 text-blue-900'
+                                : 'hover:bg-gray-100'
+                            } ${selectedCustomerId === customer.id ? 'bg-green-50' : ''}`}
+                          >
+                            <div className="font-medium">
+                              {customer.companyName || `${customer.firstName || ''} ${customer.lastName || ''}`.trim()}
+                            </div>
+                            <div className="text-xs text-gray-500 flex gap-2">
+                              {customer.customerCode && <span>[{customer.customerCode}]</span>}
+                              {customer.nip && <span>NIP: {customer.nip}</span>}
+                              {customer.city && <span>{customer.city}</span>}
+                            </div>
+                          </div>
+                        ))}
+                        {filteredCustomers.length > 20 && (
+                          <div className="px-4 py-2 text-xs text-gray-500 text-center border-t">
+                            Wyswietlono 20 z {filteredCustomers.length} wynikow. Zawez wyszukiwanie.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {showCustomerDropdown && customerSearchQuery.length >= 2 && filteredCustomers.length === 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4 text-center text-gray-500">
+                        Nie znaleziono kontrahentow
+                      </div>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={handleCreateNewOrder}
@@ -352,6 +507,11 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
                     {creatingOrder ? 'Tworzenie...' : 'Utworz'}
                   </button>
                 </div>
+                {customerSearchQuery.length > 0 && customerSearchQuery.length < 2 && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    Wpisz min. 2 znaki, aby wyszukac kontrahenta
+                  </p>
+                )}
                 {selectedCustomerId === sourceCustomerId && (
                   <p className="text-xs text-green-700 mt-2">
                     Ten sam kontrahent co zamowienie zrodlowe - ceny zostana zachowane.
