@@ -305,4 +305,46 @@ router.post('/maintenance/check-agents', requireAuth, requireRole([UserRole.ADMI
   }
 });
 
+// ============ Print Agent Files Download ============
+
+// Serve print agent dist/index.js for installer
+router.get('/agent-files/dist/index.js', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const path = require('path');
+    const fs = require('fs');
+    
+    const filePath = path.join(__dirname, '../../..', 'print-agent', 'dist', 'index.js');
+    
+    if (!fs.existsSync(filePath)) {
+      res.status(404).json({ error: 'File not found' });
+      return;
+    }
+    
+    res.sendFile(filePath);
+  } catch (error: any) {
+    console.error('Error serving agent file:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Serve package.json for installer
+router.get('/agent-files/package.json', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const path = require('path');
+    const fs = require('fs');
+    
+    const filePath = path.join(__dirname, '../../..', 'print-agent', 'package.json');
+    
+    if (!fs.existsSync(filePath)) {
+      res.status(404).json({ error: 'File not found' });
+      return;
+    }
+    
+    res.sendFile(filePath);
+  } catch (error: any) {
+    console.error('Error serving agent file:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
