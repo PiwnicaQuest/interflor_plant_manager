@@ -325,6 +325,11 @@ class ApiClient {
     return response.data;
   }
 
+  async sendInvoiceEmail(id: number, options?: { email?: string; subject?: string; message?: string }): Promise<{ success: boolean; message: string }> {
+    const response = await this.client.post(`/invoices/${id}/send-email`, options || {});
+    return response.data;
+  }
+
   async updateInvoicePaymentStatus(id: number, paidAmount: number): Promise<{ message: string; invoice: Invoice }> {
     const response = await this.client.patch(`/invoices/${id}/payment-status`, { paidAmount });
     return response.data;

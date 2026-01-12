@@ -4,6 +4,7 @@ import { InvoiceModel } from '../models/Invoice';
 import { CustomerModel } from '../models/Customer';
 import { PaymentMethod } from '../types';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
+import { emailService } from '../services/emailService';
 import { generateInvoiceHtml } from '../utils/invoiceHtmlGenerator';
 
 export class InvoiceController {
@@ -219,4 +220,84 @@ export class InvoiceController {
       res.status(500).json({ error: "Błąd serwera podczas generowania HTML" });
     }
   }
+
+
+  static async sendEmail(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const id = parseInt(req.params.id);
+      const { email: customEmail, subject, message } = req.body;
+
+      if (isNaN(id)) {
+        res.status(400).json({ error: 'Nieprawidlowe ID faktury' });
+        return;
+      }
+
+      const invoice = await InvoiceModel.getById(id);
+
+      if (!invoice) {
+        res.status(404).json({ error: 'Faktura nie znaleziona' });
+        return;
+      }
+
+      // Get email - custom or from buyer snapshot
+      const recipientEmail = customEmail || invoice.buyerSnapshot?.email;
+
+      if (!recipientEmail) {
+        res.status(400).json({ error: 'Brak adresu email klienta' });
+        return;
+      }
+
+      // Generate PDF
+      const pdfDoc = await generateInvoicePDF(invoice);
+      
+      // Convert PDF stream to buffer
+      const chunks: Buffer[] = [];
+      pdfDoc.on('data', (chunk: Buffer) => chunks.push(chunk));
+      
+      await new Promise<void>((resolve, reject) => {
+        pdfDoc.on('end', () => resolve());
+        pdfDoc.on('error', reject);
+        pdfDoc.end();
+      });
+
+      const pdfBuffer = Buffer.concat(chunks);
+
+      // Get customer name
+      const buyerSnapshot = invoice.buyerSnapshot;
+      let customerName: string | undefined;
+      if (buyerSnapshot?.companyName) {
+        customerName = buyerSnapshot.companyName;
+      } else if (buyerSnapshot?.firstName) {
+        customerName = buyerSnapshot.firstName + (buyerSnapshot.lastName ? ' ' + buyerSnapshot.lastName : '');
+      }
+
+      // Format payment deadline
+      let paymentDeadline: string | undefined;
+      if (invoice.paymentDeadline) {
+        paymentDeadline = new Date(invoice.paymentDeadline).toLocaleDateString('pl-PL');
+      }
+
+      // Send email
+      const sent = await emailService.sendInvoiceEmail(
+        recipientEmail,
+        invoice.invoiceNumber,
+        pdfBuffer,
+        customerName,
+        invoice.totalGross,
+        paymentDeadline,
+        subject,
+        message
+      );
+
+      if (sent) {
+        res.json({ success: true, message: 'Faktura wyslana na adres ' + recipientEmail });
+      } else {
+        res.status(500).json({ error: 'Nie udalo sie wyslac emaila. Sprawdz konfiguracje SMTP.' });
+      }
+    } catch (error) {
+      console.error('Send invoice email error:', error);
+      res.status(500).json({ error: 'Blad serwera podczas wysylania faktury' });
+    }
+  }
+
 }

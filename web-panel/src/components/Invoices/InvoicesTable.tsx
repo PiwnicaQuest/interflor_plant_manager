@@ -7,6 +7,7 @@ interface InvoicesTableProps {
   invoices: Invoice[];
   onViewDetails: (invoice: Invoice) => void;
   onUpdatePayment: (invoice: Invoice) => void;
+  onSendEmail?: (invoice: Invoice) => void;
   selectedInvoices?: number[];
   onSelectInvoice?: (id: number) => void;
   onSelectAll?: () => void;
@@ -19,6 +20,7 @@ export function InvoicesTable({
   invoices,
   onViewDetails,
   onUpdatePayment,
+  onSendEmail,
   selectedInvoices = [],
   onSelectInvoice,
   onSelectAll,
@@ -200,6 +202,15 @@ export function InvoicesTable({
                     >
                       Drukuj
                     </button>
+                    {onSendEmail && invoice.buyerSnapshot?.email && (
+                      <button
+                        onClick={() => onSendEmail(invoice)}
+                        className="text-purple-600 hover:text-purple-700 text-sm font-medium"
+                        title="Wyslij fakture emailem"
+                      >
+                        Email
+                      </button>
+                    )}
                     <button
                       onClick={() => onUpdatePayment(invoice)}
                       className="text-green-600 hover:text-green-700 text-sm font-medium"

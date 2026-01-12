@@ -164,6 +164,7 @@ app.get('/invoices/:id', requireAuth, InvoiceController.getById);
 app.post('/invoices', requireAuth, requireRole([UserRole.ADMIN, UserRole.POS]), InvoiceController.create);
 app.patch('/invoices/:id/payment-status', requireAuth, requireRole([UserRole.ADMIN, UserRole.POS]), InvoiceController.updatePaymentStatus);
 app.get('/invoices/:id/pdf', requireAuth, InvoiceController.getPDF);
+app.post('/invoices/:id/send-email', requireAuth, requireRole([UserRole.ADMIN, UserRole.POS]), InvoiceController.sendEmail);
 app.get("/invoices/:id/html", requireAuth, InvoiceController.getHTML);
 
 // ============================================

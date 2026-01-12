@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface PaymentSuccessModalProps {
   documentType: 'invoice' | 'receipt' | 'proforma';
@@ -10,6 +10,8 @@ interface PaymentSuccessModalProps {
   onClose: () => void;
   onPrint: () => void;
   onViewDocument: () => void;
+  onSendEmail?: () => Promise<void>;
+  hasCustomerEmail?: boolean;
 }
 
 export function PaymentSuccessModal({
@@ -22,8 +24,27 @@ export function PaymentSuccessModal({
   onClose,
   onPrint,
   onViewDocument,
+  onSendEmail,
+  hasCustomerEmail,
 }: PaymentSuccessModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+
+  const handleSendEmail = async () => {
+    if (!onSendEmail) return;
+    setEmailSending(true);
+    setEmailError(null);
+    try {
+      await onSendEmail();
+      setEmailSent(true);
+    } catch (err: any) {
+      setEmailError(err.response?.data?.error || 'Blad wysylania');
+    } finally {
+      setEmailSending(false);
+    }
+  };
 
   useEffect(() => {
     modalRef.current?.focus();
@@ -63,16 +84,15 @@ export function PaymentSuccessModal({
             </svg>
           </div>
           <h2 className={`text-xl font-bold mb-1 ${documentType === 'proforma' ? 'text-violet-700' : 'text-green-700'}`}>
-            {documentType === 'proforma' ? 'Pro Forma wygenerowana!' : 'Płatność zakończona!'}
+            {documentType === 'proforma' ? 'Pro Forma wygenerowana!' : 'Platnosc zakonczona!'}
           </h2>
           <p className={`text-sm ${documentType === 'proforma' ? 'text-violet-600' : 'text-green-600'}`}>
-            {documentType === 'proforma' ? 'Dokument został utworzony pomyślnie' : 'Transakcja zrealizowana pomyślnie'}
+            {documentType === 'proforma' ? 'Dokument zostal utworzony pomyslnie' : 'Transakcja zrealizowana pomyslnie'}
           </p>
         </div>
 
         {/* Document Info */}
         <div className="p-4 space-y-3">
-          {/* Document details */}
           <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
@@ -87,25 +107,19 @@ export function PaymentSuccessModal({
               </div>
             </div>
 
-            {/* Payment details */}
             {paymentDetails && (
               <div className="border-t border-gray-200 pt-2 mt-2">
-                <div className="text-xs text-gray-500 mb-0.5">Szczegóły płatności</div>
+                <div className="text-xs text-gray-500 mb-0.5">Szczegoly platnosci</div>
                 <div className="text-sm text-gray-700">{paymentDetails}</div>
               </div>
             )}
           </div>
 
-          {/* Change to give (for cash payments) */}
           {change !== undefined && change > 0 && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
               <div className="flex items-center justify-between">
-                <div className="text-sm font-medium text-yellow-800">
-                  Reszta do wydania
-                </div>
-                <div className="text-xl font-bold text-yellow-700">
-                  {change.toFixed(2)} PLN
-                </div>
+                <div className="text-sm font-medium text-yellow-800">Reszta do wydania</div>
+                <div className="text-xl font-bold text-yellow-700">{change.toFixed(2)} PLN</div>
               </div>
             </div>
           )}
@@ -113,7 +127,6 @@ export function PaymentSuccessModal({
 
         {/* Actions */}
         <div className="p-4 border-t border-gray-100 bg-gray-50 rounded-b-lg space-y-2">
-          {/* Print and View buttons */}
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={onPrint}
@@ -133,11 +146,50 @@ export function PaymentSuccessModal({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
-              <span>Podgląd</span>
+              <span>Podglad</span>
             </button>
           </div>
 
-          {/* Close button */}
+          {documentType === 'invoice' && hasCustomerEmail && onSendEmail && (
+            <button
+              onClick={handleSendEmail}
+              disabled={emailSending || emailSent}
+              className={`w-full py-2.5 font-medium rounded-lg transition-colors flex items-center justify-center gap-2 text-sm ${
+                emailSent 
+                  ? 'bg-green-100 text-green-700 border border-green-300'
+                  : emailError
+                  ? 'bg-red-100 text-red-700 border border-red-300'
+                  : 'bg-orange-600 hover:bg-orange-700 text-white'
+              }`}
+            >
+              {emailSending ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  <span>Wysylanie...</span>
+                </>
+              ) : emailSent ? (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Wyslano email</span>
+                </>
+              ) : emailError ? (
+                <span>{emailError}</span>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <span>Wyslij fakture mailem</span>
+                </>
+              )}
+            </button>
+          )}
+
           <button
             onClick={onClose}
             className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
@@ -150,7 +202,7 @@ export function PaymentSuccessModal({
           </button>
 
           <p className="text-xs text-gray-400 text-center pt-1">
-            Okno zamknie się automatycznie za 30 sekund
+            Okno zamknie sie automatycznie za 30 sekund
           </p>
         </div>
       </div>

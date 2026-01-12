@@ -23,6 +23,7 @@ export function InvoicesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortField, setSortField] = useState<SortField>('issueDate');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [sendingEmailId, setSendingEmailId] = useState<number | null>(null);
 
   const fetchInvoices = async () => {
     try {
@@ -182,6 +183,33 @@ export function InvoicesPage() {
     });
   };
 
+  // Send invoice by email
+  const handleSendEmail = async (invoice: Invoice) => {
+    if (!invoice.buyerSnapshot?.email) {
+      alert('Brak adresu email klienta');
+      return;
+    }
+
+    if (!confirm(`Czy na pewno chcesz wyslac fakture ${invoice.invoiceNumber} na adres ${invoice.buyerSnapshot.email}?`)) {
+      return;
+    }
+
+    setSendingEmailId(invoice.id);
+    try {
+      const result = await api.sendInvoiceEmail(invoice.id);
+      if (result.success) {
+        alert('Faktura zostala wyslana na adres ' + invoice.buyerSnapshot.email);
+      } else {
+        alert('Blad wysylania: ' + result.message);
+      }
+    } catch (error) {
+      console.error('Error sending invoice email:', error);
+      alert('Wystapil blad podczas wysylania faktury');
+    } finally {
+      setSendingEmailId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -337,6 +365,7 @@ export function InvoicesPage() {
             invoices={filteredAndSortedInvoices}
             onViewDetails={handleViewDetails}
             onUpdatePayment={handleUpdatePayment}
+            onSendEmail={handleSendEmail}
             selectedInvoices={selectedInvoices}
             onSelectInvoice={handleSelectInvoice}
             onSelectAll={handleSelectAll}

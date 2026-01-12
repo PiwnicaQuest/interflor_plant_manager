@@ -343,6 +343,118 @@ Zespol POLFLOR
       html,
     });
   }
+
+  async sendInvoiceEmail(
+    email: string,
+    invoiceNumber: string,
+    pdfBuffer: Buffer,
+    customerName?: string,
+    totalGross?: number,
+    paymentDeadline?: string,
+    subject?: string,
+    message?: string
+  ): Promise<boolean> {
+    if (!this.transporter) {
+      console.error('Email service not configured');
+      return false;
+    }
+
+    const greeting = customerName ? `Szanowny/a ${customerName}` : 'Szanowny Kliencie';
+    const defaultSubject = subject || `Faktura VAT ${invoiceNumber} - POLFLOR`;
+    const customMessage = message ? `<p style="margin: 20px 0; white-space: pre-line;">${message}</p>` : '';
+    const totalInfo = totalGross ? `<p><strong>Kwota do zapłaty:</strong> ${totalGross.toFixed(2)} PLN</p>` : '';
+    const deadlineInfo = paymentDeadline ? `<p><strong>Termin płatności:</strong> ${paymentDeadline}</p>` : '';
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background-color: #16a34a; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+    .content { background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; }
+    .invoice-info { background-color: #fff; border: 2px solid #16a34a; border-radius: 8px; padding: 20px; margin: 20px 0; }
+    .invoice-info p { margin: 10px 0; }
+    .invoice-info strong { color: #16a34a; }
+    .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; border-top: 1px solid #e5e7eb; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Faktura VAT</h1>
+    </div>
+    <div class="content">
+      <p>${greeting},</p>
+
+      <p>W załączeniu przesyłamy fakturę VAT.</p>
+
+      ${customMessage}
+
+      <div class="invoice-info">
+        <p><strong>Numer faktury:</strong> ${invoiceNumber}</p>
+        ${totalInfo}
+        ${deadlineInfo}
+      </div>
+
+      <p>Faktura znajduje się w załączniku do tej wiadomości w formacie PDF.</p>
+
+      <p style="margin-top: 30px; font-size: 14px; color: #6b7280;">
+        W razie pytań prosimy o kontakt.
+      </p>
+    </div>
+    <div class="footer">
+      <p>POLFLOR - System zarządzania magazynem roślin</p>
+      <p>Ta wiadomość została wygenerowana automatycznie.</p>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    const text = `
+${greeting},
+
+W załączeniu przesyłamy fakturę VAT.
+
+${message || ''}
+
+Numer faktury: ${invoiceNumber}
+${totalGross ? `Kwota do zapłaty: ${totalGross.toFixed(2)} PLN` : ''}
+${paymentDeadline ? `Termin płatności: ${paymentDeadline}` : ''}
+
+Faktura znajduje się w załączniku do tej wiadomości w formacie PDF.
+
+W razie pytań prosimy o kontakt.
+
+Pozdrawiamy,
+Zespół POLFLOR
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: this.fromEmail,
+        to: email,
+        subject: defaultSubject,
+        text,
+        html,
+        attachments: [
+          {
+            filename: `Faktura_${invoiceNumber.replace(/\//g, '_')}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf',
+          },
+        ],
+      });
+      console.log(`Invoice email sent to ${email} for invoice ${invoiceNumber}`);
+      return true;
+    } catch (error) {
+      console.error('Error sending invoice email:', error);
+      return false;
+    }
+  }
 }
 
 export const emailService = new EmailService();

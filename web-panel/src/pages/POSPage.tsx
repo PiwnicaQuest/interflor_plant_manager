@@ -16,6 +16,7 @@ const formatPrice = (value: number | string | null | undefined): string => {
 
 interface CheckoutResult {
   documentType: 'invoice' | 'receipt' | 'proforma';
+  customerHasEmail?: boolean;
   documentNumber: string;
   documentId: number;
   totalAmount: number;
@@ -155,6 +156,7 @@ export function POSPage() {
         documentNumber: result.documentNumber,
         documentId: result.documentId,
         totalAmount: result.totalAmount,
+        customerHasEmail: !!selectedOrder?.customerId,
         paymentDetails: methodLabel ? `${methodLabel}: ${formatPrice(result.totalAmount)} PLN` : undefined,
         change,
       });
@@ -209,6 +211,7 @@ export function POSPage() {
         documentNumber: result.documentNumber,
         documentId: result.documentId,
         totalAmount: result.totalAmount,
+        customerHasEmail: !!selectedOrder?.customerId,
         paymentDetails: splitDetails,
       });
       setShowSuccessModal(true);
@@ -290,6 +293,11 @@ export function POSPage() {
     }
 
     window.open(viewUrl, '_blank');
+  };
+
+  const handleSendEmail = async () => {
+    if (!checkoutResult || checkoutResult.documentType !== 'invoice') return;
+    await api.sendInvoiceEmail(checkoutResult.documentId);
   };
 
   const handleCloseSuccessModal = () => {
@@ -901,6 +909,8 @@ export function POSPage() {
           onClose={handleCloseSuccessModal}
           onPrint={handlePrint}
           onViewDocument={handleViewDocument}
+          onSendEmail={handleSendEmail}
+          hasCustomerEmail={checkoutResult.customerHasEmail}
         />
       )}
     </div>
