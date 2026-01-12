@@ -4,6 +4,7 @@ import { InvoiceModel } from '../models/Invoice';
 import { CustomerModel } from '../models/Customer';
 import { PaymentMethod } from '../types';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
+import { generateInvoicePDFPuppeteer } from '../utils/invoicePdfPuppeteer';
 import { emailService } from '../services/emailService';
 import { generateInvoiceHtml } from '../utils/invoiceHtmlGenerator';
 
@@ -247,20 +248,8 @@ export class InvoiceController {
         return;
       }
 
-      // Generate PDF
-      const pdfDoc = await generateInvoicePDF(invoice);
-      
-      // Convert PDF stream to buffer
-      const chunks: Buffer[] = [];
-      pdfDoc.on('data', (chunk: Buffer) => chunks.push(chunk));
-      
-      await new Promise<void>((resolve, reject) => {
-        pdfDoc.on('end', () => resolve());
-        pdfDoc.on('error', reject);
-        pdfDoc.end();
-      });
-
-      const pdfBuffer = Buffer.concat(chunks);
+      // Generate PDF using puppeteer for consistent styling with print
+      const pdfBuffer = await generateInvoicePDFPuppeteer(invoice);
 
       // Get customer name
       const buyerSnapshot = invoice.buyerSnapshot;

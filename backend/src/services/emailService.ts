@@ -87,7 +87,7 @@ class EmailService {
     const greeting = customerName ? `Szanowny/a ${customerName}` : 'Szanowny Kliencie';
     const defaultSubject = subject || `Faktura Pro Forma ${proformaNumber}`;
     const customMessage = message ? `<p style="margin: 20px 0; white-space: pre-line;">${message}</p>` : '';
-    const totalInfo = totalGross ? `<p><strong>Kwota do zaplaty:</strong> ${totalGross.toFixed(2)} PLN</p>` : '';
+    const totalInfo = totalGross ? `<p><strong>Kwota do zaplaty:</strong> ${Number(totalGross).toFixed(2)} PLN</p>` : '';
 
     const html = `
 <!DOCTYPE html>
@@ -150,7 +150,7 @@ W zalaczeniu przesylamy fakture pro forma.
 ${message || ''}
 
 Numer dokumentu: ${proformaNumber}
-${totalGross ? `Kwota do zaplaty: ${totalGross.toFixed(2)} PLN` : ''}
+${totalGross ? `Kwota do zaplaty: ${Number(totalGross).toFixed(2)} PLN` : ''}
 
 Link do pobrania: ${printUrl}
 
@@ -362,7 +362,7 @@ Zespol POLFLOR
     const greeting = customerName ? `Szanowny/a ${customerName}` : 'Szanowny Kliencie';
     const defaultSubject = subject || `Faktura VAT ${invoiceNumber} - POLFLOR`;
     const customMessage = message ? `<p style="margin: 20px 0; white-space: pre-line;">${message}</p>` : '';
-    const totalInfo = totalGross ? `<p><strong>Kwota do zapłaty:</strong> ${totalGross.toFixed(2)} PLN</p>` : '';
+    const totalInfo = totalGross ? `<p><strong>Kwota do zapłaty:</strong> ${Number(totalGross).toFixed(2)} PLN</p>` : '';
     const deadlineInfo = paymentDeadline ? `<p><strong>Termin płatności:</strong> ${paymentDeadline}</p>` : '';
 
     const html = `
@@ -422,7 +422,7 @@ W załączeniu przesyłamy fakturę VAT.
 ${message || ''}
 
 Numer faktury: ${invoiceNumber}
-${totalGross ? `Kwota do zapłaty: ${totalGross.toFixed(2)} PLN` : ''}
+${totalGross ? `Kwota do zapłaty: ${Number(totalGross).toFixed(2)} PLN` : ''}
 ${paymentDeadline ? `Termin płatności: ${paymentDeadline}` : ''}
 
 Faktura znajduje się w załączniku do tej wiadomości w formacie PDF.
