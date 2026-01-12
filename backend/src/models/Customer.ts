@@ -61,14 +61,16 @@ export class CustomerModel {
       priceGroupId = 1,
       notes,
       customerCode,
+      vatEu,
+      isEuCompany = false,
     } = data;
 
     const result = await query<Customer>(
       `INSERT INTO customers (
         user_id, company_name, first_name, last_name, nip,
         street, postal_code, city, country, phone, email,
-        price_group_id, notes, customer_code
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        price_group_id, notes, customer_code, vat_eu, is_eu_company
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *`,
       [
         userId,
@@ -85,6 +87,8 @@ export class CustomerModel {
         priceGroupId,
         notes,
         customerCode,
+        vatEu,
+        isEuCompany,
       ]
     );
 
@@ -118,6 +122,8 @@ export class CustomerModel {
       'recipientCity',
       'recipientPhone',
       'customerCode',
+      'vatEu',
+      'isEuCompany',
     ];
 
     const columnMap: { [key: string]: string } = {
@@ -135,6 +141,8 @@ export class CustomerModel {
       recipientCity: 'recipient_city',
       recipientPhone: 'recipient_phone',
       customerCode: 'customer_code',
+      vatEu: 'vat_eu',
+      isEuCompany: 'is_eu_company',
     };
 
     for (const [key, value] of Object.entries(data)) {

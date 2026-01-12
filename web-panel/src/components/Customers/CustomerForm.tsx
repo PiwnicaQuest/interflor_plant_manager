@@ -28,6 +28,9 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
     email: '',
     priceGroupId: 1,
     notes: '',
+    // WDT (EU company) fields
+    vatEu: '',
+    isEuCompany: false,
     // Recipient fields
     recipientCompanyName: '',
     recipientFirstName: '',
@@ -66,6 +69,8 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
         email: customer.email,
         priceGroupId: customer.priceGroupId,
         notes: customer.notes || '',
+        vatEu: customer.vatEu || '',
+        isEuCompany: customer.isEuCompany || false,
         recipientCompanyName: customer.recipientCompanyName || '',
         recipientFirstName: customer.recipientFirstName || '',
         recipientLastName: customer.recipientLastName || '',
@@ -378,6 +383,70 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
                   onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                   required
                 />
+              </div>
+            </div>
+
+            {/* Kraj i VAT-UE (dla WDT) */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Kraj
+                </label>
+                <select
+                  className="input"
+                  value={formData.country}
+                  onChange={(e) => {
+                    const newCountry = e.target.value;
+                    const isNotPoland = newCountry.toLowerCase() !== 'polska' && newCountry.toLowerCase() !== 'poland';
+                    setFormData({
+                      ...formData,
+                      country: newCountry,
+                      isEuCompany: isNotPoland && !!formData.vatEu
+                    });
+                  }}
+                >
+                  <option value="Polska">Polska</option>
+                  <option value="Czechy">Czechy</option>
+                  <option value="Niemcy">Niemcy</option>
+                  <option value="Słowacja">Słowacja</option>
+                  <option value="Austria">Austria</option>
+                  <option value="Węgry">Węgry</option>
+                  <option value="Litwa">Litwa</option>
+                  <option value="Łotwa">Łotwa</option>
+                  <option value="Estonia">Estonia</option>
+                  <option value="Francja">Francja</option>
+                  <option value="Holandia">Holandia</option>
+                  <option value="Belgia">Belgia</option>
+                  <option value="Włochy">Włochy</option>
+                  <option value="Hiszpania">Hiszpania</option>
+                  <option value="Inne UE">Inne UE</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  VAT-UE {formData.country.toLowerCase() !== 'polska' && <span className="text-orange-500">(dla WDT)</span>}
+                </label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder={formData.country === 'Czechy' ? 'np. CZ12345678' : 'np. DE123456789'}
+                  value={formData.vatEu}
+                  onChange={(e) => {
+                    const vatEu = e.target.value.toUpperCase();
+                    const isNotPoland = formData.country.toLowerCase() !== 'polska' && formData.country.toLowerCase() !== 'poland';
+                    setFormData({
+                      ...formData,
+                      vatEu,
+                      isEuCompany: isNotPoland && !!vatEu
+                    });
+                  }}
+                  disabled={formData.country.toLowerCase() === 'polska'}
+                />
+                {formData.country.toLowerCase() !== 'polska' && (
+                  <p className="text-xs text-orange-600 mt-1">
+                    Podaj numer VAT-UE nabywcy, aby zastosować stawkę 0% (WDT)
+                  </p>
+                )}
               </div>
             </div>
 

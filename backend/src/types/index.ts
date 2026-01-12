@@ -132,6 +132,9 @@ export interface Customer {
   recipientCity?: string;
   recipientPhone?: string;
   source?: 'shop' | 'scanner' | 'panel';
+  // WDT (EU company) fields
+  vatEu?: string;
+  isEuCompany?: boolean;
 }
 
 export interface CustomerSnapshot {
@@ -146,6 +149,7 @@ export interface CustomerSnapshot {
   phone: string;
   email: string;
   customerCode?: string;
+  vatEu?: string;
 }
 
 export type BuyerSnapshot = CustomerSnapshot;
@@ -239,6 +243,8 @@ export interface Order {
   recipientCity?: string;
   recipientPhone?: string;
   source?: 'shop' | 'scanner' | 'panel';
+  vatEu?: string;
+  isEuCompany?: boolean;
   totalAmount: number;
   createdAt: Date;
   updatedAt: Date;
@@ -265,6 +271,7 @@ export interface OrderWithItems extends Order {
   items: OrderItem[];
   customerName?: string;
   customerCode?: string;
+  vatEu?: string;
 }
 
 // Invoice
@@ -293,6 +300,7 @@ export interface Invoice {
   invoiceType?: InvoiceType;
   proformaId?: number;
   proformaStatus?: ProformaStatus;
+  transactionType?: 'domestic' | 'wdt' | 'export';
 }
 
 // Invoice Item
@@ -323,6 +331,7 @@ export interface Receipt {
   customerId?: number;
   customerName?: string;
   customerCode?: string;
+  vatEu?: string;
   buyerSnapshot?: CustomerSnapshot;
   paymentMethod: PaymentMethod;
   paymentSplits?: PaymentSplit[];
@@ -488,6 +497,8 @@ export interface CreateOrderRequest {
   recipientCity?: string;
   recipientPhone?: string;
   source?: 'shop' | 'scanner' | 'panel';
+  vatEu?: string;
+  isEuCompany?: boolean;
 }
 
 export interface UpdateOrderStatusRequest {
@@ -573,6 +584,7 @@ export interface WSOrderCreatedMessage extends WSMessage {
     orderNumber: string;
     customerName?: string;
   customerCode?: string;
+  vatEu?: string;
     itemCount: number;
     totalAmount: number;
     timestamp: Date;
@@ -600,6 +612,7 @@ export interface AuthRequest extends Request {
 export interface OrderWithDocument extends Order {
   customerName?: string;
   customerCode?: string;
+  vatEu?: string;
   itemCount?: number;
   document?: {
     type: 'invoice' | 'receipt';

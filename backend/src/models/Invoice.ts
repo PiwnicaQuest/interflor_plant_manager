@@ -511,15 +511,20 @@ export class InvoiceModel {
         growerPassport?: string;
       }> = [];
 
-      for (const item of orderItems) {
-        const vatRate = item.vatRate || 8.0;
-        const unitPriceGross = item.unitPriceGross;
-        const unitPriceNet = round2(unitPriceGross / (1 + vatRate / 100));
+      // Check if WDT (EU company with VAT-EU number, not Poland)
+      const isWdt = !!(buyerSnapshot.vatEu && buyerSnapshot.country && buyerSnapshot.country.toLowerCase() !== 'polska' && buyerSnapshot.country.toLowerCase() !== 'poland');
+      const transactionType = isWdt ? 'wdt' : 'domestic';
 
-        // Calculate from gross first (preserves original price, avoids rounding error)
+      for (const item of orderItems) {
+        // For WDT, VAT rate is 0%
+        const vatRate = isWdt ? 0 : (item.vatRate || 8.0);
+        const unitPriceGross = item.unitPriceGross;
+        const unitPriceNet = isWdt ? unitPriceGross : round2(unitPriceGross / (1 + vatRate / 100));
+
+        // Calculate totals
         const itemTotalGross = round2(unitPriceGross * item.quantity);
-        const itemTotalNet = round2(itemTotalGross / (1 + vatRate / 100));
-        const itemTotalVat = round2(itemTotalGross - itemTotalNet);
+        const itemTotalNet = isWdt ? itemTotalGross : round2(itemTotalGross / (1 + vatRate / 100));
+        const itemTotalVat = isWdt ? 0 : round2(itemTotalGross - itemTotalNet);
 
         subtotalNet += itemTotalNet;
         totalVat += itemTotalVat;
@@ -554,8 +559,8 @@ export class InvoiceModel {
           invoice_number, order_id, customer_id, buyer_snapshot,
           issue_date, sale_date, payment_deadline, payment_method,
           payment_status, paid_amount,
-          subtotal_net, total_vat, total_gross, created_by_user_id, payment_splits, invoice_type, recipient_snapshot
-        ) VALUES ($1, $2, $3, $4, CURRENT_DATE, CURRENT_DATE, $5, $6, $7::payment_status, $8, $9, $10, $11, $12, $13, 'invoice'::invoice_type, $14)
+          subtotal_net, total_vat, total_gross, created_by_user_id, payment_splits, invoice_type, recipient_snapshot, transaction_type
+        ) VALUES ($1, $2, $3, $4, CURRENT_DATE, CURRENT_DATE, $5, $6, $7::payment_status, $8, $9, $10, $11, $12, $13, 'invoice'::invoice_type, $14, $15::transaction_type)
         RETURNING *`,
         [
           invoiceNumber,
@@ -572,6 +577,7 @@ export class InvoiceModel {
           createdByUserId,
           JSON.stringify(paymentSplits),
           recipientSnapshot ? JSON.stringify(recipientSnapshot) : null,
+          transactionType,
         ]
       );
 
@@ -628,12 +634,22 @@ export class InvoiceModel {
       );
       const invoiceNumber = invoiceNumberResult.rows[0].getNextDocumentNumber || invoiceNumberResult.rows[0].get_next_document_number;
 
+      // Check if WDT (EU company with VAT-EU number, not Poland)
+      const isWdt = !!(buyerSnapshot.vatEu && buyerSnapshot.country && buyerSnapshot.country.toLowerCase() !== 'polska' && buyerSnapshot.country.toLowerCase() !== 'poland');
+      const transactionType = isWdt ? 'wdt' : 'domestic';
+
       // Calculate totals
       let subtotalNet = 0;
       let totalVat = 0;
       let totalGross = 0;
 
-      for (const item of items) {
+      // Prepare items with adjusted VAT for WDT
+      const adjustedItems = items.map(item => ({
+        ...item,
+        vatRate: isWdt ? 0 : item.vatRate,
+      }));
+
+      for (const item of adjustedItems) {
         const itemTotalNet = round2(item.unitPriceNet * item.quantity);
         const itemTotalVat = round2(itemTotalNet * (item.vatRate / 100));
         const itemTotalGross = round2(itemTotalNet + itemTotalVat);
@@ -659,8 +675,8 @@ export class InvoiceModel {
           invoice_number, customer_id, buyer_snapshot,
           issue_date, sale_date, payment_deadline, payment_method,
           payment_status, paid_amount,
-          subtotal_net, total_vat, total_gross, created_by_user_id, invoice_type
-        ) VALUES ($1, $2, $3, CURRENT_DATE, CURRENT_DATE, $4, $5, $6::payment_status, $7, $8, $9, $10, $11, 'invoice'::invoice_type, )
+          subtotal_net, total_vat, total_gross, created_by_user_id, invoice_type, transaction_type
+        ) VALUES ($1, $2, $3, CURRENT_DATE, CURRENT_DATE, $4, $5, $6::payment_status, $7, $8, $9, $10, $11, 'invoice'::invoice_type, $12::transaction_type)
         RETURNING *`,
         [
           invoiceNumber,
@@ -674,14 +690,15 @@ export class InvoiceModel {
           totalVat,
           totalGross,
           createdByUserId,
+          transactionType,
         ]
       );
 
       const invoice = invoiceResult.rows[0];
 
-      // Insert invoice items
+      // Insert invoice items (use adjustedItems for correct VAT rate in WDT)
       const insertedItems: InvoiceItem[] = [];
-      for (const item of items) {
+      for (const item of adjustedItems) {
         const itemResult = await client.query<InvoiceItem>(
           `INSERT INTO invoice_items (
             invoice_id, product_id, description, quantity, unit_price_net, vat_rate, grower_passport

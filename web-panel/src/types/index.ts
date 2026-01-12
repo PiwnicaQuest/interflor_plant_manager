@@ -180,6 +180,9 @@ export interface Customer {
   recipientPostalCode?: string;
   recipientCity?: string;
   recipientPhone?: string;
+  // WDT (EU company) fields
+  vatEu?: string;
+  isEuCompany?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -317,6 +320,7 @@ export interface Invoice {
     phone?: string;
     email?: string;
     customerCode?: string;
+    vatEu?: string;
   };
   recipientSnapshot?: {
     companyName?: string;
@@ -327,6 +331,7 @@ export interface Invoice {
     city?: string;
     phone?: string;
   };
+  transactionType?: 'domestic' | 'wdt' | 'export';
 }
 
 // Proforma (same structure as Invoice but with invoiceType = 'proforma')

@@ -7,6 +7,7 @@ interface SellerInfo {
   city: string;
   postalCode: string;
   nip: string;
+  vatEu?: string;
   phone?: string;
   email?: string;
   bankAccount?: string;
@@ -23,9 +24,13 @@ export async function generateInvoiceHtml(invoice: InvoiceWithItems): Promise<st
   const isProforma = invoice.invoiceType === "proforma";
   const companySettings = await SettingsModel.getCompanySettings();
 
+  // Check if this is a WDT invoice (EU company with VAT-EU)
+  const isWdt = invoice.transactionType === 'wdt';
+
   const sellerInfo: SellerInfo = {
     name: companySettings.companyName || 'Nazwa firmy nie skonfigurowana',
     nip: companySettings.nip || 'NIP nie skonfigurowany',
+    vatEu: companySettings.nip ? 'PL' + companySettings.nip.replace(/[^0-9]/g, '') : undefined,
     address: companySettings.street || '',
     postalCode: companySettings.postalCode || '',
     city: companySettings.city || '',
@@ -174,7 +179,7 @@ export async function generateInvoiceHtml(invoice: InvoiceWithItems): Promise<st
     <!-- Header -->
     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #d1d5db;">
       <div>
-        <h1 style="font-size: 22px; font-weight: bold; color: #1f2937;">${isProforma ? "PRO FORMA" : "FAKTURA VAT"}</h1>
+        <h1 style="font-size: 22px; font-weight: bold; color: #1f2937;">${isProforma ? "PRO FORMA" : (isWdt ? "FAKTURA VAT - WDT" : "FAKTURA VAT")}</h1>
         <p style="font-size: 18px; font-weight: bold; color: #2563eb; margin-top: 4px;">${invoice.invoiceNumber}</p>
         ${invoice.orderId ? '<p style="font-size: 13px; color: #6b7280; margin-top: 4px;">Zamówienie: ' + invoice.orderId + '</p>' : ''}
       </div>
@@ -194,6 +199,7 @@ export async function generateInvoiceHtml(invoice: InvoiceWithItems): Promise<st
         <p style="font-size: 13px;">${sellerInfo.address}</p>
         <p style="font-size: 13px;">${sellerInfo.postalCode} ${sellerInfo.city}</p>
         <p style="font-size: 13px; margin-top: 8px;">NIP: <span style="font-weight: 600;">${sellerInfo.nip}</span></p>
+        ${isWdt && sellerInfo.vatEu ? '<p style="font-size: 13px;">VAT-UE: <span style="font-weight: 600;">' + sellerInfo.vatEu + '</span></p>' : ''}
         ${sellerInfo.phone ? '<p style="font-size: 13px;">Tel: ' + sellerInfo.phone + '</p>' : ''}
         ${sellerInfo.email ? '<p style="font-size: 13px;">Email: ' + sellerInfo.email + '</p>' : ''}
       </div>
@@ -205,6 +211,8 @@ export async function generateInvoiceHtml(invoice: InvoiceWithItems): Promise<st
         ${buyer?.street ? '<p style="font-size: 13px;">' + buyer.street + '</p>' : ''}
         ${(buyer?.postalCode || buyer?.city) ? '<p style="font-size: 13px;">' + (buyer.postalCode || '') + ' ' + (buyer.city || '') + '</p>' : ''}
         ${buyer?.nip ? '<p style="font-size: 13px; margin-top: 8px;">NIP: <span style="font-weight: 600;">' + buyer.nip + '</span></p>' : ''}
+        ${isWdt && buyer?.vatEu ? '<p style="font-size: 13px;">VAT-UE: <span style="font-weight: 600;">' + buyer.vatEu + '</span></p>' : ''}
+        ${isWdt && buyer?.country ? '<p style="font-size: 13px;">Kraj: <span style="font-weight: 600;">' + buyer.country + '</span></p>' : ''}
       </div>
 
       ${recipientSection}
@@ -277,6 +285,18 @@ export async function generateInvoiceHtml(invoice: InvoiceWithItems): Promise<st
     <div style="margin-bottom: 20px; padding: 15px; background: #f9fafb; border-radius: 8px;">
       <h3 style="font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 8px;">Uwagi</h3>
       <p style="font-size: 13px;">${invoice.notes}</p>
+    </div>
+    ` : ''}
+
+    ${isWdt ? `
+    <!-- WDT Annotation -->
+    <div style="margin-bottom: 20px; padding: 15px; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px;">
+      <p style="font-size: 12px; font-weight: 600; color: #92400e;">
+        Wewnątrzwspólnotowa dostawa towarów - art. 42 ustawy o podatku od towarów i usług.
+      </p>
+      <p style="font-size: 11px; color: #78350f; margin-top: 4px;">
+        Stawka VAT 0% zgodnie z art. 41 ust. 3 ustawy o VAT.
+      </p>
     </div>
     ` : ''}
 
