@@ -106,6 +106,7 @@ export function Layout() {
     // Dokumenty
     [
       { path: '/invoices', label: 'Faktury' },
+      { path: '/invoice-corrections', label: 'Korekty faktur' },
       { path: '/proforma', label: 'Pro Forma' },
       { path: '/receipts', label: 'Paragony' },
     ],

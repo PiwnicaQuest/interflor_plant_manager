@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import type { AuthResponse, Product, Order, OrderWithItems, Customer, Invoice, Proforma, Receipt, ReceiptWithItems, InventoryMovement, OrderStatusHistoryItem, SalesReport, TopProduct, RevenueSummary, User, CreateUserRequest, UpdateUserRequest, ChangePasswordRequest, PriceGroup, CreatePriceGroupRequest, UpdatePriceGroupRequest, MovementType, PaymentMethod, PermissionProfile, PermissionCategories, CreatePermissionProfileRequest, UpdatePermissionProfileRequest, MergeHistoryEntry } from '../types';
+import type { AuthResponse, Product, Order, OrderWithItems, Customer, Invoice, Proforma, Receipt, ReceiptWithItems, InventoryMovement, OrderStatusHistoryItem, SalesReport, TopProduct, RevenueSummary, User, CreateUserRequest, UpdateUserRequest, ChangePasswordRequest, PriceGroup, CreatePriceGroupRequest, UpdatePriceGroupRequest, MovementType, PaymentMethod, PermissionProfile, PermissionCategories, CreatePermissionProfileRequest, UpdatePermissionProfileRequest, MergeHistoryEntry, InvoiceCorrection, InvoiceCorrectionWithItems } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -332,6 +332,60 @@ class ApiClient {
 
   async updateInvoicePaymentStatus(id: number, paidAmount: number): Promise<{ message: string; invoice: Invoice }> {
     const response = await this.client.patch(`/invoices/${id}/payment-status`, { paidAmount });
+    return response.data;
+  }
+
+  // ============================================
+  // INVOICE CORRECTIONS
+  // ============================================
+
+  async getInvoiceCorrections(filters?: {
+    startDate?: string;
+    endDate?: string;
+    originalInvoiceId?: number;
+  }): Promise<InvoiceCorrection[]> {
+    const response = await this.client.get("/invoice-corrections", { params: filters });
+    return response.data;
+  }
+
+  async getInvoiceCorrection(id: number): Promise<InvoiceCorrectionWithItems> {
+    const response = await this.client.get("/invoice-corrections/" + id);
+    return response.data;
+  }
+
+  async getCorrectionsForInvoice(invoiceId: number): Promise<InvoiceCorrection[]> {
+    const response = await this.client.get("/invoice-corrections/invoice/" + invoiceId);
+    return response.data;
+  }
+
+  async createInvoiceCorrection(data: {
+    originalInvoiceId: number;
+    correctionReason: string;
+    items: Array<{
+      originalItemId?: number;
+      description: string;
+      originalQuantity: number;
+      originalUnitPriceNet: number;
+      originalVatRate: number;
+      originalTotalNet: number;
+      originalTotalVat: number;
+      originalTotalGross: number;
+      correctedQuantity: number;
+      correctedUnitPriceNet: number;
+      correctedVatRate: number;
+    }>;
+  }): Promise<{ correctionId: number; correctionNumber: string }> {
+    const response = await this.client.post("/invoice-corrections", data);
+    return response.data;
+  }
+
+  async deleteInvoiceCorrection(id: number): Promise<{ success: boolean }> {
+    const response = await this.client.delete("/invoice-corrections/" + id);
+    return response.data;
+  }
+
+  async getInvoiceCorrectionHtml(id: number): Promise<string> {
+    const response = await this.client.get("/invoice-corrections/" + id + "/html", { responseType: "text" });
     return response.data;
   }
 

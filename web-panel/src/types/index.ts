@@ -688,3 +688,66 @@ export interface MergeHistoryEntry {
   notes?: string;
   createdAt: string;
 }
+
+// Invoice Correction Types
+export interface InvoiceCorrection {
+  id: number;
+  correctionNumber: string;
+  originalInvoiceId: number;
+  originalInvoiceNumber: string;
+  originalInvoiceDate: string;
+  correctionReason: string;
+  buyerSnapshot: {
+    companyName?: string;
+    firstName?: string;
+    lastName?: string;
+    nip?: string;
+    street?: string;
+    postalCode?: string;
+    city?: string;
+    country?: string;
+    phone?: string;
+    email?: string;
+  };
+  originalSubtotalNet: number;
+  originalTotalVat: number;
+  originalTotalGross: number;
+  correctedSubtotalNet: number;
+  correctedTotalVat: number;
+  correctedTotalGross: number;
+  differenceNet: number;
+  differenceVat: number;
+  differenceGross: number;
+  issueDate: string;
+  createdByUserId?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InvoiceCorrectionItem {
+  id: number;
+  correctionId: number;
+  originalItemId?: number;
+  description: string;
+  originalQuantity: number;
+  originalUnitPriceNet: number;
+  originalVatRate: number;
+  originalTotalNet: number;
+  originalTotalVat: number;
+  originalTotalGross: number;
+  correctedQuantity: number;
+  correctedUnitPriceNet: number;
+  correctedVatRate: number;
+  correctedTotalNet: number;
+  correctedTotalVat: number;
+  correctedTotalGross: number;
+  differenceQuantity: number;
+  differenceNet: number;
+  differenceVat: number;
+  differenceGross: number;
+  createdAt: string;
+}
+
+export interface InvoiceCorrectionWithItems extends InvoiceCorrection {
+  items: InvoiceCorrectionItem[];
+}

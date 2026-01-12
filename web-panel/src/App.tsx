@@ -9,6 +9,7 @@ import { InventoryMovementsPage } from "./pages/InventoryMovementsPage";
 import { OrdersPage } from "./pages/OrdersPage";
 import { POSPage } from "./pages/POSPage";
 import { InvoicesPage } from "./pages/InvoicesPage";
+import { InvoiceCorrectionsPage } from "./pages/InvoiceCorrectionsPage";
 import { ProformaPage } from "./pages/ProformaPage";
 import { ReceiptsPage } from "./pages/ReceiptsPage";
 import { CustomersPage } from "./pages/CustomersPage";
@@ -70,6 +71,7 @@ function App() {
             <Route path="orders" element={<OrdersPage />} />
             <Route path="pos" element={<POSPage />} />
             <Route path="invoices" element={<InvoicesPage />} />
+            <Route path="invoice-corrections" element={<InvoiceCorrectionsPage />} />
             <Route path="proforma" element={<ProformaPage />} />
             <Route path="receipts" element={<ReceiptsPage />} />
             <Route path="customers" element={<CustomersPage />} />

@@ -42,6 +42,7 @@ import { MigrationController } from './controllers/migrationController';
 import { ScannerController } from './controllers/scanner.controller';
 import { UploadController, productImageUpload } from './controllers/upload.controller';
 import printRouter from './controllers/print.controller';
+import invoiceCorrectionRouter from './controllers/invoiceCorrection.controller';
 import { ProformaController } from "./controllers/proforma.controller";
 import { LossesController } from "./controllers/losses.controller";
 import { TagsController } from "./controllers/tags.controller";
@@ -449,6 +450,7 @@ app.get("/image-proxy", requireAuth, async (req: Request, res: Response) => {
 // ============================================
 
 app.use('/print', printRouter);
+app.use('/invoice-corrections', invoiceCorrectionRouter);
 
 // ============================================
 // START SERVER

@@ -658,3 +658,55 @@ export interface DailyReportData {
     grossTotal: number;
   };
 }
+
+// Invoice Correction Types
+export interface InvoiceCorrection {
+  id: number;
+  correctionNumber: string;
+  originalInvoiceId: number;
+  originalInvoiceNumber: string;
+  originalInvoiceDate: Date;
+  correctionReason: string;
+  buyerSnapshot: CustomerSnapshot;
+  originalSubtotalNet: number;
+  originalTotalVat: number;
+  originalTotalGross: number;
+  correctedSubtotalNet: number;
+  correctedTotalVat: number;
+  correctedTotalGross: number;
+  differenceNet: number;
+  differenceVat: number;
+  differenceGross: number;
+  issueDate: Date;
+  createdByUserId?: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface InvoiceCorrectionItem {
+  id: number;
+  correctionId: number;
+  originalItemId?: number;
+  description: string;
+  originalQuantity: number;
+  originalUnitPriceNet: number;
+  originalVatRate: number;
+  originalTotalNet: number;
+  originalTotalVat: number;
+  originalTotalGross: number;
+  correctedQuantity: number;
+  correctedUnitPriceNet: number;
+  correctedVatRate: number;
+  correctedTotalNet: number;
+  correctedTotalVat: number;
+  correctedTotalGross: number;
+  differenceQuantity: number;
+  differenceNet: number;
+  differenceVat: number;
+  differenceGross: number;
+  createdAt: Date;
+}
+
+export interface InvoiceCorrectionWithItems extends InvoiceCorrection {
+  items: InvoiceCorrectionItem[];
+}

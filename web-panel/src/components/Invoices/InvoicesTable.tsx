@@ -8,6 +8,7 @@ interface InvoicesTableProps {
   onViewDetails: (invoice: Invoice) => void;
   onUpdatePayment: (invoice: Invoice) => void;
   onSendEmail?: (invoice: Invoice) => void;
+  onCreateCorrection?: (invoice: Invoice) => void;
   selectedInvoices?: number[];
   onSelectInvoice?: (id: number) => void;
   onSelectAll?: () => void;
@@ -21,6 +22,7 @@ export function InvoicesTable({
   onViewDetails,
   onUpdatePayment,
   onSendEmail,
+  onCreateCorrection,
   selectedInvoices = [],
   onSelectInvoice,
   onSelectAll,
@@ -209,6 +211,15 @@ export function InvoicesTable({
                         title={invoice.buyerSnapshot?.email ? `Wyslij na ${invoice.buyerSnapshot.email}` : 'Wyslij fakture emailem'}
                       >
                         Email
+                      </button>
+                    )}
+                    {onCreateCorrection && (
+                      <button
+                        onClick={() => onCreateCorrection(invoice)}
+                        className="text-red-600 hover:text-red-700 text-sm font-medium"
+                        title="Wystaw korekte"
+                      >
+                        Korekta
                       </button>
                     )}
                     <button

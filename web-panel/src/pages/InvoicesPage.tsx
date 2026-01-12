@@ -4,6 +4,7 @@ import { Invoice } from '../types';
 import { InvoicesTable } from '../components/Invoices/InvoicesTable';
 import { InvoiceDetails } from '../components/Invoices/InvoiceDetails';
 import { PaymentStatusModal } from '../components/Invoices/PaymentStatusModal';
+import { CreateCorrectionModal } from '../components/Invoices/CreateCorrectionModal';
 import { EmailInputModal } from '../components/Invoices/EmailInputModal';
 
 export type SortField = 'invoiceNumber' | 'customerName' | 'issueDate' | 'paymentDeadline' | 'paymentStatus' | 'totalGross';
@@ -19,6 +20,7 @@ export function InvoicesPage() {
   const [endDate, setEndDate] = useState('');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('');
+  const [correctionInvoice, setCorrectionInvoice] = useState<Invoice | null>(null);
 
   // New: Search and sort state
   const [searchQuery, setSearchQuery] = useState('');
@@ -379,6 +381,7 @@ export function InvoicesPage() {
             onViewDetails={handleViewDetails}
             onUpdatePayment={handleUpdatePayment}
             onSendEmail={handleSendEmail}
+            onCreateCorrection={(invoice) => setCorrectionInvoice(invoice)}
             selectedInvoices={selectedInvoices}
             onSelectInvoice={handleSelectInvoice}
             onSelectAll={handleSelectAll}
@@ -414,6 +417,15 @@ export function InvoicesPage() {
           onClose={() => setEmailModalInvoice(null)}
           onSend={handleSendEmailConfirm}
           isSending={isSendingEmail}
+        />
+      )}
+
+      {/* Correction Modal */}
+      {correctionInvoice && (
+        <CreateCorrectionModal
+          onClose={() => setCorrectionInvoice(null)}
+          onSuccess={() => { setCorrectionInvoice(null); fetchInvoices(); }}
+          preselectedInvoiceId={correctionInvoice.id}
         />
       )}
     </div>
