@@ -925,8 +925,8 @@ export function InventoryTable({
                 <span className="text-pink-600 text-[10px]">+{(product.tags || []).length - 2}</span>
               )}
               <button
-                onClick={() => setEditingTags(editingTags === product.id ? null : product.id)}
-                className="ml-auto text-pink-600 hover:text-pink-800 text-xs hover:bg-pink-100 rounded px-1"
+                onClick={(e) => { e.stopPropagation(); setEditingTags(editingTags === product.id ? null : product.id); }}
+                className="ml-1 text-pink-600 hover:text-pink-800 text-xs hover:bg-pink-100 rounded px-1 flex-shrink-0"
                 title="Edytuj tagi"
               >
                 ✏️
@@ -938,7 +938,7 @@ export function InventoryTable({
                   {availableTags.map(tag => (
                     <button
                       key={tag}
-                      onClick={() => handleToggleTag(product, tag)}
+                      onClick={(e) => { e.stopPropagation(); handleToggleTag(product, tag); }}
                       className={`px-1.5 py-0.5 rounded text-[10px] border ${
                         (product.tags || []).includes(tag)
                           ? "bg-pink-500 text-white border-pink-600"
@@ -950,7 +950,7 @@ export function InventoryTable({
                   ))}
                 </div>
                 <button
-                  onClick={() => setEditingTags(null)}
+                  onClick={(e) => { e.stopPropagation(); setEditingTags(null); }}
                   className="mt-2 w-full text-xs text-gray-500 hover:text-gray-700"
                 >
                   Zamknij
@@ -1109,9 +1109,11 @@ export function InventoryTable({
                             key={columnKey}
                             className={`${isRowSelected ? "" : colStyle} ${config.borderClass} ${config.extraClass || ""} group-hover:!bg-blue-200 ${!isColumnVisible(columnKey) ? 'hidden' : ''}`}
                             style={{
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
+                              ...(columnKey !== 'tags' && columnKey !== 'actions' ? { 
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              } : {}),
                               ...(columnKey === "image" ? { padding: "2px" } : {})
                             }}
                             title={getCellTitle(columnKey, product)}
