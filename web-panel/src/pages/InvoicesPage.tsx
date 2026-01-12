@@ -4,6 +4,7 @@ import { Invoice } from '../types';
 import { InvoicesTable } from '../components/Invoices/InvoicesTable';
 import { InvoiceDetails } from '../components/Invoices/InvoiceDetails';
 import { PaymentStatusModal } from '../components/Invoices/PaymentStatusModal';
+import { EmailInputModal } from '../components/Invoices/EmailInputModal';
 
 export type SortField = 'invoiceNumber' | 'customerName' | 'issueDate' | 'paymentDeadline' | 'paymentStatus' | 'totalGross';
 export type SortOrder = 'asc' | 'desc';
@@ -24,6 +25,8 @@ export function InvoicesPage() {
   const [sortField, setSortField] = useState<SortField>('issueDate');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [sendingEmailId, setSendingEmailId] = useState<number | null>(null);
+  const [emailModalInvoice, setEmailModalInvoice] = useState<Invoice | null>(null);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   const fetchInvoices = async () => {
     try {
@@ -184,21 +187,31 @@ export function InvoicesPage() {
   };
 
   // Send invoice by email
-  const handleSendEmail = async (invoice: Invoice) => {
-    if (!invoice.buyerSnapshot?.email) {
-      alert('Brak adresu email klienta');
-      return;
-    }
+  const handleSendEmail = (invoice: Invoice) => {
+    setEmailModalInvoice(invoice);
+  };
 
-    if (!confirm(`Czy na pewno chcesz wyslac fakture ${invoice.invoiceNumber} na adres ${invoice.buyerSnapshot.email}?`)) {
-      return;
-    }
+  const handleSendEmailConfirm = async (email: string, saveToCustomer: boolean) => {
+    if (!emailModalInvoice) return;
 
-    setSendingEmailId(invoice.id);
+    setIsSendingEmail(true);
     try {
-      const result = await api.sendInvoiceEmail(invoice.id);
+      // Send the invoice
+      const result = await api.sendInvoiceEmail(emailModalInvoice.id, { email });
+      
       if (result.success) {
-        alert('Faktura zostala wyslana na adres ' + invoice.buyerSnapshot.email);
+        // Save email to customer if requested and customer exists
+        if (saveToCustomer && emailModalInvoice.customerId && !emailModalInvoice.buyerSnapshot?.email) {
+          try {
+            await api.updateCustomer(emailModalInvoice.customerId, { email });
+          } catch (e) {
+            console.error('Error saving email to customer:', e);
+          }
+        }
+        
+        alert('Faktura zostala wyslana na adres ' + email);
+        setEmailModalInvoice(null);
+        fetchInvoices(); // Refresh to update buyerSnapshot
       } else {
         alert('Blad wysylania: ' + result.message);
       }
@@ -206,7 +219,7 @@ export function InvoicesPage() {
       console.error('Error sending invoice email:', error);
       alert('Wystapil blad podczas wysylania faktury');
     } finally {
-      setSendingEmailId(null);
+      setIsSendingEmail(false);
     }
   };
 
@@ -391,6 +404,16 @@ export function InvoicesPage() {
           invoice={invoiceToUpdatePayment}
           onClose={handleClosePaymentModal}
           onSuccess={handlePaymentSuccess}
+        />
+      )}
+
+      {/* Email Input Modal */}
+      {emailModalInvoice && (
+        <EmailInputModal
+          invoice={emailModalInvoice}
+          onClose={() => setEmailModalInvoice(null)}
+          onSend={handleSendEmailConfirm}
+          isSending={isSendingEmail}
         />
       )}
     </div>

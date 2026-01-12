@@ -202,11 +202,11 @@ export function InvoicesTable({
                     >
                       Drukuj
                     </button>
-                    {onSendEmail && invoice.buyerSnapshot?.email && (
+                    {onSendEmail && (
                       <button
                         onClick={() => onSendEmail(invoice)}
                         className="text-purple-600 hover:text-purple-700 text-sm font-medium"
-                        title="Wyslij fakture emailem"
+                        title={invoice.buyerSnapshot?.email ? `Wyslij na ${invoice.buyerSnapshot.email}` : 'Wyslij fakture emailem'}
                       >
                         Email
                       </button>
