@@ -557,9 +557,9 @@ class ApiClient {
   // REPORTS
   // ============================================
 
-  async getSalesReport(startDate: string, endDate: string): Promise<SalesReport> {
+  async getSalesReport(startDate: string, endDate: string, orderStatus: string = "all"): Promise<SalesReport> {
     const response = await this.client.get('/reports/sales', {
-      params: { startDate, endDate }
+      params: { startDate, endDate, orderStatus }
     });
     return response.data;
   }
@@ -573,6 +573,127 @@ class ApiClient {
 
   async getRevenueSummary(startDate: string, endDate: string): Promise<RevenueSummary> {
     const response = await this.client.get('/reports/revenue', {
+      params: { startDate, endDate }
+    });
+    return response.data;
+  }
+
+  async getOrderStatusStats(startDate: string, endDate: string): Promise<any> {
+    const response = await this.client.get('/reports/orders/status-stats', {
+      params: { startDate, endDate }
+    });
+    return response.data;
+  }
+
+
+  // ============================================
+  // EMPLOYEE REPORTS
+  // ============================================
+
+  async getEmployeeSales(startDate: string, endDate: string): Promise<any> {
+    const response = await this.client.get("/reports/employees", {
+      params: { startDate, endDate }
+    });
+    return response.data;
+  }
+
+  async getEmployeeDailySales(startDate: string, endDate: string): Promise<any> {
+    const response = await this.client.get("/reports/employees/daily", {
+      params: { startDate, endDate }
+    });
+    return response.data;
+  }
+
+  // ============================================
+  // CUSTOMER REPORTS
+  // ============================================
+
+  async getTopCustomers(startDate: string, endDate: string, limit: number = 20): Promise<any> {
+    const response = await this.client.get("/reports/customers", {
+      params: { startDate, endDate, limit }
+    });
+    return response.data;
+  }
+
+  async getCustomerStats(startDate: string, endDate: string): Promise<any> {
+    const response = await this.client.get("/reports/customers/stats", {
+      params: { startDate, endDate }
+    });
+    return response.data;
+  }
+
+  // ============================================
+  // DOCUMENT TYPE REPORTS
+  // ============================================
+
+  async getDocumentTypeStats(startDate: string, endDate: string): Promise<any> {
+    const response = await this.client.get("/reports/documents", {
+      params: { startDate, endDate }
+    });
+    return response.data;
+  }
+
+  async getDocumentTypeDailyStats(startDate: string, endDate: string): Promise<any> {
+    const response = await this.client.get("/reports/documents/daily", {
+      params: { startDate, endDate }
+    });
+    return response.data;
+  }
+
+  // ============================================
+  // PAYMENT REPORTS
+  // ============================================
+
+  async getPaymentStats(startDate: string, endDate: string): Promise<any> {
+    const response = await this.client.get("/reports/payments", {
+      params: { startDate, endDate }
+    });
+    return response.data;
+  }
+
+  async getAgingReport(): Promise<any> {
+    const response = await this.client.get("/reports/payments/aging");
+    return response.data;
+  }
+
+  async getPaymentMethodStats(startDate: string, endDate: string): Promise<any> {
+    const response = await this.client.get("/reports/payments/methods", {
+      params: { startDate, endDate }
+    });
+    return response.data;
+  }
+
+  async getOverdueInvoices(limit: number = 50): Promise<any> {
+    const response = await this.client.get("/reports/payments/overdue", {
+      params: { limit }
+    });
+    return response.data;
+  }
+
+  // ============================================
+  // PRODUCT CATEGORY REPORTS
+  // ============================================
+
+  async getSalesByPotSize(startDate: string, endDate: string): Promise<any> {
+    const response = await this.client.get("/reports/products/by-pot-size", {
+      params: { startDate, endDate }
+    });
+    return response.data;
+  }
+
+  async getMonthlySalesTrend(months: number = 12): Promise<any> {
+    const response = await this.client.get("/reports/trends/monthly", {
+      params: { months }
+    });
+    return response.data;
+  }
+
+  // ============================================
+  // KPI DASHBOARD
+  // ============================================
+
+  async getKPIComparison(startDate: string, endDate: string): Promise<any> {
+    const response = await this.client.get("/reports/kpi", {
       params: { startDate, endDate }
     });
     return response.data;

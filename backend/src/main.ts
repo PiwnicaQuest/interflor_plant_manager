@@ -239,8 +239,58 @@ app.get('/nip/vat-status/:nip', requireAuth, NipController.checkVatStatus);
 // ============================================
 
 app.get('/reports/sales', requireAuth, requireRole([UserRole.ADMIN]), ReportController.getSalesReport);
+app.get('/reports/orders/status-stats', requireAuth, requireRole([UserRole.ADMIN]), ReportController.getOrderStatusStats);
 app.get('/reports/top-products', requireAuth, requireRole([UserRole.ADMIN]), ReportController.getTopProducts);
 app.get('/reports/revenue', requireAuth, requireRole([UserRole.ADMIN]), ReportController.getRevenueSummary);
+// Employee reports
+app.get("/reports/employees", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getEmployeeSales);
+app.get("/reports/employees/daily", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getEmployeeDailySales);
+
+// Customer reports
+app.get("/reports/customers", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getTopCustomers);
+app.get("/reports/customers/stats", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getCustomerStats);
+
+// Document type reports
+app.get("/reports/documents", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getDocumentTypeStats);
+app.get("/reports/documents/daily", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getDocumentTypeDailyStats);
+
+// Payment reports
+app.get("/reports/payments", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getPaymentStats);
+app.get("/reports/payments/aging", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getAgingReport);
+app.get("/reports/payments/methods", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getPaymentMethodStats);
+app.get("/reports/payments/overdue", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getOverdueInvoices);
+
+// Product category reports
+app.get("/reports/products/by-pot-size", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getSalesByPotSize);
+app.get("/reports/trends/monthly", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getMonthlySalesTrend);
+
+// KPI Dashboard
+app.get("/reports/kpi", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getKPIComparison);
+
+// Employee reports
+app.get("/reports/employees", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getEmployeeSales);
+app.get("/reports/employees/daily", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getEmployeeDailySales);
+
+// Customer reports
+app.get("/reports/customers", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getTopCustomers);
+app.get("/reports/customers/stats", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getCustomerStats);
+
+// Document type reports
+app.get("/reports/documents", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getDocumentTypeStats);
+app.get("/reports/documents/daily", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getDocumentTypeDailyStats);
+
+// Payment reports
+app.get("/reports/payments", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getPaymentStats);
+app.get("/reports/payments/aging", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getAgingReport);
+app.get("/reports/payments/methods", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getPaymentMethodStats);
+app.get("/reports/payments/overdue", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getOverdueInvoices);
+
+// Product category reports
+app.get("/reports/products/by-pot-size", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getSalesByPotSize);
+app.get("/reports/trends/monthly", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getMonthlySalesTrend);
+
+// KPI Dashboard
+app.get("/reports/kpi", requireAuth, requireRole([UserRole.ADMIN]), ReportController.getKPIComparison);
 
 // ============================================
 // USERS ROUTES (ADMIN only)
@@ -371,6 +421,10 @@ app.post('/migration/run-settings', requireAuth, requireRole([UserRole.ADMIN]), 
 
 app.get('/shop/catalog', optionalAuth, ShopController.getCatalog);
 app.post('/shop/cart/checkout', requireAuth, requireRoleOrPermission([UserRole.CUSTOMER], 'shop:order'), ShopController.checkout);
+// Cart API - sync cart across devices
+app.get('/shop/cart', requireAuth, ShopController.getCart);
+app.put('/shop/cart', requireAuth, ShopController.saveCart);
+app.delete('/shop/cart', requireAuth, ShopController.clearCart);
 // Shop - additional routes
 app.get('/shop/products/:id', optionalAuth, ShopController.getProduct);
 app.get('/shop/my-orders', requireAuth, requireRoleOrPermission([UserRole.CUSTOMER], 'shop:view'), ShopController.getMyOrders);

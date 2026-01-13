@@ -1,318 +1,142 @@
-import { useState, useEffect, useCallback } from 'react';
-import { api } from '../services/api';
-import { SalesReport, TopProduct } from '../types';
-import { format, subDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter } from 'date-fns';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useState } from 'react';
+import { SalesReport } from './reports/SalesReport';
+import { EmployeeReport } from './reports/EmployeeReport';
+import { CustomerReport } from './reports/CustomerReport';
+import { DocumentReport } from './reports/DocumentReport';
+import { PaymentReport } from './reports/PaymentReport';
+import { ProductReport } from './reports/ProductReport';
+import { KPIDashboard } from './reports/KPIDashboard';
 
-type DateRangePreset = 'week' | 'month' | 'quarter' | 'custom';
+type TabType = 'sales' | 'employees' | 'customers' | 'documents' | 'payments' | 'products' | 'kpi';
+
+interface Tab {
+  id: TabType;
+  label: string;
+  icon: JSX.Element;
+}
+
+const tabs: Tab[] = [
+  {
+    id: 'kpi',
+    label: 'KPI',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'sales',
+    label: 'Sprzedaż',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+      </svg>
+    ),
+  },
+  {
+    id: 'employees',
+    label: 'Pracownicy',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'customers',
+    label: 'Klienci',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+      </svg>
+    ),
+  },
+  {
+    id: 'documents',
+    label: 'Dokumenty',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'payments',
+    label: 'Płatności',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'products',
+    label: 'Produkty',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+      </svg>
+    ),
+  },
+];
 
 export function ReportsPage() {
-  console.log('[ReportsPage] Component rendering...');
+  const [activeTab, setActiveTab] = useState<TabType>('kpi');
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [salesReport, setSalesReport] = useState<SalesReport | null>(null);
-  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
-
-  // Date filters
-  const [datePreset, setDatePreset] = useState<DateRangePreset>('month');
-  const [startDate, setStartDate] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
-  const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-
-  console.log('[ReportsPage] State initialized:', { loading, error, startDate, endDate });
-
-  const fetchReports = useCallback(async () => {
-    try {
-      console.log('[ReportsPage] Starting to fetch reports...', { startDate, endDate });
-      setLoading(true);
-      setError(null);
-
-      const [salesData, topProductsData] = await Promise.all([
-        api.getSalesReport(startDate, endDate),
-        api.getTopProducts(startDate, endDate, 10),
-      ]);
-
-      console.log('[ReportsPage] Reports fetched successfully:', { salesData, topProductsData });
-      setSalesReport(salesData);
-      setTopProducts(topProductsData.products);
-    } catch (err: any) {
-      console.error('[ReportsPage] Error fetching reports:', err);
-      setError(err.response?.data?.error || 'Nie udało się załadować raportów');
-    } finally {
-      setLoading(false);
-    }
-  }, [startDate, endDate]);
-
-  useEffect(() => {
-    console.log('[ReportsPage] useEffect triggered', { startDate, endDate });
-    fetchReports();
-  }, [fetchReports]);
-
-  const handlePresetChange = (preset: DateRangePreset) => {
-    setDatePreset(preset);
-    const today = new Date();
-
-    switch (preset) {
-      case 'week':
-        setStartDate(format(subDays(today, 7), 'yyyy-MM-dd'));
-        setEndDate(format(today, 'yyyy-MM-dd'));
-        break;
-      case 'month':
-        setStartDate(format(startOfMonth(today), 'yyyy-MM-dd'));
-        setEndDate(format(endOfMonth(today), 'yyyy-MM-dd'));
-        break;
-      case 'quarter':
-        setStartDate(format(startOfQuarter(today), 'yyyy-MM-dd'));
-        setEndDate(format(endOfQuarter(today), 'yyyy-MM-dd'));
-        break;
-      case 'custom':
-        // Keep current dates for custom
-        break;
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'kpi':
+        return <KPIDashboard />;
+      case 'sales':
+        return <SalesReport />;
+      case 'employees':
+        return <EmployeeReport />;
+      case 'customers':
+        return <CustomerReport />;
+      case 'documents':
+        return <DocumentReport />;
+      case 'payments':
+        return <PaymentReport />;
+      case 'products':
+        return <ProductReport />;
+      default:
+        return null;
     }
   };
-
-  const exportToCSV = () => {
-    if (!salesReport) return;
-
-    const csvRows = [
-      ['Data', 'Liczba zamówień', 'Netto (PLN)', 'VAT (PLN)', 'Brutto (PLN)'],
-      ...salesReport.dailySales.map(sale => [
-        format(new Date(sale.date), 'dd.MM.yyyy'),
-        sale.orderCount.toString(),
-        (Number(sale.totalNet) || 0).toFixed(2),
-        (Number(sale.totalVat) || 0).toFixed(2),
-        (Number(sale.totalGross) || 0).toFixed(2),
-      ]),
-      [],
-      ['PODSUMOWANIE'],
-      ['Suma brutto', (Number(salesReport.totalGross) || 0).toFixed(2)],
-      ['Suma netto', (Number(salesReport.totalNet) || 0).toFixed(2)],
-      ['Suma VAT', (Number(salesReport.totalVat) || 0).toFixed(2)],
-      ['Liczba zamówień', salesReport.orderCount.toString()],
-      ['Średnia wartość zamówienia', (Number(salesReport.averageOrderValue) || 0).toFixed(2)],
-    ];
-
-    const csvContent = csvRows.map(row => row.join(',')).join('\n');
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `raport_sprzedazy_${startDate}_${endDate}.csv`;
-    link.click();
-  };
-
-  if (loading) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-gray-500">Ładowanie raportów...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-        <p className="text-red-800 font-medium">Błąd: {error}</p>
-        <button
-          onClick={fetchReports}
-          className="btn btn-primary mt-4"
-        >
-          Spróbuj ponownie
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Raporty sprzedaży</h1>
-          <p className="text-gray-600 mt-1">Analiza wyników i wykres sprzedaży</p>
-        </div>
-        <button
-          onClick={exportToCSV}
-          className="btn btn-primary"
-        >
-          Eksportuj do CSV
-        </button>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Raporty</h1>
       </div>
 
-      {/* Date Filters */}
-      <div className="card p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Filtry dat</h2>
-        <div className="space-y-4">
-          <div className="flex gap-2 flex-wrap">
+      {/* Tab Navigation */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-1 overflow-x-auto">
+          {tabs.map((tab) => (
             <button
-              onClick={() => handlePresetChange('week')}
-              className={`btn ${datePreset === 'week' ? 'btn-primary' : 'btn-secondary'}`}
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`
+                flex items-center gap-2 py-3 px-4 border-b-2 font-medium text-sm whitespace-nowrap transition-colors
+                ${activeTab === tab.id
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }
+              `}
             >
-              Ostatni tydzień
+              {tab.icon}
+              {tab.label}
             </button>
-            <button
-              onClick={() => handlePresetChange('month')}
-              className={`btn ${datePreset === 'month' ? 'btn-primary' : 'btn-secondary'}`}
-            >
-              Ten miesiąc
-            </button>
-            <button
-              onClick={() => handlePresetChange('quarter')}
-              className={`btn ${datePreset === 'quarter' ? 'btn-primary' : 'btn-secondary'}`}
-            >
-              Ten kwartał
-            </button>
-            <button
-              onClick={() => handlePresetChange('custom')}
-              className={`btn ${datePreset === 'custom' ? 'btn-primary' : 'btn-secondary'}`}
-            >
-              Niestandardowy zakres
-            </button>
-          </div>
-
-          {datePreset === 'custom' && (
-            <div className="flex gap-4 items-center">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Data początkowa
-                </label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="input"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Data końcowa
-                </label>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="input"
-                />
-              </div>
-              <div className="pt-6">
-                <button onClick={fetchReports} className="btn btn-primary">
-                  Zastosuj
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+          ))}
+        </nav>
       </div>
 
-      {/* Revenue Summary Cards */}
-      {salesReport && (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-            <div className="card p-6">
-              <p className="text-sm text-gray-600 mb-1">Suma brutto</p>
-              <p className="text-2xl font-bold text-green-600">
-                {(Number(salesReport.totalGross) || 0).toFixed(2)} PLN
-              </p>
-            </div>
-            <div className="card p-6">
-              <p className="text-sm text-gray-600 mb-1">Suma netto</p>
-              <p className="text-2xl font-bold text-blue-600">
-                {(Number(salesReport.totalNet) || 0).toFixed(2)} PLN
-              </p>
-            </div>
-            <div className="card p-6">
-              <p className="text-sm text-gray-600 mb-1">Suma VAT</p>
-              <p className="text-2xl font-bold text-purple-600">
-                {(Number(salesReport.totalVat) || 0).toFixed(2)} PLN
-              </p>
-            </div>
-            <div className="card p-6">
-              <p className="text-sm text-gray-600 mb-1">Liczba zamówień</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {salesReport.orderCount}
-              </p>
-            </div>
-            <div className="card p-6">
-              <p className="text-sm text-gray-600 mb-1">Średnia wartość</p>
-              <p className="text-2xl font-bold text-orange-600">
-                {(Number(salesReport.averageOrderValue) || 0).toFixed(2)} PLN
-              </p>
-            </div>
-          </div>
-
-          {/* Daily Sales Chart */}
-          <div className="card p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Wykres sprzedaży dziennej
-            </h2>
-            <ResponsiveContainer width="100%" height={400}>
-              <BarChart data={salesReport.dailySales}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={(value) => format(new Date(value), 'dd.MM')}
-                />
-                <YAxis />
-                <Tooltip
-                  formatter={(value: number) => `${value.toFixed(2)} PLN`}
-                  labelFormatter={(label) => format(new Date(label), 'dd.MM.yyyy')}
-                />
-                <Legend />
-                <Bar dataKey="totalGross" fill="#10b981" name="Brutto" />
-                <Bar dataKey="totalNet" fill="#3b82f6" name="Netto" />
-                <Bar dataKey="totalVat" fill="#8b5cf6" name="VAT" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </>
-      )}
-
-      {/* Top Products */}
-      {topProducts.length > 0 && (
-        <div className="card">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Top 10 produktów
-            </h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th className="text-left">#</th>
-                  <th className="text-left">Nazwa produktu</th>
-                  <th className="text-right">Ilość sprzedana</th>
-                  <th className="text-right">Przychód</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topProducts.map((product, index) => (
-                  <tr key={product.productId}>
-                    <td className="font-semibold text-gray-500">
-                      {index + 1}
-                    </td>
-                    <td className="font-medium">{product.productName}</td>
-                    <td className="text-right font-semibold text-blue-600">
-                      {product.quantity} szt.
-                    </td>
-                    <td className="text-right font-semibold text-green-600">
-                      {(Number(product.totalRevenue) || 0).toFixed(2)} PLN
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* No data message */}
-      {salesReport && salesReport.orderCount === 0 && (
-        <div className="card p-12 text-center">
-          <p className="text-gray-500 text-lg">
-            Brak zamówień w wybranym okresie
-          </p>
-        </div>
-      )}
+      {/* Tab Content */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        {renderContent()}
+      </div>
     </div>
   );
 }
