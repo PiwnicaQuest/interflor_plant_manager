@@ -82,7 +82,7 @@ interface InvoiceTemplateProps {
 }
 
 const defaultSellerInfo = {
-  name: "POLFLOR Sp. z o.o.",
+  name: "Firma nie skonfigurowana",
   address: "ul. Kwiatowa 15",
   city: "Warszawa",
   postalCode: "00-001",

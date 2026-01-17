@@ -47,7 +47,7 @@ interface OrderTemplateProps {
 }
 
 const defaultCompanyInfo = {
-  name: 'POLFLOR Sp. z o.o.',
+  name: 'Firma nie skonfigurowana',
   nip: '',
   address: 'ul. Kwiatowa 15',
   city: 'Warszawa',

@@ -4,16 +4,27 @@ import { api } from '../services/api';
 import { ReceiptTemplate } from '../components/Print/ReceiptTemplate';
 import { Receipt, Order } from '../types';
 
+interface CompanySettings {
+  companyName: string;
+  nip: string;
+  street: string;
+  postalCode: string;
+  city: string;
+  phone?: string;
+  email?: string;
+}
+
 export function BulkPrintReceiptsPage() {
   const [searchParams] = useSearchParams();
   const [receiptsData, setReceiptsData] = useState<Array<{ receipt: Receipt; order?: Order }>>([]);
+  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const ids = searchParams.get('ids')?.split(',').map(Number).filter(Boolean) || [];
 
   useEffect(() => {
-    const fetchReceipts = async () => {
+    const fetchData = async () => {
       if (ids.length === 0) {
         setError('Nie podano ID paragonów');
         setLoading(false);
@@ -21,22 +32,30 @@ export function BulkPrintReceiptsPage() {
       }
 
       try {
-        const results = await Promise.all(
-          ids.map(async (id) => {
-            const receiptResponse = await api.getReceipt(id);
-            let order: Order | undefined;
-            if (receiptResponse.receipt.orderId) {
-              try {
-                const orderResponse = await api.getOrder(receiptResponse.receipt.orderId);
-                order = orderResponse.order;
-              } catch (e) {
-                console.warn('Could not fetch order:', e);
+        // Fetch receipts and company settings in parallel
+        const [receiptsResults, settingsResult] = await Promise.all([
+          Promise.all(
+            ids.map(async (id) => {
+              const receiptResponse = await api.getReceipt(id);
+              let order: Order | undefined;
+              if (receiptResponse.receipt.orderId) {
+                try {
+                  const orderResponse = await api.getOrder(receiptResponse.receipt.orderId);
+                  order = orderResponse.order;
+                } catch (e) {
+                  console.warn('Could not fetch order:', e);
+                }
               }
-            }
-            return { receipt: receiptResponse.receipt, order };
-          })
-        );
-        setReceiptsData(results);
+              return { receipt: receiptResponse.receipt, order };
+            })
+          ),
+          api.getCompanySettings().catch(() => null)
+        ]);
+
+        setReceiptsData(receiptsResults);
+        if (settingsResult) {
+          setCompanySettings(settingsResult);
+        }
       } catch (err) {
         console.error('Error fetching receipts:', err);
         setError('Błąd podczas pobierania paragonów');
@@ -45,7 +64,7 @@ export function BulkPrintReceiptsPage() {
       }
     };
 
-    fetchReceipts();
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -55,6 +74,14 @@ export function BulkPrintReceiptsPage() {
       }, 500);
     }
   }, [loading, receiptsData]);
+
+  // Build companyInfo from company settings
+  const companyInfo = companySettings ? {
+    name: companySettings.companyName,
+    address: `${companySettings.street}, ${companySettings.postalCode} ${companySettings.city}`,
+    nip: companySettings.nip,
+    phone: companySettings.phone,
+  } : undefined;
 
   if (loading) {
     return (
@@ -110,7 +137,7 @@ export function BulkPrintReceiptsPage() {
 
       {receiptsData.map(({ receipt, order }) => (
         <div key={receipt.id} className="page-break">
-          <ReceiptTemplate data={receipt as any} />
+          <ReceiptTemplate data={receipt as any} companyInfo={companyInfo} />
         </div>
       ))}
     </div>

@@ -195,7 +195,7 @@ export async function generateReceiptHtml(receipt: ReceiptWithItems): Promise<st
 <body>
   <div class="receipt">
     <div class="header">
-      <h1>${settings.companyName || 'POLFLOR Sp. z o.o.'}</h1>
+      <h1>${settings.companyName || 'Firma nie skonfigurowana'}</h1>
       <p>${companyAddress || 'ul. Kwiatowa 15, 00-001 Warszawa'}</p>
       <p>NIP: ${settings.nip || '123-456-78-90'}</p>
       ${settings.phone ? `<p>Tel: ${settings.phone}</p>` : ''}
