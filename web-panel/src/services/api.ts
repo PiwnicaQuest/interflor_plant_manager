@@ -558,6 +558,12 @@ class ApiClient {
     accountNumbers?: string[];
     statusVat: string;
     hasVirtualAccounts: boolean;
+    voivodeship?: string;
+    county?: string;
+    commune?: string;
+    companyType?: string;
+    isActive?: boolean;
+    source?: "GUS" | "MF";
   }> {
     const response = await this.client.get(`/nip/lookup/${nip}`);
     return response.data;

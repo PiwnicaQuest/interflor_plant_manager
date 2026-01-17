@@ -209,7 +209,7 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
 
       // Wyświetl informację o sukcesie
       if (data.name) {
-        let message = `Znaleziono firmę: ${data.name}\nStatus VAT: ${data.statusVat}`;
+        let message = `Znaleziono firmę: ${data.name}\nREGON: ${data.regon || "brak"}\nStatus VAT: ${data.statusVat}\nŹródło: ${(data as any).source === "GUS" ? "GUS (BIR)" : "Biała Lista VAT"}`;
 
         if (isIndividualBusiness) {
           message += '\n\n⚠️ UWAGA: Dla działalności gospodarczych system zwraca tylko imię i nazwisko właściciela.\nJeśli firma ma pełną nazwę (np. "JAN KOWALSKI KWIACIARNIA"), proszę uzupełnić ją ręcznie w polu "Nazwa firmy".';
