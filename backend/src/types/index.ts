@@ -73,6 +73,7 @@ export interface User {
   email: string;
   login?: string;
   firstName?: string;
+  permissions?: string[];
   lastName?: string;
   passwordHash: string;
   role: UserRole;
@@ -87,6 +88,7 @@ export interface UserWithoutPassword {
   email: string;
   login?: string;
   firstName?: string;
+  permissions?: string[];
   lastName?: string;
   role: UserRole;
   isActive: boolean;
@@ -110,6 +112,7 @@ export interface Customer {
   userId?: number;
   companyName?: string;
   firstName?: string;
+  permissions?: string[];
   lastName?: string;
   nip?: string;
   street: string;
@@ -140,6 +143,7 @@ export interface Customer {
 export interface CustomerSnapshot {
   companyName?: string;
   firstName?: string;
+  permissions?: string[];
   lastName?: string;
   nip?: string;
   street: string;
@@ -311,6 +315,7 @@ export interface InvoiceItem {
   description: string;
   quantity: number;
   unitPriceNet: number;
+  unitPriceGross?: number;
   vatRate: number;
   totalNet: number; // generated column
   totalVat: number; // generated column
@@ -374,6 +379,7 @@ export interface JWTPayload {
   email: string;
   role: UserRole;
   firstName?: string;
+  permissions?: string[];
   iat?: number;
   exp?: number;
 }
@@ -394,6 +400,7 @@ export interface RegisterRequest {
   password: string;
   companyName?: string;
   firstName?: string;
+  permissions?: string[];
   lastName?: string;
   nip?: string;
   street: string;
@@ -408,6 +415,7 @@ export interface CreateUserRequest {
   role: UserRole;
   profileId?: number;
   firstName?: string;
+  permissions?: string[];
   lastName?: string;
   login?: string;
 }
@@ -418,6 +426,7 @@ export interface UpdateUserRequest {
   isActive?: boolean;
   profileId?: number;
   firstName?: string;
+  permissions?: string[];
   lastName?: string;
   login?: string;
 }

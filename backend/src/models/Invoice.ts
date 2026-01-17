@@ -4,6 +4,32 @@ import { Invoice, InvoiceItem, InvoiceWithItems, PaymentMethod, CustomerSnapshot
 // Helper function to round to 2 decimal places (for currency calculations)
 const round2 = (num: number): number => Math.round(num * 100) / 100;
 
+// EU VAT number prefixes (excluding PL)
+const EU_VAT_PREFIXES = ['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'EL', 'ES', 'FI', 'FR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PT', 'RO', 'SE', 'SI', 'SK'];
+
+// Helper function to detect WDT (Intra-Community Supply)
+const isWdtTransaction = (buyerSnapshot: CustomerSnapshot): boolean => {
+  const country = buyerSnapshot.country?.toLowerCase() || '';
+  const isPolish = country === 'polska' || country === 'poland' || country === '';
+  
+  if (isPolish) return false;
+  
+  // Check vatEu field
+  if (buyerSnapshot.vatEu && buyerSnapshot.vatEu.trim() !== '') {
+    return true;
+  }
+  
+  // Check if NIP starts with EU country prefix (e.g., CZ12345678)
+  const nip = (buyerSnapshot.nip || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  for (const prefix of EU_VAT_PREFIXES) {
+    if (nip.startsWith(prefix)) {
+      return true;
+    }
+  }
+  
+  return false;
+};
+
 export class InvoiceModel {
   static async getAll(filters?: {
     startDate?: Date;
@@ -159,6 +185,7 @@ export class InvoiceModel {
       description: string;
       quantity: number;
       unitPriceNet: number;
+      unitPriceGross?: number;
       vatRate: number;
       growerPassport?: string;
     }>,
@@ -223,8 +250,8 @@ export class InvoiceModel {
       for (const item of items) {
         const itemResult = await client.query<InvoiceItem>(
           `INSERT INTO invoice_items (
-            invoice_id, product_id, description, quantity, unit_price_net, vat_rate, grower_passport
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            invoice_id, product_id, description, quantity, unit_price_net, unit_price_gross, vat_rate, grower_passport
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           RETURNING *`,
           [
             invoice.id,
@@ -232,6 +259,7 @@ export class InvoiceModel {
             item.description,
             item.quantity,
             item.unitPriceNet,
+            (item.unitPriceGross ?? Number((item.unitPriceNet * (1 + item.vatRate / 100)).toFixed(2))),
             item.vatRate,
             item.growerPassport,
           ]
@@ -273,6 +301,10 @@ export class InvoiceModel {
 
       const orderItems = orderItemsResult.rows;
 
+      // Check if WDT (EU company with VAT-EU number, not Poland)
+      const isWdt = isWdtTransaction(buyerSnapshot);
+      const transactionType = isWdt ? 'wdt' : 'domestic';
+
       // Calculate totals
       let subtotalNet = 0;
       let totalVat = 0;
@@ -283,19 +315,30 @@ export class InvoiceModel {
         description: string;
         quantity: number;
         unitPriceNet: number;
+      unitPriceGross?: number;
         vatRate: number;
         growerPassport?: string;
       }> = [];
 
       for (const item of orderItems) {
-        const vatRate = item.vatRate || 8.0;
-        const unitPriceGross = item.unitPriceGross;
-        const unitPriceNet = round2(unitPriceGross / (1 + vatRate / 100));
+        // Original VAT rate from product
+        const originalVatRate = item.vatRate || 8.0;
+        // For WDT, VAT rate is 0%
+        const vatRate = isWdt ? 0 : originalVatRate;
+        
+        // Calculate original net price from gross (removing Polish VAT)
+        const originalUnitPriceGross = item.unitPriceGross;
+        const originalUnitPriceNet = round2(originalUnitPriceGross / (1 + originalVatRate / 100));
+        
+        // For WDT: customer pays NET price (no Polish VAT), gross = net because VAT = 0%
+        // For domestic: normal gross/net calculation
+        const unitPriceNet = originalUnitPriceNet;
+        const unitPriceGross = isWdt ? originalUnitPriceNet : originalUnitPriceGross;
 
-        // Calculate from gross first (preserves original price, avoids rounding error)
+        // Calculate totals
+        const itemTotalNet = round2(unitPriceNet * item.quantity);
         const itemTotalGross = round2(unitPriceGross * item.quantity);
-        const itemTotalNet = round2(itemTotalGross / (1 + vatRate / 100));
-        const itemTotalVat = round2(itemTotalGross - itemTotalNet);
+        const itemTotalVat = isWdt ? 0 : round2(itemTotalGross - itemTotalNet);
 
         subtotalNet += itemTotalNet;
         totalVat += itemTotalVat;
@@ -309,6 +352,7 @@ export class InvoiceModel {
           description,
           quantity: item.quantity,
           unitPriceNet,
+          unitPriceGross,
           vatRate,
           growerPassport: productSnapshot.growerPassport,
         });
@@ -326,8 +370,8 @@ export class InvoiceModel {
           issue_date, sale_date, payment_deadline,
           payment_status, paid_amount,
           subtotal_net, total_vat, total_gross,
-          created_by_user_id, notes, invoice_type
-        ) VALUES ($1, $2, $3, $4, CURRENT_DATE, CURRENT_DATE, $5, 'unpaid'::payment_status, 0, $6, $7, $8, $9, $10, 'proforma'::invoice_type)
+          created_by_user_id, notes, invoice_type, transaction_type
+        ) VALUES ($1, $2, $3, $4, CURRENT_DATE, CURRENT_DATE, $5, 'unpaid'::payment_status, 0, $6, $7, $8, $9, $10, 'proforma'::invoice_type, $11::transaction_type)
         RETURNING *`,
         [
           proformaNumber,
@@ -350,8 +394,8 @@ export class InvoiceModel {
       for (const item of invoiceItems) {
         const itemResult = await client.query<InvoiceItem>(
           `INSERT INTO invoice_items (
-            invoice_id, product_id, description, quantity, unit_price_net, vat_rate, grower_passport
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            invoice_id, product_id, description, quantity, unit_price_net, unit_price_gross, vat_rate, grower_passport
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           RETURNING *`,
           [
             invoice.id,
@@ -359,6 +403,7 @@ export class InvoiceModel {
             item.description,
             item.quantity,
             item.unitPriceNet,
+            (item.unitPriceGross ?? Number((item.unitPriceNet * (1 + item.vatRate / 100)).toFixed(2))),
             item.vatRate,
             item.growerPassport,
           ]
@@ -445,8 +490,8 @@ export class InvoiceModel {
       for (const item of itemsResult.rows) {
         const itemResult = await client.query<InvoiceItem>(
           `INSERT INTO invoice_items (
-            invoice_id, product_id, description, quantity, unit_price_net, vat_rate, grower_passport
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            invoice_id, product_id, description, quantity, unit_price_net, unit_price_gross, vat_rate, grower_passport
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           RETURNING *`,
           [
             invoice.id,
@@ -454,6 +499,7 @@ export class InvoiceModel {
             item.description,
             item.quantity,
             item.unitPriceNet,
+            (item.unitPriceGross ?? Number((item.unitPriceNet * (1 + item.vatRate / 100)).toFixed(2))),
             item.vatRate,
             item.growerPassport,
           ]
@@ -507,23 +553,33 @@ export class InvoiceModel {
         description: string;
         quantity: number;
         unitPriceNet: number;
+      unitPriceGross?: number;
         vatRate: number;
         growerPassport?: string;
       }> = [];
 
       // Check if WDT (EU company with VAT-EU number, not Poland)
-      const isWdt = !!(buyerSnapshot.vatEu && buyerSnapshot.country && buyerSnapshot.country.toLowerCase() !== 'polska' && buyerSnapshot.country.toLowerCase() !== 'poland');
+      const isWdt = isWdtTransaction(buyerSnapshot);
       const transactionType = isWdt ? 'wdt' : 'domestic';
 
       for (const item of orderItems) {
+        // Original VAT rate from product
+        const originalVatRate = item.vatRate || 8.0;
         // For WDT, VAT rate is 0%
-        const vatRate = isWdt ? 0 : (item.vatRate || 8.0);
-        const unitPriceGross = item.unitPriceGross;
-        const unitPriceNet = isWdt ? unitPriceGross : round2(unitPriceGross / (1 + vatRate / 100));
+        const vatRate = isWdt ? 0 : originalVatRate;
+        
+        // Calculate original net price from gross (removing Polish VAT)
+        const originalUnitPriceGross = item.unitPriceGross;
+        const originalUnitPriceNet = round2(originalUnitPriceGross / (1 + originalVatRate / 100));
+        
+        // For WDT: customer pays NET price (no Polish VAT), gross = net because VAT = 0%
+        // For domestic: normal gross/net calculation
+        const unitPriceNet = originalUnitPriceNet;
+        const unitPriceGross = isWdt ? originalUnitPriceNet : originalUnitPriceGross;
 
         // Calculate totals
+        const itemTotalNet = round2(unitPriceNet * item.quantity);
         const itemTotalGross = round2(unitPriceGross * item.quantity);
-        const itemTotalNet = isWdt ? itemTotalGross : round2(itemTotalGross / (1 + vatRate / 100));
         const itemTotalVat = isWdt ? 0 : round2(itemTotalGross - itemTotalNet);
 
         subtotalNet += itemTotalNet;
@@ -538,6 +594,7 @@ export class InvoiceModel {
           description,
           quantity: item.quantity,
           unitPriceNet,
+          unitPriceGross,
           vatRate,
           growerPassport: productSnapshot.growerPassport,
         });
@@ -588,8 +645,8 @@ export class InvoiceModel {
       for (const item of invoiceItems) {
         const itemResult = await client.query<InvoiceItem>(
           `INSERT INTO invoice_items (
-            invoice_id, product_id, description, quantity, unit_price_net, vat_rate, grower_passport
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            invoice_id, product_id, description, quantity, unit_price_net, unit_price_gross, vat_rate, grower_passport
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           RETURNING *`,
           [
             invoice.id,
@@ -597,6 +654,7 @@ export class InvoiceModel {
             item.description,
             item.quantity,
             item.unitPriceNet,
+            (item.unitPriceGross ?? Number((item.unitPriceNet * (1 + item.vatRate / 100)).toFixed(2))),
             item.vatRate,
             item.growerPassport,
           ]
@@ -620,6 +678,7 @@ export class InvoiceModel {
       description: string;
       quantity: number;
       unitPriceNet: number;
+      unitPriceGross?: number;
       vatRate: number;
       growerPassport?: string;
     }>,
@@ -635,7 +694,7 @@ export class InvoiceModel {
       const invoiceNumber = invoiceNumberResult.rows[0].getNextDocumentNumber || invoiceNumberResult.rows[0].get_next_document_number;
 
       // Check if WDT (EU company with VAT-EU number, not Poland)
-      const isWdt = !!(buyerSnapshot.vatEu && buyerSnapshot.country && buyerSnapshot.country.toLowerCase() !== 'polska' && buyerSnapshot.country.toLowerCase() !== 'poland');
+      const isWdt = isWdtTransaction(buyerSnapshot);
       const transactionType = isWdt ? 'wdt' : 'domestic';
 
       // Calculate totals
@@ -701,8 +760,8 @@ export class InvoiceModel {
       for (const item of adjustedItems) {
         const itemResult = await client.query<InvoiceItem>(
           `INSERT INTO invoice_items (
-            invoice_id, product_id, description, quantity, unit_price_net, vat_rate, grower_passport
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            invoice_id, product_id, description, quantity, unit_price_net, unit_price_gross, vat_rate, grower_passport
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           RETURNING *`,
           [
             invoice.id,
@@ -710,6 +769,7 @@ export class InvoiceModel {
             item.description,
             item.quantity,
             item.unitPriceNet,
+            (item.unitPriceGross ?? Number((item.unitPriceNet * (1 + item.vatRate / 100)).toFixed(2))),
             item.vatRate,
             item.growerPassport,
           ]
@@ -774,6 +834,7 @@ export class InvoiceModel {
       description: string;
       quantity: number;
       unitPriceNet: number;
+      unitPriceGross?: number;
       vatRate: number;
       growerPassport?: string;
     }>,
@@ -846,8 +907,8 @@ export class InvoiceModel {
       for (const item of items) {
         const itemResult = await client.query<InvoiceItem>(
           `INSERT INTO invoice_items (
-            invoice_id, product_id, description, quantity, unit_price_net, vat_rate, grower_passport
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            invoice_id, product_id, description, quantity, unit_price_net, unit_price_gross, vat_rate, grower_passport
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           RETURNING *`,
           [
             invoice.id,
@@ -855,6 +916,7 @@ export class InvoiceModel {
             item.description,
             item.quantity,
             item.unitPriceNet,
+            (item.unitPriceGross ?? Number((item.unitPriceNet * (1 + item.vatRate / 100)).toFixed(2))),
             item.vatRate,
             item.growerPassport,
           ]
@@ -1044,5 +1106,150 @@ export class InvoiceModel {
         convertedValue: parseFloat(last30.convertedValue) || 0,
       }
     };
+  }
+
+  /**
+   * Update payment method for an invoice
+   * If changing to cash/card, automatically marks as paid
+   */
+  static async updatePaymentMethod(
+    invoiceId: number,
+    newPaymentMethod: PaymentMethod,
+    userId?: number
+  ): Promise<Invoice | null> {
+    // Get current invoice
+    const currentResult = await query<any>(
+      'SELECT * FROM invoices WHERE id = $1',
+      [invoiceId]
+    );
+
+    if (currentResult.rows.length === 0) {
+      return null;
+    }
+
+    const currentInvoice = currentResult.rows[0];
+    const oldPaymentMethod = currentInvoice.payment_method;
+    const totalGross = parseFloat(currentInvoice.total_gross) || 0;
+
+    // Determine if we should auto-mark as paid
+    const isImmediatePayment = newPaymentMethod === 'cash' || newPaymentMethod === 'card';
+    const wasTransfer = oldPaymentMethod === 'transfer';
+    
+    let newPaymentStatus = currentInvoice.payment_status;
+    let newPaidAmount = parseFloat(currentInvoice.paid_amount) || 0;
+    let newPaymentDeadline = currentInvoice.payment_deadline;
+
+    // If changing from transfer to cash/card, mark as paid
+    if (isImmediatePayment && wasTransfer) {
+      newPaymentStatus = 'paid';
+      newPaidAmount = totalGross;
+      newPaymentDeadline = null;
+    }
+
+    // Update invoice
+    const updateResult = await query<any>(
+      `UPDATE invoices 
+       SET payment_method = $1, 
+           payment_status = $2::payment_status, 
+           paid_amount = $3,
+           payment_deadline = $4,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $5
+       RETURNING *`,
+      [newPaymentMethod, newPaymentStatus, newPaidAmount, newPaymentDeadline, invoiceId]
+    );
+
+    if (updateResult.rows.length === 0) {
+      return null;
+    }
+
+    // Log the change
+    await query(
+      `INSERT INTO invoice_audit_log 
+       (invoice_id, action, field_name, old_value, new_value, changed_by_user_id, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        invoiceId,
+        'payment_method_change',
+        'payment_method',
+        oldPaymentMethod,
+        newPaymentMethod,
+        userId || null,
+        isImmediatePayment && wasTransfer 
+          ? 'Automatycznie oznaczono jako opłacone po zmianie na płatność natychmiastową'
+          : null
+      ]
+    );
+
+    // If payment status also changed, log that too
+    if (newPaymentStatus !== currentInvoice.payment_status) {
+      await query(
+        `INSERT INTO invoice_audit_log 
+         (invoice_id, action, field_name, old_value, new_value, changed_by_user_id, notes)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          invoiceId,
+          'payment_status_change',
+          'payment_status',
+          currentInvoice.payment_status,
+          newPaymentStatus,
+          userId || null,
+          'Automatyczna zmiana po zmianie formy płatności'
+        ]
+      );
+    }
+
+    const row = updateResult.rows[0];
+    return {
+      id: row.id,
+      invoiceNumber: row.invoice_number,
+      invoiceType: row.invoice_type,
+      orderId: row.order_id,
+      customerId: row.customer_id,
+      buyerSnapshot: row.buyer_snapshot,
+      issueDate: row.issue_date,
+      saleDate: row.sale_date,
+      paymentDeadline: row.payment_deadline,
+      paymentMethod: row.payment_method,
+      paymentStatus: row.payment_status,
+      paidAmount: parseFloat(row.paid_amount) || 0,
+      subtotalNet: parseFloat(row.subtotal_net) || 0,
+      totalVat: parseFloat(row.total_vat) || 0,
+      totalGross: parseFloat(row.total_gross) || 0,
+      notes: row.notes,
+      createdByUserId: row.created_by_user_id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  /**
+   * Get audit log for an invoice
+   */
+  static async getAuditLog(invoiceId: number): Promise<any[]> {
+    const result = await query<any>(
+      `SELECT ial.*, u.email as changed_by_email, u.first_name, u.last_name
+       FROM invoice_audit_log ial
+       LEFT JOIN users u ON ial.changed_by_user_id = u.id
+       WHERE ial.invoice_id = $1
+       ORDER BY ial.changed_at DESC`,
+      [invoiceId]
+    );
+
+    return result.rows.map(row => ({
+      id: row.id,
+      invoiceId: row.invoice_id,
+      action: row.action,
+      fieldName: row.field_name,
+      oldValue: row.old_value,
+      newValue: row.new_value,
+      changedByUserId: row.changed_by_user_id,
+      changedByEmail: row.changed_by_email,
+      changedByName: row.first_name && row.last_name 
+        ? row.first_name + ' ' + row.last_name 
+        : row.changed_by_email,
+      changedAt: row.changed_at,
+      notes: row.notes,
+    }));
   }
 }
