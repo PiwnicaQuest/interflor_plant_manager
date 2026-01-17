@@ -403,6 +403,16 @@ class PrintAgent {
         });
       }
 
+      // For barcode labels, rotate 180 degrees (TSC printers feed paper from bottom)
+      if (false && job.documentType === "barcode_labels") {
+        const rotateStyle = '<style>.label-container { transform: rotate(180deg); transform-origin: center center; }</style>';
+        html = html.replace('</head>', rotateStyle + '</head>');
+      }
+
+      // DEBUG: Save HTML to file for inspection
+      const fs = require("fs");
+      console.log("DEBUG HTML length:", html.length);
+      console.log("DEBUG HTML preview:", html.substring(0, 500));
       await page.setContent(html, { waitUntil: 'networkidle0' });
 
       const pdfPath = path.join(CONFIG.tempDir, `${job.jobId}.pdf`);
@@ -410,13 +420,14 @@ class PrintAgent {
       // Build PDF options
       const pdfOptions: any = {
         path: pdfPath,
-        landscape: job.orientation === 'landscape',
+        // landscape is only for standard formats, not custom dimensions
         printBackground: true,
         preferCSSPageSize: true, // Respect CSS @page rules
       };
 
       if (paperConfig.format) {
         // Standard format (A4, A5, Letter, etc.)
+        pdfOptions.landscape = job.orientation === 'landscape';
         pdfOptions.format = paperConfig.format;
         pdfOptions.margin = { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' };
       } else if (paperConfig.width && paperConfig.height) {
@@ -427,7 +438,8 @@ class PrintAgent {
         pdfOptions.scale = 1; // No scaling
       }
 
-      await page.pdf(pdfOptions);
+      console.log("DEBUG Options:", job.documentType);
+      if (job.documentType === "barcode_labels") { await page.screenshot({ path: pdfPath.replace(".pdf", ".png"), fullPage: true }); pdfPath = pdfPath.replace(".pdf", ".png"); } else { await page.pdf(pdfOptions); }
 
       await this.printFile(pdfPath, job);
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getBrokerPrinters } from '../../hooks/usePrint';
 import { api } from '../../services/api';
 
 // Document types that can be printed
@@ -98,6 +99,8 @@ export function PrinterSettingsTab() {
   const [saving, setSaving] = useState<DocumentType | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [brokerOnline, setBrokerOnline] = useState(false);
+  const [brokerPrinters, setBrokerPrinters] = useState<string[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -109,15 +112,18 @@ export function PrinterSettingsTab() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [configsRes, agentsRes, statsRes] = await Promise.all([
+      const [configsRes, agentsRes, statsRes, brokerPrintersRes] = await Promise.all([
         api.getPrintConfigs(),
         api.getPrintAgents(),
         api.getPrintStats(),
+        getBrokerPrinters().catch(() => []),
       ]);
 
       setConfigs(configsRes.configs || []);
       setAgents(agentsRes.agents || []);
       setStats(statsRes.stats || null);
+      setBrokerOnline(brokerPrintersRes.length > 0 || false);
+      setBrokerPrinters(brokerPrintersRes.map((p: any) => p.displayName || p.name));
       setError('');
     } catch (err: any) {
       console.error('Error fetching printer data:', err);
@@ -196,7 +202,12 @@ export function PrinterSettingsTab() {
             <div className="flex items-center gap-2">
               <div className={`w-3 h-3 rounded-full ${agents.some(a => a.isOnline) ? 'bg-green-500' : 'bg-red-500'}`}></div>
               <span className="text-sm text-gray-600">
-                {agents.filter(a => a.isOnline).length} agent(ów) online
+                {agents.filter(a => a.isOnline).length} agent(ów) online</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${brokerOnline ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
+              <span className="text-sm text-gray-600">
+                Print Broker {brokerOnline ? 'online' : 'offline'}
               </span>
             </div>
             {stats && (
