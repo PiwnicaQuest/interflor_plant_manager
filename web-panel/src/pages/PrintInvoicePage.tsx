@@ -79,7 +79,7 @@ export function PrintInvoicePage() {
     totalNet: item.totalNet || 0,
     totalGross: item.totalGross || 0,
     vatRate: item.vatRate || 0,
-    vatAmount: item.totalVat || 0,
+    totalVat: item.totalVat || 0,
     unitsPerPallet: 0,
     growerPassport: item.growerPassport,
   }));

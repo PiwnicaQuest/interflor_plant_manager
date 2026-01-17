@@ -289,4 +289,55 @@ export class InvoiceController {
     }
   }
 
+
+  static async updatePaymentMethod(req: AuthRequest, res: Response) {
+    try {
+      const id = parseInt(req.params.id);
+      const { paymentMethod } = req.body;
+
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Nieprawidłowe ID faktury' });
+      }
+
+      const validMethods = ['cash', 'card', 'transfer'];
+      if (!paymentMethod || !validMethods.includes(paymentMethod)) {
+        return res.status(400).json({ error: 'Nieprawidłowa forma płatności. Dozwolone: cash, card, transfer' });
+      }
+
+      const invoice = await InvoiceModel.updatePaymentMethod(
+        id,
+        paymentMethod as PaymentMethod,
+        req.user?.userId
+      );
+
+      if (!invoice) {
+        return res.status(404).json({ error: 'Faktura nie znaleziona' });
+      }
+
+      return res.json({
+        message: 'Forma płatności zaktualizowana',
+        invoice,
+      });
+    } catch (error) {
+      console.error('Update payment method error:', error);
+      return res.status(500).json({ error: 'Błąd serwera' });
+    }
+  }
+
+  static async getAuditLog(req: AuthRequest, res: Response) {
+    try {
+      const id = parseInt(req.params.id);
+
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Nieprawidłowe ID faktury' });
+      }
+
+      const auditLog = await InvoiceModel.getAuditLog(id);
+
+      return res.json({ auditLog });
+    } catch (error) {
+      console.error('Get audit log error:', error);
+      return res.status(500).json({ error: 'Błąd serwera' });
+    }
+  }
 }

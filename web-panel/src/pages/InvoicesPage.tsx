@@ -398,6 +398,7 @@ export function InvoicesPage() {
           invoice={selectedInvoice}
           onClose={handleCloseDetails}
           onUpdatePayment={handleUpdatePayment}
+          onRefresh={fetchInvoices}
         />
       )}
 

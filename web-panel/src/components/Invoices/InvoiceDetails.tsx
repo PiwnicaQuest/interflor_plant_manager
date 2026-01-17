@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Invoice, PaymentStatus, PrintTemplate } from '../../types';
+import { Invoice, PaymentStatus, PrintTemplate, PaymentMethod } from '../../types';
 import { API } from '../../services/api';
 import { usePrint } from '../../hooks/usePrint';
 
@@ -7,13 +7,18 @@ interface InvoiceDetailsProps {
   invoice: Invoice;
   onClose: () => void;
   onUpdatePayment: (invoice: Invoice) => void;
+  onRefresh?: () => void;
 }
 
-export function InvoiceDetails({ invoice, onClose, onUpdatePayment }: InvoiceDetailsProps) {
+export function InvoiceDetails({ invoice, onClose, onUpdatePayment, onRefresh }: InvoiceDetailsProps) {
   const [templates, setTemplates] = useState<PrintTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [printStatus, setPrintStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+  const [isEditingPaymentMethod, setIsEditingPaymentMethod] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(invoice.paymentMethod || PaymentMethod.TRANSFER);
+  const [isUpdatingPaymentMethod, setIsUpdatingPaymentMethod] = useState(false);
+  const [currentInvoice, setCurrentInvoice] = useState<Invoice>(invoice);
 
   // Use print hook
   const { printInvoice, hasConfiguredPrinter, getConfig } = usePrint({
@@ -61,6 +66,34 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment }: InvoiceDet
     loadTemplates();
   }, []);
 
+
+  const handleUpdatePaymentMethod = async () => {
+    if (selectedPaymentMethod === currentInvoice.paymentMethod) {
+      setIsEditingPaymentMethod(false);
+      return;
+    }
+
+    setIsUpdatingPaymentMethod(true);
+    try {
+      const result = await API.updateInvoicePaymentMethod(currentInvoice.id, selectedPaymentMethod);
+      setCurrentInvoice(result.invoice);
+      setIsEditingPaymentMethod(false);
+      setPrintStatus({
+        type: "success",
+        message: "Forma płatności została zmieniona" + (result.invoice.paymentStatus === "paid" ? " i faktura oznaczona jako opłacona" : ""),
+      });
+      setTimeout(() => setPrintStatus(null), 5000);
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error("Error updating payment method:", error);
+      setPrintStatus({
+        type: "error",
+        message: "Błąd podczas zmiany formy płatności",
+      });
+    } finally {
+      setIsUpdatingPaymentMethod(false);
+    }
+  };
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pl-PL', {
       year: 'numeric',
@@ -281,7 +314,48 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment }: InvoiceDet
                 {invoice.paymentDeadline && (
                   <p><strong>Termin płatności:</strong> {formatDate(invoice.paymentDeadline)}</p>
                 )}
-                <p><strong>Metoda płatności:</strong> {getPaymentMethodLabel(invoice.paymentMethod)}</p>
+                <div className="flex items-center gap-2">
+                  <strong>Metoda płatności:</strong>
+                  {isEditingPaymentMethod ? (
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={selectedPaymentMethod}
+                        onChange={(e) => setSelectedPaymentMethod(e.target.value as PaymentMethod)}
+                        className="px-2 py-1 border border-gray-300 rounded text-sm"
+                        disabled={isUpdatingPaymentMethod}
+                      >
+                        <option value="cash">Gotówka</option>
+                        <option value="card">Karta</option>
+                        <option value="transfer">Przelew</option>
+                      </select>
+                      <button
+                        onClick={handleUpdatePaymentMethod}
+                        disabled={isUpdatingPaymentMethod}
+                        className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                      >
+                        {isUpdatingPaymentMethod ? '...' : 'Zapisz'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsEditingPaymentMethod(false);
+                          setSelectedPaymentMethod(currentInvoice.paymentMethod || PaymentMethod.TRANSFER);
+                        }}
+                        disabled={isUpdatingPaymentMethod}
+                        className="px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                      >
+                        Anuluj
+                      </button>
+                    </div>
+                  ) : (
+                    <span
+                      onClick={() => setIsEditingPaymentMethod(true)}
+                      className="cursor-pointer hover:text-primary-600 hover:underline"
+                      title="Kliknij aby zmienić"
+                    >
+                      {getPaymentMethodLabel(currentInvoice.paymentMethod)}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 

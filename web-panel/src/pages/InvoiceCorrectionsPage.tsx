@@ -42,21 +42,14 @@ export function InvoiceCorrectionsPage() {
     }
   };
 
-  const handlePrint = async (correction: InvoiceCorrection) => {
-    try {
-      const html = await api.getInvoiceCorrectionHtml(correction.id);
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(html);
-        printWindow.document.close();
-        printWindow.print();
-      }
-    } catch (err: any) {
-      alert('Błąd podczas generowania wydruku: ' + err.message);
-    }
+  const handlePrint = (correction: InvoiceCorrection) => {
+    window.open("/print/correction/" + correction.id, "_blank");
   };
 
   const handleDownloadPdf = (correction: InvoiceCorrection) => {
+    window.open("/print/correction/" + correction.id, "_blank");
+    return;
+    // Old API code below (disabled):
     const token = localStorage.getItem('token');
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
     window.open(`${apiUrl}/invoice-corrections/${correction.id}/pdf?token=${token}`, '_blank');
@@ -76,6 +69,7 @@ export function InvoiceCorrectionsPage() {
   };
 
   const getBuyerName = (correction: InvoiceCorrection) => {
+    if (!correction.buyerSnapshot) return "-";
     const buyer = correction.buyerSnapshot;
     return buyer.companyName || `${buyer.firstName || ''} ${buyer.lastName || ''}`.trim() || '-';
   };

@@ -129,7 +129,7 @@ export const InvoiceCorrectionModel = {
 
       for (const item of data.items) {
         const itemNet = item.correctedQuantity * item.correctedUnitPriceNet;
-        const itemVat = Math.round(itemNet * item.correctedVatRate) / 100;
+        const itemVat = Math.round((itemNet * (item.correctedVatRate / 100) + Number.EPSILON) * 100) / 100;
         const itemGross = itemNet + itemVat;
 
         correctedSubtotalNet += itemNet;
@@ -138,9 +138,9 @@ export const InvoiceCorrectionModel = {
       }
 
       // Round totals
-      correctedSubtotalNet = Math.round(correctedSubtotalNet * 100) / 100;
-      correctedTotalVat = Math.round(correctedTotalVat * 100) / 100;
-      correctedTotalGross = Math.round(correctedTotalGross * 100) / 100;
+      correctedSubtotalNet = Math.round((correctedSubtotalNet + Number.EPSILON) * 100) / 100;
+      correctedTotalVat = Math.round((correctedTotalVat + Number.EPSILON) * 100) / 100;
+      correctedTotalGross = Math.round((correctedTotalGross + Number.EPSILON) * 100) / 100;
 
       // Insert correction
       const correctionResult = await client.query(
@@ -157,15 +157,15 @@ export const InvoiceCorrectionModel = {
           correctionNumber,
           data.originalInvoiceId,
           data.correctionReason,
-          invoice.buyer_snapshot,
-          invoice.subtotal_net,
-          invoice.total_vat,
-          invoice.total_gross,
+          invoice.buyerSnapshot,
+          invoice.subtotalNet,
+          invoice.totalVat,
+          invoice.totalGross,
           correctedSubtotalNet,
           correctedTotalVat,
           correctedTotalGross,
-          invoice.issue_date,
-          invoice.invoice_number,
+          invoice.issueDate,
+          invoice.invoiceNumber,
           data.createdByUserId
         ]
       );
@@ -237,25 +237,25 @@ export const InvoiceCorrectionModel = {
   mapRowToCorrection(row: Record<string, unknown>): InvoiceCorrection {
     return {
       id: row.id as number,
-      correctionNumber: row.correction_number as string,
-      originalInvoiceId: row.original_invoice_id as number,
-      originalInvoiceNumber: row.original_invoice_number as string,
-      originalInvoiceDate: row.original_invoice_date as Date,
-      correctionReason: row.correction_reason as string,
-      buyerSnapshot: row.buyer_snapshot as InvoiceCorrection['buyerSnapshot'],
-      originalSubtotalNet: parseFloat(row.original_subtotal_net as string),
-      originalTotalVat: parseFloat(row.original_total_vat as string),
-      originalTotalGross: parseFloat(row.original_total_gross as string),
-      correctedSubtotalNet: parseFloat(row.corrected_subtotal_net as string),
-      correctedTotalVat: parseFloat(row.corrected_total_vat as string),
-      correctedTotalGross: parseFloat(row.corrected_total_gross as string),
-      differenceNet: parseFloat(row.difference_net as string),
-      differenceVat: parseFloat(row.difference_vat as string),
-      differenceGross: parseFloat(row.difference_gross as string),
-      issueDate: row.issue_date as Date,
-      createdByUserId: row.created_by_user_id as number | undefined,
-      createdAt: row.created_at as Date,
-      updatedAt: row.updated_at as Date
+      correctionNumber: row.correctionNumber as string,
+      originalInvoiceId: row.originalInvoiceId as number,
+      originalInvoiceNumber: row.originalInvoiceNumber as string,
+      originalInvoiceDate: row.originalInvoiceDate as Date,
+      correctionReason: row.correctionReason as string,
+      buyerSnapshot: row.buyerSnapshot as InvoiceCorrection['buyerSnapshot'],
+      originalSubtotalNet: parseFloat(row.originalSubtotalNet as string),
+      originalTotalVat: parseFloat(row.originalTotalVat as string),
+      originalTotalGross: parseFloat(row.originalTotalGross as string),
+      correctedSubtotalNet: parseFloat(row.correctedSubtotalNet as string),
+      correctedTotalVat: parseFloat(row.correctedTotalVat as string),
+      correctedTotalGross: parseFloat(row.correctedTotalGross as string),
+      differenceNet: parseFloat(row.differenceNet as string),
+      differenceVat: parseFloat(row.differenceVat as string),
+      differenceGross: parseFloat(row.differenceGross as string),
+      issueDate: row.issueDate as Date,
+      createdByUserId: row.createdByUserId as number | undefined,
+      createdAt: row.createdAt as Date,
+      updatedAt: row.updatedAt as Date
     };
   },
 
@@ -263,26 +263,26 @@ export const InvoiceCorrectionModel = {
   mapRowToItem(row: Record<string, unknown>): InvoiceCorrectionItem {
     return {
       id: row.id as number,
-      correctionId: row.correction_id as number,
-      originalItemId: row.original_item_id as number | undefined,
+      correctionId: row.correctionId as number,
+      originalItemId: row.originalItemId as number | undefined,
       description: row.description as string,
-      originalQuantity: row.original_quantity as number,
-      originalUnitPriceNet: parseFloat(row.original_unit_price_net as string),
-      originalVatRate: parseFloat(row.original_vat_rate as string),
-      originalTotalNet: parseFloat(row.original_total_net as string),
-      originalTotalVat: parseFloat(row.original_total_vat as string),
-      originalTotalGross: parseFloat(row.original_total_gross as string),
-      correctedQuantity: row.corrected_quantity as number,
-      correctedUnitPriceNet: parseFloat(row.corrected_unit_price_net as string),
-      correctedVatRate: parseFloat(row.corrected_vat_rate as string),
-      correctedTotalNet: parseFloat(row.corrected_total_net as string),
-      correctedTotalVat: parseFloat(row.corrected_total_vat as string),
-      correctedTotalGross: parseFloat(row.corrected_total_gross as string),
-      differenceQuantity: row.difference_quantity as number,
-      differenceNet: parseFloat(row.difference_net as string),
-      differenceVat: parseFloat(row.difference_vat as string),
-      differenceGross: parseFloat(row.difference_gross as string),
-      createdAt: row.created_at as Date
+      originalQuantity: row.originalQuantity as number,
+      originalUnitPriceNet: parseFloat(row.originalUnitPriceNet as string),
+      originalVatRate: parseFloat(row.originalVatRate as string),
+      originalTotalNet: parseFloat(row.originalTotalNet as string),
+      originalTotalVat: parseFloat(row.originalTotalVat as string),
+      originalTotalGross: parseFloat(row.originalTotalGross as string),
+      correctedQuantity: row.correctedQuantity as number,
+      correctedUnitPriceNet: parseFloat(row.correctedUnitPriceNet as string),
+      correctedVatRate: parseFloat(row.correctedVatRate as string),
+      correctedTotalNet: parseFloat(row.correctedTotalNet as string),
+      correctedTotalVat: parseFloat(row.correctedTotalVat as string),
+      correctedTotalGross: parseFloat(row.correctedTotalGross as string),
+      differenceQuantity: row.differenceQuantity as number,
+      differenceNet: parseFloat(row.differenceNet as string),
+      differenceVat: parseFloat(row.differenceVat as string),
+      differenceGross: parseFloat(row.differenceGross as string),
+      createdAt: row.createdAt as Date
     };
   }
 };
