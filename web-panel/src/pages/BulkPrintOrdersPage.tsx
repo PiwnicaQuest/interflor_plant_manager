@@ -26,6 +26,7 @@ export function BulkPrintOrdersPage() {
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<string>('');
 
   const ids = searchParams.get('ids')?.split(',').map(Number).filter(Boolean) || [];
   const showPrices = searchParams.get('showPrices') !== 'false';
@@ -39,18 +40,19 @@ export function BulkPrintOrdersPage() {
       }
 
       try {
+        setProgress('Pobieranie ustawień firmy...');
+        
         // Fetch company settings once
         const companyResponse = await api.getCompanySettings().catch(() => null);
         setCompanySettings(companyResponse);
 
-        // Fetch all orders - customerSnapshot is already included in each order
-        const results = await Promise.all(
-          ids.map(async (id) => {
-            const orderResponse = await api.getOrder(id);
-            return orderResponse.order;
-          })
-        );
-        setOrdersData(results);
+        setProgress(`Pobieranie ${ids.length} zamówień...`);
+        
+        // Use new bulk endpoint - single request for all orders
+        const response = await api.getOrdersBulk(ids);
+        setOrdersData(response.orders);
+        
+        setProgress('Gotowe!');
       } catch (err) {
         console.error('Error fetching orders:', err);
         setError('Błąd podczas pobierania zamówień');
@@ -66,7 +68,7 @@ export function BulkPrintOrdersPage() {
     if (!loading && ordersData.length > 0) {
       setTimeout(() => {
         window.print();
-      }, 500);
+      }, 300);
     }
   }, [loading, ordersData]);
 
@@ -76,6 +78,7 @@ export function BulkPrintOrdersPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
           <p className="text-gray-600">Ładowanie zamówień ({ids.length})...</p>
+          <p className="text-sm text-gray-500 mt-2">{progress}</p>
         </div>
       </div>
     );

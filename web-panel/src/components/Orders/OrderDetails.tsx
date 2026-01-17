@@ -36,6 +36,7 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
   const [isCancelling, setIsCancelling] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCreatingDocument, setIsCreatingDocument] = useState(false);
+  const [isCreatingProforma, setIsCreatingProforma] = useState(false);
   const [isReopening, setIsReopening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -213,6 +214,13 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
     return order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELLED;
   };
 
+  const canCreateProforma = () => {
+    // Only for pending orders with a customer
+    return order.status === OrderStatus.PENDING && order.customerId;
+  };
+
+
+
   const handleReopenOrder = async (newStatus: OrderStatus, reason: string) => {
     try {
       setIsReopening(true);
@@ -246,6 +254,35 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
       setShowReopenModal(false);
     } finally {
       setIsReopening(false);
+    }
+  };
+
+  const handleCreateProforma = async () => {
+    try {
+      setIsCreatingProforma(true);
+      setError(null);
+
+      // Set validUntil to 14 days from now
+      const validUntil = new Date();
+      validUntil.setDate(validUntil.getDate() + 14);
+
+      const result = await api.createProformaFromOrder(order.id, {
+        validUntil: validUntil.toISOString().split('T')[0],
+      });
+
+      setSuccessMessage(`Proforma ${result.proforma.invoiceNumber} została utworzona`);
+
+      if (onOrderUpdated) {
+        onOrderUpdated();
+      }
+
+      // Open proforma print page in new tab
+      window.open(`/print/proforma/${result.proforma.id}`, '_blank');
+    } catch (err: any) {
+      console.error('Błąd podczas tworzenia proformy:', err);
+      setError(err.response?.data?.error || 'Wystąpił błąd podczas tworzenia proformy');
+    } finally {
+      setIsCreatingProforma(false);
     }
   };
 
@@ -747,6 +784,16 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
                 Wystaw dokument
               </button>
             )}
+            {canCreateProforma() && (
+              <button
+                onClick={handleCreateProforma}
+                className="btn flex-1 min-w-[120px] bg-amber-600 hover:bg-amber-700 text-white border-amber-600"
+                disabled={isCreatingProforma}
+              >
+                {isCreatingProforma ? 'Tworzenie...' : 'Generuj proformę'}
+              </button>
+            )}
+
             {canTransferProducts() && (
               <button
                 onClick={() => setShowTransferModal(true)}

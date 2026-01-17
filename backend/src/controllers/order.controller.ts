@@ -45,6 +45,36 @@ export class OrderController {
     }
   }
 
+
+  /**
+   * GET /orders/bulk?ids=1,2,3
+   * Get multiple orders in one request - optimized for bulk printing
+   */
+  static async getBulk(req: AuthRequest, res: Response) {
+    try {
+      const idsParam = req.query.ids as string;
+      if (!idsParam) {
+        return res.status(400).json({ error: 'Parametr ids jest wymagany' });
+      }
+
+      const ids = idsParam.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id) && id > 0);
+      if (ids.length === 0) {
+        return res.status(400).json({ error: 'Brak prawidłowych ID zamówień' });
+      }
+
+      if (ids.length > 100) {
+        return res.status(400).json({ error: 'Maksymalnie 100 zamówień na raz' });
+      }
+
+      const orders = await OrderModel.getByIds(ids);
+
+      return res.json({ orders });
+    } catch (error: any) {
+      console.error('Get bulk orders error:', error);
+      return res.status(500).json({ error: 'Błąd serwera' });
+    }
+  }
+
   static async create(req: AuthRequest, res: Response) {
     try {
       const data: CreateOrderRequest = req.body;

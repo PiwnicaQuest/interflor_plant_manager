@@ -3,6 +3,90 @@ import { Order, OrderItem, OrderWithItems, OrderStatus, CustomerSnapshot } from 
 import { broadcast } from '../main';
 
 export class OrderModel {
+
+  /**
+   * Get multiple orders by IDs in a single optimized query
+   * Much faster than calling getById for each order
+   */
+  static async getByIds(ids: number[]): Promise<OrderWithItems[]> {
+    if (ids.length === 0) return [];
+
+    // Single query to get all orders
+    const ordersResult = await query<Order>(
+      `SELECT * FROM orders WHERE id = ANY($1) ORDER BY created_at DESC`,
+      [ids]
+    );
+
+    if (ordersResult.rows.length === 0) return [];
+
+    // Single query to get all order items
+    const itemsResult = await query<OrderItem>(
+      `SELECT * FROM order_items WHERE order_id = ANY($1) ORDER BY order_id, product_snapshot->>'plant_name' ASC NULLS LAST, id ASC`,
+      [ids]
+    );
+
+    // Get unique customer IDs
+    const customerIds = [...new Set(ordersResult.rows.map(o => o.customerId).filter(Boolean))];
+
+    // Single query to get all customers
+    let customersMap = new Map<number, { companyName?: string; firstName?: string; lastName?: string; customerCode?: string; priceGroupId?: number; priceGroupName?: string }>();
+    if (customerIds.length > 0) {
+      const customersResult = await query<{ id: number; companyName?: string; firstName?: string; lastName?: string; customerCode?: string; priceGroupId?: number; priceGroupName?: string }>(
+        `SELECT c.id, c.company_name, c.first_name, c.last_name, c.customer_code, c.price_group_id, pg.name as price_group_name
+         FROM customers c
+         LEFT JOIN price_groups pg ON c.price_group_id = pg.id
+         WHERE c.id = ANY($1)`,
+        [customerIds]
+      );
+      customersResult.rows.forEach(c => customersMap.set(c.id, c));
+    }
+
+    // Group items by order_id
+    const itemsByOrder = new Map<number, OrderItem[]>();
+    for (const item of itemsResult.rows) {
+      let productSnapshot = item.productSnapshot as any;
+      if (typeof productSnapshot === 'string') {
+        try { productSnapshot = JSON.parse(productSnapshot); } catch (e) {}
+      }
+      if (productSnapshot && typeof productSnapshot === 'object') {
+        productSnapshot = {
+          id: productSnapshot.id,
+          plantName: productSnapshot.plant_name || productSnapshot.plantName,
+          potSize: productSnapshot.pot_size || productSnapshot.potSize,
+          plantHeightCm: productSnapshot.plant_height_cm || productSnapshot.plantHeightCm,
+          barcode: productSnapshot.barcode,
+          imageUrl: productSnapshot.image_url || productSnapshot.imageUrl,
+          createdAt: productSnapshot.created_at || productSnapshot.createdAt,
+          unitsPerPallet: productSnapshot.units_per_pallet || productSnapshot.unitsPerPallet,
+          growerPassport: productSnapshot.grower_passport || productSnapshot.growerPassport,
+        };
+      }
+      const processedItem = { ...item, productSnapshot, productName: productSnapshot?.plantName || undefined };
+      
+      if (!itemsByOrder.has(item.orderId)) {
+        itemsByOrder.set(item.orderId, []);
+      }
+      itemsByOrder.get(item.orderId)!.push(processedItem);
+    }
+
+    // Build final result
+    return ordersResult.rows.map(order => {
+      const customer = order.customerId ? customersMap.get(order.customerId) : null;
+      const customerName = customer
+        ? (customer.companyName || `${customer.firstName} ${customer.lastName}`)
+        : undefined;
+
+      return {
+        ...order,
+        items: itemsByOrder.get(order.id) || [],
+        customerCode: customer?.customerCode,
+        customerName,
+        customerPriceGroupId: customer?.priceGroupId,
+        customerPriceGroupName: customer?.priceGroupName,
+      } as OrderWithItems;
+    });
+  }
+
   static async getAll(filters?: {
     status?: OrderStatus;
     customerId?: number;
