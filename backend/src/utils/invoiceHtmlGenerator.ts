@@ -128,6 +128,53 @@ export async function generateInvoiceHtml(invoice: InvoiceWithItems): Promise<st
     '</tr>';
   }).join('\n');
 
+  // Generate VAT summary by rate
+  const vatMap = new Map<number, { netValue: number; vatAmount: number; grossValue: number }>();
+  (invoice.items || []).forEach(item => {
+    const rate = item.vatRate;
+    const existing = vatMap.get(rate);
+    if (existing) {
+      existing.netValue += parseFloat(String(item.totalNet)) || 0;
+      existing.vatAmount += parseFloat(String(item.totalVat)) || 0;
+      existing.grossValue += parseFloat(String(item.totalGross)) || 0;
+    } else {
+      vatMap.set(rate, {
+        netValue: parseFloat(String(item.totalNet)) || 0,
+        vatAmount: parseFloat(String(item.totalVat)) || 0,
+        grossValue: parseFloat(String(item.totalGross)) || 0,
+      });
+    }
+  });
+  
+  const vatSummaryRows = Array.from(vatMap.entries())
+    .sort((a, b) => b[0] - a[0])
+    .map(([rate, values]) => 
+      '<tr>' +
+        '<td style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: center; font-weight: 600;">' + rate + '%</td>' +
+        '<td style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: right;">' + values.netValue.toFixed(2) + ' zł</td>' +
+        '<td style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: right;">' + values.vatAmount.toFixed(2) + ' zł</td>' +
+        '<td style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: right; font-weight: 600;">' + values.grossValue.toFixed(2) + ' zł</td>' +
+      '</tr>'
+    ).join('\n');
+  
+  const vatSummaryHtml = vatSummaryRows ? 
+    '<table style="width: 50%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px; margin-left: auto;">' +
+      '<thead><tr style="background: #f3f4f6;">' +
+        '<th style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: center; width: 25%;">Stawka VAT</th>' +
+        '<th style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: right;">Netto</th>' +
+        '<th style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: right;">VAT</th>' +
+        '<th style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: right;">Brutto</th>' +
+      '</tr></thead>' +
+      '<tbody>' + vatSummaryRows +
+        '<tr style="background: #f8fafc; font-weight: bold;">' +
+          '<td style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: center;">RAZEM</td>' +
+          '<td style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: right;">' + formatPrice(invoice.subtotalNet) + ' zł</td>' +
+          '<td style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: right;">' + formatPrice(invoice.totalVat) + ' zł</td>' +
+          '<td style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: right; color: #2563eb;">' + formatPrice(invoice.totalGross) + ' zł</td>' +
+        '</tr>' +
+      '</tbody>' +
+    '</table>' : '';
+
   // Generate payment splits HTML if applicable
   let paymentSplitsHtml = '';
   if (invoice.paymentSplits && invoice.paymentSplits.length > 1) {
@@ -223,15 +270,15 @@ export async function generateInvoiceHtml(invoice: InvoiceWithItems): Promise<st
       <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
         <thead>
           <tr style="background: #f3f4f6;">
-            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: left; width: 30px;">Lp.</th>
-            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: left;">Nazwa</th>
-            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: center; width: 40px;">Ilość</th>
-            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: center; width: 35px;">J.m.</th>
-            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: right; width: 60px;">Cena netto</th>
-            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: center; width: 40px;">VAT</th>
-            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: right; width: 55px;">Wart. netto</th>
-            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: right; width: 50px;">Wart. VAT</th>
-            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: right; width: 60px;">Wart. brutto</th>
+            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: left; width: 4%;">Lp.</th>
+            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: left; width: 28%;">Nazwa</th>
+            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: center; width: 6%;">Ilość</th>
+            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: center; width: 5%;">J.m.</th>
+            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: right; width: 11%;">Cena netto</th>
+            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: center; width: 6%;">VAT%</th>
+            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: right; width: 13%;">Kwota netto</th>
+            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: right; width: 13%;">Kwota VAT</th>
+            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: right; width: 14%;">Kwota brutto</th>
           </tr>
         </thead>
         <tbody>
@@ -250,6 +297,8 @@ export async function generateInvoiceHtml(invoice: InvoiceWithItems): Promise<st
       </table>
     </div>
 
+    <!-- VAT Summary -->
+    ${vatSummaryHtml}
     <!-- Summary -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 20px;">
       <div>
@@ -270,12 +319,23 @@ export async function generateInvoiceHtml(invoice: InvoiceWithItems): Promise<st
         ` : ''}
       </div>
       <div style="display: flex; justify-content: flex-end;">
-        <div style="background: #eff6ff; padding: 15px; border-radius: 8px; border: 2px solid #bfdbfe; width: 220px;">
-          <h3 style="font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 8px;">Do zapłaty</h3>
-          <div style="font-size: 26px; font-weight: bold; color: #2563eb;">
-            ${remainingAmount.toFixed(2)} PLN
+        <div style="background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; min-width: 200px;">
+          <h3 style="font-size: 9px; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">Podsumowanie płatności</h3>
+          <div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; border-bottom: 1px solid #e2e8f0; margin-bottom: 6px;">
+            <span>Wartość faktury:</span>
+            <strong>${formatPrice(invoice.totalGross)} zł</strong>
           </div>
-          ${invoice.paymentDeadline ? '<div style="font-size: 12px; color: #6b7280; margin-top: 4px;">Termin: ' + formatDate(invoice.paymentDeadline) + '</div>' : ''}
+          <div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px;">
+            <span>Zapłacono:</span>
+            <strong>${formatPrice(invoice.paidAmount)} zł</strong>
+          </div>
+          <div style="border-top: 1px solid #e2e8f0; margin-top: 8px; padding-top: 8px;">
+            <div style="font-size: 11px; font-weight: 600; margin-bottom: 4px;">Pozostało do zapłaty:</div>
+            <div style="font-size: 16px; font-weight: bold; color: #2563eb; text-align: right;">
+              ${remainingAmount.toFixed(2)} PLN
+            </div>
+          </div>
+          ${invoice.paymentDeadline && remainingAmount > 0 ? '<div style="font-size: 10px; color: #64748b; margin-top: 6px; text-align: right;">Termin: ' + formatDate(invoice.paymentDeadline) + '</div>' : ''}
         </div>
       </div>
     </div>

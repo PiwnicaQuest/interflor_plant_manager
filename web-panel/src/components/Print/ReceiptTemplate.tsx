@@ -49,120 +49,299 @@ export function ReceiptTemplate({ data, companyInfo = defaultCompanyInfo }: Rece
     return labels[method] || method;
   };
 
+  // Stała szerokość - 58mm dla drukarki termicznej (bez marginesów drukarki)
+  const RECEIPT_WIDTH = "54mm";
+
   return (
-    <div className="receipt-template bg-white text-black p-4 max-w-[75mm] mx-auto font-mono text-sm">
+    <div className="receipt-template">
       <style>{`
+        /* Reset dla druku */
         @media print {
-          @page { size: 75mm auto; margin: 2mm; }
-          body { margin: 0; padding: 0; }
-          .receipt-template { max-width: 100% !important; padding: 0 !important; }
+          @page {
+            size: 58mm auto;
+            margin: 0mm !important;
+          }
+          html, body {
+            width: 58mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+          }
+          .receipt-template {
+            width: ${RECEIPT_WIDTH} !important;
+            max-width: ${RECEIPT_WIDTH} !important;
+            padding: 2mm !important;
+            margin: 0 !important;
+            overflow: hidden !important;
+            box-sizing: border-box !important;
+          }
+          .receipt-template * {
+            max-width: 100% !important;
+            overflow-wrap: break-word !important;
+            word-wrap: break-word !important;
+          }
           .no-print { display: none !important; }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+        }
+
+        /* Ekran */
+        @media screen {
+          .receipt-template {
+            width: ${RECEIPT_WIDTH};
+            max-width: ${RECEIPT_WIDTH};
+            margin: 0 auto;
+            padding: 2mm;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            background: white;
+          }
+        }
+
+        /* Wspólne style */
+        .receipt-template {
+          font-family: 'Courier New', Courier, monospace;
+          font-size: 11px;
+          color: #000;
+          background: #fff;
+          box-sizing: border-box;
+          overflow: hidden;
+          line-height: 1.3;
+        }
+        .receipt-template * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+        }
+        .receipt-template table {
+          width: 100%;
+          border-collapse: collapse;
+          table-layout: fixed;
+        }
+        .receipt-template th,
+        .receipt-template td {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .receipt-header {
+          text-align: center;
+          border-bottom: 1px dashed #000;
+          padding-bottom: 8px;
+          margin-bottom: 8px;
+        }
+        .receipt-header h1 {
+          font-size: 13px;
+          font-weight: bold;
+          margin-bottom: 2px;
+        }
+        .receipt-header p {
+          font-size: 9px;
+          margin: 1px 0;
+        }
+        .receipt-title {
+          text-align: center;
+          margin-bottom: 8px;
+        }
+        .receipt-title h2 {
+          font-size: 12px;
+          font-weight: bold;
+        }
+        .receipt-title .number {
+          font-size: 11px;
+          font-weight: bold;
+        }
+        .receipt-title .order {
+          font-size: 9px;
+          color: #333;
+        }
+        .receipt-date {
+          font-size: 9px;
+          border-bottom: 1px dashed #999;
+          padding-bottom: 6px;
+          margin-bottom: 6px;
+        }
+        .receipt-items {
+          border-bottom: 1px dashed #999;
+          padding-bottom: 6px;
+          margin-bottom: 6px;
+        }
+        .receipt-items table {
+          font-size: 9px;
+        }
+        .receipt-items th {
+          font-size: 8px;
+          font-weight: bold;
+          text-align: left;
+          padding: 2px 1px;
+          border-bottom: 1px solid #ccc;
+        }
+        .receipt-items td {
+          padding: 2px 1px;
+          font-size: 9px;
+          vertical-align: top;
+        }
+        .receipt-items .name {
+          white-space: normal;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+          max-width: 80px;
+        }
+        .receipt-items .qty {
+          text-align: center;
+          font-weight: bold;
+        }
+        .receipt-items .price {
+          text-align: right;
+        }
+        .receipt-items .value {
+          text-align: right;
+          font-weight: bold;
+        }
+        .receipt-total {
+          border-bottom: 1px dashed #000;
+          padding-bottom: 8px;
+          margin-bottom: 8px;
+        }
+        .receipt-total .row {
+          display: flex;
+          justify-content: space-between;
+          font-size: 13px;
+          font-weight: bold;
+        }
+        .receipt-payment {
+          font-size: 9px;
+          border-bottom: 1px dashed #999;
+          padding-bottom: 6px;
+          margin-bottom: 6px;
+        }
+        .receipt-payment .row {
+          display: flex;
+          justify-content: space-between;
+        }
+        .receipt-footer {
+          text-align: center;
+          margin-top: 8px;
+        }
+        .receipt-footer .thanks {
+          font-size: 10px;
+          font-weight: bold;
+        }
+        .receipt-footer .sub {
+          font-size: 9px;
+          color: #666;
+        }
+        .receipt-footer .date {
+          margin-top: 6px;
+          font-size: 8px;
+          color: #888;
+          border-top: 1px dotted #999;
+          padding-top: 4px;
+        }
+        .no-print {
+          margin-top: 12px;
+          text-align: center;
+        }
+        .no-print button {
+          padding: 6px 16px;
+          background: #2563eb;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          font-size: 11px;
+          cursor: pointer;
         }
       `}</style>
 
       {/* Header */}
-      <div className="text-center border-b-2 border-dashed border-black pb-3 mb-3">
-        <h1 className="text-lg font-bold">{companyInfo.name}</h1>
-        <p className="text-xs">{companyInfo.address}</p>
-        <p className="text-xs">NIP: {companyInfo.nip}</p>
-        {companyInfo.phone && <p className="text-xs">Tel: {companyInfo.phone}</p>}
+      <div className="receipt-header">
+        <h1>{companyInfo.name}</h1>
+        <p>{companyInfo.address}</p>
+        <p>NIP: {companyInfo.nip}</p>
+        {companyInfo.phone && <p>Tel: {companyInfo.phone}</p>}
       </div>
 
-      {/* Receipt Number */}
-      <div className="text-center mb-3">
-        <h2 className="text-base font-bold">DOWÓD WYDANIA</h2>
-        <p className="text-sm font-bold">{data.receiptNumber}</p>
+      {/* Title */}
+      <div className="receipt-title">
+        <h2>DOWÓD WYDANIA</h2>
+        <p className="number">{data.receiptNumber}</p>
         {data.orderNumber && (
-          <p className="text-xs">Zamówienie: {data.orderNumber}</p>
+          <p className="order">Zam: {data.orderNumber}</p>
         )}
       </div>
 
       {/* Date */}
-      <div className="border-b border-dashed border-gray-400 pb-2 mb-2">
-        <p className="text-xs">Data: {formatDate(data.createdAt)}</p>
-        {data.cashierName && <p className="text-xs">Kasjer: {data.cashierName}</p>}
+      <div className="receipt-date">
+        <p>Data: {formatDate(data.createdAt)}</p>
+        {data.cashierName && <p>Kasjer: {data.cashierName}</p>}
       </div>
 
       {/* Items */}
-      <div className="border-b border-dashed border-gray-400 pb-2 mb-2">
-        <table className="w-full text-xs">
+      <div className="receipt-items">
+        <table>
           <thead>
-            <tr className="border-b border-gray-300">
-              <th className="text-left py-1">Nazwa</th>
-              <th className="text-center w-10">Szt/pal</th>
-              <th className="text-center w-10">Pal.</th>
-              <th className="text-center w-8">Szt.</th>
-              <th className="text-right w-14">Cena</th>
-              <th className="text-right w-14">Wart.</th>
+            <tr>
+              <th style={{ width: "50%" }}>Nazwa</th>
+              <th style={{ width: "15%", textAlign: "center" }}>Szt</th>
+              <th style={{ width: "17%", textAlign: "right" }}>Cena</th>
+              <th style={{ width: "18%", textAlign: "right" }}>Wart</th>
             </tr>
           </thead>
           <tbody>
-            {data.items?.map((item, index) => {
-              const unitsPerPallet = item.productSnapshot?.unitsPerPallet || (item as any).unitsPerPallet || 0;
-              const palletCount = unitsPerPallet > 0 ? (item.quantity / unitsPerPallet).toFixed(2) : "-";
-              return (
-                <tr key={index} className="border-b border-dotted border-gray-200">
-                  <td className="py-1 pr-1 break-words max-w-[100px]">
-                    {item.productName || item.productSnapshot?.plantName || `Produkt #${item.productId}`}
-                  </td>
-                  <td className="text-center text-[10px]">{unitsPerPallet || "-"}</td>
-                  <td className="text-center text-[10px]">{palletCount}</td>
-                  <td className="text-center font-semibold">{item.quantity}</td>
-                  <td className="text-right">{(Number(item.unitPriceGross) || 0).toFixed(2)}</td>
-                  <td className="text-right font-semibold">{(Number(item.totalPrice) || 0).toFixed(2)}</td>
-                </tr>
-              );
-            })}
+            {data.items?.map((item, index) => (
+              <tr key={index}>
+                <td className="name">
+                  {item.productName || item.productSnapshot?.plantName || `#${item.productId}`}
+                </td>
+                <td className="qty">{item.quantity}</td>
+                <td className="price">{(Number(item.unitPriceGross) || 0).toFixed(2)}</td>
+                <td className="value">{(Number(item.totalPrice) || 0).toFixed(2)}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
 
       {/* Total */}
-      <div className="border-b-2 border-dashed border-black pb-3 mb-3">
-        <div className="flex justify-between items-center text-base font-bold">
+      <div className="receipt-total">
+        <div className="row">
           <span>SUMA:</span>
           <span>{(Number(data.totalAmount) || 0).toFixed(2)} PLN</span>
         </div>
       </div>
 
-      {/* Payment Method */}
-      <div className="border-b border-dashed border-gray-400 pb-2 mb-2">
+      {/* Payment */}
+      <div className="receipt-payment">
         {data.paymentSplits && data.paymentSplits.length > 1 ? (
           <div>
-            <p className="text-xs font-semibold mb-1">Płatność podzielona:</p>
+            <p style={{ fontWeight: "bold", marginBottom: "2px" }}>Płatność:</p>
             {data.paymentSplits.map((split, index) => (
-              <div key={index} className="flex justify-between text-xs">
+              <div key={index} className="row">
                 <span>{getPaymentMethodLabel(split.paymentMethod)}:</span>
                 <span>{(Number(split.amount) || 0).toFixed(2)} PLN</span>
               </div>
             ))}
           </div>
         ) : (
-          <div className="flex justify-between text-xs">
-            <span>Forma płatności:</span>
-            <span className="font-semibold">{getPaymentMethodLabel(data.paymentMethod)}</span>
+          <div className="row">
+            <span>Płatność:</span>
+            <span style={{ fontWeight: "bold" }}>{getPaymentMethodLabel(data.paymentMethod)}</span>
           </div>
         )}
       </div>
 
       {/* Footer */}
-      <div className="text-center text-xs mt-4">
-        <p className="font-semibold">Dziękujemy za zakupy!</p>
-        <p className="text-gray-600 mt-1">Zapraszamy ponownie</p>
-        <div className="mt-3 pt-2 border-t border-dotted border-gray-400">
-          <p className="text-[10px] text-gray-500">
-            {formatDate(data.createdAt)}
-          </p>
-        </div>
+      <div className="receipt-footer">
+        <p className="thanks">Dziękujemy za zakupy!</p>
+        <p className="sub">Zapraszamy ponownie</p>
+        <p className="date">{formatDate(data.createdAt)}</p>
       </div>
 
       {/* Print Button */}
-      <div className="no-print mt-6 text-center">
-        <button
-          onClick={() => window.print()}
-          className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-sans text-sm"
-        >
-          Drukuj dowód wydania
+      <div className="no-print">
+        <button onClick={() => window.print()}>
+          Drukuj
         </button>
       </div>
     </div>

@@ -78,7 +78,6 @@ export function ReceiptA4Template({ data, companyInfo = defaultCompanyInfo }: Re
     } else {
       name = data.customerName || 'Klient detaliczny';
     }
-    // Add customerCode prefix if available
     if (data.customerInfo?.customerCode) {
       return '[' + data.customerInfo.customerCode + '] ' + name;
     }
@@ -87,124 +86,288 @@ export function ReceiptA4Template({ data, companyInfo = defaultCompanyInfo }: Re
 
   const totalQuantity = data.items.reduce((sum, item) => sum + item.quantity, 0);
 
+  // Inline styles for print compatibility
+  const styles = {
+    container: {
+      fontFamily: "'Segoe UI', Arial, sans-serif",
+      fontSize: '11px',
+      color: '#1f2937',
+      backgroundColor: '#ffffff',
+      padding: '8mm',
+      width: '190mm',
+      maxWidth: '190mm',
+      margin: '0 auto',
+      boxSizing: 'border-box' as const,
+    },
+    header: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: '20px',
+      paddingBottom: '15px',
+      borderBottom: '2px solid #d1d5db',
+    },
+    title: {
+      fontSize: '22px',
+      fontWeight: 'bold' as const,
+      color: '#1f2937',
+      margin: '0',
+    },
+    receiptNumber: {
+      fontSize: '18px',
+      fontWeight: 'bold' as const,
+      color: '#16a34a',
+      marginTop: '4px',
+    },
+    paidBadge: {
+      display: 'inline-block',
+      padding: '8px 16px',
+      borderRadius: '6px',
+      backgroundColor: '#dcfce7',
+      color: '#166534',
+      border: '2px solid #86efac',
+      fontWeight: 'bold' as const,
+      fontSize: '12px',
+      textTransform: 'uppercase' as const,
+    },
+    partiesGrid: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: '16px',
+      marginBottom: '20px',
+    },
+    partyBox: {
+      padding: '14px',
+      borderRadius: '6px',
+      fontSize: '11px',
+    },
+    sellerBox: {
+      backgroundColor: '#f9fafb',
+    },
+    buyerBox: {
+      backgroundColor: '#f0fdf4',
+      border: '1px solid #bbf7d0',
+    },
+    partyLabel: {
+      fontSize: '9px',
+      fontWeight: '600' as const,
+      color: '#6b7280',
+      textTransform: 'uppercase' as const,
+      marginBottom: '6px',
+    },
+    partyName: {
+      fontWeight: 'bold' as const,
+      fontSize: '13px',
+      marginBottom: '2px',
+    },
+    table: {
+      width: '100%',
+      borderCollapse: 'collapse' as const,
+      fontSize: '10px',
+      marginBottom: '20px',
+      tableLayout: 'fixed' as const,
+    },
+    th: {
+      border: '1px solid #d1d5db',
+      padding: '8px 6px',
+      backgroundColor: '#f3f4f6',
+      fontWeight: '600' as const,
+      textAlign: 'center' as const,
+      fontSize: '10px',
+    },
+    td: {
+      border: '1px solid #d1d5db',
+      padding: '6px',
+      verticalAlign: 'top' as const,
+    },
+    summaryGrid: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      marginBottom: '20px',
+    },
+    paymentBox: {
+      backgroundColor: '#f9fafb',
+      padding: '14px',
+      borderRadius: '6px',
+      border: '1px solid #e5e7eb',
+      width: '200px',
+    },
+    totalBox: {
+      backgroundColor: '#f0fdf4',
+      padding: '14px',
+      borderRadius: '6px',
+      border: '2px solid #86efac',
+      textAlign: 'right' as const,
+      width: '200px',
+    },
+    totalAmount: {
+      fontSize: '26px',
+      fontWeight: 'bold' as const,
+      color: '#16a34a',
+    },
+    footer: {
+      marginBottom: '20px',
+      padding: '16px',
+      backgroundColor: '#f9fafb',
+      borderRadius: '6px',
+      textAlign: 'center' as const,
+    },
+    signatures: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: '32px',
+      marginTop: '40px',
+    },
+    signatureLine: {
+      borderTop: '1px solid #9ca3af',
+      paddingTop: '6px',
+      marginTop: '40px',
+      textAlign: 'center' as const,
+      fontSize: '9px',
+      color: '#6b7280',
+    },
+    noPrint: {
+      marginTop: '24px',
+      textAlign: 'center' as const,
+    },
+  };
+
   return (
-    <div className="receipt-a4-template bg-white text-black p-8 max-w-[210mm] mx-auto font-sans text-sm">
+    <div style={styles.container} className="receipt-a4-template">
       <style>{`
         @media print {
-          @page { size: A4; margin: 15mm; }
-          body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .receipt-a4-template { max-width: 100% !important; padding: 0 !important; }
+          @page { 
+            size: A4 portrait; 
+            margin: 10mm; 
+          }
+          html, body {
+            width: 210mm;
+            height: 297mm;
+            margin: 0;
+            padding: 0;
+          }
+          .receipt-a4-template {
+            width: 190mm !important;
+            max-width: 190mm !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
           .no-print { display: none !important; }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+        }
+        @media screen {
+          .receipt-a4-template {
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+          }
         }
       `}</style>
 
       {/* Header */}
-      <div className="flex justify-between items-start mb-6 pb-4 border-b-2 border-gray-300">
+      <div style={styles.header}>
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">DOWÓD WYDANIA</h1>
-          <p className="text-xl font-bold text-green-600 mt-1">{data.receiptNumber}</p>
+          <h1 style={styles.title}>DOWÓD WYDANIA</h1>
+          <div style={styles.receiptNumber}>{data.receiptNumber}</div>
           {data.orderNumber && (
-            <p className="text-sm text-gray-500 mt-1">Zamówienie: {data.orderNumber}</p>
+            <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '4px' }}>
+              Zamówienie: {data.orderNumber}
+            </div>
           )}
         </div>
-        <div className="text-right">
-          <div className="inline-block px-4 py-2 rounded-lg border-2 bg-green-100 text-green-800 border-green-300">
-            <span className="font-bold text-sm uppercase">ZAPŁACONE</span>
-          </div>
-          <div className="mt-2 text-xs text-gray-500">
+        <div style={{ textAlign: 'right' }}>
+          <div style={styles.paidBadge}>ZAPŁACONE</div>
+          <div style={{ marginTop: '8px', fontSize: '10px', color: '#6b7280' }}>
             Data: {formatDate(data.createdAt)}
           </div>
         </div>
       </div>
 
-      {/* Company & Customer Info */}
-      <div className="grid grid-cols-2 gap-8 mb-6">
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Sprzedawca</h3>
-          <p className="font-bold">{companyInfo.name}</p>
-          <p className="text-sm">{companyInfo.address}</p>
-          <p className="text-sm">{companyInfo.postalCode} {companyInfo.city}</p>
-          <p className="text-sm mt-2">NIP: <span className="font-semibold">{companyInfo.nip}</span></p>
-          {companyInfo.phone && <p className="text-sm">Tel: {companyInfo.phone}</p>}
-          {companyInfo.email && <p className="text-sm">Email: {companyInfo.email}</p>}
+      {/* Parties */}
+      <div style={styles.partiesGrid}>
+        <div style={{ ...styles.partyBox, ...styles.sellerBox }}>
+          <div style={styles.partyLabel}>Sprzedawca</div>
+          <div style={styles.partyName}>{companyInfo.name}</div>
+          <div>{companyInfo.address}</div>
+          <div>{companyInfo.postalCode} {companyInfo.city}</div>
+          <div style={{ marginTop: '6px' }}>NIP: <strong>{companyInfo.nip}</strong></div>
+          {companyInfo.phone && <div>Tel: {companyInfo.phone}</div>}
+          {companyInfo.email && <div>Email: {companyInfo.email}</div>}
         </div>
 
-        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Nabywca</h3>
-          <p className="font-bold text-base">{getCustomerName()}</p>
-          {data.customerInfo?.address && <p className="text-sm">{data.customerInfo.address}</p>}
+        <div style={{ ...styles.partyBox, ...styles.buyerBox }}>
+          <div style={styles.partyLabel}>Nabywca</div>
+          <div style={styles.partyName}>{getCustomerName()}</div>
+          {data.customerInfo?.address && <div>{data.customerInfo.address}</div>}
           {(data.customerInfo?.postalCode || data.customerInfo?.city) && (
-            <p className="text-sm">{data.customerInfo.postalCode} {data.customerInfo.city}</p>
+            <div>{data.customerInfo.postalCode} {data.customerInfo.city}</div>
           )}
           {data.customerInfo?.nip && (
-            <p className="text-sm mt-2">NIP: <span className="font-semibold">{data.customerInfo.nip}</span></p>
+            <div style={{ marginTop: '6px' }}>NIP: <strong>{data.customerInfo.nip}</strong></div>
           )}
-          {data.customerInfo?.phone && <p className="text-sm mt-2">Tel: {data.customerInfo.phone}</p>}
-          {data.customerInfo?.email && <p className="text-sm">Email: {data.customerInfo.email}</p>}
+          {data.customerInfo?.phone && <div style={{ marginTop: '6px' }}>Tel: {data.customerInfo.phone}</div>}
         </div>
       </div>
 
-      {/* Items */}
-      <div className="mb-6">
-        <h3 className="text-sm font-semibold text-gray-700 uppercase mb-3 flex items-center gap-2">
+      {/* Items Table - UPROSZCZONA BEZ SZT/PAL I PALET */}
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{ ...styles.partyLabel, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span>Pozycje</span>
-          <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs">
+          <span style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: '4px', fontSize: '10px' }}>
             {data.items.length} {data.items.length === 1 ? 'pozycja' : data.items.length < 5 ? 'pozycje' : 'pozycji'}
           </span>
-        </h3>
-        <table className="w-full border-collapse">
+        </div>
+        <table style={styles.table}>
+          <colgroup>
+            <col style={{ width: '6%' }} />
+            <col style={{ width: '46%' }} />
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '13%' }} />
+            <col style={{ width: '13%' }} />
+          </colgroup>
           <thead>
-            <tr className="bg-gray-100">
-              <th className="border border-gray-300 p-2 text-left text-xs font-semibold w-10">Lp.</th>
-              <th className="border border-gray-300 p-2 text-left text-xs font-semibold">Nazwa produktu</th>
-              <th className="border border-gray-300 p-2 text-center text-xs font-semibold w-14">Rozmiar</th>
-              <th className="border border-gray-300 p-2 text-center text-xs font-semibold w-12">Szt/pal</th>
-              <th className="border border-gray-300 p-2 text-center text-xs font-semibold w-12">Palety</th>
-              <th className="border border-gray-300 p-2 text-center text-xs font-semibold w-14">Ilość</th>
-              <th className="border border-gray-300 p-2 text-right text-xs font-semibold w-20">Cena jedn.</th>
-              <th className="border border-gray-300 p-2 text-right text-xs font-semibold w-24">Wartość</th>
+            <tr>
+              <th style={styles.th}>Lp.</th>
+              <th style={{ ...styles.th, textAlign: 'left' }}>Nazwa produktu</th>
+              <th style={styles.th}>Rozmiar</th>
+              <th style={styles.th}>Ilość</th>
+              <th style={styles.th}>Cena jedn.</th>
+              <th style={styles.th}>Wartość</th>
             </tr>
           </thead>
           <tbody>
-            {data.items.map((item, index) => {
-              const unitsPerPallet = item.productSnapshot?.unitsPerPallet || (item as any).unitsPerPallet || 0;
-              const palletCount = unitsPerPallet > 0 ? (item.quantity / unitsPerPallet).toFixed(2) : '-';
-              return (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="border border-gray-300 p-2 text-center text-sm">{index + 1}</td>
-                  <td className="border border-gray-300 p-2">
-                    <span className="font-medium">
-                      {item.productName || item.productSnapshot?.plantName || 'Produkt #' + item.productId}
-                    </span>
-                  </td>
-                  <td className="border border-gray-300 p-2 text-center text-sm">
-                    {item.productSnapshot?.potSize || '-'}
-                  </td>
-                  <td className="border border-gray-300 p-2 text-center text-sm">
-                    {unitsPerPallet || '-'}
-                  </td>
-                  <td className="border border-gray-300 p-2 text-center text-sm">
-                    {palletCount}
-                  </td>
-                  <td className="border border-gray-300 p-2 text-center font-bold text-base">
-                    {item.quantity}
-                  </td>
-                  <td className="border border-gray-300 p-2 text-right text-sm">
-                    {(Number(item.unitPriceGross) || 0).toFixed(2)} zł
-                  </td>
-                  <td className="border border-gray-300 p-2 text-right font-semibold">
-                    {(Number(item.totalPrice) || 0).toFixed(2)} zł
-                  </td>
-                </tr>
-              );
-            })}
+            {data.items.map((item, index) => (
+              <tr key={index}>
+                <td style={{ ...styles.td, textAlign: 'center' }}>{index + 1}</td>
+                <td style={{ ...styles.td, textAlign: 'left' }}>
+                  <div style={{ fontWeight: '500' }}>
+                    {item.productName || item.productSnapshot?.plantName || 'Produkt #' + item.productId}
+                  </div>
+                </td>
+                <td style={{ ...styles.td, textAlign: 'center' }}>
+                  {item.productSnapshot?.potSize || '-'}
+                </td>
+                <td style={{ ...styles.td, textAlign: 'center', fontWeight: 'bold', fontSize: '12px' }}>
+                  {item.quantity}
+                </td>
+                <td style={{ ...styles.td, textAlign: 'right' }}>
+                  {(Number(item.unitPriceGross) || 0).toFixed(2)} zł
+                </td>
+                <td style={{ ...styles.td, textAlign: 'right', fontWeight: '600' }}>
+                  {(Number(item.totalPrice) || 0).toFixed(2)} zł
+                </td>
+              </tr>
+            ))}
           </tbody>
           <tfoot>
-            <tr className="bg-gray-100 font-bold">
-              <td colSpan={5} className="border border-gray-300 p-2 text-right">RAZEM:</td>
-              <td className="border border-gray-300 p-2 text-center text-lg">{totalQuantity}</td>
-              <td className="border border-gray-300 p-2"></td>
-              <td className="border border-gray-300 p-2 text-right text-green-600 text-lg">
+            <tr style={{ backgroundColor: '#f3f4f6', fontWeight: 'bold' }}>
+              <td colSpan={3} style={{ ...styles.td, textAlign: 'right' }}>RAZEM:</td>
+              <td style={{ ...styles.td, textAlign: 'center', fontSize: '14px' }}>{totalQuantity}</td>
+              <td style={styles.td}></td>
+              <td style={{ ...styles.td, textAlign: 'right', color: '#16a34a', fontSize: '14px' }}>
                 {(Number(data.totalAmount) || 0).toFixed(2)} zł
               </td>
             </tr>
@@ -213,65 +376,78 @@ export function ReceiptA4Template({ data, companyInfo = defaultCompanyInfo }: Re
       </div>
 
       {/* Payment Summary */}
-      <div className="flex justify-between mb-6">
-        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 w-64">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Forma płatności</h3>
+      <div style={styles.summaryGrid}>
+        <div style={styles.paymentBox}>
+          <div style={styles.partyLabel}>Forma płatności</div>
           {data.paymentSplits && data.paymentSplits.length > 1 ? (
-            <div className="space-y-1">
+            <div>
               {data.paymentSplits.map((split, index) => (
-                <div key={index} className="flex justify-between text-sm">
+                <div key={index} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
                   <span>{getPaymentMethodLabel(split.paymentMethod)}:</span>
-                  <span className="font-semibold">{(Number(split.amount) || 0).toFixed(2)} zł</span>
+                  <span style={{ fontWeight: '600' }}>{(Number(split.amount) || 0).toFixed(2)} zł</span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-lg font-bold">{getPaymentMethodLabel(data.paymentMethod)}</p>
+            <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{getPaymentMethodLabel(data.paymentMethod)}</div>
           )}
         </div>
 
-        <div className="bg-green-50 p-4 rounded-lg border-2 border-green-200 w-64">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Do zapłaty</h3>
-          <div className="text-3xl font-bold text-green-600">
+        <div style={styles.totalBox}>
+          <div style={styles.partyLabel}>Do zapłaty</div>
+          <div style={styles.totalAmount}>
             {(Number(data.totalAmount) || 0).toFixed(2)} PLN
           </div>
-          <div className="text-xs text-gray-500 mt-1">
+          <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '4px' }}>
             {totalQuantity} szt. produktów
           </div>
         </div>
       </div>
 
-      {/* Footer Info */}
-      <div className="mb-6 p-4 bg-gray-50 rounded-lg text-center">
-        <p className="text-lg font-bold text-gray-700">Dziękujemy za zakupy!</p>
-        <p className="text-sm text-gray-500 mt-1">Zapraszamy ponownie</p>
+      {/* Footer */}
+      <div style={styles.footer}>
+        <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#374151' }}>Dziękujemy za zakupy!</div>
+        <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>Zapraszamy ponownie</div>
       </div>
 
       {/* Signatures */}
-      <div className="grid grid-cols-2 gap-8 mt-8 pt-6">
-        <div className="text-center">
-          <div className="border-t border-gray-400 pt-2 mt-8">
-            <p className="text-xs text-gray-500">Podpis sprzedawcy</p>
-          </div>
+      <div style={styles.signatures}>
+        <div style={styles.signatureLine}>
+          Podpis sprzedawcy
         </div>
-        <div className="text-center">
-          <div className="border-t border-gray-400 pt-2 mt-8">
-            <p className="text-xs text-gray-500">Podpis nabywcy</p>
-          </div>
+        <div style={styles.signatureLine}>
+          Podpis nabywcy
         </div>
       </div>
 
       {/* Print Button */}
-      <div className="no-print mt-8 text-center space-x-4">
+      <div className="no-print" style={styles.noPrint}>
         <button
           onClick={() => window.print()}
-          className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-sans text-sm"
+          style={{
+            padding: '10px 24px',
+            backgroundColor: '#16a34a',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '14px',
+            cursor: 'pointer',
+            marginRight: '12px',
+          }}
         >
           Drukuj dowód wydania
         </button>
         <button
           onClick={() => window.history.back()}
-          className="px-6 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-sans text-sm"
+          style={{
+            padding: '10px 24px',
+            backgroundColor: '#e5e7eb',
+            color: '#374151',
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '14px',
+            cursor: 'pointer',
+          }}
         >
           Powrót
         </button>

@@ -10,7 +10,7 @@ interface InvoiceItem {
   totalNet: number;
   totalGross: number;
   vatRate: number;
-  vatAmount: number;
+  totalVat: number;
   unitsPerPallet?: number;
   growerPassport?: string;
 }
@@ -52,6 +52,7 @@ interface InvoiceData {
   totalVat: number;
   totalGross: number;
   paidAmount: number;
+  paidAt?: string;
   notes?: string;
   buyerInfo?: BuyerInfo;
   recipientInfo?: RecipientInfo;
@@ -85,6 +86,14 @@ const defaultSellerInfo = {
   bankName: "Bank Przykładowy S.A.",
 };
 
+// VAT summary by rate
+interface VatSummaryRow {
+  rate: number;
+  netValue: number;
+  vatAmount: number;
+  grossValue: number;
+}
+
 export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: InvoiceTemplateProps) {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("pl-PL", {
@@ -115,17 +124,16 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
   };
 
   const getBuyerName = () => {
-    let name = '';
+    let name = "";
     if (data.buyerInfo?.companyName) {
       name = data.buyerInfo.companyName;
     } else if (data.buyerInfo?.firstName || data.buyerInfo?.lastName) {
       name = `${data.buyerInfo.firstName || ""} ${data.buyerInfo.lastName || ""}`.trim();
     } else {
-      name = 'Nabywca';
+      name = "Nabywca";
     }
-    // Add customerCode prefix if available
     if (data.buyerInfo?.customerCode) {
-      return '[' + data.buyerInfo.customerCode + '] ' + name;
+      return "[" + data.buyerInfo.customerCode + "] " + name;
     }
     return name;
   };
@@ -138,7 +146,6 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
     return "";
   };
 
-  // Check if recipient is different from buyer
   const hasRecipient = data.recipientInfo && (
     data.recipientInfo.companyName ||
     data.recipientInfo.firstName ||
@@ -146,200 +153,567 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
     data.recipientInfo.address
   );
 
-  const totalQuantity = data.items?.reduce((sum, item) => sum + item.quantity, 0);
+  const totalQuantity = data.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+
+  // Calculate VAT summary by rate with rounding adjustment
+  const calculateVatSummary = (): VatSummaryRow[] => {
+    const vatMap = new Map<number, VatSummaryRow>();
+    
+    data.items?.forEach(item => {
+      const rate = item.vatRate;
+      const existing = vatMap.get(rate);
+      
+      if (existing) {
+        existing.netValue += Number(item.totalNet) || 0;
+        existing.vatAmount += Number(item.totalVat) || 0;
+        existing.grossValue += Number(item.totalGross) || 0;
+      } else {
+        vatMap.set(rate, {
+          rate,
+          netValue: Number(item.totalNet) || 0,
+          vatAmount: Number(item.totalVat) || 0,
+          grossValue: Number(item.totalGross) || 0,
+        });
+      }
+    });
+
+    // Sort by VAT rate descending
+    const rows = Array.from(vatMap.values()).sort((a, b) => b.rate - a.rate);
+    
+    // Adjust for rounding differences - use invoice totals as source of truth
+    if (rows.length > 0) {
+      const sumNet = rows.reduce((sum, r) => sum + r.netValue, 0);
+      const sumVat = rows.reduce((sum, r) => sum + r.vatAmount, 0);
+      const sumGross = rows.reduce((sum, r) => sum + r.grossValue, 0);
+      
+      const diffNet = (Number(data.subtotalNet) || 0) - sumNet;
+      const diffVat = (Number(data.totalVat) || 0) - sumVat;
+      const diffGross = (Number(data.totalGross) || 0) - sumGross;
+      
+      // Apply rounding adjustment to the first (highest) rate row
+      if (Math.abs(diffNet) < 1 && Math.abs(diffVat) < 1 && Math.abs(diffGross) < 1) {
+        rows[0].netValue += diffNet;
+        rows[0].vatAmount += diffVat;
+        rows[0].grossValue += diffGross;
+      }
+    }
+    
+    return rows;
+  };
+
+  const vatSummary = calculateVatSummary();
+  const remainingToPay = data.totalGross - data.paidAmount;
+
+  // Calculate adjusted item values to match invoice totals (handles rounding differences)
+  const getAdjustedItems = () => {
+    if (!data.items || data.items.length === 0) return [];
+    
+    // Calculate raw sums from items
+    const rawSumNet = data.items.reduce((sum, item) => sum + (Number(item.totalNet) || 0), 0);
+    const rawSumVat = data.items.reduce((sum, item) => sum + (Number(item.totalVat) || 0), 0);
+    const rawSumGross = data.items.reduce((sum, item) => sum + (Number(item.totalGross) || 0), 0);
+    
+    // Get invoice totals
+    const invoiceNet = Number(data.subtotalNet) || 0;
+    const invoiceVat = Number(data.totalVat) || 0;
+    const invoiceGross = Number(data.totalGross) || 0;
+    
+    // If sums match (within tolerance), return items as-is
+    if (Math.abs(rawSumNet - invoiceNet) < 0.01 && 
+        Math.abs(rawSumVat - invoiceVat) < 0.01 && 
+        Math.abs(rawSumGross - invoiceGross) < 0.01) {
+      return data.items.map(item => ({
+        ...item,
+        adjustedNet: Number(item.totalNet) || 0,
+        adjustedVat: Number(item.totalVat) || 0,
+        adjustedGross: Number(item.totalGross) || 0,
+      }));
+    }
+    
+    // Adjust values proportionally
+    const netRatio = rawSumNet > 0 ? invoiceNet / rawSumNet : 1;
+    const vatRatio = rawSumVat > 0 ? invoiceVat / rawSumVat : 1;
+    const grossRatio = rawSumGross > 0 ? invoiceGross / rawSumGross : 1;
+    
+    let adjustedItems = data.items.map(item => ({
+      ...item,
+      adjustedNet: (Number(item.totalNet) || 0) * netRatio,
+      adjustedVat: (Number(item.totalVat) || 0) * vatRatio,
+      adjustedGross: (Number(item.totalGross) || 0) * grossRatio,
+    }));
+    
+    // Final adjustment to ensure exact match (apply difference to last item)
+    if (adjustedItems.length > 0) {
+      const sumAdjNet = adjustedItems.reduce((sum, item) => sum + item.adjustedNet, 0);
+      const sumAdjVat = adjustedItems.reduce((sum, item) => sum + item.adjustedVat, 0);
+      const sumAdjGross = adjustedItems.reduce((sum, item) => sum + item.adjustedGross, 0);
+      
+      const lastItem = adjustedItems[adjustedItems.length - 1];
+      lastItem.adjustedNet += invoiceNet - sumAdjNet;
+      lastItem.adjustedVat += invoiceVat - sumAdjVat;
+      lastItem.adjustedGross += invoiceGross - sumAdjGross;
+    }
+    
+    return adjustedItems;
+  };
+  
+  const adjustedItems = getAdjustedItems();
+
+  // Inline styles for print compatibility
+  const styles = {
+    container: {
+      fontFamily: "'Segoe UI', Arial, sans-serif",
+      fontSize: "11px",
+      color: "#1f2937",
+      backgroundColor: "#ffffff",
+      padding: "8mm",
+      width: "190mm",
+      maxWidth: "190mm",
+      margin: "0 auto",
+      boxSizing: "border-box" as const,
+    },
+    header: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      marginBottom: "20px",
+      paddingBottom: "15px",
+      borderBottom: "2px solid #d1d5db",
+    },
+    title: {
+      fontSize: "22px",
+      fontWeight: "bold" as const,
+      color: "#1f2937",
+      margin: "0",
+    },
+    invoiceNumber: {
+      fontSize: "18px",
+      fontWeight: "bold" as const,
+      color: "#2563eb",
+      marginTop: "4px",
+    },
+    dateInfo: {
+      textAlign: "right" as const,
+      fontSize: "11px",
+    },
+    partiesGrid: {
+      display: "grid",
+      gridTemplateColumns: hasRecipient ? "1fr 1fr 1fr" : "1fr 1fr",
+      gap: "12px",
+      marginBottom: "20px",
+    },
+    partyBox: {
+      padding: "12px",
+      borderRadius: "6px",
+      fontSize: "11px",
+    },
+    sellerBox: {
+      backgroundColor: "#f9fafb",
+    },
+    buyerBox: {
+      backgroundColor: "#eff6ff",
+      border: "1px solid #bfdbfe",
+    },
+    recipientBox: {
+      backgroundColor: "#f0fdf4",
+      border: "1px solid #bbf7d0",
+    },
+    partyLabel: {
+      fontSize: "9px",
+      fontWeight: "600" as const,
+      color: "#6b7280",
+      textTransform: "uppercase" as const,
+      marginBottom: "6px",
+    },
+    partyName: {
+      fontWeight: "bold" as const,
+      fontSize: "12px",
+      marginBottom: "2px",
+    },
+    table: {
+      width: "100%",
+      borderCollapse: "collapse" as const,
+      fontSize: "10px",
+      marginBottom: "16px",
+      tableLayout: "fixed" as const,
+    },
+    th: {
+      border: "1px solid #d1d5db",
+      padding: "6px 4px",
+      backgroundColor: "#f3f4f6",
+      fontWeight: "600" as const,
+      textAlign: "center" as const,
+    },
+    td: {
+      border: "1px solid #d1d5db",
+      padding: "5px 4px",
+      verticalAlign: "top" as const,
+    },
+    vatTable: {
+      width: "100%",
+      borderCollapse: "collapse" as const,
+      fontSize: "10px",
+      marginBottom: "16px",
+    },
+    vatTh: {
+      border: "1px solid #d1d5db",
+      padding: "5px 8px",
+      backgroundColor: "#f3f4f6",
+      fontWeight: "600" as const,
+      textAlign: "center" as const,
+      fontSize: "9px",
+    },
+    vatTd: {
+      border: "1px solid #d1d5db",
+      padding: "4px 8px",
+      textAlign: "right" as const,
+      fontSize: "10px",
+    },
+    summaryGrid: {
+      display: "grid",
+      gridTemplateColumns: "1fr auto",
+      gap: "20px",
+      marginBottom: "20px",
+      alignItems: "start",
+    },
+    totalBox: {
+      backgroundColor: "#f8fafc",
+      padding: "10px 14px",
+      borderRadius: "6px",
+      border: "1px solid #e2e8f0",
+      minWidth: "180px",
+    },
+    totalLabel: {
+      fontSize: "8px",
+      fontWeight: "600" as const,
+      color: "#64748b",
+      textTransform: "uppercase" as const,
+      marginBottom: "2px",
+    },
+    totalRow: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: "3px 0",
+      fontSize: "10px",
+    },
+    remainingAmount: {
+      fontSize: "14px",
+      fontWeight: "bold" as const,
+      color: "#2563eb",
+    },
+    signatures: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "24px",
+      marginTop: "40px",
+      paddingTop: "20px",
+    },
+    signatureLine: {
+      borderTop: "1px solid #9ca3af",
+      paddingTop: "6px",
+      marginTop: "40px",
+      textAlign: "center" as const,
+      fontSize: "9px",
+      color: "#6b7280",
+    },
+    noPrint: {
+      marginTop: "24px",
+      textAlign: "center" as const,
+    },
+  };
 
   return (
-    <div className="invoice-template bg-white text-black p-8 max-w-[210mm] mx-auto font-sans text-sm">
+    <div style={styles.container} className="invoice-template">
       <style>{`
         @media print {
-          @page { size: A4; margin: 10mm; }
-          body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .invoice-template { max-width: 100% !important; padding: 0 !important; }
+          @page { 
+            size: A4 portrait; 
+            margin: 8mm; 
+          }
+          html, body {
+            width: 210mm;
+            height: 297mm;
+            margin: 0;
+            padding: 0;
+          }
+          .invoice-template {
+            width: 194mm !important;
+            max-width: 194mm !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            font-size: 10px !important;
+          }
           .no-print { display: none !important; }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+        }
+        @media screen {
+          .invoice-template {
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+          }
         }
       `}</style>
 
       {/* Header */}
-      <div className="flex justify-between items-start mb-6 pb-4 border-b-2 border-gray-300">
+      <div style={styles.header}>
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">FAKTURA VAT</h1>
-          <p className="text-xl font-bold text-blue-600 mt-1">{data.invoiceNumber}</p>
+          <h1 style={styles.title}>FAKTURA VAT</h1>
+          <div style={styles.invoiceNumber}>{data.invoiceNumber}</div>
           {data.orderNumber && (
-            <p className="text-sm text-gray-500 mt-1">Zamówienie: {data.orderNumber}</p>
+            <div style={{ fontSize: "10px", color: "#6b7280", marginTop: "4px" }}>
+              Zamówienie: {data.orderNumber}
+            </div>
           )}
         </div>
-        <div className="text-right text-sm">
-          <p>Data wystawienia: <span className="font-semibold">{formatDate(data.issueDate)}</span></p>
-          <p>Data sprzedaży: <span className="font-semibold">{formatDate(data.saleDate)}</span></p>
+        <div style={styles.dateInfo}>
+          <div>Data wystawienia: <strong>{formatDate(data.issueDate)}</strong></div>
+          <div>Data sprzedaży: <strong>{formatDate(data.saleDate)}</strong></div>
           {data.paymentDeadline && (
-            <p>Termin płatności: <span className="font-semibold">{formatDate(data.paymentDeadline)}</span></p>
+            <div>Termin płatności: <strong>{formatDate(data.paymentDeadline)}</strong></div>
           )}
         </div>
       </div>
 
-      {/* Seller, Buyer & Recipient */}
-      <div className={`grid ${hasRecipient ? 'grid-cols-3' : 'grid-cols-2'} gap-4 mb-6`}>
-        {/* Sprzedawca */}
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Sprzedawca</h3>
-          <p className="font-bold">{sellerInfo.name}</p>
-          <p className="text-sm">{sellerInfo.address}</p>
-          <p className="text-sm">{sellerInfo.postalCode} {sellerInfo.city}</p>
-          <p className="text-sm mt-2">NIP: <span className="font-semibold">{sellerInfo.nip}</span></p>
-          {sellerInfo.phone && <p className="text-sm">Tel: {sellerInfo.phone}</p>}
-          {sellerInfo.email && <p className="text-sm">Email: {sellerInfo.email}</p>}
+      {/* Parties */}
+      <div style={styles.partiesGrid}>
+        <div style={{ ...styles.partyBox, ...styles.sellerBox }}>
+          <div style={styles.partyLabel}>Sprzedawca</div>
+          <div style={styles.partyName}>{sellerInfo.name}</div>
+          <div>{sellerInfo.address}</div>
+          <div>{sellerInfo.postalCode} {sellerInfo.city}</div>
+          <div style={{ marginTop: "6px" }}>NIP: <strong>{sellerInfo.nip}</strong></div>
+          {sellerInfo.phone && <div>Tel: {sellerInfo.phone}</div>}
+          {sellerInfo.email && <div>Email: {sellerInfo.email}</div>}
         </div>
 
-        {/* Nabywca */}
-        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Nabywca</h3>
-          <p className="font-bold text-base">{getBuyerName()}</p>
-          {data.buyerInfo?.address && <p className="text-sm">{data.buyerInfo.address}</p>}
+        <div style={{ ...styles.partyBox, ...styles.buyerBox }}>
+          <div style={styles.partyLabel}>Nabywca</div>
+          <div style={styles.partyName}>{getBuyerName()}</div>
+          {data.buyerInfo?.address && <div>{data.buyerInfo.address}</div>}
           {(data.buyerInfo?.postalCode || data.buyerInfo?.city) && (
-            <p className="text-sm">{data.buyerInfo.postalCode} {data.buyerInfo.city}</p>
+            <div>{data.buyerInfo.postalCode} {data.buyerInfo.city}</div>
           )}
           {data.buyerInfo?.nip && (
-            <p className="text-sm mt-2">NIP: <span className="font-semibold">{data.buyerInfo.nip}</span></p>
+            <div style={{ marginTop: "6px" }}>NIP: <strong>{data.buyerInfo.nip}</strong></div>
           )}
         </div>
 
-        {/* Odbiorca (opcjonalny) */}
         {hasRecipient && (
-          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Odbiorca</h3>
-            <p className="font-bold text-base">{getRecipientName()}</p>
-            {data.recipientInfo?.address && <p className="text-sm">{data.recipientInfo.address}</p>}
+          <div style={{ ...styles.partyBox, ...styles.recipientBox }}>
+            <div style={styles.partyLabel}>Odbiorca</div>
+            <div style={styles.partyName}>{getRecipientName()}</div>
+            {data.recipientInfo?.address && <div>{data.recipientInfo.address}</div>}
             {(data.recipientInfo?.postalCode || data.recipientInfo?.city) && (
-              <p className="text-sm">{data.recipientInfo.postalCode} {data.recipientInfo.city}</p>
+              <div>{data.recipientInfo.postalCode} {data.recipientInfo.city}</div>
             )}
             {data.recipientInfo?.phone && (
-              <p className="text-sm mt-2">Tel: <span className="font-semibold">{data.recipientInfo.phone}</span></p>
+              <div style={{ marginTop: "6px" }}>Tel: <strong>{data.recipientInfo.phone}</strong></div>
             )}
           </div>
         )}
       </div>
 
-      {/* Items */}
-      <div className="mb-6">
-        <table className="w-full border-collapse text-xs">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="border border-gray-300 p-2 text-left w-8">Lp.</th>
-              <th className="border border-gray-300 p-2 text-left">Nazwa</th>
-              <th className="border border-gray-300 p-2 text-center w-10">Ilość</th>
-              <th className="border border-gray-300 p-2 text-center w-10">J.m.</th>
-              <th className="border border-gray-300 p-2 text-right w-16">Cena netto</th>
-              <th className="border border-gray-300 p-2 text-center w-10">VAT</th>
-              <th className="border border-gray-300 p-2 text-right w-14">Wart. netto</th>
-              <th className="border border-gray-300 p-2 text-right w-12">Wart. VAT</th>
-              <th className="border border-gray-300 p-2 text-right w-16">Wart. brutto</th>
+      {/* Items Table */}
+      <table style={styles.table}>
+        <colgroup>
+          <col style={{ width: "4%" }} />
+          <col style={{ width: "31%" }} />
+          <col style={{ width: "6%" }} />
+          <col style={{ width: "5%" }} />
+          <col style={{ width: "9%" }} />
+          <col style={{ width: "9%" }} />
+          <col style={{ width: "5%" }} />
+          <col style={{ width: "10%" }} />
+          <col style={{ width: "10%" }} />
+          <col style={{ width: "11%" }} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th style={styles.th}>Lp.</th>
+            <th style={{ ...styles.th, textAlign: "left" }}>Nazwa towaru/usługi</th>
+            <th style={styles.th}>Ilość</th>
+            <th style={styles.th}>J.m.</th>
+            <th style={styles.th}><div>Cena</div><div>netto</div></th>
+            <th style={styles.th}><div>Cena</div><div>brutto</div></th>
+            <th style={styles.th}>VAT%</th>
+            <th style={styles.th}>Kwota netto</th>
+            <th style={styles.th}>Kwota VAT</th>
+            <th style={styles.th}><div>Kwota</div><div>brutto</div></th>
+          </tr>
+        </thead>
+        <tbody>
+          {adjustedItems.map((item, index) => (
+            <tr key={index}>
+              <td style={{ ...styles.td, textAlign: "center" }}>{index + 1}</td>
+              <td style={{ ...styles.td, textAlign: "left" }}>
+                <div style={{ fontWeight: "500" }}>{item.name}</div>
+                {item.growerPassport && (
+                  <div style={{ fontSize: "8px", color: "#6b7280" }}>Paszport: {item.growerPassport}</div>
+                )}
+                <div style={{ fontSize: "8px", color: "#6b7280" }}>PKWiU: 01.30.10.0</div>
+              </td>
+              <td style={{ ...styles.td, textAlign: "center", fontWeight: "600" }}>{item.quantity}</td>
+              <td style={{ ...styles.td, textAlign: "center" }}>{item.unit}</td>
+              <td style={{ ...styles.td, textAlign: "right" }}>{(Number(item.unitPriceNet) || 0).toFixed(2)}</td>
+              <td style={{ ...styles.td, textAlign: "right" }}>{(Number(item.unitPriceGross) || 0).toFixed(2)}</td>
+              <td style={{ ...styles.td, textAlign: "center" }}>{item.vatRate}%</td>
+              <td style={{ ...styles.td, textAlign: "right" }}>{item.adjustedNet.toFixed(2)}</td>
+              <td style={{ ...styles.td, textAlign: "right" }}>{item.adjustedVat.toFixed(2)}</td>
+              <td style={{ ...styles.td, textAlign: "right", fontWeight: "600" }}>{item.adjustedGross.toFixed(2)}</td>
             </tr>
-          </thead>
-          <tbody>
-            {data.items?.map((item, index) => {
-              return (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="border border-gray-300 p-2 text-center">{index + 1}</td>
-                  <td className="border border-gray-300 p-2"><div>{item.name}</div>{item.growerPassport && <div className="text-gray-500 text-[10px]">Paszport: {item.growerPassport}</div>}<div className="text-gray-500 text-[10px]">PKWiU: 01.30.10.0</div></td>
-                  <td className="border border-gray-300 p-2 text-center font-semibold">{item.quantity}</td>
-                  <td className="border border-gray-300 p-2 text-center">{item.unit}</td>
-                  <td className="border border-gray-300 p-2 text-right">{(Number(item.unitPriceNet) || 0).toFixed(2)}</td>
-                  <td className="border border-gray-300 p-2 text-center">{item.vatRate}%</td>
-                  <td className="border border-gray-300 p-2 text-right">{(Number(item.totalNet) || 0).toFixed(2)}</td>
-                  <td className="border border-gray-300 p-2 text-right">{(Number(item.vatAmount) || 0).toFixed(2)}</td>
-                  <td className="border border-gray-300 p-2 text-right font-semibold">{(Number(item.totalGross) || 0).toFixed(2)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-          <tfoot>
-            <tr className="bg-gray-100 font-bold">
-              <td colSpan={2} className="border border-gray-300 p-2 text-right">RAZEM:</td>
-              <td className="border border-gray-300 p-2 text-center">{totalQuantity}</td>
-              <td colSpan={3} className="border border-gray-300 p-2"></td>
-              <td className="border border-gray-300 p-2 text-right">{(Number(data.subtotalNet) || 0).toFixed(2)} zł</td>
-              <td className="border border-gray-300 p-2 text-right">{(Number(data.totalVat) || 0).toFixed(2)} zł</td>
-              <td className="border border-gray-300 p-2 text-right text-blue-600">{(Number(data.totalGross) || 0).toFixed(2)} zł</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr style={{ backgroundColor: "#f3f4f6", fontWeight: "bold" }}>
+            <td colSpan={2} style={{ ...styles.td, textAlign: "right" }}>RAZEM:</td>
+            <td style={{ ...styles.td, textAlign: "center" }}>{totalQuantity}</td>
+            <td colSpan={4} style={styles.td}></td>
+            <td style={{ ...styles.td, textAlign: "right" }}>{(Number(data.subtotalNet) || 0).toFixed(2)} zł</td>
+            <td style={{ ...styles.td, textAlign: "right" }}>{(Number(data.totalVat) || 0).toFixed(2)} zł</td>
+            <td style={{ ...styles.td, textAlign: "right", color: "#2563eb" }}>{(Number(data.totalGross) || 0).toFixed(2)} zł</td>
+          </tr>
+        </tfoot>
+      </table>
 
-      {/* Summary */}
-      <div className="grid grid-cols-2 gap-8 mb-6">
+      {/* VAT Summary Table + Payment Box */}
+      <div style={styles.summaryGrid}>
+        {/* Left side - VAT Summary Table + Payment Info */}
         <div>
-          <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Płatność</h3>
-          {/* Display payment splits if available */}
-          {data.paymentSplits && data.paymentSplits.length > 1 ? (
-            <div className="space-y-1">
-              <p className="text-sm font-semibold">Płatność podzielona:</p>
-              {data.paymentSplits.map((split, index) => (
-                <p key={index} className="text-sm pl-2">
-                  • {getPaymentMethodLabel(split.paymentMethod)}: <span className="font-semibold">{(Number(split.amount) || 0).toFixed(2)} zł</span>
-                </p>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm">Forma: <span className="font-semibold">{getPaymentMethodLabel(data.paymentMethod)}</span></p>
-          )}
-          <p className="text-sm mt-1">Status: <span className="font-semibold">{getPaymentStatusLabel(data.paymentStatus)}</span></p>
-          {data.paidAmount > 0 && data.paidAmount < data.totalGross && (
-            <p className="text-sm">Zapłacono: <span className="font-semibold">{(Number(data.paidAmount) || 0).toFixed(2)} zł</span></p>
-          )}
-          {sellerInfo.bankAccount && (
-            <div className="mt-3 p-3 bg-gray-50 rounded text-xs">
-              <p className="font-semibold">{sellerInfo.bankName}</p>
-              <p className="font-mono mt-1">{sellerInfo.bankAccount}</p>
-            </div>
-          )}
-          {sellerInfo.invoiceComment && (
-            <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs">
-              <p className="text-yellow-700">{sellerInfo.invoiceComment}</p>
-            </div>
-          )}
-        </div>
-        <div className="flex justify-end">
-          <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200 w-64">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Do zapłaty</h3>
-            <div className="text-3xl font-bold text-blue-600">
-              {(data.totalGross - data.paidAmount).toFixed(2)} PLN
-            </div>
-            {data.paymentDeadline && (
-              <div className="text-xs text-gray-500 mt-1">
-                Termin: {formatDate(data.paymentDeadline)}
+          {/* VAT Summary by Rate */}
+          <div style={{ marginBottom: "16px" }}>
+            <div style={{ ...styles.partyLabel, marginBottom: "6px" }}>Podsumowanie stawek VAT</div>
+            <table style={styles.vatTable}>
+              <thead>
+                <tr>
+                  <th style={{ ...styles.vatTh, width: "20%" }}>Stawka VAT</th>
+                  <th style={{ ...styles.vatTh, width: "26%" }}>Netto</th>
+                  <th style={{ ...styles.vatTh, width: "26%" }}>VAT</th>
+                  <th style={{ ...styles.vatTh, width: "31%" }}>Brutto</th>
+                </tr>
+              </thead>
+              <tbody>
+                {vatSummary.map((row, index) => (
+                  <tr key={index}>
+                    <td style={{ ...styles.vatTd, textAlign: "center", fontWeight: "600" }}>{row.rate}%</td>
+                    <td style={styles.vatTd}>{row.netValue.toFixed(2)} zł</td>
+                    <td style={styles.vatTd}>{row.vatAmount.toFixed(2)} zł</td>
+                    <td style={{ ...styles.vatTd, fontWeight: "600" }}>{row.grossValue.toFixed(2)} zł</td>
+                  </tr>
+                ))}
+                <tr style={{ backgroundColor: "#f8fafc", fontWeight: "bold" }}>
+                  <td style={{ ...styles.vatTd, textAlign: "center" }}>RAZEM</td>
+                  <td style={styles.vatTd}>{(Number(data.subtotalNet) || 0).toFixed(2)} zł</td>
+                  <td style={styles.vatTd}>{(Number(data.totalVat) || 0).toFixed(2)} zł</td>
+                  <td style={{ ...styles.vatTd, color: "#2563eb" }}>{(Number(data.totalGross) || 0).toFixed(2)} zł</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Payment Info */}
+          <div style={{ fontSize: "10px" }}>
+            <div style={styles.partyLabel}>Płatność</div>
+            {data.paymentSplits && data.paymentSplits.length > 1 ? (
+              <div>
+                <div style={{ fontWeight: "600", marginBottom: "4px" }}>Płatność podzielona:</div>
+                {data.paymentSplits.map((split, index) => (
+                  <div key={index} style={{ paddingLeft: "8px" }}>
+                    • {getPaymentMethodLabel(split.paymentMethod)}: <strong>{(Number(split.amount) || 0).toFixed(2)} zł</strong>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div>Forma: <strong>{getPaymentMethodLabel(data.paymentMethod)}</strong></div>
+            )}
+            <div style={{ marginTop: "4px" }}>Status: <strong>{getPaymentStatusLabel(data.paymentStatus)}</strong></div>
+            
+            {sellerInfo.bankAccount && (
+              <div style={{ marginTop: "10px", padding: "10px", backgroundColor: "#f9fafb", borderRadius: "4px", fontSize: "10px" }}>
+                <div style={{ fontWeight: "600" }}>{sellerInfo.bankName}</div>
+                <div style={{ fontFamily: "monospace", marginTop: "4px" }}>{sellerInfo.bankAccount}</div>
+              </div>
+            )}
+            {sellerInfo.invoiceComment && (
+              <div style={{ marginTop: "10px", padding: "10px", backgroundColor: "#fefce8", border: "1px solid #fde047", borderRadius: "4px", fontSize: "10px", color: "#854d0e" }}>
+                {sellerInfo.invoiceComment}
               </div>
             )}
           </div>
+        </div>
+
+        {/* Right side - Payment Summary Box */}
+        <div style={styles.totalBox}>
+          <div style={styles.totalLabel}>Podsumowanie płatności</div>
+          
+          <div style={{ ...styles.totalRow, borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", marginBottom: "6px" }}>
+            <span>Wartość faktury:</span>
+            <strong>{(Number(data.totalGross) || 0).toFixed(2)} zł</strong>
+          </div>
+          
+          <div style={styles.totalRow}>
+            <span>Zapłacono:</span>
+            <strong>{(Number(data.paidAmount) || 0).toFixed(2)} zł</strong>
+          </div>
+          
+          {data.paidAt && data.paidAmount > 0 && (
+            <div style={{ ...styles.totalRow, fontSize: "9px", color: "#64748b" }}>
+              <span>Data zapłaty:</span>
+              <span>{formatDate(data.paidAt)}</span>
+            </div>
+          )}
+          
+          <div style={{ ...styles.totalRow, borderTop: "1px solid #e2e8f0", paddingTop: "8px", marginTop: "8px" }}>
+            <span style={{ fontWeight: "600" }}>Pozostało do zapłaty:</span>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <span style={styles.remainingAmount}>
+              {remainingToPay.toFixed(2)} PLN
+            </span>
+          </div>
+          
+          {data.paymentDeadline && remainingToPay > 0 && (
+            <div style={{ fontSize: "9px", color: "#64748b", marginTop: "6px", textAlign: "right" }}>
+              Termin: {formatDate(data.paymentDeadline)}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Notes */}
       {data.notes && (
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Uwagi</h3>
-          <p className="text-sm">{data.notes}</p>
+        <div style={{ marginBottom: "20px", padding: "12px", backgroundColor: "#f9fafb", borderRadius: "6px" }}>
+          <div style={styles.partyLabel}>Uwagi</div>
+          <div>{data.notes}</div>
         </div>
       )}
 
       {/* Signatures */}
-      <div className="grid grid-cols-2 gap-8 mt-12 pt-6">
-        <div className="text-center">
-          <div className="border-t border-gray-400 pt-2 mt-12">
-            <p className="text-xs text-gray-500">Podpis osoby upoważnionej do wystawienia</p>
-          </div>
+      <div style={styles.signatures}>
+        <div style={styles.signatureLine}>
+          Podpis osoby upoważnionej do wystawienia
         </div>
-        <div className="text-center">
-          <div className="border-t border-gray-400 pt-2 mt-12">
-            <p className="text-xs text-gray-500">Podpis osoby upoważnionej do odbioru</p>
-          </div>
+        <div style={styles.signatureLine}>
+          Podpis osoby upoważnionej do odbioru
         </div>
       </div>
 
       {/* Print Button */}
-      <div className="no-print mt-8 text-center">
+      <div className="no-print" style={styles.noPrint}>
         <button
           onClick={() => window.print()}
-          className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-sans text-sm"
+          style={{
+            padding: "10px 24px",
+            backgroundColor: "#2563eb",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            fontSize: "14px",
+            cursor: "pointer",
+          }}
         >
           Drukuj fakturę
         </button>
