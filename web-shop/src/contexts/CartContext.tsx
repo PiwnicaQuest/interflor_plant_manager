@@ -1,7 +1,8 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
 import type { CartItem, Product } from '../types';
 import { useAuth } from './AuthContext';
+import { api } from '../services/api';
 
 interface CartContextType {
   items: CartItem[];
@@ -12,48 +13,74 @@ interface CartContextType {
   totalItems: number;
   totalPallets: number;
   totalPrice: number;
+  isLoading: boolean;
 }
 
 const CartContext = createContext<CartContextType | null>(null);
 
-// Get cart storage key for specific user
-const getCartKey = (userId: number | null) => {
-  return userId ? `shop_cart_user_${userId}` : null;
-};
-
 export function CartProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated } = useAuth();
   const [items, setItems] = useState<CartItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isInitialLoad = useRef(true);
 
-  // Load cart when user changes
+  // Load cart from API when user logs in
   useEffect(() => {
-    if (isAuthenticated && user?.id) {
-      const cartKey = getCartKey(user.id);
-      if (cartKey) {
-        const saved = localStorage.getItem(cartKey);
-        setItems(saved ? JSON.parse(saved) : []);
+    const loadCart = async () => {
+      if (isAuthenticated && user?.id) {
+        setIsLoading(true);
+        try {
+          const response = await api.getCart();
+          setItems(response.cart || []);
+        } catch (error) {
+          console.error('Failed to load cart from server:', error);
+          setItems([]);
+        } finally {
+          setIsLoading(false);
+          isInitialLoad.current = false;
+        }
+      } else {
+        setItems([]);
+        isInitialLoad.current = true;
       }
-    } else {
-      // Not authenticated - clear cart state
-      setItems([]);
-    }
+    };
+
+    loadCart();
   }, [user?.id, isAuthenticated]);
 
-  // Save cart when items change (only for authenticated users)
+  // Save cart to API when items change (debounced)
   useEffect(() => {
-    if (isAuthenticated && user?.id) {
-      const cartKey = getCartKey(user.id);
-      if (cartKey) {
-        localStorage.setItem(cartKey, JSON.stringify(items));
-      }
+    // Skip saving on initial load
+    if (isInitialLoad.current) return;
+    if (!isAuthenticated || !user?.id) return;
+
+    // Clear previous timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
     }
+
+    // Debounce save to avoid too many API calls
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        await api.saveCart(items);
+      } catch (error) {
+        console.error('Failed to save cart to server:', error);
+      }
+    }, 500);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, [items, user?.id, isAuthenticated]);
 
   const getUnitsPerPallet = (product: Product) => product.unitsPerPallet || 1;
   const getMaxPallets = (product: Product) => product.palletCount || Math.floor(product.availableUnits / getUnitsPerPallet(product));
 
   const addItem = useCallback((product: Product, palletCount = 1) => {
-    if (!isAuthenticated) return; // Don't allow adding if not authenticated
+    if (!isAuthenticated) return;
 
     const unitsPerPallet = getUnitsPerPallet(product);
     const maxPallets = getMaxPallets(product);
@@ -96,16 +123,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   }, [removeItem]);
 
-  const clearCart = useCallback(() => {
+  const clearCart = useCallback(async () => {
     setItems([]);
-    // Also clear from localStorage
-    if (user?.id) {
-      const cartKey = getCartKey(user.id);
-      if (cartKey) {
-        localStorage.removeItem(cartKey);
+    if (isAuthenticated && user?.id) {
+      try {
+        await api.clearCartApi();
+      } catch (error) {
+        console.error('Failed to clear cart on server:', error);
       }
     }
-  }, [user?.id]);
+  }, [user?.id, isAuthenticated]);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalPallets = items.reduce((sum, item) => {
@@ -124,6 +151,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       totalItems,
       totalPallets,
       totalPrice,
+      isLoading,
     }}>
       {children}
     </CartContext.Provider>

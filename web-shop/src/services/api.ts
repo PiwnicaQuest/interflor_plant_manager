@@ -201,6 +201,31 @@ class ApiService {
     });
     return this.handleResponse(response);
   }
+
+  // Cart persistence API
+  async getCart(): Promise<{ cart: Array<{ product: any; quantity: number }> }> {
+    const response = await fetch(API_URL + "/shop/cart", {
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  async saveCart(cart: Array<{ product: any; quantity: number }>): Promise<{ success: boolean }> {
+    const response = await fetch(API_URL + "/shop/cart", {
+      method: "PUT",
+      headers: this.getHeaders(),
+      body: JSON.stringify({ cart }),
+    });
+    return this.handleResponse(response);
+  }
+
+  async clearCartApi(): Promise<{ success: boolean }> {
+    const response = await fetch(API_URL + "/shop/cart", {
+      method: "DELETE",
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
 }
 
 export const api = new ApiService();

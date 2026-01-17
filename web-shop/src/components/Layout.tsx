@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
+import { CartDrawer } from './CartDrawer';
 import { ROLE_LABELS } from '../types';
 
 export function Layout() {
@@ -9,6 +10,7 @@ export function Layout() {
   const { totalItems } = useCart();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -84,7 +86,7 @@ export function Layout() {
                   </a>
 
                   {/* Cart - Desktop */}
-                  <Link to="/cart" className="relative p-2 text-gray-600 hover:text-green-600">
+                  <button onClick={() => setIsCartDrawerOpen(true)} className="relative p-2 text-gray-600 hover:text-green-600">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
@@ -93,7 +95,7 @@ export function Layout() {
                         {totalItems}
                       </span>
                     )}
-                  </Link>
+                  </button>
                 </>
               )}
 
@@ -126,7 +128,7 @@ export function Layout() {
             <div className="flex md:hidden items-center gap-2">
               {/* Cart - Mobile (always visible when authenticated) */}
               {isAuthenticated && (
-                <Link to="/cart" className="relative p-2 text-gray-600 hover:text-green-600" onClick={closeMobileMenu}>
+                <button onClick={() => { setIsCartDrawerOpen(true); closeMobileMenu(); }} className="relative p-2 text-gray-600 hover:text-green-600">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
@@ -135,7 +137,7 @@ export function Layout() {
                       {totalItems}
                     </span>
                   )}
-                </Link>
+                </button>
               )}
 
               {/* Hamburger Button */}
@@ -204,13 +206,12 @@ export function Layout() {
                     </svg>
                     <span>Skanuj produkty</span>
                   </Link>
-                  <Link
-                    to="/cart"
+                  <button
                     className="block px-3 py-2 text-gray-700 hover:bg-green-50 hover:text-green-600 rounded-lg font-medium"
-                    onClick={closeMobileMenu}
+                    onClick={() => { setIsCartDrawerOpen(true); closeMobileMenu(); }}
                   >
                     Koszyk {totalItems > 0 && `(${totalItems})`}
-                  </Link>
+                  </button>
                   <a
                     href="https://polflor.orderyourflowers.nl/"
                     target="_blank"
@@ -282,6 +283,9 @@ export function Layout() {
           </p>
         </div>
       </footer>
+
+      {/* Cart Drawer */}
+      <CartDrawer isOpen={isCartDrawerOpen} onClose={() => setIsCartDrawerOpen(false)} />
     </div>
   );
 }
