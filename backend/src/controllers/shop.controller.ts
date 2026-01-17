@@ -861,4 +861,83 @@ export class ShopController {
       return res.status(500).json({ error: 'Blad serwera' });
     }
   }
+
+  // ============ Cart API ============
+
+  /**
+   * Get user's cart from database
+   */
+  static async getCart(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const result = await query<{ cartData: any }>(
+        'SELECT cart_data FROM user_carts WHERE user_id = $1',
+        [userId]
+      );
+
+      const cartData = result.rows[0]?.cartData || [];
+      res.json({ cart: cartData });
+    } catch (error: any) {
+      console.error('Error getting cart:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  /**
+   * Save user's cart to database
+   */
+  static async saveCart(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const { cart } = req.body;
+      if (!Array.isArray(cart)) {
+        return res.status(400).json({ error: 'Invalid cart data' });
+      }
+
+      // Upsert cart data
+      await query(
+        `INSERT INTO user_carts (user_id, cart_data, updated_at)
+         VALUES ($1, $2, CURRENT_TIMESTAMP)
+         ON CONFLICT (user_id) DO UPDATE SET
+           cart_data = EXCLUDED.cart_data,
+           updated_at = CURRENT_TIMESTAMP`,
+        [userId, JSON.stringify(cart)]
+      );
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Error saving cart:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  /**
+   * Clear user's cart
+   */
+  static async clearCart(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      await query(
+        'DELETE FROM user_carts WHERE user_id = $1',
+        [userId]
+      );
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Error clearing cart:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
 }

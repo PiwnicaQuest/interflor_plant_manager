@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { api } from '../services/api';
-import { Product, Order } from '../types';
+import { Order } from '../types';
 import { Link } from 'react-router-dom';
 import { OnlineUsers } from '../components/OnlineUsers';
 
 export function DashboardPage() {
-  const [lowStockProducts, setLowStockProducts] = useState<Product[]>([]);
   const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -20,9 +19,8 @@ export function DashboardPage() {
       try {
         setLoading(true);
 
-        // Fetch low stock products
+        // Fetch low stock products count
         const lowStockData = await api.getLowStockProducts();
-        setLowStockProducts(lowStockData.products);
 
         // Fetch all products for stats
         const allProductsData = await api.getInventory();
@@ -114,76 +112,6 @@ export function DashboardPage() {
         </Link>
       </div>
 
-      {/* Main Content Grid - Online Users + Low Stock Alert */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Online Users Widget - Left Column */}
-        <div className="lg:col-span-1">
-          <OnlineUsers />
-        </div>
-
-        {/* Low Stock Alert - Right Columns */}
-        <div className="lg:col-span-2">
-          {lowStockProducts.length > 0 && (
-            <div className="bg-orange-50 border-l-4 border-orange-500 p-6 rounded h-full">
-              <div className="flex items-start">
-                <div className="text-3xl mr-4">⚠️</div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-orange-900 mb-2">
-                    Alert: Niski stan magazynowy
-                  </h3>
-                  <p className="text-sm text-orange-700 mb-4">
-                    {lowStockProducts.length} produktów wymaga uzupełnienia zapasów
-                  </p>
-                  <div className="bg-white rounded-lg overflow-hidden">
-                    <table className="table">
-                      <thead>
-                        <tr>
-                          <th>Nazwa rośliny</th>
-                          <th>Rozmiar doniczki</th>
-                          <th>Stan</th>
-                          <th>Akcje</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {lowStockProducts.slice(0, 5).map((product) => (
-                          <tr key={product.id}>
-                            <td className="font-medium">{product.plantName}</td>
-                            <td>{product.potSize || '-'}</td>
-                            <td>
-                              <span className="font-semibold text-orange-600">
-                                {product.totalUnits} szt.
-                              </span>
-                            </td>
-                            <td>
-                              <Link
-                                to="/inventory"
-                                className="text-primary-600 hover:text-primary-700 text-sm font-medium"
-                              >
-                                Zobacz szczegóły
-                              </Link>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  {lowStockProducts.length > 5 && (
-                    <div className="mt-4 text-center">
-                      <Link
-                        to="/inventory?status=low"
-                        className="btn btn-primary"
-                      >
-                        Zobacz wszystkie ({lowStockProducts.length})
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Recent Pending Orders */}
       {pendingOrders.length > 0 && (
         <div className="card">
@@ -238,35 +166,8 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* Quick Links */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Link
-          to="/orders"
-          className="card p-6 hover:shadow-lg transition-shadow text-center"
-        >
-          <div className="text-4xl mb-3">📦</div>
-          <h3 className="font-semibold text-gray-900">Nowe zamówienie</h3>
-          <p className="text-sm text-gray-600 mt-1">Utwórz zamówienie dla klienta</p>
-        </Link>
-
-        <Link
-          to="/customers"
-          className="card p-6 hover:shadow-lg transition-shadow text-center"
-        >
-          <div className="text-4xl mb-3">👥</div>
-          <h3 className="font-semibold text-gray-900">Kontrahenci</h3>
-          <p className="text-sm text-gray-600 mt-1">Zarządzaj bazą klientów</p>
-        </Link>
-
-        <Link
-          to="/pos"
-          className="card p-6 hover:shadow-lg transition-shadow text-center"
-        >
-          <div className="text-4xl mb-3">💳</div>
-          <h3 className="font-semibold text-gray-900">Kasa (POS)</h3>
-          <p className="text-sm text-gray-600 mt-1">Realizuj płatności</p>
-        </Link>
-      </div>
+      {/* Online Users Widget */}
+      <OnlineUsers />
     </div>
   );
 }

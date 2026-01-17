@@ -1327,6 +1327,66 @@ export function SettingsPage() {
             </div>
           </div>
 
+          {/* Download Print Broker Section */}
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Print Broker - Nowa wersja (zalecana)</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Print Broker to nowa, ulepszona wersja systemu druku. Działa jako lokalny serwer HTTP
+                  i umozliwia szybsze drukowanie bez otwierania okien dialogowych przegladarki.
+                </p>
+
+                <div className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
+                  <h4 className="font-medium text-gray-900 mb-3">Zalety Print Broker:</h4>
+                  <ul className="text-sm text-gray-600 space-y-2">
+                    <li className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                      Drukowanie bez okien dialogowych przegladarki
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                      Autostart z Windows - zawsze gotowy
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                      Automatyczne wykrywanie drukarek
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                      Obsluga etykiet, paragonow i dokumentow A4
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="flex gap-3">
+                  <a
+                    href="/downloads/POLFLOR-PrintBroker-Installer.bat"
+                    download
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Pobierz Print Broker (Windows)
+                  </a>
+                  <a
+                    href="/downloads/POLFLOR-PrintBroker-Uninstall.bat"
+                    download
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
+                  >
+                    Deinstalator
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Existing PrinterSettingsTab component */}
           <PrinterSettingsTab />
         </div>

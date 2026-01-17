@@ -60,7 +60,7 @@ git add -A && git commit -m opis && git push
 ## Dane logowania
 
 ### Panel Admin
-- **URL:** https://polflor.fast-site.pl
+- **URL:** https://pm.polflor.wroclaw.pl
 - **Email:** admin@plantmanager.pl
 - **Hasło:** admin123
 

@@ -19,6 +19,7 @@ import { LossesPage } from "./pages/LossesPage";
 import { TemplatesPageWrapper } from "./pages/TemplatesPage";
 import { PrintOrderPage } from "./pages/PrintOrderPage";
 import { PrintInvoicePage } from "./pages/PrintInvoicePage";
+import { PrintCorrectionPage } from "./pages/PrintCorrectionPage";
 import { PrintProformaPage } from "./pages/PrintProformaPage";
 import { PrintReceiptPage } from "./pages/PrintReceiptPage";
 import { PrintReceiptA4Page } from "./pages/PrintReceiptA4Page";
@@ -94,6 +95,7 @@ function App() {
           {/* Print routes - outside Layout for clean printing */}
           <Route path="/print/order/:id" element={<PrintOrderPage />} />
           <Route path="/print/invoice/:id" element={<PrintInvoicePage />} />
+          <Route path="/print/correction/:id" element={<PrintCorrectionPage />} />
           <Route path="/print/proforma/:id" element={<PrintProformaPage />} />
           <Route path="/print/receipt/:id" element={<PrintReceiptPage />} />
           <Route path="/print/receipt-a4/:id" element={<PrintReceiptA4Page />} />

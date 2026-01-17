@@ -484,6 +484,9 @@ export class EmailImportService {
       console.log('[EMAIL IMPORT] Using EUR/PLN rate: ' + eurRate);
       console.log('[EMAIL IMPORT] Cost percentage: ' + costPercentage + '%, Margin: ' + marginPercentage + '%');
 
+      // Track processed barcodes to skip duplicates within same import
+      const processedBarcodes = new Set<string>();
+
       for (let i = 0; i < parseResult.products.length; i++) {
         const ediProduct = parseResult.products[i];
         const rowNumber = i + 1;
@@ -503,24 +506,29 @@ export class EmailImportService {
             continue;
           }
 
-          const existing = await ProductModel.getByBarcode(productData.barcode);
-
-          if (existing) {
-            const newPalletCount = (existing.palletCount || 0) + (productData.palletCount || 0);
-            await ProductModel.update(existing.id, { palletCount: newPalletCount });
-            const deltaUnits = (productData.palletCount || 0) * (existing.unitsPerPallet || productData.unitsPerPallet || 0);
-            if (deltaUnits > 0) {
-              await ProductModel.createMovement(existing.id, null, MovementType.PURCHASE, deltaUnits, productData.palletCount || 0, 'Import z email EDI - dodano do istniejącego');
-            }
-            console.log('[EMAIL IMPORT] Updated: ' + existing.plantName + ' (+' + productData.palletCount + ' palet, razem: ' + newPalletCount + ')');
-          } else {
-            const newProduct = await ProductModel.create(productData);
-            const deltaUnits = (productData.palletCount || 0) * (productData.unitsPerPallet || 0);
-            if (deltaUnits > 0) {
-              await ProductModel.createMovement(newProduct.id, null, MovementType.PURCHASE, deltaUnits, productData.palletCount || 0, 'Import z email EDI');
-            }
-            console.log('[EMAIL IMPORT] Created: ' + productData.plantName + ' (' + productData.palletCount + ' palet)');
+          // Skip if already processed in this import (duplicate in file)
+          if (processedBarcodes.has(productData.barcode)) {
+            result.skipped++;
+            console.log('[EMAIL IMPORT] Skipped duplicate in file: ' + productData.barcode + ' (' + productData.plantName + ')');
+            continue;
           }
+
+          // Skip if already exists in database
+          const existing = await ProductModel.getByBarcode(productData.barcode);
+          if (existing) {
+            result.skipped++;
+            console.log('[EMAIL IMPORT] Skipped - already exists in DB: ' + productData.barcode + ' (' + existing.plantName + ')');
+            continue;
+          }
+
+          // Mark as processed and create new product
+          processedBarcodes.add(productData.barcode);
+          const newProduct = await ProductModel.create(productData);
+          const deltaUnits = (productData.palletCount || 0) * (productData.unitsPerPallet || 0);
+          if (deltaUnits > 0) {
+            await ProductModel.createMovement(newProduct.id, null, MovementType.PURCHASE, deltaUnits, productData.palletCount || 0, 'Import z email EDI');
+          }
+          console.log('[EMAIL IMPORT] Created: ' + productData.plantName + ' (' + productData.palletCount + ' palet)');
           result.success++;
         } catch (error: any) {
           result.failed++;
@@ -620,6 +628,9 @@ export class EmailImportService {
     const eurRate = format === 'ekt' ? await this.getEurToPlnRate() : 1;
     const { costPercentage, marginPercentage } = await this.getCostAndMarginSettings();
 
+    // Track processed barcodes to skip duplicates within same import
+    const processedBarcodes = new Set<string>();
+
     for (let i = 0; i < data.length; i++) {
       const row: any = data[i];
       const rowNumber = i + 2;
@@ -635,21 +646,27 @@ export class EmailImportService {
         if (!productData.barcode) { result.skipped++; continue; }
         if (!productData.plantName) { result.failed++; result.errors.push({ row: rowNumber, error: 'Brak nazwy rośliny', data: row }); continue; }
 
-        const existing = await ProductModel.getByBarcode(productData.barcode);
+        // Skip if already processed in this import (duplicate in file)
+        if (processedBarcodes.has(productData.barcode)) {
+          result.skipped++;
+          console.log('[EMAIL IMPORT] Skipped duplicate in file: ' + productData.barcode);
+          continue;
+        }
 
+        // Skip if already exists in database
+        const existing = await ProductModel.getByBarcode(productData.barcode);
         if (existing) {
-          const newPalletCount = (existing.palletCount || 0) + (productData.palletCount || 0);
-          await ProductModel.update(existing.id, { palletCount: newPalletCount });
-          const deltaUnits = (productData.palletCount || 0) * (existing.unitsPerPallet || productData.unitsPerPallet || 0);
-          if (deltaUnits > 0) {
-            await ProductModel.createMovement(existing.id, null, MovementType.PURCHASE, deltaUnits, productData.palletCount || 0, 'Import z email - dodano do istniejącego');
-          }
-        } else {
-          const newProduct = await ProductModel.create(productData);
-          const deltaUnits = (productData.palletCount || 0) * (productData.unitsPerPallet || 0);
-          if (deltaUnits > 0) {
-            await ProductModel.createMovement(newProduct.id, null, MovementType.PURCHASE, deltaUnits, productData.palletCount || 0, 'Import z email');
-          }
+          result.skipped++;
+          console.log('[EMAIL IMPORT] Skipped - already exists in DB: ' + productData.barcode);
+          continue;
+        }
+
+        // Mark as processed and create new product
+        processedBarcodes.add(productData.barcode);
+        const newProduct = await ProductModel.create(productData);
+        const deltaUnits = (productData.palletCount || 0) * (productData.unitsPerPallet || 0);
+        if (deltaUnits > 0) {
+          await ProductModel.createMovement(newProduct.id, null, MovementType.PURCHASE, deltaUnits, productData.palletCount || 0, 'Import z email');
         }
         result.success++;
       } catch (error: any) {

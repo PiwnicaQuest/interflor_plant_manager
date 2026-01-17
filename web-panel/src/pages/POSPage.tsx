@@ -46,6 +46,7 @@ export function POSPage() {
   const [cashReceived, setCashReceived] = useState<number>(0);
   const [downloadingReport, setDownloadingReport] = useState(false);
   const [printLoading, setPrintLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Print Agent hook
   const { printInvoice, printReceipt } = usePrint({
@@ -73,10 +74,6 @@ export function POSPage() {
 
       setOrders(ordersWithItems);
 
-      // Auto-select first order if none selected
-      if (!selectedOrder && ordersWithItems.length > 0) {
-        setSelectedOrder(ordersWithItems[0]);
-      }
     } catch (err) {
       console.error('Error fetching ready orders:', err);
       setError('Błąd podczas ładowania zamówień');
@@ -412,6 +409,28 @@ export function POSPage() {
     return 'PAR';
   };
 
+  // Filter orders based on search query
+  const filteredOrders = orders.filter(order => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      (order.customerName?.toLowerCase().includes(query)) ||
+      (order.orderNumber?.toLowerCase().includes(query)) ||
+      ((order as any).customerCode?.toLowerCase().includes(query))
+    );
+  });
+
+  const filteredCompletedOrders = completedOrders.filter(order => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      (order.customerName?.toLowerCase().includes(query)) ||
+      (order.orderNumber?.toLowerCase().includes(query)) ||
+      (order.customerCode?.toLowerCase().includes(query))
+    );
+  });
+
+
   return (
     <div className="p-4 bg-gray-50 min-h-[calc(100vh-4rem)]">
       <div className="max-w-7xl mx-auto">
@@ -419,8 +438,34 @@ export function POSPage() {
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-xl font-bold text-gray-900">POS / Kasa</h1>
           <div className="text-sm text-gray-500">
-            {orders.length} zamówień gotowych
+            {filteredOrders.length} zamówień gotowych
           </div>
+        </div>
+
+        {/* Search */}
+        <div className="relative mb-4">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <input
+            type="text"
+            placeholder="Szukaj kontrahenta lub zamówienia..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg bg-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* Tabs */}
@@ -433,7 +478,7 @@ export function POSPage() {
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            Do rozliczenia ({orders.length})
+            Do rozliczenia ({filteredOrders.length})
           </button>
           <button
             onClick={() => setActiveTab('history')}
@@ -443,7 +488,7 @@ export function POSPage() {
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            Historia dnia ({completedOrders.length})
+            Historia dnia ({filteredCompletedOrders.length})
           </button>
         </div>
 
@@ -471,13 +516,13 @@ export function POSPage() {
                     <div className="p-6 text-center text-gray-400 text-sm">
                       Ładowanie...
                     </div>
-                  ) : orders.length === 0 ? (
+                  ) : filteredOrders.length === 0 ? (
                     <div className="p-6 text-center text-gray-400 text-sm">
                       Brak zamówień do realizacji
                     </div>
                   ) : (
                     <div className="divide-y divide-gray-100">
-                      {orders.map((order) => (
+                      {filteredOrders.map((order) => (
                         <button
                           key={order.id}
                           onClick={() => setSelectedOrder(order)}
@@ -675,7 +720,7 @@ export function POSPage() {
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
               <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
                 <h2 className="text-sm font-semibold text-gray-700">
-                  Rozliczone dziś ({completedOrders.length})
+                  Rozliczone dziś ({filteredCompletedOrders.length})
                 </h2>
                 <button
                   onClick={fetchTodayCompleted}
@@ -689,13 +734,13 @@ export function POSPage() {
                   <div className="p-6 text-center text-gray-400 text-sm">
                     Ładowanie...
                   </div>
-                ) : completedOrders.length === 0 ? (
+                ) : filteredCompletedOrders.length === 0 ? (
                   <div className="p-6 text-center text-gray-400 text-sm">
                     Brak rozliczonych zamówień dziś
                   </div>
                 ) : (
                   <div className="divide-y divide-gray-100">
-                    {completedOrders.map((order) => (
+                    {filteredCompletedOrders.map((order) => (
                       <div
                         key={order.id}
                         className="px-4 py-3 hover:bg-gray-50 transition-colors"

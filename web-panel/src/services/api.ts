@@ -189,6 +189,15 @@ class ApiClient {
     return response.data;
   }
 
+  async getOrdersBulk(ids: number[]): Promise<{ orders: OrderWithItems[] }> {
+    const response = await this.client.get('/orders/bulk', { 
+      params: { ids: ids.join(',') }
+    });
+    return response.data;
+  }
+
+
+
   async createOrder(data: {
     customerId: number;
     items: Array<{ productId: number; quantity: number; palletCount?: number; unitsPerPallet?: number }>;
@@ -312,7 +321,7 @@ class ApiClient {
   }
 
   async getInvoiceHtml(id: number): Promise<string> {
-    const response = await this.client.get(`/invoices/${id}/html`, { responseType: "text" });
+    const response = await this.client.get(`/invoices/${id}/html?t=${Date.now()}`, { responseType: "text" });
     return response.data;
   }
 
@@ -332,6 +341,16 @@ class ApiClient {
 
   async updateInvoicePaymentStatus(id: number, paidAmount: number): Promise<{ message: string; invoice: Invoice }> {
     const response = await this.client.patch(`/invoices/${id}/payment-status`, { paidAmount });
+    return response.data;
+  }
+
+  async updateInvoicePaymentMethod(id: number, paymentMethod: PaymentMethod): Promise<{ message: string; invoice: Invoice }> {
+    const response = await this.client.patch(`/invoices/${id}/payment-method`, { paymentMethod });
+    return response.data;
+  }
+
+  async getInvoiceAuditLog(id: number): Promise<{ auditLog: any[] }> {
+    const response = await this.client.get(`/invoices/${id}/audit-log`);
     return response.data;
   }
 
@@ -1118,8 +1137,13 @@ class ApiClient {
     return response.data;
   }
 
-  async mergeProducts(targetId: number, productIds: number[]): Promise<any> {
-    const response = await this.client.post("/inventory/merge", { masterId: targetId, productIds });
+  async mergeProducts(productIds: number[], masterDate: string | null = null): Promise<any> {
+    const response = await this.client.post("/inventory/merge", { productIds, masterDate });
+    return response.data;
+  }
+
+  async getSlaveDetails(slaveId: number): Promise<any> {
+    const response = await this.client.get(`/inventory/slave/${slaveId}`);
     return response.data;
   }
 

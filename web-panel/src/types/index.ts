@@ -377,6 +377,7 @@ export interface ReceiptWithItems extends Receipt {
 }
 
 export interface AuthResponse {
+  permissions?: string[];
   token: string;
   user: User;
 }
