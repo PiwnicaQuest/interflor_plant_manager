@@ -4,6 +4,7 @@ import { CustomerModel } from '../models/Customer';
 import { LoginHistoryModel } from '../models/LoginHistory';
 import { generateToken } from '../middleware/auth';
 import { LoginRequest, RegisterRequest, UserRole } from '../types';
+import { PermissionProfileModel } from '../models/PermissionProfile';
 
 // Helper to extract IP address from request
 const getClientIp = (req: Request): string => {
@@ -81,11 +82,15 @@ export class AuthController {
         success: true
       });
 
+      // Pobierz uprawnienia użytkownika z profilu
+      const permissions = await PermissionProfileModel.getUserPermissions(user.id);
+
       const token = generateToken({
         firstName: user.firstName,
         userId: user.id,
         email: user.email,
         role: user.role,
+        permissions: permissions,
       });
 
       const userWithoutPassword = UserModel.stripPassword(user);
@@ -93,6 +98,7 @@ export class AuthController {
       return res.json({
         token,
         user: userWithoutPassword,
+        permissions: permissions,
       });
     } catch (error) {
       console.error('Login error:', error);

@@ -33,6 +33,7 @@ export function ScannerLoginPage() {
 
       localStorage.setItem('token', response.token);
       localStorage.setItem('userRole', response.user.role);
+      localStorage.setItem('userPermissions', JSON.stringify(response.permissions || []));
       navigate('/scanner/scan', { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.error || 'Nieprawidlowy email lub haslo');

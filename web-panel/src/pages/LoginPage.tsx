@@ -25,6 +25,7 @@ export function LoginPage() {
 
       localStorage.setItem('token', response.token);
       localStorage.setItem('userRole', response.user.role);
+      localStorage.setItem('userPermissions', JSON.stringify(response.permissions || []));
       navigate('/inventory');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Blad logowania');
