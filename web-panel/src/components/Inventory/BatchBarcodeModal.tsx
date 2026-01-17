@@ -194,20 +194,19 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
     return '<!DOCTYPE html><html><head><title>Drukuj kody kreskowe - Zbiorczo</title>' +
       '<style>' +
       '@page { size: ' + paperWidth + 'mm ' + paperHeight + 'mm; margin: 1mm; }' +
-      'body { margin: 0; padding: 0; font-family: Arial, sans-serif; }' +
-      '.label-container { display: flex; flex-wrap: wrap; gap: 1mm; }' +
+      '* { margin: 0; padding: 0; box-sizing: border-box; } body { margin: 0; padding: 0; font-family: Arial, sans-serif; }' +
+      '.label-container { width: 100%; }' +
       '.label { width: ' + (paperWidth - 2) + 'mm; height: ' + (paperHeight - 2) + 'mm; border: 1px solid #ddd; padding: 1mm; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; page-break-inside: avoid; }' +
       '.product-name { font-size: 8px; font-weight: bold; margin-bottom: 1mm; text-align: center; max-width: ' + (paperWidth - 4) + 'mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }' +
       '.product-info { font-size: 7px; color: #333; margin-bottom: 1mm; }' +
-      '.barcode-svg { max-width: ' + (paperWidth - 6) + 'mm; height: auto; }' +
-      '.units-info { font-size: 7px; font-weight: bold; margin-top: 1mm; color: #333; }' +
-      '@media print { .label { border: none; } }' +
+      '.barcode-svg { max-width: ' + (paperWidth - 4) + 'mm; height: auto; }' +
+      '.units-info { font-size: 6px; font-weight: bold; margin-top: 0.5mm; color: #333; }' +
       '</style></head><body>' +
       '<div class="label-container">' + labelsHtml + '</div>' +
       '<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>' +
       '<script>' +
-      'document.querySelectorAll(".template-barcode").forEach(function(svg) { var barcode = svg.getAttribute("data-barcode"); if (barcode) { JsBarcode(svg, barcode, { format: "CODE128", width: 1.5, height: 35, displayValue: true, fontSize: 8, margin: 2 }); } });' +
-      'document.querySelectorAll(".barcode-svg").forEach(function(svg) { var barcode = svg.getAttribute("data-barcode"); if (barcode) { JsBarcode(svg, barcode, { format: "CODE128", width: 1.5, height: 35, displayValue: true, fontSize: 8, margin: 2 }); } });' +
+      'document.querySelectorAll(".template-barcode").forEach(function(svg) { var barcode = svg.getAttribute("data-barcode"); if (barcode) { JsBarcode(svg, barcode, { format: "CODE128", width: 1.5, height: 50, displayValue: true, fontSize: 10, margin: 0, textMargin: 1 }); } });' +
+      'document.querySelectorAll(".barcode-svg").forEach(function(svg) { var barcode = svg.getAttribute("data-barcode"); if (barcode) { JsBarcode(svg, barcode, { format: "CODE128", width: 1.5, height: 50, displayValue: true, fontSize: 10, margin: 0, textMargin: 1 }); } });' +
       '</script></body></html>';
   };
 

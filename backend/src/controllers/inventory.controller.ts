@@ -479,45 +479,33 @@ export class InventoryController {
   }
 
   // Merge products
+  // Merge products with automatic master selection
   static async mergeProducts(req: AuthRequest, res: Response) {
     try {
-      const { masterId, productIds } = req.body;
+      const { productIds, masterDate } = req.body;
 
-      if (!masterId || !productIds || !Array.isArray(productIds) || productIds.length === 0) {
+      if (!productIds || !Array.isArray(productIds) || productIds.length < 2) {
         return res.status(400).json({
-          error: 'Wymagane: masterId (ID produktu głównego) i productIds (tablica ID produktów do połączenia)',
+          error: 'Wymagane co najmniej 2 produkty do połączenia (productIds)',
         });
       }
 
-      // Filter out masterId from productIds if included
-      const idsToMerge = productIds.filter((id: number) => id !== masterId);
-
-      if (idsToMerge.length === 0) {
-        return res.status(400).json({
-          error: 'Brak produktów do połączenia (productIds nie może zawierać tylko masterId)',
-        });
-      }
-
-      const result = await ProductModel.mergeProducts(masterId, idsToMerge, req.user?.userId || null);
+      const result = await ProductModel.mergeProductsAuto(
+        productIds,
+        req.user?.userId || null,
+        masterDate || null
+      );
 
       if (!result.success) {
         return res.status(400).json({ error: result.error });
       }
 
-      // Create movement record for the merge
-      await ProductModel.createMovement(
-        masterId,
-        req.user?.userId || null,
-        MovementType.CORRECTION,
-        0,
-        0,
-        `Połączono ${idsToMerge.length} produkt(ów) z ID: ${idsToMerge.join(', ')}`
-      );
-
       return res.json({
         message: 'Produkty zostały połączone',
         masterProduct: result.masterProduct,
-        mergedProductIds: idsToMerge,
+        mergedCount: result.mergedCount,
+        masterReason: result.masterReason,
+        dateChanged: result.dateChanged,
       });
     } catch (error) {
       console.error('Merge products error:', error);
@@ -525,6 +513,28 @@ export class InventoryController {
     }
   }
 
+  // Get slave product details
+  static async getSlaveDetails(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const slaveId = parseInt(id);
+
+      if (isNaN(slaveId)) {
+        return res.status(400).json({ error: 'Nieprawidłowe ID produktu' });
+      }
+
+      const result = await ProductModel.getSlaveDetails(slaveId);
+
+      if (!result.success) {
+        return res.status(404).json({ error: result.error });
+      }
+
+      return res.json(result.slave);
+    } catch (error) {
+      console.error('Get slave details error:', error);
+      return res.status(500).json({ error: 'Błąd serwera' });
+    }
+  }
   // Unmerge a product
   // Get merge history
   static async getMergeHistory(req: AuthRequest, res: Response) {

@@ -835,6 +835,298 @@ static async getMovements(productId: number, limit = 50): Promise<InventoryMovem
   // MERGE HISTORY METHODS
   // ============================================
 
+  // Automatically select master from a group of products
+  // Priority: 1) Existing master (has merged_product_ids), 2) Highest stock
+  static selectMasterFromGroup(products: Product[]): { master: Product; toMerge: Product[]; reason: string } {
+    // First, check if any product is already a master (has merged_product_ids)
+    const existingMaster = products.find(p => p.mergedProductIds && p.mergedProductIds.length > 0);
+    if (existingMaster) {
+      return {
+        master: existingMaster,
+        toMerge: products.filter(p => p.id !== existingMaster.id),
+        reason: 'istniejący master (ma wcześniejsze połączenia)'
+      };
+    }
+
+    // Calculate total units for each product
+    const withStock = products.map(p => ({
+      product: p,
+      totalUnits: (p.palletCount || 0) * (p.unitsPerPallet || 1) + (p.looseUnits || 0)
+    }));
+
+    // Sort by stock (descending), then by ID (ascending) for tie-breaker
+    withStock.sort((a, b) => {
+      if (b.totalUnits !== a.totalUnits) {
+        return b.totalUnits - a.totalUnits;
+      }
+      return a.product.id - b.product.id;
+    });
+
+    const master = withStock[0].product;
+    return {
+      master,
+      toMerge: products.filter(p => p.id !== master.id),
+      reason: 'największy stan magazynowy'
+    };
+  }
+
+  // New merge function with automatic master selection and date option
+  static async mergeProductsAuto(
+    productIds: number[],
+    userId: number | null = null,
+    masterDate?: string | null
+  ): Promise<{
+    success: boolean;
+    masterProduct?: Product;
+    mergedCount?: number;
+    masterReason?: string;
+    dateChanged?: boolean;
+    error?: string;
+  }> {
+    if (!productIds || productIds.length < 2) {
+      return { success: false, error: 'Wymagane co najmniej 2 produkty do połączenia' };
+    }
+
+    // Get all products
+    const products: Product[] = [];
+    for (const id of productIds) {
+      const product = await this.getById(id);
+      if (!product) {
+        return { success: false, error: `Produkt ${id} nie znaleziony` };
+      }
+      if (product.mergedIntoId) {
+        return { success: false, error: `Produkt ${id} jest już połączony z innym produktem` };
+      }
+      if (product.isArchived) {
+        return { success: false, error: `Produkt ${id} jest zarchiwizowany` };
+      }
+      products.push(product);
+    }
+
+    // Automatically select master
+    const { master: masterProduct, toMerge: productsToMerge, reason: masterReason } = this.selectMasterFromGroup(products);
+
+    // VALIDATION: Check that all products have matching criteria
+    for (const product of productsToMerge) {
+      if (product.plantName !== masterProduct.plantName) {
+        return {
+          success: false,
+          error: `Produkt #${product.id} (${product.plantName}) ma inną nazwę niż produkt główny (${masterProduct.plantName}).`
+        };
+      }
+      if (product.potSize !== masterProduct.potSize) {
+        return {
+          success: false,
+          error: `Produkt #${product.id} ma inny rozmiar doniczki (${product.potSize}) niż produkt główny (${masterProduct.potSize}).`
+        };
+      }
+      if (product.unitsPerPallet !== masterProduct.unitsPerPallet) {
+        return {
+          success: false,
+          error: `Produkt #${product.id} ma inną ilość sztuk na palecie (${product.unitsPerPallet}) niż produkt główny (${masterProduct.unitsPerPallet}).`
+        };
+      }
+    }
+
+    // Collect all barcodes
+    const barcodesToAdd: string[] = [];
+    for (const product of productsToMerge) {
+      if (product.barcode) {
+        barcodesToAdd.push(product.barcode);
+      }
+      if (product.mergedBarcodes && product.mergedBarcodes.length > 0) {
+        barcodesToAdd.push(...product.mergedBarcodes);
+      }
+    }
+
+    // Calculate combined stock
+    let totalPalletCount = masterProduct.palletCount || 0;
+    let totalLooseUnits = masterProduct.looseUnits || 0;
+
+    for (const product of productsToMerge) {
+      totalPalletCount += product.palletCount || 0;
+      totalLooseUnits += product.looseUnits || 0;
+    }
+
+    // Use the highest price
+    let bestPrice = masterProduct.basePriceGross || 0;
+    for (const product of productsToMerge) {
+      if ((product.basePriceGross || 0) > bestPrice) {
+        bestPrice = product.basePriceGross || 0;
+      }
+    }
+
+    // Get existing merged data from master
+    const existingMergedBarcodes = masterProduct.mergedBarcodes || [];
+    const existingMergedIds = masterProduct.mergedProductIds || [];
+
+    // Combine all barcodes and IDs
+    const allMergedBarcodes = [...new Set([...existingMergedBarcodes, ...barcodesToAdd])];
+    const allMergedIds = [...new Set([...existingMergedIds, ...productsToMerge.map(p => p.id)])];
+
+    // Check if date should be changed
+    let dateChanged = false;
+    const oldDate = masterProduct.createdAt;
+
+    // Update master product
+    if (masterDate) {
+      await query(
+        `UPDATE products SET
+          pallet_count = ,
+          loose_units = ,
+          base_price_gross = ,
+          merged_barcodes = ,
+          merged_product_ids = ,
+          created_at = ,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = `,
+        [totalPalletCount, totalLooseUnits, bestPrice, allMergedBarcodes, allMergedIds, masterDate, masterProduct.id]
+      );
+      dateChanged = true;
+
+      // Log date change in movements
+      await query(
+        `INSERT INTO inventory_movements (product_id, user_id, movement_type, delta_units, delta_pallets, reason)
+         VALUES (, , 'correction', 0, 0, )`,
+        [masterProduct.id, userId, `Zmiana daty produktu podczas łączenia (stara: ${oldDate ? new Date(oldDate).toISOString().split('T')[0] : 'brak'}, nowa: ${masterDate})`]
+      );
+    } else {
+      await query(
+        `UPDATE products SET
+          pallet_count = ,
+          loose_units = ,
+          base_price_gross = ,
+          merged_barcodes = ,
+          merged_product_ids = ,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = `,
+        [totalPalletCount, totalLooseUnits, bestPrice, allMergedBarcodes, allMergedIds, masterProduct.id]
+      );
+    }
+
+    // Mark merged products and archive them
+    for (const product of productsToMerge) {
+      // Save stock before zeroing for movement record
+      const movedUnits = (product.palletCount || 0) * (product.unitsPerPallet || 1) + (product.looseUnits || 0);
+
+      await query(
+        `UPDATE products SET
+          merged_into_id = ,
+          pallet_count = 0,
+          loose_units = 0,
+          visible_in_shop = false,
+          is_archived = true,
+          archived_at = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = `,
+        [masterProduct.id, product.id]
+      );
+
+      // Create inventory movement for merged product (stock moved out)
+      if (movedUnits > 0) {
+        await query(
+          `INSERT INTO inventory_movements (product_id, user_id, movement_type, delta_units, delta_pallets, reason, reference_type, reference_id)
+           VALUES (, , 'merge', , , , 'product', )`,
+          [product.id, userId, -movedUnits, -(product.palletCount || 0), `Połączono z produktem #${masterProduct.id} (${masterProduct.plantName})`, masterProduct.id]
+        );
+      }
+    }
+
+    // Create inventory movement for master product (stock received)
+    const totalAddedUnits = productsToMerge.reduce((sum, p) => (sum + (p.palletCount || 0) * (p.unitsPerPallet || 1) + (p.looseUnits || 0)), 0);
+    const totalAddedPallets = productsToMerge.reduce((sum, p) => sum + (p.palletCount || 0), 0);
+    if (totalAddedUnits > 0) {
+      const mergedNames = productsToMerge.map(p => `#${p.id}`).join(', ');
+      await query(
+        `INSERT INTO inventory_movements (product_id, user_id, movement_type, delta_units, delta_pallets, reason, reference_type, reference_id)
+         VALUES (, , 'merge', , , , 'product', )`,
+        [masterProduct.id, userId, totalAddedUnits, totalAddedPallets, `Połączono produkty: ${mergedNames}`, masterProduct.id]
+      );
+    }
+
+    // Save merge history
+    const barcodesCollected = productsToMerge
+      .map(p => p.barcode)
+      .filter((b): b is string => !!b);
+
+    await this.saveMergeHistory(
+      masterProduct.id,
+      productsToMerge.map(p => p.id),
+      barcodesCollected,
+      totalAddedPallets,
+      totalAddedUnits,
+      masterProduct.basePriceGross || 0,
+      bestPrice,
+      userId,
+      masterDate ? `Data zmieniona na: ${masterDate}` : undefined
+    );
+
+    // Return updated master product
+    const updatedMaster = await this.getById(masterProduct.id);
+    return {
+      success: true,
+      masterProduct: updatedMaster!,
+      mergedCount: productsToMerge.length,
+      masterReason,
+      dateChanged
+    };
+  }
+
+  // Get slave product details for display
+  static async getSlaveDetails(slaveId: number): Promise<{
+    success: boolean;
+    slave?: any;
+    error?: string;
+  }> {
+    const slave = await this.getById(slaveId);
+    if (!slave) {
+      return { success: false, error: 'Produkt nie znaleziony' };
+    }
+
+    if (!slave.mergedIntoId) {
+      return { success: false, error: 'Ten produkt nie jest połączony (nie jest slave)' };
+    }
+
+    // Get merge movement to find stock before merge
+    const mergeMovement = await query(
+      `SELECT delta_units, delta_pallets, created_at 
+       FROM inventory_movements 
+       WHERE product_id = $1 AND movement_type = 'merge' AND delta_units < 0
+       ORDER BY created_at DESC LIMIT 1`,
+      [slaveId]
+    );
+
+    // Get last 5 movements before merge
+    const movements = await query(
+      `SELECT * FROM inventory_movements 
+       WHERE product_id = $1
+       ORDER BY created_at DESC LIMIT 5`,
+      [slaveId]
+    );
+
+    const mergeInfo = mergeMovement.rows[0];
+
+    return {
+      success: true,
+      slave: {
+        id: slave.id,
+        barcode: slave.barcode,
+        plantName: slave.plantName,
+        potSize: slave.potSize,
+        plantHeightCm: slave.plantHeightCm,
+        unitsPerPallet: slave.unitsPerPallet,
+        grower: slave.grower,
+        imageUrl: slave.imageUrl,
+        mergedIntoId: slave.mergedIntoId,
+        mergedAt: mergeInfo?.createdAt || slave.archivedAt,
+        stockBeforeMerge: {
+          pallets: mergeInfo ? Math.abs(mergeInfo.deltaPallets) : 0,
+          units: mergeInfo ? Math.abs(mergeInfo.deltaUnits) : 0
+        },
+        recentMovements: movements.rows
+      }
+    };
+  }
   static async saveMergeHistory(
     masterProductId: number,
     mergedProductIds: number[],

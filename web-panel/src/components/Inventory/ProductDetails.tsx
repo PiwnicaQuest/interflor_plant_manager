@@ -41,6 +41,11 @@ export function ProductDetails({ product, movements, onClose, onUpdateProduct, o
   const [vatValue, setVatValue] = useState(product.vatRate || 8);
   const [savingVat, setSavingVat] = useState(false);
 
+  // Slave product view state
+  const [viewingSlave, setViewingSlave] = useState<number | null>(null);
+  const [slaveDetails, setSlaveDetails] = useState<any>(null);
+  const [loadingSlaveDetails, setLoadingSlaveDetails] = useState(false);
+
 
   // Update state when product changes (e.g., modal reopened for different product)
   useEffect(() => {
@@ -55,6 +60,28 @@ export function ProductDetails({ product, movements, onClose, onUpdateProduct, o
     setEditingGrower(false);
     setEditingVat(false);
   }, [product.id, product.barcode, product.plantPassport, product.grower, product.vatRate, product.imageUrl]);
+
+
+  // Fetch slave product details
+  const handleViewSlaveProduct = async (slaveId: number) => {
+    setViewingSlave(slaveId);
+    setLoadingSlaveDetails(true);
+    try {
+      const response = await api.getSlaveDetails(slaveId);
+      if (response.success) {
+        setSlaveDetails(response.slave);
+      }
+    } catch (error) {
+      console.error("Error fetching slave details:", error);
+    } finally {
+      setLoadingSlaveDetails(false);
+    }
+  };
+
+  const handleCloseSlaveView = () => {
+    setViewingSlave(null);
+    setSlaveDetails(null);
+  };
 
   const handleSaveBarcode = async () => {
     if (!onUpdateProduct) return;
@@ -570,24 +597,17 @@ export function ProductDetails({ product, movements, onClose, onUpdateProduct, o
                       Ten produkt zawiera stan magazynowy z następujących połączonych produktów:
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      {product.mergedProductIds.map((id: number) => (
-                        <span key={id} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
-                          Produkt #{id}
-                        </span>
+                      {product.mergedProductIds.map((id: number, idx: number) => (
+                        <button
+                          key={id}
+                          onClick={() => handleViewSlaveProduct(id)}
+                          className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200 transition-colors cursor-pointer"
+                          title="Kliknij aby zobaczyc szczegoly"
+                        >
+                          #{id} {product.mergedBarcodes && product.mergedBarcodes[idx] ? `(${product.mergedBarcodes[idx]})` : ""}
+                        </button>
                       ))}
                     </div>
-                    {product.mergedBarcodes && product.mergedBarcodes.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-blue-200">
-                        <p className="text-xs text-blue-600 mb-1">Kody kreskowe połączonych produktów:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {product.mergedBarcodes.map((barcode: string, idx: number) => (
-                            <span key={idx} className="px-2 py-0.5 bg-blue-100 text-blue-600 rounded text-xs font-mono">
-                              {barcode}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -668,6 +688,98 @@ export function ProductDetails({ product, movements, onClose, onUpdateProduct, o
             <button onClick={onClose} className="btn btn-secondary flex-1">
               Zamknij
             </button>
+
+          {/* Slave Product View Modal */}
+          {viewingSlave && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto">
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Szczegoly polaczonego produktu #{viewingSlave}
+                    </h3>
+                    <button
+                      onClick={handleCloseSlaveView}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {loadingSlaveDetails ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                    </div>
+                  ) : slaveDetails ? (
+                    <div className="space-y-4">
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                        <div className="flex items-center gap-2 text-amber-700 mb-2">
+                          <span className="text-lg">📦</span>
+                          <span className="font-medium">Produkt zarchiwizowany (polaczony)</span>
+                        </div>
+                        <p className="text-sm text-amber-600">
+                          Stan tego produktu zostal przeniesiony do produktu #{product.id}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-xs text-gray-500">Nazwa</label>
+                          <p className="font-medium">{slaveDetails.name}</p>
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500">Kod kreskowy</label>
+                          <p className="font-mono text-sm">{slaveDetails.barcode || "-"}</p>
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500">Data dostawy</label>
+                          <p className="text-sm">{slaveDetails.deliveryDate ? new Date(slaveDetails.deliveryDate).toLocaleDateString("pl-PL") : "-"}</p>
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500">Stan przed polaczeniem</label>
+                          <p className="text-sm font-medium">{slaveDetails.mergedStock || 0} szt.</p>
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500">Dostawca</label>
+                          <p className="text-sm">{slaveDetails.supplier?.name || "-"}</p>
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500">Hodowca</label>
+                          <p className="text-sm">{slaveDetails.grower || "-"}</p>
+                        </div>
+                      </div>
+
+                      {slaveDetails.plantPassport && (
+                        <div>
+                          <label className="text-xs text-gray-500">Paszport roslin</label>
+                          <p className="text-sm font-mono bg-gray-50 p-2 rounded">{slaveDetails.plantPassport}</p>
+                        </div>
+                      )}
+
+                      <div className="text-xs text-gray-400 pt-2 border-t">
+                        Polaczono: {slaveDetails.mergedAt ? new Date(slaveDetails.mergedAt).toLocaleString("pl-PL") : "-"}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center text-gray-500 py-8">
+                      Nie udalo sie pobrac danych produktu
+                    </div>
+                  )}
+
+                  <div className="mt-6 flex justify-end">
+                    <button
+                      onClick={handleCloseSlaveView}
+                      className="btn btn-secondary"
+                    >
+                      Wstecz
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           </div>
         </div>
       </div>
