@@ -972,14 +972,14 @@ static async getMovements(productId: number, limit = 50): Promise<InventoryMovem
     if (masterDate) {
       await query(
         `UPDATE products SET
-          pallet_count = ,
-          loose_units = ,
-          base_price_gross = ,
-          merged_barcodes = ,
-          merged_product_ids = ,
-          created_at = ,
+          pallet_count = $1,
+          loose_units = $2,
+          base_price_gross = $3,
+          merged_barcodes = $4,
+          merged_product_ids = $5,
+          created_at = $6,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = `,
+        WHERE id = $7`,
         [totalPalletCount, totalLooseUnits, bestPrice, allMergedBarcodes, allMergedIds, masterDate, masterProduct.id]
       );
       dateChanged = true;
@@ -987,19 +987,19 @@ static async getMovements(productId: number, limit = 50): Promise<InventoryMovem
       // Log date change in movements
       await query(
         `INSERT INTO inventory_movements (product_id, user_id, movement_type, delta_units, delta_pallets, reason)
-         VALUES (, , 'correction', 0, 0, )`,
+         VALUES ($1, $2, 'correction', 0, 0, $3)`,
         [masterProduct.id, userId, `Zmiana daty produktu podczas łączenia (stara: ${oldDate ? new Date(oldDate).toISOString().split('T')[0] : 'brak'}, nowa: ${masterDate})`]
       );
     } else {
       await query(
         `UPDATE products SET
-          pallet_count = ,
-          loose_units = ,
-          base_price_gross = ,
-          merged_barcodes = ,
-          merged_product_ids = ,
+          pallet_count = $1,
+          loose_units = $2,
+          base_price_gross = $3,
+          merged_barcodes = $4,
+          merged_product_ids = $5,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = `,
+        WHERE id = $6`,
         [totalPalletCount, totalLooseUnits, bestPrice, allMergedBarcodes, allMergedIds, masterProduct.id]
       );
     }
@@ -1011,14 +1011,14 @@ static async getMovements(productId: number, limit = 50): Promise<InventoryMovem
 
       await query(
         `UPDATE products SET
-          merged_into_id = ,
+          merged_into_id = $1,
           pallet_count = 0,
           loose_units = 0,
           visible_in_shop = false,
           is_archived = true,
           archived_at = CURRENT_TIMESTAMP,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = `,
+        WHERE id = $2`,
         [masterProduct.id, product.id]
       );
 
@@ -1026,7 +1026,7 @@ static async getMovements(productId: number, limit = 50): Promise<InventoryMovem
       if (movedUnits > 0) {
         await query(
           `INSERT INTO inventory_movements (product_id, user_id, movement_type, delta_units, delta_pallets, reason, reference_type, reference_id)
-           VALUES (, , 'merge', , , , 'product', )`,
+           VALUES ($1, $2, 'merge', $3, $4, $5, 'product', $6)`,
           [product.id, userId, -movedUnits, -(product.palletCount || 0), `Połączono z produktem #${masterProduct.id} (${masterProduct.plantName})`, masterProduct.id]
         );
       }
@@ -1039,7 +1039,7 @@ static async getMovements(productId: number, limit = 50): Promise<InventoryMovem
       const mergedNames = productsToMerge.map(p => `#${p.id}`).join(', ');
       await query(
         `INSERT INTO inventory_movements (product_id, user_id, movement_type, delta_units, delta_pallets, reason, reference_type, reference_id)
-         VALUES (, , 'merge', , , , 'product', )`,
+         VALUES ($1, $2, 'merge', $3, $4, $5, 'product', $6)`,
         [masterProduct.id, userId, totalAddedUnits, totalAddedPallets, `Połączono produkty: ${mergedNames}`, masterProduct.id]
       );
     }
