@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Product, InventoryMovement, Order, Customer } from '../../types';
 import { api } from '../../services/api';
@@ -39,12 +39,31 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
   const [activeTab, setActiveTab] = useState<'movements' | 'orders'>('movements');
   const [orderMode, setOrderMode] = useState<'new' | 'existing'>('new');
 
+  // Customer search state
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const customerSearchRef = useRef<HTMLDivElement>(null);
+
+  // Existing order search state
+  const [orderSearch, setOrderSearch] = useState('');
+
   useEffect(() => {
     if (product) {
       loadData();
       setSuccessMessage(null);
     }
   }, [product?.id]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (customerSearchRef.current && !customerSearchRef.current.contains(event.target as Node)) {
+        setShowCustomerDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const loadData = async () => {
     if (!product) return;
@@ -70,6 +89,53 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
     }
   };
 
+  // Filtered customers based on search
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearch.trim()) return customers.slice(0, 10); // Show first 10 when empty
+    const searchLower = customerSearch.toLowerCase();
+    return customers.filter(c => {
+      const companyName = (c.companyName || '').toLowerCase();
+      const fullName = `${c.firstName || ''} ${c.lastName || ''}`.toLowerCase();
+      const code = (c.customerCode || '').toLowerCase();
+      return companyName.includes(searchLower) || fullName.includes(searchLower) || code.includes(searchLower);
+    }).slice(0, 15); // Limit results
+  }, [customers, customerSearch]);
+
+  // Get selected customer display name
+  const selectedCustomer = useMemo(() => {
+    return customers.find(c => c.id === selectedCustomerId);
+  }, [customers, selectedCustomerId]);
+
+  // Filter orders that can be edited (not completed/cancelled)
+  const editableOrders = useMemo(() => {
+    return orders.filter(o =>
+      o.status === 'pending' || o.status === 'in_progress' || o.status === 'ready_for_pickup'
+    );
+  }, [orders]);
+
+  // Filtered editable orders based on search
+  const filteredEditableOrders = useMemo(() => {
+    if (!orderSearch.trim()) return editableOrders;
+    const searchLower = orderSearch.toLowerCase();
+    return editableOrders.filter(o => {
+      const orderNumber = (o.orderNumber || '').toLowerCase();
+      const customerName = (o.customerName || '').toLowerCase();
+      const customerCode = (o.customerCode || '').toLowerCase();
+      return orderNumber.includes(searchLower) || customerName.includes(searchLower) || customerCode.includes(searchLower);
+    });
+  }, [editableOrders, orderSearch]);
+
+  const handleSelectCustomer = (customer: Customer) => {
+    setSelectedCustomerId(customer.id);
+    setCustomerSearch('');
+    setShowCustomerDropdown(false);
+  };
+
+  const handleClearCustomer = () => {
+    setSelectedCustomerId(null);
+    setCustomerSearch('');
+  };
+
   const handleAddToNewOrder = async () => {
     if (!product || !selectedCustomerId || quantity <= 0) return;
 
@@ -78,7 +144,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
     try {
       await onAddToOrder(product, quantity, selectedCustomerId);
       const customer = customers.find(c => c.id === selectedCustomerId);
-      setSuccessMessage(`Dodano ${quantity} szt. do nowego zamówienia dla ${customer?.companyName || customer?.firstName || 'klienta'}`);
+      setSuccessMessage(`Dodano ${quantity} szt. do nowego zamowienia dla ${customer?.companyName || customer?.firstName || 'klienta'}`);
       setQuantity(1);
       loadData();
     } catch (error) {
@@ -96,7 +162,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
     try {
       await onAddToExistingOrder(product, quantity, selectedOrderId);
       const order = orders.find(o => o.id === selectedOrderId);
-      setSuccessMessage(`Dodano ${quantity} szt. do zamówienia ${order?.orderNumber || '#' + selectedOrderId}`);
+      setSuccessMessage(`Dodano ${quantity} szt. do zamowienia ${order?.orderNumber || '#' + selectedOrderId}`);
       setQuantity(1);
       loadData();
     } catch (error) {
@@ -132,7 +198,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
   const getMovementTypeLabel = (type: string) => {
     const labels: Record<string, { text: string; color: string }> = {
       purchase: { text: 'Zakup', color: 'bg-green-100 text-green-800' },
-      sale: { text: 'Sprzedaż', color: 'bg-blue-100 text-blue-800' },
+      sale: { text: 'Sprzedaz', color: 'bg-blue-100 text-blue-800' },
       return: { text: 'Zwrot', color: 'bg-yellow-100 text-yellow-800' },
       correction: { text: 'Korekta', color: 'bg-gray-100 text-gray-800' },
       loss: { text: 'Strata', color: 'bg-red-100 text-red-800' },
@@ -146,16 +212,11 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
       pending: { text: 'Oczekuje', color: 'bg-yellow-100 text-yellow-800' },
       in_progress: { text: 'W realizacji', color: 'bg-blue-100 text-blue-800' },
       ready_for_pickup: { text: 'Do odbioru', color: 'bg-purple-100 text-purple-800' },
-      completed: { text: 'Zakończone', color: 'bg-green-100 text-green-800' },
+      completed: { text: 'Zakonczone', color: 'bg-green-100 text-green-800' },
       cancelled: { text: 'Anulowane', color: 'bg-red-100 text-red-800' },
     };
     return labels[status] || { text: status, color: 'bg-gray-100 text-gray-800' };
   };
-
-  // Filter orders that can be edited (not completed/cancelled)
-  const editableOrders = orders.filter(o =>
-    o.status === 'pending' || o.status === 'in_progress' || o.status === 'ready_for_pickup'
-  );
 
   // Calculate stats from product orders
   const totalSold = productOrders.reduce((sum, o) => sum + (o.productQuantity || 0), 0);
@@ -170,7 +231,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
           <span className="text-primary-200 text-sm">|</span>
           <span className="text-sm">Stan: <strong>{product.totalUnits}</strong> szt.</span>
           <span className="text-sm">Sprzedano: <strong>{product.totalSold || 0}</strong> szt.</span>
-          <span className="text-sm">Cena: <strong>{product.basePriceGross?.toFixed(2) || '-'} zł</strong></span>
+          <span className="text-sm">Cena: <strong>{product.basePriceGross?.toFixed(2) || '-'} zl</strong></span>
         </div>
         <button
           onClick={onClose}
@@ -188,7 +249,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
         {/* Left: Add to order */}
         <div className="w-96 border-r bg-gray-50 p-3 flex flex-col">
           <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
-            <span>🛒</span> Dodaj do zamówienia
+            <span>🛒</span> Dodaj do zamowienia
           </h3>
 
           {successMessage && (
@@ -207,7 +268,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                   : 'text-gray-600 hover:text-gray-800'
               }`}
             >
-              + Nowe zamówienie
+              + Nowe zamowienie
             </button>
             <button
               onClick={() => setOrderMode('existing')}
@@ -217,7 +278,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                   : 'text-gray-600 hover:text-gray-800'
               }`}
             >
-              Istniejące ({editableOrders.length})
+              Istniejace ({editableOrders.length})
             </button>
           </div>
 
@@ -225,24 +286,68 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
             {orderMode === 'new' ? (
               /* New order form */
               <>
-                <div>
+                <div ref={customerSearchRef} className="relative">
                   <label className="text-xs text-gray-600 block mb-1">Klient</label>
-                  <select
-                    value={selectedCustomerId || ''}
-                    onChange={(e) => setSelectedCustomerId(Number(e.target.value) || null)}
-                    className="w-full px-2 py-1.5 border rounded text-sm focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
-                  >
-                    <option value="">Wybierz klienta...</option>
-                    {customers.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.customerCode ? `[${c.customerCode}] ` : ""}{c.companyName || `${c.firstName} ${c.lastName}`}
-                      </option>
-                    ))}
-                  </select>
+                  {selectedCustomer ? (
+                    <div className="flex items-center gap-2 px-2 py-1.5 border rounded text-sm bg-primary-50 border-primary-200">
+                      <span className="flex-1 truncate">
+                        {selectedCustomer.customerCode ? `[${selectedCustomer.customerCode}] ` : ''}
+                        {selectedCustomer.companyName || `${selectedCustomer.firstName} ${selectedCustomer.lastName}`}
+                      </span>
+                      <button
+                        onClick={handleClearCustomer}
+                        className="text-gray-400 hover:text-red-500 transition-colors"
+                        title="Wyczysc"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <input
+                        type="text"
+                        value={customerSearch}
+                        onChange={(e) => {
+                          setCustomerSearch(e.target.value);
+                          setShowCustomerDropdown(true);
+                        }}
+                        onFocus={() => setShowCustomerDropdown(true)}
+                        placeholder="Wpisz nazwe lub kod klienta..."
+                        className="w-full px-2 py-1.5 border rounded text-sm focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                      {showCustomerDropdown && (
+                        <div className="absolute z-50 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-auto">
+                          {filteredCustomers.length === 0 ? (
+                            <div className="px-3 py-2 text-sm text-gray-500">
+                              {customerSearch ? 'Nie znaleziono klientow' : 'Brak klientow'}
+                            </div>
+                          ) : (
+                            filteredCustomers.map(c => (
+                              <div
+                                key={c.id}
+                                onClick={() => handleSelectCustomer(c)}
+                                className="px-3 py-2 cursor-pointer hover:bg-primary-50 transition-colors border-b last:border-b-0"
+                              >
+                                <div className="text-sm font-medium text-gray-900">
+                                  {c.customerCode ? `[${c.customerCode}] ` : ''}
+                                  {c.companyName || `${c.firstName} ${c.lastName}`}
+                                </div>
+                                {c.city && (
+                                  <div className="text-xs text-gray-500">{c.city}</div>
+                                )}
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
 
                 <div>
-                  <label className="text-xs text-gray-600 block mb-1">Ilość (max: {product.totalUnits})</label>
+                  <label className="text-xs text-gray-600 block mb-1">Ilosc (max: {product.totalUnits})</label>
                   <input
                     type="number"
                     min={1}
@@ -254,7 +359,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                 </div>
 
                 <div className="text-xs text-gray-500">
-                  Wartość: <strong>{(quantity * (product.basePriceGross || 0)).toFixed(2)} zł</strong>
+                  Wartosc: <strong>{(quantity * (product.basePriceGross || 0)).toFixed(2)} zl</strong>
                 </div>
 
                 <button
@@ -271,7 +376,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                       Dodawanie...
                     </>
                   ) : (
-                    <>Utwórz zamówienie</>
+                    <>Utworz zamowienie</>
                   )}
                 </button>
               </>
@@ -279,14 +384,25 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
               /* Existing order selection */
               <>
                 <div>
-                  <label className="text-xs text-gray-600 block mb-1">Wybierz zamówienie</label>
+                  <label className="text-xs text-gray-600 block mb-1">Szukaj zamowienia</label>
+                  <input
+                    type="text"
+                    value={orderSearch}
+                    onChange={(e) => setOrderSearch(e.target.value)}
+                    placeholder="Nr zamowienia, nazwa lub kod klienta..."
+                    className="w-full px-2 py-1.5 border rounded text-sm focus:ring-1 focus:ring-primary-500 focus:border-primary-500 mb-2"
+                  />
                   {editableOrders.length === 0 ? (
                     <div className="text-sm text-gray-500 py-2 text-center bg-gray-100 rounded">
-                      Brak aktywnych zamówień
+                      Brak aktywnych zamowien
+                    </div>
+                  ) : filteredEditableOrders.length === 0 ? (
+                    <div className="text-sm text-gray-500 py-2 text-center bg-gray-100 rounded">
+                      Nie znaleziono zamowien
                     </div>
                   ) : (
-                    <div className="max-h-32 overflow-auto border rounded bg-white">
-                      {editableOrders.map(o => {
+                    <div className="max-h-28 overflow-auto border rounded bg-white">
+                      {filteredEditableOrders.map(o => {
                         const statusInfo = getStatusLabel(o.status);
                         return (
                           <div
@@ -313,10 +429,15 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                       })}
                     </div>
                   )}
+                  {orderSearch && filteredEditableOrders.length > 0 && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      Znaleziono: {filteredEditableOrders.length} z {editableOrders.length}
+                    </div>
+                  )}
                 </div>
 
                 <div>
-                  <label className="text-xs text-gray-600 block mb-1">Ilość (max: {product.totalUnits})</label>
+                  <label className="text-xs text-gray-600 block mb-1">Ilosc (max: {product.totalUnits})</label>
                   <input
                     type="number"
                     min={1}
@@ -328,7 +449,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                 </div>
 
                 <div className="text-xs text-gray-500">
-                  Wartość: <strong>{(quantity * (product.basePriceGross || 0)).toFixed(2)} zł</strong>
+                  Wartosc: <strong>{(quantity * (product.basePriceGross || 0)).toFixed(2)} zl</strong>
                 </div>
 
                 <button
@@ -345,7 +466,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                       Dodawanie...
                     </>
                   ) : (
-                    <>Dodaj do zamówienia</>
+                    <>Dodaj do zamowienia</>
                   )}
                 </button>
               </>
@@ -365,7 +486,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                   : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
               }`}
             >
-              Historia ruchów ({movements.length})
+              Historia ruchow ({movements.length})
             </button>
             <button
               onClick={() => setActiveTab('orders')}
@@ -375,10 +496,10 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                   : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
               }`}
             >
-              Zamówienia z tym produktem ({productOrders.length})
+              Zamowienia z tym produktem ({productOrders.length})
             </button>
             <div className="ml-auto px-4 py-2 text-xs text-gray-500">
-              Łącznie sprzedano: <strong className="text-green-700">{totalSold}</strong> szt. w <strong>{uniqueOrders}</strong> zamówieniach
+              Lacznie sprzedano: <strong className="text-green-700">{totalSold}</strong> szt. w <strong>{uniqueOrders}</strong> zamowieniach
             </div>
           </div>
 
@@ -390,7 +511,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                Ładowanie...
+                Ladowanie...
               </div>
             ) : activeTab === 'movements' ? (
               <table className="w-full text-xs">
@@ -398,17 +519,17 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                   <tr>
                     <th className="text-left px-2 py-1">Data</th>
                     <th className="text-left px-2 py-1">Typ</th>
-                    <th className="text-left px-2 py-1">Zamówienie</th>
+                    <th className="text-left px-2 py-1">Zamowienie</th>
                     <th className="text-left px-2 py-1">Kontrahent</th>
                     <th className="text-right px-2 py-1">Zmiana</th>
-                    <th className="text-left px-2 py-1">Powód</th>
-                    <th className="text-left px-2 py-1">Użytkownik</th>
+                    <th className="text-left px-2 py-1">Powod</th>
+                    <th className="text-left px-2 py-1">Uzytkownik</th>
                   </tr>
                 </thead>
                 <tbody>
                   {movements.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-4 text-gray-500">Brak historii ruchów</td>
+                      <td colSpan={7} className="text-center py-4 text-gray-500">Brak historii ruchow</td>
                     </tr>
                   ) : (
                     movements.map((m) => {
@@ -453,11 +574,11 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
               <table className="w-full text-xs">
                 <thead className="bg-gray-100 sticky top-0">
                   <tr>
-                    <th className="text-left px-2 py-1">Nr zamówienia</th>
+                    <th className="text-left px-2 py-1">Nr zamowienia</th>
                     <th className="text-left px-2 py-1">Klient</th>
-                    <th className="text-right px-2 py-1">Ilość</th>
+                    <th className="text-right px-2 py-1">Ilosc</th>
                     <th className="text-right px-2 py-1">Cena jedn.</th>
-                    <th className="text-right px-2 py-1">Wartość</th>
+                    <th className="text-right px-2 py-1">Wartosc</th>
                     <th className="text-left px-2 py-1">Status</th>
                     <th className="text-left px-2 py-1">Data</th>
                   </tr>
@@ -465,7 +586,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                 <tbody>
                   {productOrders.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-4 text-gray-500">Ten produkt nie był jeszcze zamawiany</td>
+                      <td colSpan={7} className="text-center py-4 text-gray-500">Ten produkt nie byl jeszcze zamawiany</td>
                     </tr>
                   ) : (
                     productOrders.map((o) => {
@@ -476,7 +597,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                             <button
                               onClick={() => handleOrderClick(o.id)}
                               className="font-medium text-primary-700 hover:text-primary-900 hover:underline focus:outline-none"
-                              title="Przejdź do zamówienia"
+                              title="Przejdz do zamowienia"
                             >
                               {o.orderNumber}
                             </button>
@@ -488,10 +609,10 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                             {o.productQuantity} szt.
                           </td>
                           <td className="px-2 py-1 text-right text-gray-600">
-                            {Number(o.productUnitPrice).toFixed(2)} zł
+                            {Number(o.productUnitPrice).toFixed(2)} zl
                           </td>
                           <td className="px-2 py-1 text-right font-medium text-green-700">
-                            {Number(o.productTotalPrice).toFixed(2)} zł
+                            {Number(o.productTotalPrice).toFixed(2)} zl
                           </td>
                           <td className="px-2 py-1">
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${statusInfo.color}`}>
