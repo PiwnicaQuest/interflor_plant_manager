@@ -225,6 +225,7 @@ app.get("/pos/daily-report/pdf", requireAuth, requirePermission('pos:access'), P
 
 app.get('/receipts', requireAuth, ReceiptController.getAll);
 app.get('/receipts/number/:receiptNumber', requireAuth, ReceiptController.getByReceiptNumber);
+app.delete('/receipts/bulk', requireAuth, requirePermission('receipts:create'), ReceiptController.deleteBulk);
 app.get("/receipts/:id/html", requireAuth, ReceiptController.getHTML);
 app.get('/receipts/:id', requireAuth, ReceiptController.getById);
 app.put('/receipts/:id', requireAuth, requirePermission('receipts:create'), ReceiptController.update);

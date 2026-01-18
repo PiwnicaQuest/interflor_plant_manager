@@ -1100,6 +1100,11 @@ class ApiClient {
     return response.data;
   }
 
+  async deleteReceiptsBulk(ids: number[]): Promise<{ message: string; deletedCount: number }> {
+    const response = await this.client.delete("/receipts/bulk", { data: { ids } });
+    return response.data;
+  }
+
   // ============================================
   // PRINT TEMPLATES
   // ============================================

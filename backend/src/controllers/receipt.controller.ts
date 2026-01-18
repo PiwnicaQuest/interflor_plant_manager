@@ -161,4 +161,30 @@ export class ReceiptController {
       res.status(500).json({ error: "Błąd serwera podczas generowania HTML" });
     }
   }
+
+  static async deleteBulk(req: AuthRequest, res: Response) {
+    try {
+      const { ids } = req.body;
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "Brak ID paragonów do usunięcia" });
+      }
+
+      const validIds = ids.filter((id: any) => typeof id === "number" && !isNaN(id));
+
+      if (validIds.length === 0) {
+        return res.status(400).json({ error: "Nieprawidłowe ID paragonów" });
+      }
+
+      const deletedCount = await ReceiptModel.deleteBulk(validIds);
+
+      return res.json({
+        message: `Usunięto ${deletedCount} paragonów`,
+        deletedCount,
+      });
+    } catch (error: any) {
+      console.error("Bulk delete receipts error:", error);
+      return res.status(500).json({ error: "Błąd serwera podczas usuwania paragonów" });
+    }
+  }
 }

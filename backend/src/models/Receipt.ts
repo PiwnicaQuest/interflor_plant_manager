@@ -219,4 +219,13 @@ export class ReceiptModel {
     const result = await query('DELETE FROM receipts WHERE id = $1', [id]);
     return (result.rowCount || 0) > 0;
   }
+
+  static async deleteBulk(ids: number[]): Promise<number> {
+    if (ids.length === 0) return 0;
+    const result = await query(
+      "DELETE FROM receipts WHERE id = ANY($1)",
+      [ids]
+    );
+    return result.rowCount || 0;
+  }
 }
