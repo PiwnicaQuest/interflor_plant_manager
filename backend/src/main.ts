@@ -144,6 +144,7 @@ app.delete("/inventory-movements", requireAuth, InventoryMovementController.hide
 // ============================================
 
 app.get('/orders', requireAuth, OrderController.getAll);
+app.get('/orders/bulk', requireAuth, OrderController.getBulk);
 app.get('/orders/by-product/:productId', requireAuth, OrderController.getByProductId);
 app.get('/orders/:id/status-history', requireAuth, OrderController.getStatusHistory);
 app.get('/orders/:id', requireAuth, OrderController.getById);
