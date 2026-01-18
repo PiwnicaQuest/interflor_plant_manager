@@ -40,6 +40,7 @@ export function InventoryMovementsPage() {
   const [statistics, setStatistics] = useState<any>(null);
   const [selectedMovements, setSelectedMovements] = useState<number[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [availableTypes, setAvailableTypes] = useState<string[]>([]);
 
   // Get user email from JWT token
   const getUserEmail = () => {
@@ -83,6 +84,19 @@ export function InventoryMovementsPage() {
     fetchUsers();
   }, []);
 
+
+  // Fetch available movement types
+  useEffect(() => {
+    const fetchTypes = async () => {
+      try {
+        const data = await api.getAvailableMovementTypes();
+        setAvailableTypes(data.types);
+      } catch (error) {
+        console.error("Error fetching movement types:", error);
+      }
+    };
+    fetchTypes();
+  }, []);
   // Fetch movements with debounce
   const fetchMovements = useCallback(async () => {
     try {
@@ -324,9 +338,15 @@ export function InventoryMovementsPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             >
               <option value="">Wszystkie</option>
-              {Object.entries(MOVEMENT_TYPE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
+              {availableTypes.length > 0 ? (
+                availableTypes.map((type) => (
+                  <option key={type} value={type}>{MOVEMENT_TYPE_LABELS[type as MovementType] || type}</option>
+                ))
+              ) : (
+                Object.entries(MOVEMENT_TYPE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))
+              )}
             </select>
           </div>
 

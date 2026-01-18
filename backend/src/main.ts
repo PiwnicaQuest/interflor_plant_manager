@@ -134,6 +134,7 @@ app.post("/inventory/recalculate-prices", requireAuth, requirePermission('settin
 
 app.get('/inventory-movements', requireAuth, requirePermission('inventory:view'), InventoryMovementController.getAll);
 app.get('/inventory-movements/statistics', requireAuth, requirePermission('inventory:view'), InventoryMovementController.getStatistics);
+app.get('/inventory-movements/types', requireAuth, requirePermission('inventory:view'), InventoryMovementController.getAvailableTypes);
 app.get('/inventory-movements/product/:productId', requireAuth, requirePermission('inventory:view'), InventoryMovementController.getByProduct);
 app.delete("/inventory-movements/:id", requireAuth, InventoryMovementController.hide);
 app.delete("/inventory-movements", requireAuth, InventoryMovementController.hideMany);

@@ -90,6 +90,20 @@ export class InventoryMovementController {
     }
   }
 
+  /**
+   * GET /inventory-movements/types
+   * Get available movement types (only types with records in database)
+   */
+  static async getAvailableTypes(_req: AuthRequest, res: Response) {
+    try {
+      const types = await InventoryMovementModel.getAvailableTypes();
+      res.json({ types });
+    } catch (error) {
+      console.error('Error fetching available movement types:', error);
+      res.status(500).json({ error: 'Nie udało się pobrać dostępnych typów ruchów' });
+    }
+  }
+
   // Lista użytkowników uprawnionych do ukrywania historii
   private static AUTHORIZED_HIDE_EMAILS = [
     'damian@polflor.wroclaw.pl',

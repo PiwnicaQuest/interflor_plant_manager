@@ -302,4 +302,17 @@ export class InventoryMovementModel {
     );
     return result.rowCount ?? 0;
   }
+
+  /**
+   * Get available movement types (only types with records in database)
+   */
+  static async getAvailableTypes(): Promise<string[]> {
+    const result = await query<{ movementType: string }>(
+      `SELECT DISTINCT movement_type as "movementType"
+       FROM inventory_movements
+       WHERE (hidden IS NULL OR hidden = false)
+       ORDER BY movement_type`
+    );
+    return result.rows.map(row => row.movementType);
+  }
 }

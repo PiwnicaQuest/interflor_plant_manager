@@ -860,11 +860,17 @@ class ApiClient {
     return response.data;
   }
 
-  async deleteInventoryMovement(id: number): Promise<{ success: boolean; message: string }> {
-    const response = await this.client.delete(`/inventory-movements/${id}`);
+
+  async getAvailableMovementTypes(): Promise<{ types: string[] }> {
+    const response = await this.client.get("/inventory-movements/types");
     return response.data;
   }
 
+  async deleteInventoryMovement(id: number): Promise<{ success: boolean; message: string }> {
+    const response = await this.client.delete(`/inventory-movements/${id}`);
+    return response.data;
+
+  }
   async deleteInventoryMovements(ids: number[]): Promise<{ success: boolean; message: string; deletedCount: number }> {
     const response = await this.client.delete('/inventory-movements', { data: { ids } });
     return response.data;
