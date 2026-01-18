@@ -479,15 +479,6 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment, onRefresh }:
                 Pobierz PDF
               </a>
             )}
-            {templates.length > 0 && (
-              <button
-                onClick={() => setShowTemplateSelector(true)}
-                className="btn btn-secondary flex items-center gap-2"
-              >
-                <span>🖨️</span>
-                <span>Drukuj z szablonu</span>
-              </button>
-            )}
             <button onClick={onClose} className="btn btn-secondary flex-1">
               Zamknij
             </button>
@@ -495,59 +486,6 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment, onRefresh }:
         </div>
       </div>
 
-      {/* Template Selector Modal */}
-      {showTemplateSelector && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-bold mb-4">Wybierz szablon faktury</h3>
-
-            {/* Printer status in modal */}
-            <div className="mb-4 flex items-center gap-2 text-sm">
-              <div className={'w-2 h-2 rounded-full ' + (hasPrinterConfigured ? 'bg-green-500' : 'bg-gray-400')}></div>
-              <span className={hasPrinterConfigured ? 'text-green-700' : 'text-gray-600'}>
-                {hasPrinterConfigured
-                  ? 'Automatyczny wydruk na skonfigurowanej drukarce'
-                  : 'Wydruk przez przeglądarkę'}
-              </span>
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Szablon
-              </label>
-              <select
-                value={selectedTemplateId || ''}
-                onChange={(e) => setSelectedTemplateId(Number(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                {templates.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} ({t.paperWidth}x{t.paperHeight}mm)
-                    {t.isDefault ? ' - Domyślny' : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowTemplateSelector(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              >
-                Anuluj
-              </button>
-              <button
-                onClick={handlePrintWithTemplate}
-                disabled={!selectedTemplateId}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
-              >
-                <span>🖨️</span>
-                Drukuj
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

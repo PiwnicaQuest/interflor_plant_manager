@@ -166,7 +166,7 @@ export function Layout() {
       adminItems.push({ path: '/settings', label: 'Ustawienia' });
     }
     if (hasPermission('settings:edit')) {
-      adminItems.push({ path: '/templates', label: 'Szablony' });
+      adminItems.push({ path: '/templates', label: 'Szablony etykiet' });
     }
     if (hasPermission('inventory:delete')) {
       adminItems.push({ path: '/losses', label: 'Straty' });

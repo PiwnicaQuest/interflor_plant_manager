@@ -1,33 +1,21 @@
 import { useState, useEffect } from 'react';
-import { PrintTemplate, TemplateType } from '../../types';
+import { PrintTemplate } from '../../types';
 import { API } from '../../services/api';
 import { TemplateEditor } from './TemplateEditor';
-
-const TEMPLATE_TYPE_LABELS: Record<TemplateType, string> = {
-  barcode: 'Kod kreskowy',
-  label: 'Etykieta',
-  invoice: 'Faktura',
-  receipt: 'Paragon',
-  order: 'Zamówienie',
-  report: 'Raport',
-  proforma: 'Pro Forma',
-};
 
 export function TemplatesPage() {
   const [templates, setTemplates] = useState<PrintTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<PrintTemplate | null>(null);
-  const [filterType, setFilterType] = useState<TemplateType | 'all'>('all');
   const [showNewTemplateModal, setShowNewTemplateModal] = useState(false);
-  const [newTemplateType, setNewTemplateType] = useState<TemplateType>(TemplateType.LABEL);
   const [newTemplateName, setNewTemplateName] = useState('');
 
-  // Fetch templates
+  // Fetch label templates only
   const fetchTemplates = async () => {
     try {
       setIsLoading(true);
-      const data = await API.getPrintTemplates(filterType === 'all' ? undefined : filterType);
+      const data = await API.getPrintTemplates('label');
       setTemplates(data);
       setError(null);
     } catch (err) {
@@ -40,34 +28,24 @@ export function TemplatesPage() {
 
   useEffect(() => {
     fetchTemplates();
-  }, [filterType]);
+  }, []);
 
-  // Create new template
+  // Create new label template
   const handleCreateTemplate = async () => {
     if (!newTemplateName.trim()) return;
 
     try {
-      const defaultSizes: Record<TemplateType, { width: number; height: number }> = {
-        barcode: { width: 50, height: 30 },
-        label: { width: 50, height: 30 },
-        invoice: { width: 210, height: 297 },
-        receipt: { width: 80, height: 200 },
-        order: { width: 210, height: 297 },
-        report: { width: 210, height: 297 },
-        proforma: { width: 210, height: 297 },
-      };
-
-      const size = defaultSizes[newTemplateType];
       const newTemplate = await API.createPrintTemplate({
         name: newTemplateName,
-        type: newTemplateType,
-        paperWidth: size.width,
-        paperHeight: size.height,
-        marginTop: newTemplateType === 'label' ? 1 : 10,
-        marginRight: newTemplateType === 'label' ? 1 : 10,
-        marginBottom: newTemplateType === 'label' ? 1 : 10,
-        marginLeft: newTemplateType === 'label' ? 1 : 10,
-        elements: [], isDefault: false,
+        type: 'label',
+        paperWidth: 50,
+        paperHeight: 30,
+        marginTop: 1,
+        marginRight: 1,
+        marginBottom: 1,
+        marginLeft: 1,
+        elements: [],
+        isDefault: false,
       });
 
       setTemplates([newTemplate, ...templates]);
@@ -119,13 +97,10 @@ export function TemplatesPage() {
   const handleSetDefault = async (id: number) => {
     try {
       await API.setTemplateAsDefault(id);
-      const template = templates.find(t => t.id === id);
-      if (template) {
-        setTemplates(templates.map(t => ({
-          ...t,
-          isDefault: t.type === template.type ? t.id === id : t.isDefault,
-        })));
-      }
+      setTemplates(templates.map(t => ({
+        ...t,
+        isDefault: t.id === id,
+      })));
     } catch (err) {
       setError('Błąd podczas ustawiania domyślnego szablonu');
       console.error(err);
@@ -138,19 +113,10 @@ export function TemplatesPage() {
       const duplicated = await API.duplicatePrintTemplate(id);
       setTemplates([duplicated, ...templates]);
     } catch (err) {
-      setError('Błąd podczas duplikówania szablonu');
+      setError('Błąd podczas duplikowania szablonu');
       console.error(err);
     }
   };
-
-  // Group templates by type
-  const groupedTemplates = templates.reduce((acc, template) => {
-    if (!acc[template.type]) {
-      acc[template.type] = [];
-    }
-    acc[template.type].push(template);
-    return acc;
-  }, {} as Record<TemplateType, PrintTemplate[]>);
 
   if (editingTemplate) {
     return (
@@ -166,9 +132,9 @@ export function TemplatesPage() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Szablony wydruków</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Szablony etykiet</h1>
           <p className="text-gray-500 mt-1">
-            Zarządzaj szablonami etykiet, faktur i innych dokumentów
+            Zarządzaj szablonami etykiet do drukowania kodów kreskowych
           </p>
         </div>
         <button
@@ -187,40 +153,11 @@ export function TemplatesPage() {
         </div>
       )}
 
-      {/* Filter */}
-      <div className="mb-6">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setFilterType('all')}
-            className={`px-4 py-2 rounded-md ${
-              filterType === 'all'
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Wszystkie
-          </button>
-          {(Object.keys(TEMPLATE_TYPE_LABELS) as TemplateType[]).map((type) => (
-            <button
-              key={type}
-              onClick={() => setFilterType(type)}
-              className={`px-4 py-2 rounded-md ${
-                filterType === type
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {TEMPLATE_TYPE_LABELS[type]}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {isLoading ? (
         <div className="text-center py-12 text-gray-500">Ładowanie...</div>
       ) : templates.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-gray-500 mb-4">Brak szablonów</p>
+          <p className="text-gray-500 mb-4">Brak szablonów etykiet</p>
           <button
             onClick={() => setShowNewTemplateModal(true)}
             className="text-primary-600 hover:text-primary-700"
@@ -228,31 +165,7 @@ export function TemplatesPage() {
             Utwórz pierwszy szablon
           </button>
         </div>
-      ) : filterType === 'all' ? (
-        // Grouped view
-        <div className="space-y-8">
-          {(Object.keys(groupedTemplates) as TemplateType[]).map((type) => (
-            <div key={type}>
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">
-                {TEMPLATE_TYPE_LABELS[type]}
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {groupedTemplates[type].map((template) => (
-                  <TemplateCard
-                    key={template.id}
-                    template={template}
-                    onEdit={() => setEditingTemplate(template)}
-                    onDelete={() => handleDeleteTemplate(template.id)}
-                    onSetDefault={() => handleSetDefault(template.id)}
-                    onDuplicate={() => handleDuplicateTemplate(template.id)}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
       ) : (
-        // Flat view for single type
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {templates.map((template) => (
             <TemplateCard
@@ -271,7 +184,7 @@ export function TemplatesPage() {
       {showNewTemplateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-            <h2 className="text-xl font-bold mb-4">Nowy szablon</h2>
+            <h2 className="text-xl font-bold mb-4">Nowy szablon etykiety</h2>
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -282,27 +195,14 @@ export function TemplatesPage() {
                 value={newTemplateName}
                 onChange={(e) => setNewTemplateName(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="np. Etykieta produktu"
+                placeholder="np. Etykieta 50x30mm"
                 autoFocus
               />
             </div>
 
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Typ szablonu
-              </label>
-              <select
-                value={newTemplateType}
-                onChange={(e) => setNewTemplateType(e.target.value as TemplateType)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                {(Object.keys(TEMPLATE_TYPE_LABELS) as TemplateType[]).map((type) => (
-                  <option key={type} value={type}>
-                    {TEMPLATE_TYPE_LABELS[type]}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <p className="text-sm text-gray-500 mb-6">
+              Domyślny rozmiar: 50mm × 30mm (można zmienić w edytorze)
+            </p>
 
             <div className="flex justify-end gap-3">
               <button
