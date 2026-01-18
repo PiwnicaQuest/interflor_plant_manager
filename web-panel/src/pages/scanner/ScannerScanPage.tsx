@@ -373,8 +373,8 @@ export function ScannerScanPage() {
                           <>
                             <div className="font-medium text-gray-900 text-sm truncate">
                               #{movement.orderNumber}
-                              {movement.orderCustomerName && (
-                                <span className="text-gray-600 font-normal"> - {movement.orderCustomerName}</span>
+                              {(movement.orderCustomerCode || movement.orderCustomerName) && (
+                                <span className="text-gray-600 font-normal"> - {movement.orderCustomerCode && "[" + movement.orderCustomerCode + "] "}{movement.orderCustomerName}</span>
                               )}
                             </div>
                             <div className="flex items-center gap-1.5 mt-0.5">
