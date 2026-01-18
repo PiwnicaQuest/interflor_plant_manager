@@ -172,7 +172,7 @@ export function ProformaTemplate({ data, sellerInfo = defaultSellerInfo }: Profo
           <p>Data wystawienia: <span className="font-semibold">{formatDate(data.issueDate)}</span></p>
           <p>Data sprzedazy: <span className="font-semibold">{formatDate(data.saleDate)}</span></p>
           {data.paymentDeadline && (
-            <p>Termin platnosci: <span className="font-semibold">{formatDate(data.paymentDeadline)}</span></p>
+            <p>Termin płatnośći: <span className="font-semibold">{formatDate(data.paymentDeadline)}</span></p>
           )}
         </div>
       </div>
@@ -226,7 +226,7 @@ export function ProformaTemplate({ data, sellerInfo = defaultSellerInfo }: Profo
             <tr className="bg-gray-100">
               <th className="border border-gray-300 p-2 text-left w-8">Lp.</th>
               <th className="border border-gray-300 p-2 text-left">Nazwa</th>
-              <th className="border border-gray-300 p-2 text-center w-10">Ilosc</th>
+              <th className="border border-gray-300 p-2 text-center w-10">Ilość</th>
               <th className="border border-gray-300 p-2 text-center w-10">J.m.</th>
               <th className="border border-gray-300 p-2 text-right w-16">Cena netto</th>
               <th className="border border-gray-300 p-2 text-center w-10">VAT</th>
@@ -268,11 +268,11 @@ export function ProformaTemplate({ data, sellerInfo = defaultSellerInfo }: Profo
       {/* Summary */}
       <div className="grid grid-cols-2 gap-8 mb-6">
         <div>
-          <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Platnosc</h3>
+          <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Płatność</h3>
           {/* Display payment splits if available */}
           {data.paymentSplits && data.paymentSplits.length > 1 ? (
             <div className="space-y-1">
-              <p className="text-sm font-semibold">Platnosc podzielona:</p>
+              <p className="text-sm font-semibold">Płatność podzielona:</p>
               {data.paymentSplits.map((split, index) => (
                 <p key={index} className="text-sm pl-2">
                   - {getPaymentMethodLabel(split.paymentMethod)}: <span className="font-semibold">{(Number(split.amount) || 0).toFixed(2)} zl</span>

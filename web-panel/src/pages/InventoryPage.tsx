@@ -336,7 +336,7 @@ export function InventoryPage() {
       ];
 
       if (field === 'pricePlus' && typeof value === 'number') {
-        // Tylko wysylamy pricePlus - backend sam przeliczy pozostale ceny
+        // Tylko wysyłamy pricePlus - backend sam przeliczy pozostałe ceny
         // wedlug wzoru: basePriceGross = pricePlus * 1.08 * (1 + marza%)
         updateData = { pricePlus: value };
         optimisticUpdates = { pricePlus: value };
@@ -615,7 +615,7 @@ export function InventoryPage() {
     if (!lossProduct) return;
     const qty = parseInt(lossQuantity);
     if (!qty || qty <= 0) {
-      alert('Podaj prawidlowa ilosc');
+      alert('Podaj prawidłową ilość');
       return;
     }
     try {
@@ -1289,14 +1289,14 @@ export function InventoryPage() {
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ilosc (sztuk)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ilość (sztuk)</label>
               <input
                 type="number"
                 min="1"
                 max={lossProduct.totalUnits || 0}
                 value={lossQuantity}
                 onChange={(e) => setLossQuantity(e.target.value)}
-                placeholder="Podaj ilosc"
+                placeholder="Podaj ilość"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>

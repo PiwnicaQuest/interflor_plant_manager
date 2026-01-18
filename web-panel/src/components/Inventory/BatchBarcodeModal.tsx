@@ -314,7 +314,7 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
               <tr>
                 <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Produkt</th>
                 <th className="px-4 py-2 text-center text-sm font-medium text-gray-700 w-32">Podgląd kodu</th>
-                <th className="px-4 py-2 text-center text-sm font-medium text-gray-700 w-24">Ilosc</th>
+                <th className="px-4 py-2 text-center text-sm font-medium text-gray-700 w-24">Ilość</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">

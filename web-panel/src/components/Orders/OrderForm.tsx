@@ -269,7 +269,7 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
     e.preventDefault();
     if (!selectedCustomerId && !isEditMode) { setError('Wybierz klienta'); return; }
     if (items.length === 0) { setError('Dodaj przynajmniej jeden produkt'); return; }
-    if (items.some(item => !item.productId || item.quantity <= 0)) { setError('Wszystkie produkty musza miec wybrana pozycje i ilosc wieksza od 0'); return; }
+    if (items.some(item => !item.productId || item.quantity <= 0)) { setError('Wszystkie produkty muszą mieć wybraną pozycje i ilość większą od 0'); return; }
 
     setLoading(true); setError('');
     try {
@@ -320,7 +320,7 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
                       <div className="col-span-2"><label className="block text-xs text-gray-600 mb-1">Cena jedn.</label><input type="text" className="input bg-white" value={(item.price || 0).toFixed(2)} readOnly /></div>
                       <div className="col-span-1"><button type="button" onClick={() => removeItem(index)} className="btn btn-danger w-full">X</button></div>
                     </div>
-                    {item.product && item.quantity > 0 && (<div className="mt-2 text-sm text-gray-600 flex justify-between items-center border-t pt-2"><span><strong>{item.palletCount}</strong> palet x <strong>{item.unitsPerPallet}</strong> szt/paleta = <strong>{item.quantity}</strong> szt.</span><span className="font-semibold text-gray-800">Wartosc: {(item.price * item.quantity).toFixed(2)} PLN</span></div>)}
+                    {item.product && item.quantity > 0 && (<div className="mt-2 text-sm text-gray-600 flex justify-between items-center border-t pt-2"><span><strong>{item.palletCount}</strong> palet x <strong>{item.unitsPerPallet}</strong> szt/paleta = <strong>{item.quantity}</strong> szt.</span><span className="font-semibold text-gray-800">Wartość: {(item.price * item.quantity).toFixed(2)} PLN</span></div>)}
                     {item.product && item.quantity > (item.product.totalUnits + (item.originalQuantity || 0)) && <p className="text-xs text-red-500 mt-1">Przekroczono dostepny stan: max {item.product.totalUnits + (item.originalQuantity || 0)} szt.</p>}
                   </div>
                 ))}

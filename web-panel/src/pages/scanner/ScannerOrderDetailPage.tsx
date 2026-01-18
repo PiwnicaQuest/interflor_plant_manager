@@ -372,7 +372,7 @@ export function ScannerOrderDetailPage() {
     // Validate all items have quantity > 0
     const invalidItems = editedItems.filter(item => getItemUnits(item) <= 0);
     if (invalidItems.length > 0) {
-      setError('Wszystkie produkty muszą miec ilosc wieksza niz 0');
+      setError('Wszystkie produkty muszą mieć ilość większą niż 0');
       return;
     }
 

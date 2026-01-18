@@ -51,11 +51,11 @@ export function CustomersPage() {
   };
 
   const handlePermanentDelete = async (customerId: number, customerName: string) => {
-    if (!confirm(`UWAGA: Trwale usuniesz kontrahenta "${customerName}" wraz z jego kontem online.\nTo dzialanie jest NIEODWRACALNE!\nCzy na pewno chcesz kontynuowac?`)) return;
+    if (!confirm(`UWAGA: Trwale usuniesz kontrahenta "${customerName}" wraz z jego kontem online.\nTo działanie jest NIEODWRACALNE!\nCzy na pewno chcesz kontynuować?`)) return;
     try {
       await api.permanentlyDeleteCustomer(customerId);
       await fetchCustomers();
-      alert(`Kontrahent "${customerName}" zostal trwale usuniety`);
+      alert(`Kontrahent "${customerName}" został trwale usunięty`);
     } catch (err: any) {
       alert(err.response?.data?.error || 'Błąd trwałego usuwania kontrahenta');
     }
@@ -187,8 +187,8 @@ export function CustomersPage() {
               value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value as SortOrder)}
             >
-              <option value="ASC">A-Z (rosnaco)</option>
-              <option value="DESC">Z-A (malejaco)</option>
+              <option value="ASC">A-Z (rosnąco)</option>
+              <option value="DESC">Z-A (malejąco)</option>
             </select>
           </div>
         </div>

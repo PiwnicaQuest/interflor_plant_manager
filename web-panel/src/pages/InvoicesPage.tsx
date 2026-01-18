@@ -211,7 +211,7 @@ export function InvoicesPage() {
           }
         }
         
-        alert('Faktura zostala wyslana na adres ' + email);
+        alert('Faktura zostala wysłana na adres ' + email);
         setEmailModalInvoice(null);
         fetchInvoices(); // Refresh to update buyerSnapshot
       } else {
@@ -322,7 +322,7 @@ export function InvoicesPage() {
               Filtruj
             </button>
             <button onClick={handleClearFilter} className="btn btn-secondary">
-              Wyczysc
+              Wyczyść
             </button>
           </div>
         </div>

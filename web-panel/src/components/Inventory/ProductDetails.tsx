@@ -717,10 +717,10 @@ export function ProductDetails({ product, movements, onClose, onUpdateProduct, o
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                         <div className="flex items-center gap-2 text-amber-700 mb-2">
                           <span className="text-lg">📦</span>
-                          <span className="font-medium">Produkt zarchiwizowany (polaczony)</span>
+                          <span className="font-medium">Produkt zarchiwizowany (połączony)</span>
                         </div>
                         <p className="text-sm text-amber-600">
-                          Stan tego produktu zostal przeniesiony do produktu #{product.id}
+                          Stan tego produktu został przeniesiony do produktu #{product.id}
                         </p>
                       </div>
 

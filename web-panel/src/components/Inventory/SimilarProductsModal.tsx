@@ -393,7 +393,7 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
                           onClick={() => { setSearchName(""); setDateFrom(""); setDateTo(""); }}
                           className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg"
                         >
-                          Wyczysc filtry
+                          Wyczyść filtry
                         </button>
                       )}
                     </div>
@@ -649,8 +649,8 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                       <h4 className="font-semibold text-blue-800 mb-2">Wynik po polaczeniu</h4>
                       <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>Laczna liczba palet: <span className="font-bold text-blue-600">{preview.result.totalPallets}</span></div>
-                        <div>Laczna liczba sztuk: <span className="font-bold text-blue-600">{preview.result.totalUnits}</span></div>
+                        <div>Łączna liczba palet: <span className="font-bold text-blue-600">{preview.result.totalPallets}</span></div>
+                        <div>Łączna liczba sztuk: <span className="font-bold text-blue-600">{preview.result.totalUnits}</span></div>
                         <div>Cena (najwyzsza): <span className="font-bold text-blue-600">{formatPrice(preview.result.bestPrice)}</span></div>
                         <div>Aktywne kody: <span className="font-bold text-blue-600">{preview.result.barcodes.length}</span></div>
                       </div>

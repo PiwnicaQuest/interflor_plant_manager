@@ -519,7 +519,7 @@ export function ProformaPage() {
                       </svg>
                     </div>
                     <div>
-                      <p className="text-sm text-amber-600 font-medium">Suma wartosci</p>
+                      <p className="text-sm text-amber-600 font-medium">Suma wartośći</p>
                       <p className="text-xl font-bold text-amber-900">{stats.totalValue.toFixed(2)} PLN</p>
                     </div>
                   </div>
@@ -588,7 +588,7 @@ export function ProformaPage() {
                       <span className="font-semibold ml-1">{stats.last30Days.converted}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500">Wartosc:</span>
+                      <span className="text-gray-500">Wartość:</span>
                       <span className="font-semibold ml-1">{stats.last30Days.totalValue.toFixed(2)} PLN</span>
                     </div>
                     <div>

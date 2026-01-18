@@ -616,7 +616,7 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
                     <th className="py-2 px-2 text-center">Szt/pal</th>
                     <th className="py-2 px-2 text-center">Łącznie szt.</th>
                     <th className="py-2 px-3 text-right">Cena jedn.</th>
-                    <th className="py-2 px-3 text-right">Wartosc</th>
+                    <th className="py-2 px-3 text-right">Wartość</th>
                   </tr>
                 </thead>
                 <tbody>

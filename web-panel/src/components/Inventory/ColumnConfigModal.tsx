@@ -237,7 +237,7 @@ export function ColumnConfigModal({
             onClick={handleShowAll}
             className="px-3 py-1.5 text-sm bg-white border rounded-lg hover:bg-gray-50 transition-colors"
           >
-            Pokaz wszystkie
+            Pokaż wszystkie
           </button>
           <button
             onClick={handleHideOptional}

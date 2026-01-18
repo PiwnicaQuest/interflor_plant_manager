@@ -132,7 +132,7 @@ export function MergeOrdersModal({ masterOrder, onClose, onSuccess }: MergeOrder
                 <strong>{masterOrder.items?.length || 0}</strong>
               </div>
               <div>
-                <span className="text-blue-700">Wartosc:</span>{' '}
+                <span className="text-blue-700">Wartość:</span>{' '}
                 <strong>{(masterOrder.totalAmount || 0).toFixed(2)} PLN</strong>
               </div>
             </div>
@@ -182,7 +182,7 @@ export function MergeOrdersModal({ masterOrder, onClose, onSuccess }: MergeOrder
                       <th>Numer</th>
                       <th>Status</th>
                       <th className="text-center">Pozycji</th>
-                      <th className="text-right">Wartosc</th>
+                      <th className="text-right">Wartość</th>
                       <th>Data utworzenia</th>
                     </tr>
                   </thead>
@@ -236,11 +236,11 @@ export function MergeOrdersModal({ masterOrder, onClose, onSuccess }: MergeOrder
                   <strong>{mergePreview.ordersToMerge}</strong>
                 </div>
                 <div>
-                  <span className="text-green-700">Laczna liczba pozycji:</span>{' '}
+                  <span className="text-green-700">Łączna liczba pozycji:</span>{' '}
                   <strong>{mergePreview.totalItems}</strong>
                 </div>
                 <div>
-                  <span className="text-green-700">Laczna wartosc:</span>{' '}
+                  <span className="text-green-700">Łączna wartość:</span>{' '}
                   <strong>{mergePreview.totalAmount.toFixed(2)} PLN</strong>
                 </div>
               </div>

@@ -155,7 +155,7 @@ export function LossesPage() {
     }
     const qty = parseInt(quantity);
     if (!qty || qty <= 0) {
-      setFormError('Podaj prawidlowa ilosc');
+      setFormError('Podaj prawidłową ilość');
       return;
     }
 
@@ -233,11 +233,11 @@ export function LossesPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="card p-4">
-          <div className="text-sm text-gray-500">Laczna wartosc strat</div>
+          <div className="text-sm text-gray-500">Łączna wartość strat</div>
           <div className="text-2xl font-bold text-red-600">{formatPrice(totalValue)} PLN</div>
         </div>
         <div className="card p-4">
-          <div className="text-sm text-gray-500">Laczna ilosc</div>
+          <div className="text-sm text-gray-500">Łączna ilość</div>
           <div className="text-2xl font-bold text-gray-900">{totalQuantity} szt.</div>
         </div>
         <div className="card p-4">
@@ -276,7 +276,7 @@ export function LossesPage() {
               className="rounded border-gray-300"
             />
             <label htmlFor="showReversed" className="text-sm text-gray-700">
-              Pokaz cofniete
+              Pokaż cofnięte
             </label>
           </div>
           <button
@@ -287,7 +287,7 @@ export function LossesPage() {
             }}
             className="btn btn-secondary"
           >
-            Wyczysc filtry
+            Wyczyść filtry
           </button>
         </div>
       </div>
@@ -300,8 +300,8 @@ export function LossesPage() {
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produkt</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Ilosc</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Wartosc</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Ilość</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Wartość</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Notatki</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Akcje</th>
@@ -456,7 +456,7 @@ export function LossesPage() {
                       onClick={() => setSelectedProduct(null)}
                       className="text-red-500 hover:text-red-700"
                     >
-                      Usun
+                      Usuń
                     </button>
                   </div>
                 </div>
@@ -465,14 +465,14 @@ export function LossesPage() {
               {/* Quantity */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ilosc (sztuk)
+                  Ilość (sztuk)
                 </label>
                 <input
                   type="number"
                   min="1"
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
-                  placeholder="Podaj ilosc"
+                  placeholder="Podaj ilość"
                   className="input"
                   required
                 />

@@ -106,14 +106,14 @@ export function CustomersTable({
                       }}
                       className="text-red-600 hover:text-red-700 text-sm font-medium"
                     >
-                      Usun
+                      Usuń
                     </button>
                     {onPermanentDelete && (
                       <button
                         onClick={() => onPermanentDelete(customer.id, getDisplayName(customer))}
                         className="text-red-800 hover:text-red-900 text-sm font-bold"
                       >
-                        Usun trwale
+                        Usuń trwale
                       </button>
                     )}
                   </div>

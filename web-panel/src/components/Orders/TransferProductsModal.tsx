@@ -548,7 +548,7 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
                 <thead>
                   <tr>
                     <th>Produkt</th>
-                    <th className="text-center">Dostepna ilosc</th>
+                    <th className="text-center">Dostępna ilość</th>
                     <th className="text-center">Ile przeniesc</th>
                     <th className="text-right">Cena jedn.</th>
                   </tr>
@@ -631,7 +631,7 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <div className="flex justify-between items-center">
                 <span className="text-blue-900 font-semibold">
-                  Laczna ilosc do przeniesienia:
+                  Łączna ilość do przeniesienia:
                 </span>
                 <span className="text-blue-900 text-xl font-bold">
                   {getTotalTransferredItems()} szt.

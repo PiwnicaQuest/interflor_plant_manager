@@ -84,10 +84,10 @@ export function PaymentSuccessModal({
             </svg>
           </div>
           <h2 className={`text-xl font-bold mb-1 ${documentType === 'proforma' ? 'text-violet-700' : 'text-green-700'}`}>
-            {documentType === 'proforma' ? 'Pro Forma wygenerowana!' : 'Platnosc zakonczona!'}
+            {documentType === 'proforma' ? 'Pro Forma wygenerowana!' : 'Płatność zakończona!'}
           </h2>
           <p className={`text-sm ${documentType === 'proforma' ? 'text-violet-600' : 'text-green-600'}`}>
-            {documentType === 'proforma' ? 'Dokument zostal utworzony pomyslnie' : 'Transakcja zrealizowana pomyslnie'}
+            {documentType === 'proforma' ? 'Dokument został utworzony pomyślnie' : 'Transakcja zrealizowana pomyślnie'}
           </p>
         </div>
 
@@ -109,7 +109,7 @@ export function PaymentSuccessModal({
 
             {paymentDetails && (
               <div className="border-t border-gray-200 pt-2 mt-2">
-                <div className="text-xs text-gray-500 mb-0.5">Szczegóły platnosci</div>
+                <div className="text-xs text-gray-500 mb-0.5">Szczegóły płatnośći</div>
                 <div className="text-sm text-gray-700">{paymentDetails}</div>
               </div>
             )}

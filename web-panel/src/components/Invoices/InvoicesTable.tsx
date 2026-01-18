@@ -139,9 +139,9 @@ export function InvoicesTable({
                   <SortableHeader field="invoiceNumber">Nr faktury</SortableHeader>
                   <SortableHeader field="customerName">Klient</SortableHeader>
                   <SortableHeader field="issueDate">Data wystawienia</SortableHeader>
-                  <SortableHeader field="paymentDeadline">Termin platnosci</SortableHeader>
-                  <th>Metoda platnosci</th>
-                  <SortableHeader field="paymentStatus">Status platnosci</SortableHeader>
+                  <SortableHeader field="paymentDeadline">Termin płatnośći</SortableHeader>
+                  <th>Metoda płatnośći</th>
+                  <SortableHeader field="paymentStatus">Status płatnośći</SortableHeader>
                   <th>Zaplacono</th>
                   <SortableHeader field="totalGross">Kwota brutto</SortableHeader>
                   <th>Akcje</th>
@@ -151,9 +151,9 @@ export function InvoicesTable({
                   <th>Nr faktury</th>
                   <th>Klient</th>
                   <th>Data wystawienia</th>
-                  <th>Termin platnosci</th>
-                  <th>Metoda platnosci</th>
-                  <th>Status platnosci</th>
+                  <th>Termin płatnośći</th>
+                  <th>Metoda płatnośći</th>
+                  <th>Status płatnośći</th>
                   <th>Zaplacono</th>
                   <th>Kwota brutto</th>
                   <th>Akcje</th>
@@ -225,9 +225,9 @@ export function InvoicesTable({
                     <button
                       onClick={() => onUpdatePayment(invoice)}
                       className="text-green-600 hover:text-green-700 text-sm font-medium"
-                      title="Aktualizuj platnosc"
+                      title="Aktualizuj płatność"
                     >
-                      Platnosc
+                      Płatność
                     </button>
                     <button
                       onClick={() => onViewDetails(invoice)}

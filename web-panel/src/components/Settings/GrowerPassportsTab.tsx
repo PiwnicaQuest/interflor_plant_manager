@@ -92,7 +92,7 @@ export function GrowerPassportsTab() {
       setNewGrowerName('');
       setNewPassportNumber('');
       setNewFloricode('');
-      setSuccess('Paszport zostal dodany');
+      setSuccess('Paszport został dodany');
       setTimeout(() => setSuccess(null), 3000);
       fetchPassports();
     } catch (err: any) {
@@ -141,7 +141,7 @@ export function GrowerPassportsTab() {
       if (!response.ok) throw new Error('Failed to update passport');
 
       setEditingId(null);
-      setSuccess('Paszport zostal zaktualizowany');
+      setSuccess('Paszport został zaktualizowany');
       setTimeout(() => setSuccess(null), 3000);
       fetchPassports();
     } catch (err: any) {
@@ -166,7 +166,7 @@ export function GrowerPassportsTab() {
 
       if (!response.ok) throw new Error('Failed to delete passport');
 
-      setSuccess('Paszport zostal usuniety');
+      setSuccess('Paszport został usunięty');
       setTimeout(() => setSuccess(null), 3000);
       fetchPassports();
     } catch (err: any) {
@@ -274,8 +274,8 @@ export function GrowerPassportsTab() {
   const handleUpdateProducts = async () => {
     if (!confirm(
       'Ta operacja zaktualizuje nazwy ogrodników we wszystkich produktach.\n\n' +
-      'Produkty, ktore maja Floricode jako ogrodnika, zostana zaktualizowane do prawidlowej nazwy ogrodnika.\n\n' +
-      'Czy kontynuowac?'
+      'Produkty, ktore maja Floricode jako ogrodnika, zostana zaktualizowane do prawidłowej nazwy ogrodnika.\n\n' +
+      'Czy kontynuować?'
     )) return;
 
     try {
@@ -524,7 +524,7 @@ export function GrowerPassportsTab() {
                               disabled={saving}
                               className="text-red-600 hover:text-red-800 text-sm font-medium"
                             >
-                              Usun
+                              Usuń
                             </button>
                           </div>
                         )}
