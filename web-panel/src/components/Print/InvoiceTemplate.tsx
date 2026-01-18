@@ -75,15 +75,15 @@ interface InvoiceTemplateProps {
 }
 
 const defaultSellerInfo = {
-  name: "POLFLOR Sp. z o.o.",
-  address: "ul. Kwiatowa 15",
-  city: "Warszawa",
-  postalCode: "00-001",
-  nip: "123-456-78-90",
-  phone: "+48 123 456 789",
-  email: "biuro@polflor.pl",
-  bankAccount: "PL12 1234 5678 9012 3456 7890 1234",
-  bankName: "Bank Przykładowy S.A.",
+  name: "Firma nie skonfigurowana",
+  address: "Skonfiguruj dane firmy w Ustawieniach",
+  city: "",
+  postalCode: "",
+  nip: "0000000000",
+  phone: "",
+  email: "",
+  bankAccount: "",
+  bankName: "",
 };
 
 // VAT summary by rate
@@ -697,7 +697,7 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
           Podpis osoby upoważnionej do wystawienia
         </div>
         <div style={styles.signatureLine}>
-          Podpis osoby upoważnionej do odbioru
+          Podpis osoby upoważnionej do odbióru
         </div>
       </div>
 

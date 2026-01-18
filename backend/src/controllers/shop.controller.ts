@@ -858,7 +858,7 @@ export class ShopController {
       });
     } catch (error) {
       console.error('Shop scan barcode error:', error);
-      return res.status(500).json({ error: 'Blad serwera' });
+      return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
 

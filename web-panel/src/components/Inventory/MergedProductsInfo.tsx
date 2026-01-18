@@ -28,7 +28,7 @@ export function MergedProductsInfo({ product, onUnmerge }: MergedProductsInfoPro
       const response = await API.getMergedProducts(product.id);
       setMergedProducts(response);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nie udalo sie zaladowac polaczonych produktow');
+      setError(err instanceof Error ? err.message : 'Nie udało się załadować połączonych produktów');
     } finally {
       setLoading(false);
     }
@@ -44,7 +44,7 @@ export function MergedProductsInfo({ product, onUnmerge }: MergedProductsInfoPro
         onUnmerge(response.unmergedProduct, response.masterProduct);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nie udalo sie rozlaczyc produktu');
+      setError(err instanceof Error ? err.message : 'Nie udało się rozłączyć produktu');
     } finally {
       setUnmerging(null);
     }
@@ -86,7 +86,7 @@ export function MergedProductsInfo({ product, onUnmerge }: MergedProductsInfoPro
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
           </svg>
-          <span className="font-medium">Polaczone produkty ({product.mergedProductIds?.length || 0})</span>
+          <span className="font-medium">Połączone produkty ({product.mergedProductIds?.length || 0})</span>
         </div>
       </div>
 
@@ -117,7 +117,7 @@ export function MergedProductsInfo({ product, onUnmerge }: MergedProductsInfoPro
       {loading ? (
         <div className="flex items-center gap-2 py-2">
           <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
-          <span className="text-sm text-blue-600">Ladowanie...</span>
+          <span className="text-sm text-blue-600">Ładowanie...</span>
         </div>
       ) : mergedProducts.length > 0 ? (
         <div className="space-y-2">
@@ -154,7 +154,7 @@ export function MergedProductsInfo({ product, onUnmerge }: MergedProductsInfoPro
           ))}
         </div>
       ) : (
-        <p className="text-sm text-blue-600">Brak szczegolowych danych o polaczonych produktach</p>
+        <p className="text-sm text-blue-600">Brak szczegolowych danych o połączonych produktach</p>
       )}
 
       <p className="text-xs text-blue-600 mt-3">

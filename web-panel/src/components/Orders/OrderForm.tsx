@@ -133,7 +133,7 @@ function ProductSearchInput({ products, selectedProductId, onSelect, disabled, o
 
   return (
     <div className="relative">
-      <input ref={inputRef} type="text" className="input w-full" placeholder="Wpisz nazwe rosliny..."
+      <input ref={inputRef} type="text" className="input w-full" placeholder="Wpisz nazwe rośliny..."
         value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setIsOpen(true); setHighlightedIndex(0); }}
         onFocus={() => { setIsOpen(true); if (selectedProduct) setSearchTerm(''); }} disabled={disabled} autoComplete="off" />
       {isOpen && filteredProducts.length > 0 && (
@@ -207,7 +207,7 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
           setItems(orderItems);
           if (order.customerId) { const customer = customersData.customers.find((c: Customer) => c.id === order.customerId); setSelectedCustomer(customer); }
         }
-      } catch (err) { console.error('Error loading data:', err); setError('Blad podczas ladowania danych'); }
+      } catch (err) { console.error('Error loading data:', err); setError('Błąd podczas ładowania danych'); }
       finally { setLoadingData(false); }
     };
     fetchData();
@@ -262,7 +262,7 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
       const newCustomerData = customersData.customers.find((c: Customer) => c.id === response.customerId);
       setSelectedCustomerId(response.customerId); setSelectedCustomer(newCustomerData); setShowAddCustomer(false); setError('');
       setNewCustomer({ companyName: '', firstName: '', lastName: '', nip: '', email: '', phone: '', street: '', postalCode: '', city: '', priceGroupId: 1 });
-    } catch (err: any) { setError(err.response?.data?.error || 'Blad podczas dodawania kontrahenta'); }
+    } catch (err: any) { setError(err.response?.data?.error || 'Błąd podczas dodawania kontrahenta'); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -283,17 +283,17 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
         });
       }
       onSave();
-    } catch (err: any) { setError(err.response?.data?.error || 'Blad podczas ' + (isEditMode ? 'aktualizacji' : 'tworzenia') + ' zamowienia'); }
+    } catch (err: any) { setError(err.response?.data?.error || 'Błąd podczas ' + (isEditMode ? 'aktualizacji' : 'tworzenia') + ' zamówienia'); }
     finally { setLoading(false); }
   };
 
-  if (loadingData) return (<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"><div className="bg-white rounded-lg p-6"><p className="text-gray-600">Ladowanie danych...</p></div></div>);
+  if (loadingData) return (<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"><div className="bg-white rounded-lg p-6"><p className="text-gray-600">Ładowanie danych...</p></div></div>);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">{isEditMode ? 'Edytuj zamowienie ' + order?.orderNumber : 'Nowe zamowienie'}</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">{isEditMode ? 'Edytuj zamówienie ' + order?.orderNumber : 'Nowe zamówienie'}</h2>
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && <div className="bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded">{error}</div>}
             <div>
@@ -325,12 +325,12 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
                   </div>
                 ))}
               </div>
-              {items.length === 0 && <p className="text-sm text-gray-500 italic">Brak produktow</p>}
+              {items.length === 0 && <p className="text-sm text-gray-500 italic">Brak produktów</p>}
               <button type="button" onClick={addItem} className="btn btn-secondary text-sm mt-3">+ Dodaj produkt</button>
             </div>
-            {items.length > 0 && (<div className="bg-gray-50 p-4 rounded-lg"><div className="flex justify-between text-sm text-gray-600 mb-2"><span>Lacznie palet:</span><span className="font-semibold">{items.reduce((sum, item) => sum + item.palletCount, 0)}</span></div><div className="flex justify-between text-sm text-gray-600 mb-2"><span>Lacznie sztuk:</span><span className="font-semibold">{items.reduce((sum, item) => sum + item.quantity, 0)}</span></div><div className="flex justify-between text-lg font-bold border-t pt-2"><span>Suma:</span><span>{calculateTotal().toFixed(2)} PLN</span></div></div>)}
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Notatki klienta (opcjonalnie)</label><textarea className="input" rows={3} placeholder="Dodatkowe uwagi do zamowienia..." value={customerNotes} onChange={(e) => setCustomerNotes(e.target.value)} /></div>
-            <div className="flex gap-3 pt-4"><button type="submit" disabled={loading} className="btn btn-primary flex-1">{loading ? (isEditMode ? 'Aktualizowanie...' : 'Tworzenie...') : (isEditMode ? 'Zaktualizuj zamowienie' : 'Utworz zamowienie')}</button><button type="button" onClick={onCancel} className="btn btn-secondary flex-1">Anuluj</button></div>
+            {items.length > 0 && (<div className="bg-gray-50 p-4 rounded-lg"><div className="flex justify-between text-sm text-gray-600 mb-2"><span>Łącznie palet:</span><span className="font-semibold">{items.reduce((sum, item) => sum + item.palletCount, 0)}</span></div><div className="flex justify-between text-sm text-gray-600 mb-2"><span>Łącznie sztuk:</span><span className="font-semibold">{items.reduce((sum, item) => sum + item.quantity, 0)}</span></div><div className="flex justify-between text-lg font-bold border-t pt-2"><span>Suma:</span><span>{calculateTotal().toFixed(2)} PLN</span></div></div>)}
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Notatki klienta (opcjonalnie)</label><textarea className="input" rows={3} placeholder="Dodatkowe uwagi do zamówienia..." value={customerNotes} onChange={(e) => setCustomerNotes(e.target.value)} /></div>
+            <div className="flex gap-3 pt-4"><button type="submit" disabled={loading} className="btn btn-primary flex-1">{loading ? (isEditMode ? 'Aktualizowanie...' : 'Tworzenie...') : (isEditMode ? 'Zaktualizuj zamówienie' : 'Utwórz zamówienie')}</button><button type="button" onClick={onCancel} className="btn btn-secondary flex-1">Anuluj</button></div>
           </form>
         </div>
       </div>

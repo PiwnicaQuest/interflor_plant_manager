@@ -39,7 +39,7 @@ export function EmailInputModal({ invoice, onClose, onSend, isSending }: EmailIn
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
         <div className="p-6">
           <h2 className="text-xl font-semibold mb-4">
-            Wyslij fakture {invoice.invoiceNumber}
+            Wyślij fakture {invoice.invoiceNumber}
           </h2>
           
           <form onSubmit={handleSubmit}>
@@ -92,7 +92,7 @@ export function EmailInputModal({ invoice, onClose, onSend, isSending }: EmailIn
                 className="btn btn-primary"
                 disabled={isSending}
               >
-                {isSending ? 'Wysylanie...' : 'Wyslij'}
+                {isSending ? 'Wysyłanie...' : 'Wyślij'}
               </button>
             </div>
           </form>

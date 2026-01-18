@@ -512,7 +512,7 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
               />
             </div>
 
-            {/* Inny adres odbiorcy (dostawy) */}
+            {/* Inny adres odbiórcy (dostawy) */}
             <div className="border-t pt-6">
               <label className="flex items-center cursor-pointer mb-4">
                 <input
@@ -522,36 +522,36 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
                   className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                 />
                 <span className="ml-3 text-sm font-medium text-gray-700">
-                  Inny adres odbiorcy (dostawy)
+                  Inny adres odbiórcy (dostawy)
                 </span>
               </label>
 
               {useRecipient && (
                 <div className="bg-gray-50 p-4 rounded-lg space-y-4">
                   <p className="text-sm text-gray-600 mb-4">
-                    Uzupełnij dane odbiorcy jeśli adres dostawy różni się od adresu nabywcy.
+                    Uzupełnij dane odbiórcy jeśli adres dostawy różni się od adresu nabywcy.
                     Te dane będą automatycznie używane na fakturach dla tego kontrahenta.
                   </p>
 
-                  {/* Nazwa firmy odbiorcy */}
+                  {/* Nazwa firmy odbiórcy */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nazwa firmy odbiorcy (opcjonalnie)
+                      Nazwa firmy odbiórcy (opcjonalnie)
                     </label>
                     <input
                       type="text"
                       className="input"
-                      placeholder="Firma odbiorcy Sp. z o.o."
+                      placeholder="Firma odbiórcy Sp. z o.o."
                       value={formData.recipientCompanyName}
                       onChange={(e) => setFormData({ ...formData, recipientCompanyName: e.target.value })}
                     />
                   </div>
 
-                  {/* Imię i nazwisko odbiorcy */}
+                  {/* Imię i nazwisko odbiórcy */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Imię odbiorcy (opcjonalnie)
+                        Imię odbiórcy (opcjonalnie)
                       </label>
                       <input
                         type="text"
@@ -563,7 +563,7 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Nazwisko odbiorcy (opcjonalnie)
+                        Nazwisko odbiórcy (opcjonalnie)
                       </label>
                       <input
                         type="text"
@@ -575,10 +575,10 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
                     </div>
                   </div>
 
-                  {/* Adres odbiorcy */}
+                  {/* Adres odbiórcy */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Ulica i numer odbiorcy <span className="text-red-500">*</span>
+                      Ulica i numer odbiórcy <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -619,10 +619,10 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
                     </div>
                   </div>
 
-                  {/* Telefon odbiorcy */}
+                  {/* Telefon odbiórcy */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Telefon odbiorcy (opcjonalnie)
+                      Telefon odbiórcy (opcjonalnie)
                     </label>
                     <input
                       type="tel"

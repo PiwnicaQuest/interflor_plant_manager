@@ -178,7 +178,7 @@ export function LossesPage() {
       // Refresh list
       fetchLosses();
     } catch (error: any) {
-      setFormError(error.response?.data?.error || 'Blad podczas rejestrowania straty');
+      setFormError(error.response?.data?.error || 'Błąd podczas rejestrowania straty');
     } finally {
       setSubmitting(false);
     }
@@ -186,14 +186,14 @@ export function LossesPage() {
 
   // Reverse loss
   const handleReverse = async (lossId: number) => {
-    if (!confirm('Czy na pewno chcesz cofnac te strate? Stan magazynowy zostanie przywrocony.')) {
+    if (!confirm('Czy na pewno chcesz cofnąć te strate? Stan magazynowy zostanie przywrocony.')) {
       return;
     }
     try {
       await api.reverseLoss(lossId);
       fetchLosses();
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Blad podczas cofania straty');
+      alert(error.response?.data?.error || 'Błąd podczas cofania straty');
     }
   };
 
@@ -219,7 +219,7 @@ export function LossesPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Straty magazynowe</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Rejestruj i sledz straty produktow
+            Rejestruj i sledz straty produktów
           </p>
         </div>
         <button
@@ -311,7 +311,7 @@ export function LossesPage() {
               {loading ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                    Ladowanie...
+                    Ładowanie...
                   </td>
                 </tr>
               ) : losses.length === 0 ? (

@@ -208,7 +208,7 @@ export function InvoicesTable({
                       <button
                         onClick={() => onSendEmail(invoice)}
                         className="text-purple-600 hover:text-purple-700 text-sm font-medium"
-                        title={invoice.buyerSnapshot?.email ? `Wyslij na ${invoice.buyerSnapshot.email}` : 'Wyslij fakture emailem'}
+                        title={invoice.buyerSnapshot?.email ? `Wyślij na ${invoice.buyerSnapshot.email}` : 'Wyślij fakture emailem'}
                       >
                         Email
                       </button>
@@ -233,7 +233,7 @@ export function InvoicesTable({
                       onClick={() => onViewDetails(invoice)}
                       className="text-primary-600 hover:text-primary-700 text-sm font-medium"
                     >
-                      Szczegoly
+                      Szczegóły
                     </button>
                     {invoice.pdfUrl && (
                       <a

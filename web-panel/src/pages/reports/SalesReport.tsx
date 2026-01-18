@@ -46,11 +46,11 @@ const statusColors: Record<string, string> = {
 
 const statusOptions = [
   { value: 'all', label: 'Wszystkie zamówienia' },
-  { value: 'open', label: 'Otwarte (oczekujące, w realizacji, do odbioru)' },
+  { value: 'open', label: 'Otwarte (oczekujące, w realizacji, do odbióru)' },
   { value: 'closed', label: 'Zamknięte (zrealizowane, anulowane)' },
   { value: 'pending', label: 'Oczekujące' },
   { value: 'in_progress', label: 'W realizacji' },
-  { value: 'ready_for_pickup', label: 'Gotowe do odbioru' },
+  { value: 'ready_for_pickup', label: 'Gotowe do odbióru' },
   { value: 'completed', label: 'Zrealizowane' },
   { value: 'cancelled', label: 'Anulowane' },
 ];

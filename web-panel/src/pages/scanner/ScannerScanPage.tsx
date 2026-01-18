@@ -108,7 +108,7 @@ export function ScannerScanPage() {
     const types: Record<string, string> = {
       purchase: 'Zakup',
       sale: 'Sprzedaz',
-      order: 'Zamowienie',
+      order: 'Zamówienie',
       loss: 'Strata',
       loss_reversal: 'Cofniecie straty',
       adjustment: 'Korekta',
@@ -319,7 +319,7 @@ export function ScannerScanPage() {
                   )}
                   {selectedProduct.plantHeightCm && (
                     <div className="flex justify-between py-1.5 border-b border-gray-100">
-                      <span className="text-gray-500">Wysokosc</span>
+                      <span className="text-gray-500">Wysokość</span>
                       <span className="font-medium">{selectedProduct.plantHeightCm} cm</span>
                     </div>
                   )}
@@ -387,9 +387,9 @@ export function ScannerScanPage() {
                                   movement.orderStatus === 'cancelled' ? 'bg-red-100 text-red-800' :
                                   'bg-gray-100 text-gray-800'
                                 }`}>
-                                  {movement.orderStatus === 'pending' ? 'Oczekujace' :
+                                  {movement.orderStatus === 'pending' ? 'Oczekujące' :
                                    movement.orderStatus === 'in_progress' ? 'W realizacji' :
-                                   movement.orderStatus === 'ready_for_pickup' ? 'Do odbioru' :
+                                   movement.orderStatus === 'ready_for_pickup' ? 'Do odbióru' :
                                    movement.orderStatus === 'completed' ? 'Zakonczone' :
                                    movement.orderStatus === 'cancelled' ? 'Anulowane' :
                                    movement.orderStatus}

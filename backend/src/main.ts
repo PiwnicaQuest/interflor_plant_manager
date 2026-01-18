@@ -485,7 +485,7 @@ app.get("/image-proxy", requireAuth, async (req: Request, res: Response) => {
 
     protocol.get(imageUrl, (imageRes) => {
       if (imageRes.statusCode !== 200) {
-        res.status(imageRes.statusCode || 500).json({ error: "Nie udalo sie pobrac obrazka" });
+        res.status(imageRes.statusCode || 500).json({ error: "Nie udało się pobrać obrazka" });
         return;
       }
       res.set("Content-Type", imageRes.headers["content-type"] || "image/jpeg");
@@ -493,11 +493,11 @@ app.get("/image-proxy", requireAuth, async (req: Request, res: Response) => {
       imageRes.pipe(res);
     }).on("error", (err) => {
       console.error("Image proxy error:", err);
-      res.status(500).json({ error: "Blad pobierania obrazka" });
+      res.status(500).json({ error: "Błąd pobierania obrazka" });
     });
   } catch (error) {
     console.error("Image proxy error:", error);
-    res.status(500).json({ error: "Blad proxy obrazka" });
+    res.status(500).json({ error: "Błąd proxy obrazka" });
   }
 });
 

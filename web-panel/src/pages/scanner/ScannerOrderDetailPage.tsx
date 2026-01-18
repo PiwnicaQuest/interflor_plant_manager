@@ -4,9 +4,9 @@ import { API } from '../../services/api';
 import type { OrderWithItems, Product, OrderStatus } from '../../types';
 
 const STATUS_LABELS: Record<string, string> = {
-  pending: 'Oczekujace',
+  pending: 'Oczekujące',
   in_progress: 'W realizacji',
-  ready_for_pickup: 'Do odbioru',
+  ready_for_pickup: 'Do odbióru',
   completed: 'Zakonczone',
   cancelled: 'Anulowane',
 };
@@ -171,7 +171,7 @@ export function ScannerOrderDetailPage() {
         setEditMode(true);
       }
     } catch (err: any) {
-      setError('Nie udalo sie pobrac zamowienia');
+      setError('Nie udało się pobrać zamówienia');
     } finally {
       setLoading(false);
     }
@@ -391,7 +391,7 @@ export function ScannerOrderDetailPage() {
       await loadOrder();
       setEditMode(false);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Nie udalo sie zapisac zmian');
+      setError(err.response?.data?.error || 'Nie udało się zapisać zmian');
     } finally {
       setSaving(false);
     }
@@ -427,7 +427,7 @@ export function ScannerOrderDetailPage() {
       await loadOrder();
       setShowStatusModal(false);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Nie udalo sie zmienic statusu');
+      setError(err.response?.data?.error || 'Nie udało się zmienić statusu');
     } finally {
       setChangingStatus(false);
     }
@@ -445,7 +445,7 @@ export function ScannerOrderDetailPage() {
       setShowStatusModal(false);
       setShowCancelConfirm(false);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Nie udalo sie anulowac zamowienia');
+      setError(err.response?.data?.error || 'Nie udało się anulować zamówienia');
     } finally {
       setChangingStatus(false);
     }
@@ -879,7 +879,7 @@ export function ScannerOrderDetailPage() {
                 <svg className="w-10 h-10 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                 </svg>
-                <p className="text-sm">Skanuj produkty aby dodac do zamowienia</p>
+                <p className="text-sm">Skanuj produkty aby dodać do zamówienia</p>
               </div>
             )}
           </div>
@@ -1014,11 +1014,11 @@ export function ScannerOrderDetailPage() {
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-gray-900 text-sm">{STATUS_LABELS[status]}</div>
                     <div className="text-xs text-gray-500 truncate">
-                      {status === 'in_progress' && 'Zamowienie jest przygotowywane'}
-                      {status === 'ready_for_pickup' && 'Zamowienie czeka na odbior'}
-                      {status === 'completed' && 'Zamowienie zostalo odebrane'}
+                      {status === 'in_progress' && 'Zamówienie jest przygotowywane'}
+                      {status === 'ready_for_pickup' && 'Zamówienie czeka na odbiór'}
+                      {status === 'completed' && 'Zamówienie zostało odebrane'}
                       {status === 'pending' && 'Przywroc do oczekujacych'}
-                      {status === 'cancelled' && 'Anuluj zamowienie'}
+                      {status === 'cancelled' && 'Anuluj zamówienie'}
                     </div>
                   </div>
                 </button>
@@ -1047,9 +1047,9 @@ export function ScannerOrderDetailPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Anulowac zamowienie?</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Anulować zamówienie?</h3>
               <p className="text-gray-600 text-sm mb-2">
-                Czy na pewno chcesz anulowac to zamowienie?
+                Czy na pewno chcesz anulować to zamówienie?
               </p>
               <div className="bg-green-50 border border-green-200 rounded-lg p-2 mb-4">
                 <p className="text-green-700 text-xs flex items-center justify-center gap-1">

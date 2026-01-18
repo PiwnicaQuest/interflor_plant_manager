@@ -110,7 +110,7 @@ export function ScannerPage() {
       setCameraError(
         err.message?.includes('Permission')
           ? 'Brak dostepu do kamery. Zezwol na dostep w ustawieniach przegladarki.'
-          : 'Nie udalo sie uruchomic kamery. Sprawdz czy inne aplikacje nie uzywaja kamery.'
+          : 'Nie udało się uruchomić kamery. Sprawdź czy inne aplikacje nie używają kamery.'
       );
     } finally {
       isStartingRef.current = false;
@@ -154,7 +154,7 @@ export function ScannerPage() {
       {/* Header */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 className="text-lg font-bold text-gray-900">Skaner produktow</h1>
+          <h1 className="text-lg font-bold text-gray-900">Skaner produktów</h1>
           <Link
             to="/cart"
             className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"

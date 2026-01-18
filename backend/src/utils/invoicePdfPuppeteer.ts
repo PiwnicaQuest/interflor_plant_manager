@@ -244,7 +244,7 @@ function generateInvoiceHTML(invoice: InvoiceWithItems, sellerInfo: SellerInfo):
     </div>
     <div class="signature">
       <div class="signature-line">
-        <div class="signature-label">Podpis osoby upoważnionej do odbioru</div>
+        <div class="signature-label">Podpis osoby upoważnionej do odbióru</div>
       </div>
     </div>
   </div>

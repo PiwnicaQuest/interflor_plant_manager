@@ -433,12 +433,12 @@ export class PrintTemplateController {
       );
 
       res.status(201).json({
-        message: 'Szablon zduplikowany pomyślnie',
+        message: 'Szablon zduplikówany pomyślnie',
         template: result.rows[0]
       });
     } catch (error) {
       console.error('Duplicate template error:', error);
-      res.status(500).json({ error: 'Błąd duplikowania szablonu' });
+      res.status(500).json({ error: 'Błąd duplikówania szablonu' });
     }
   }
 

@@ -207,7 +207,7 @@ export class ReportModel {
     const statusLabels: Record<string, string> = {
       pending: 'Oczekujące',
       in_progress: 'W realizacji',
-      ready_for_pickup: 'Gotowe do odbioru',
+      ready_for_pickup: 'Gotowe do odbióru',
       completed: 'Zrealizowane',
       cancelled: 'Anulowane',
     };

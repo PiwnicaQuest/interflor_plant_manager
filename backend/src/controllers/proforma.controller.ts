@@ -31,13 +31,13 @@ export class ProformaController {
       return res.json({ proformas });
     } catch (error: any) {
       console.error('Get proformas error:', error);
-      return res.status(500).json({ error: error.message || 'Blad podczas pobierania faktur pro forma' });
+      return res.status(500).json({ error: error.message || 'Błąd podczas pobierania faktur pro forma' });
     }
   }
 
   /**
    * GET /proforma/:id
-   * Szczegoly faktury pro forma
+   * Szczegóły faktury pro forma
    */
   static async getById(req: AuthRequest, res: Response) {
     try {
@@ -56,7 +56,7 @@ export class ProformaController {
       return res.json({ proforma });
     } catch (error: any) {
       console.error('Get proforma error:', error);
-      return res.status(500).json({ error: error.message || 'Blad podczas pobierania faktury pro forma' });
+      return res.status(500).json({ error: error.message || 'Błąd podczas pobierania faktury pro forma' });
     }
   }
 
@@ -116,13 +116,13 @@ export class ProformaController {
       });
     } catch (error: any) {
       console.error('Create proforma error:', error);
-      return res.status(500).json({ error: error.message || 'Blad podczas tworzenia faktury pro forma' });
+      return res.status(500).json({ error: error.message || 'Błąd podczas tworzenia faktury pro forma' });
     }
   }
 
   /**
    * POST /proforma/from-order/:orderId
-   * Utworzenie faktury pro forma z zamowienia
+   * Utworzenie faktury pro forma z zamówienia
    */
   static async createFromOrder(req: AuthRequest, res: Response) {
     try {
@@ -132,11 +132,11 @@ export class ProformaController {
       // Get order
       const order = await OrderModel.getById(orderId);
       if (!order) {
-        return res.status(404).json({ error: 'Zamowienie nie znalezione' });
+        return res.status(404).json({ error: 'Zamówienie nie znalezione' });
       }
 
       if (!order.customerId) {
-        return res.status(400).json({ error: 'Zamowienie nie ma przypisanego klienta' });
+        return res.status(400).json({ error: 'Zamówienie nie ma przypisanego klienta' });
       }
 
       // Get customer data
@@ -169,12 +169,12 @@ export class ProformaController {
       );
 
       return res.status(201).json({
-        message: 'Faktura pro forma utworzona z zamowienia',
+        message: 'Faktura pro forma utworzona z zamówienia',
         proforma,
       });
     } catch (error: any) {
       console.error('Create proforma from order error:', error);
-      return res.status(500).json({ error: error.message || 'Blad podczas tworzenia faktury pro forma' });
+      return res.status(500).json({ error: error.message || 'Błąd podczas tworzenia faktury pro forma' });
     }
   }
 
@@ -208,7 +208,7 @@ export class ProformaController {
       });
     } catch (error: any) {
       console.error('Convert proforma error:', error);
-      return res.status(500).json({ error: error.message || 'Blad podczas konwersji faktury pro forma' });
+      return res.status(500).json({ error: error.message || 'Błąd podczas konwersji faktury pro forma' });
     }
   }
 
@@ -287,7 +287,7 @@ export class ProformaController {
       });
     } catch (error: any) {
       console.error('Clone proforma error:', error);
-      return res.status(500).json({ error: error.message || 'Blad podczas klonowania faktury pro forma' });
+      return res.status(500).json({ error: error.message || 'Błąd podczas klonowania faktury pro forma' });
     }
   }
 
@@ -318,7 +318,7 @@ export class ProformaController {
       // Check if email service is configured
       if (!emailService.isConfigured()) {
         return res.status(500).json({
-          error: 'Usluga email nie jest skonfigurowana. Skontaktuj sie z administratorem.'
+          error: 'Usluga email nie jest skonfigurowana. Skontaktuj się z administratorem.'
         });
       }
 
@@ -344,7 +344,7 @@ export class ProformaController {
       );
 
       if (!sent) {
-        return res.status(500).json({ error: 'Nie udalo sie wyslac emaila' });
+        return res.status(500).json({ error: 'Nie udało się wysłać emaila' });
       }
 
       return res.json({
@@ -354,7 +354,7 @@ export class ProformaController {
       });
     } catch (error: any) {
       console.error('Send proforma email error:', error);
-      return res.status(500).json({ error: error.message || 'Blad podczas wysylania emaila' });
+      return res.status(500).json({ error: error.message || 'Błąd podczas wysyłania emaila' });
     }
   }
 
@@ -385,7 +385,7 @@ export class ProformaController {
       return res.json({ message: 'Faktura pro forma zaktualizowana', proforma: updated });
     } catch (error: any) {
       console.error('Update proforma error:', error);
-      return res.status(500).json({ error: error.message || 'Blad podczas aktualizacji faktury pro forma' });
+      return res.status(500).json({ error: error.message || 'Błąd podczas aktualizacji faktury pro forma' });
     }
   }
 
@@ -416,7 +416,7 @@ export class ProformaController {
       return res.json({ message: 'Faktura pro forma usunieta' });
     } catch (error: any) {
       console.error('Delete proforma error:', error);
-      return res.status(500).json({ error: error.message || 'Blad podczas usuwania faktury pro forma' });
+      return res.status(500).json({ error: error.message || 'Błąd podczas usuwania faktury pro forma' });
     }
   }
 
@@ -451,7 +451,7 @@ export class ProformaController {
       });
     } catch (error: any) {
       console.error('Update proforma status error:', error);
-      return res.status(500).json({ error: error.message || 'Blad podczas aktualizacji statusu faktury pro forma' });
+      return res.status(500).json({ error: error.message || 'Błąd podczas aktualizacji statusu faktury pro forma' });
     }
   }
 
@@ -468,7 +468,7 @@ export class ProformaController {
       return res.json({ proformas });
     } catch (error: any) {
       console.error("Get expiring proformas error:", error);
-      return res.status(500).json({ error: error.message || "Blad podczas pobierania wygasajacych proform" });
+      return res.status(500).json({ error: error.message || "Błąd podczas pobierania wygasajacych proform" });
     }
   }
 
@@ -483,7 +483,7 @@ export class ProformaController {
       return res.json({ proformas });
     } catch (error: any) {
       console.error("Get expired proformas error:", error);
-      return res.status(500).json({ error: error.message || "Blad podczas pobierania wygaslych proform" });
+      return res.status(500).json({ error: error.message || "Błąd podczas pobierania wygaslych proform" });
     }
   }
 
@@ -497,7 +497,7 @@ export class ProformaController {
       return res.json(stats);
     } catch (error: any) {
       console.error('Get proforma stats error:', error);
-      return res.status(500).json({ error: error.message || 'Blad podczas pobierania statystyk proform' });
+      return res.status(500).json({ error: error.message || 'Błąd podczas pobierania statystyk proform' });
     }
   }
 
@@ -525,7 +525,7 @@ export class ProformaController {
       res.send(html);
     } catch (error) {
       console.error("Get HTML error:", error);
-      res.status(500).json({ error: "Blad serwera podczas generowania HTML" });
+      res.status(500).json({ error: "Błąd serwera podczas generowania HTML" });
     }
   }
 }

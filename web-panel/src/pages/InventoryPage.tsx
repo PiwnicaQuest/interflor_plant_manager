@@ -630,7 +630,7 @@ export function InventoryPage() {
       setLossNotes('');
       await fetchProducts();
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Blad podczas rejestrowania straty');
+      alert(error.response?.data?.error || 'Błąd podczas rejestrowania straty');
     } finally {
       setSubmittingLoss(false);
     }

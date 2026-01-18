@@ -23,10 +23,10 @@ interface ReceiptTemplateProps {
 }
 
 const defaultCompanyInfo = {
-  name: "POLFLOR Sp. z o.o.",
-  address: "ul. Kwiatowa 15, 00-001 Warszawa",
-  nip: "123-456-78-90",
-  phone: "+48 123 456 789",
+  name: "Firma nie skonfigurowana",
+  address: "Skonfiguruj dane firmy w Ustawieniach",
+  nip: "0000000000",
+  phone: "",
 };
 
 export function ReceiptTemplate({ data, companyInfo = defaultCompanyInfo }: ReceiptTemplateProps) {

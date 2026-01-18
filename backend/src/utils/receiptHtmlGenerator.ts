@@ -6,7 +6,7 @@ export async function generateReceiptHtml(receipt: ReceiptWithItems): Promise<st
   // Pobierz ustawienia firmy
   const settings = await SettingsModel.getCompanySettings();
 
-  // Pobierz zamowienie jezeli jest powiazane
+  // Pobierz zamówienie jeżeli jest powiazane
   let orderNumber = '';
   let orderItems: any[] = [];
   if (receipt.orderId) {
@@ -204,7 +204,7 @@ export async function generateReceiptHtml(receipt: ReceiptWithItems): Promise<st
     <div class="title">
       <h2>DOWOD WYDANIA</h2>
       <p style="font-weight: bold;">${receipt.receiptNumber}</p>
-      ${orderNumber ? `<p style="font-size: 12px;">Zamowienie: ${orderNumber}</p>` : ''}
+      ${orderNumber ? `<p style="font-size: 12px;">Zamówienie: ${orderNumber}</p>` : ''}
     </div>
 
     <div class="date-section">

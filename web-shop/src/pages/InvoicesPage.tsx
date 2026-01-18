@@ -25,7 +25,7 @@ export function InvoicesPage() {
       setInvoices(result.invoices);
     } catch (err) {
       const error = err as Error;
-      setError(error.message || 'Blad ladowania faktur');
+      setError(error.message || 'Błąd ładowania faktur');
     } finally {
       setLoading(false);
     }
@@ -77,7 +77,7 @@ export function InvoicesPage() {
       {loading ? (
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 text-sm sm:text-base">Ladowanie faktur...</p>
+          <p className="mt-4 text-gray-600 text-sm sm:text-base">Ładowanie faktur...</p>
         </div>
       ) : error ? (
         <div className="text-center py-12">

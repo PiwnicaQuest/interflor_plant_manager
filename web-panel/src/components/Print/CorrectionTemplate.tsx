@@ -367,7 +367,7 @@ export function CorrectionTemplate({ data, sellerInfo }: CorrectionTemplateProps
       {/* Signatures */}
       <div style={styles.signatures}>
         <div style={styles.signatureLine}>Podpis osoby upoważnionej do wystawienia</div>
-        <div style={styles.signatureLine}>Podpis osoby upoważnionej do odbioru</div>
+        <div style={styles.signatureLine}>Podpis osoby upoważnionej do odbióru</div>
       </div>
     </div>
   );

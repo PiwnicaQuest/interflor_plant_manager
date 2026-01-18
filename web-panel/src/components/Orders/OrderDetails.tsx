@@ -19,7 +19,7 @@ interface OrderDetailsProps {
 const statusConfig: Record<OrderStatus, { label: string; class: string }> = {
   [OrderStatus.PENDING]: { label: 'Oczekuje', class: 'badge-info' },
   [OrderStatus.IN_PROGRESS]: { label: 'W realizacji', class: 'badge-warning' },
-  [OrderStatus.READY_FOR_PICKUP]: { label: 'Gotowe do odbioru', class: 'badge-success' },
+  [OrderStatus.READY_FOR_PICKUP]: { label: 'Gotowe do odbióru', class: 'badge-success' },
   [OrderStatus.COMPLETED]: { label: 'Zakończone', class: 'badge-success' },
   [OrderStatus.CANCELLED]: { label: 'Anulowane', class: 'badge-danger' },
 };
@@ -319,7 +319,7 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
     const statusLabels: Record<OrderStatus, string> = {
       [OrderStatus.PENDING]: 'Oczekuje',
       [OrderStatus.IN_PROGRESS]: 'W realizacji',
-      [OrderStatus.READY_FOR_PICKUP]: 'Gotowe do odbioru',
+      [OrderStatus.READY_FOR_PICKUP]: 'Gotowe do odbióru',
       [OrderStatus.COMPLETED]: 'Zakończone',
       [OrderStatus.CANCELLED]: 'Anulowane',
     };
@@ -530,7 +530,7 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `zamowienie_${order.orderNumber.replace(/\//g, '-')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    link.download = `zamówienie_${order.orderNumber.replace(/\//g, '-')}_${new Date().toISOString().split('T')[0]}.xlsx`;
     link.click();
   };
 
@@ -614,7 +614,7 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
                     <th className="py-2 px-2 text-center">Data przyj.</th>
                     <th className="py-2 px-2 text-center">Palety</th>
                     <th className="py-2 px-2 text-center">Szt/pal</th>
-                    <th className="py-2 px-2 text-center">Lacznie szt.</th>
+                    <th className="py-2 px-2 text-center">Łącznie szt.</th>
                     <th className="py-2 px-3 text-right">Cena jedn.</th>
                     <th className="py-2 px-3 text-right">Wartosc</th>
                   </tr>
@@ -637,7 +637,7 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={7} className="text-center text-gray-500 py-4">Brak produktow</td>
+                      <td colSpan={7} className="text-center text-gray-500 py-4">Brak produktów</td>
                     </tr>
                   )}
                 </tbody>
@@ -648,15 +648,15 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
           {/* Podsumowanie */}
           <div className="bg-gray-50 p-4 rounded-lg mb-6">
             <div className="flex justify-between text-sm text-gray-600 mb-2">
-              <span>Lacznie palet:</span>
+              <span>Łącznie palet:</span>
               <span className="font-semibold">{order.items?.reduce((sum, item) => sum + (item.palletCount || 0), 0) || 0}</span>
             </div>
             <div className="flex justify-between text-sm text-gray-600 mb-2">
-              <span>Lacznie sztuk:</span>
+              <span>Łącznie sztuk:</span>
               <span className="font-semibold">{order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0}</span>
             </div>
             <div className="flex justify-between text-xl font-bold border-t pt-2">
-              <span>Suma zamowienia:</span>
+              <span>Suma zamówienia:</span>
               <span>{(order.totalAmount || 0).toFixed(2)} PLN</span>
             </div>
           </div>

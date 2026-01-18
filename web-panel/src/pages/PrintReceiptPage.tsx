@@ -60,7 +60,7 @@ export function PrintReceiptPage() {
           }
         }
       } catch (e) {
-        setError("Nie udalo sie pobrac paragonu");
+        setError("Nie udało się pobrać paragonu");
         console.error(e);
       } finally {
         setLoading(false);
@@ -73,7 +73,7 @@ export function PrintReceiptPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Ladowanie...</div>
+        <div className="text-lg">Ładowanie...</div>
       </div>
     );
   }

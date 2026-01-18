@@ -158,7 +158,7 @@ export class ReceiptController {
       res.send(html);
     } catch (error) {
       console.error("Get HTML error:", error);
-      res.status(500).json({ error: "Blad serwera podczas generowania HTML" });
+      res.status(500).json({ error: "Błąd serwera podczas generowania HTML" });
     }
   }
 }

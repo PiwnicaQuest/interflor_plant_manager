@@ -4,9 +4,9 @@ import { API } from '../../services/api';
 import type { Order } from '../../types';
 
 const STATUS_LABELS: Record<string, string> = {
-  pending: 'Oczekujace',
+  pending: 'Oczekujące',
   in_progress: 'W realizacji',
-  ready_for_pickup: 'Do odbioru',
+  ready_for_pickup: 'Do odbióru',
   completed: 'Zakonczone',
   cancelled: 'Anulowane',
 };
@@ -48,7 +48,7 @@ export function ScannerOrdersPage() {
       const result = await API.getOrders(filters);
       setOrders(result.orders || []);
     } catch (err: any) {
-      setError('Nie udalo sie pobrac zamowien');
+      setError('Nie udało się pobrać zamówień');
     } finally {
       setLoading(false);
     }
@@ -70,9 +70,9 @@ export function ScannerOrdersPage() {
         <div className="flex gap-1.5 overflow-x-auto">
           {[
             { value: 'all', label: 'Wszystkie' },
-            { value: 'pending', label: 'Oczekujace' },
+            { value: 'pending', label: 'Oczekujące' },
             { value: 'in_progress', label: 'W realizacji' },
-            { value: 'ready_for_pickup', label: 'Do odbioru' },
+            { value: 'ready_for_pickup', label: 'Do odbióru' },
           ].map((tab) => (
             <button
               key={tab.value}
@@ -136,11 +136,11 @@ export function ScannerOrdersPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
             </div>
-            <h3 className="text-base font-medium text-gray-900 mb-1">Brak zamowien</h3>
+            <h3 className="text-base font-medium text-gray-900 mb-1">Brak zamówień</h3>
             <p className="text-gray-500 text-sm mb-3">
               {searchQuery
-                ? `Nie znaleziono zamowien dla "${searchQuery}"`
-                : 'Nie ma zamowien o wybranym statusie'}
+                ? `Nie znaleziono zamówień dla "${searchQuery}"`
+                : 'Nie ma zamówień o wybranym statusie'}
             </p>
             <Link
               to="/scanner/orders/new"
@@ -149,7 +149,7 @@ export function ScannerOrdersPage() {
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              Nowe zamowienie
+              Nowe zamówienie
             </Link>
           </div>
         ) : (

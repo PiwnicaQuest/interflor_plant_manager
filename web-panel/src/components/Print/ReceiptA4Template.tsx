@@ -46,7 +46,7 @@ const defaultCompanyInfo = {
   postalCode: '00-001',
   nip: '123-456-78-90',
   phone: '+48 123 456 789',
-  email: 'zamowienia@polflor.pl',
+  email: 'zamówienia@polflor.pl',
 };
 
 export function ReceiptA4Template({ data, companyInfo = defaultCompanyInfo }: ReceiptA4TemplateProps) {

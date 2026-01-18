@@ -338,7 +338,7 @@ export async function generateCorrectionHTML(correction: InvoiceCorrectionWithIt
       <span>Podpis osoby upowaznionej do wystawienia</span>
     </div>
     <div class="signature-box">
-      <span>Podpis osoby upowaznionej do odbioru</span>
+      <span>Podpis osoby upowaznionej do odbióru</span>
     </div>
   </div>
 </body>

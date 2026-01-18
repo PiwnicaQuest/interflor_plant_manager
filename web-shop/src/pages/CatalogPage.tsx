@@ -54,7 +54,7 @@ export function CatalogPage() {
       setUsedTags(result.filters.usedTags || []);
     } catch (err) {
       const error = err as Error;
-      setError(error.message || 'Blad ladowania produktow');
+      setError(error.message || 'Błąd ładowania produktów');
     } finally {
       setLoading(false);
     }
@@ -165,7 +165,7 @@ export function CatalogPage() {
       {/* Show all available tags that might not be in groups */}
       {usedTags.length > 0 && (
         <div className="mt-6 pt-4 border-t">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Wszystkie dostepne</h4>
+          <h4 className="text-sm font-medium text-gray-700 mb-2">Wszystkie dostępne</h4>
           <div className="flex flex-wrap gap-1">
             {usedTags.map(tag => {
               const isSelected = selectedCategories.includes(tag);
@@ -202,10 +202,10 @@ export function CatalogPage() {
       <div className="flex-1 min-w-0">
         {/* Header */}
         <div className="mb-4 sm:mb-6">
-          <h1 className="text-xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">Katalog roslin</h1>
+          <h1 className="text-xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">Katalog roślin</h1>
           {!isAuthenticated && (
             <p className="text-sm sm:text-base text-gray-600">
-              Zaloguj sie, aby zobaczyc ceny i skladac zamowienia
+              Zaloguj się, aby zobaczyć ceny i składać zamówienia
             </p>
           )}
         </div>
@@ -255,7 +255,7 @@ export function CatalogPage() {
             <div className="col-span-2">
               <input
                 type="text"
-                placeholder="Szukaj rosliny..."
+                placeholder="Szukaj rośliny..."
                 className="input text-sm sm:text-base"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -334,7 +334,7 @@ export function CatalogPage() {
         {/* Results count */}
         {!loading && !error && (
           <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
-            Znaleziono: {products.length} {products.length === 1 ? 'produkt' : products.length < 5 ? 'produkty' : 'produktow'}
+            Znaleziono: {products.length} {products.length === 1 ? 'produkt' : products.length < 5 ? 'produkty' : 'produktów'}
           </p>
         )}
 
@@ -342,7 +342,7 @@ export function CatalogPage() {
         {loading ? (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Ladowanie produktow...</p>
+            <p className="mt-4 text-gray-600">Ładowanie produktów...</p>
           </div>
         ) : error ? (
           <div className="text-center py-12">
@@ -350,7 +350,7 @@ export function CatalogPage() {
           </div>
         ) : products.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-gray-600 mb-4">Brak produktow do wyswietlenia</p>
+            <p className="text-gray-600 mb-4">Brak produktów do wyswietlenia</p>
             {selectedCategories.length > 0 && (
               <button
                 onClick={() => setSelectedCategories([])}
@@ -426,7 +426,7 @@ export function CatalogPage() {
                     </h3>
                     <div className="text-[11px] sm:text-sm text-gray-500 mb-1 sm:mb-2 space-y-0">
                       {product.potSize && <p>Doniczka: {product.potSize}</p>}
-                      {product.plantHeightCm && <p className="hidden sm:block">Wysokosc: {product.plantHeightCm} cm</p>}
+                      {product.plantHeightCm && <p className="hidden sm:block">Wysokość: {product.plantHeightCm} cm</p>}
                     </div>
 
                     {/* Prices and availability - only when authenticated */}
@@ -491,7 +491,7 @@ export function CatalogPage() {
                           to="/login"
                           className="btn btn-secondary w-full text-[10px] sm:text-sm text-center block py-1.5 sm:py-2"
                         >
-                          Zaloguj sie
+                          Zaloguj się
                         </Link>
                       </div>
                     )}

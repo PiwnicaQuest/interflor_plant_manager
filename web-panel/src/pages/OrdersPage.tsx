@@ -265,7 +265,7 @@ export function OrdersPage() {
     const statusLabels: Record<OrderStatus, string> = {
       [OrderStatus.PENDING]: 'Oczekuje',
       [OrderStatus.IN_PROGRESS]: 'W realizacji',
-      [OrderStatus.READY_FOR_PICKUP]: 'Gotowe do odbioru',
+      [OrderStatus.READY_FOR_PICKUP]: 'Gotowe do odbióru',
       [OrderStatus.COMPLETED]: 'Zakończone',
       [OrderStatus.CANCELLED]: 'Anulowane',
     };
@@ -287,7 +287,7 @@ export function OrdersPage() {
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `zamowienia_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `zamówienia_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
   };
 
@@ -342,7 +342,7 @@ export function OrdersPage() {
               <option value="">Wszystkie</option>
               <option value={OrderStatus.PENDING}>Oczekuje</option>
               <option value={OrderStatus.IN_PROGRESS}>W realizacji</option>
-              <option value={OrderStatus.READY_FOR_PICKUP}>Gotowe do odbioru</option>
+              <option value={OrderStatus.READY_FOR_PICKUP}>Gotowe do odbióru</option>
               <option value={OrderStatus.COMPLETED}>Zakończone</option>
               <option value={OrderStatus.CANCELLED}>Anulowane</option>
             </select>
@@ -614,7 +614,7 @@ export function OrdersPage() {
               >
                 <option value={OrderStatus.PENDING}>Oczekuje</option>
                 <option value={OrderStatus.IN_PROGRESS}>W realizacji</option>
-                <option value={OrderStatus.READY_FOR_PICKUP}>Gotowe do odbioru</option>
+                <option value={OrderStatus.READY_FOR_PICKUP}>Gotowe do odbióru</option>
                 <option value={OrderStatus.COMPLETED}>Zakończone</option>
               </select>
             </div>

@@ -104,7 +104,7 @@ export function DashboardPage() {
         <Link to="/pos" className="card p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Gotowe do odbioru</p>
+              <p className="text-sm text-gray-600 mb-1">Gotowe do odbióru</p>
               <p className="text-3xl font-bold text-green-600">{stats.readyForPickupCount}</p>
             </div>
             <div className="text-4xl">✅</div>

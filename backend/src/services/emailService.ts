@@ -123,7 +123,7 @@ class EmailService {
         ${totalInfo}
       </div>
 
-      <p>Fakture pro forma mozesz pobrac klikajac ponizszy przycisk:</p>
+      <p>Fakturę pro forma możesz pobrać klikając poniższy przycisk:</p>
 
       <p style="text-align: center;">
         <a href="${printUrl}" class="button">Pobierz Pro Forme</a>
@@ -134,7 +134,7 @@ class EmailService {
       </p>
     </div>
     <div class="footer">
-      <p>POLFLOR - System zarzadzania magazynem roslin</p>
+      <p>POLFLOR - System zarządzania magazynem roślin</p>
       <p>Ta wiadomosc zostala wygenerowana automatycznie.</p>
     </div>
   </div>
@@ -203,7 +203,7 @@ Zespol POLFLOR
     <div class="content">
       <p>${greeting},</p>
 
-      <p>Twoje konto w sklepie internetowym POLFLOR zostalo utworzone.
+      <p>Twoje konto w sklepie internetowym POLFLOR zostało utworzone.
       Ponizej znajdziesz dane do logowania:</p>
 
       <div class="credentials">
@@ -211,7 +211,7 @@ Zespol POLFLOR
         <p><strong>Haslo:</strong> <span class="code">${password}</span></p>
       </div>
 
-      <p>Mozesz zalogowac sie do sklepu klikajac ponizszy przycisk:</p>
+      <p>Możesz zalogować się do sklepu klikając poniższy przycisk:</p>
 
       <p style="text-align: center;">
         <a href="${shopUrl}" class="button">Przejdz do sklepu</a>
@@ -223,7 +223,7 @@ Zespol POLFLOR
       </p>
     </div>
     <div class="footer">
-      <p>POLFLOR - System zarzadzania magazynem roslin</p>
+      <p>POLFLOR - System zarządzania magazynem roślin</p>
       <p>Ta wiadomosc zostala wygenerowana automatycznie.</p>
     </div>
   </div>
@@ -234,7 +234,7 @@ Zespol POLFLOR
     const text = `
 ${greeting},
 
-Twoje konto w sklepie internetowym POLFLOR zostalo utworzone.
+Twoje konto w sklepie internetowym POLFLOR zostało utworzone.
 
 Dane do logowania:
 - Email (login): ${email}
@@ -291,7 +291,7 @@ Zespol POLFLOR
     <div class="content">
       <p>${greeting},</p>
 
-      <p>Twoje haslo do sklepu internetowego POLFLOR zostalo zresetowane.
+      <p>Twoje hasło do sklepu internetowego POLFLOR zostało zresetowane.
       Ponizej znajdziesz nowe dane do logowania:</p>
 
       <div class="credentials">
@@ -299,7 +299,7 @@ Zespol POLFLOR
         <p><strong>Nowe haslo:</strong> <span class="code">${newPassword}</span></p>
       </div>
 
-      <p>Mozesz zalogowac sie do sklepu klikajac ponizszy przycisk:</p>
+      <p>Możesz zalogować się do sklepu klikając poniższy przycisk:</p>
 
       <p style="text-align: center;">
         <a href="${shopUrl}" class="button">Przejdz do sklepu</a>
@@ -307,11 +307,11 @@ Zespol POLFLOR
 
       <p style="margin-top: 30px; font-size: 14px; color: #6b7280;">
         <strong>Uwaga:</strong> Zalecamy zmiane hasla po zalogowaniu.
-        Jesli nie prosiles/as o reset hasla, skontaktuj sie z nami.
+        Jesli nie prosiles/as o reset hasla, skontaktuj się z nami.
       </p>
     </div>
     <div class="footer">
-      <p>POLFLOR - System zarzadzania magazynem roslin</p>
+      <p>POLFLOR - System zarządzania magazynem roślin</p>
       <p>Ta wiadomosc zostala wygenerowana automatycznie.</p>
     </div>
   </div>
@@ -322,7 +322,7 @@ Zespol POLFLOR
     const text = `
 ${greeting},
 
-Twoje haslo do sklepu internetowego POLFLOR zostalo zresetowane.
+Twoje hasło do sklepu internetowego POLFLOR zostało zresetowane.
 
 Nowe dane do logowania:
 - Email (login): ${email}

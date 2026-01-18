@@ -26,7 +26,7 @@ export class InventoryController {
       return res.json({ products, counts });
     } catch (error) {
       console.error('Get inventory error:', error);
-      return res.status(500).json({ error: 'Blad serwera' });
+      return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
 
@@ -46,7 +46,7 @@ export class InventoryController {
       return res.json({ product, movements });
     } catch (error) {
       console.error('Get product error:', error);
-      return res.status(500).json({ error: 'Blad serwera' });
+      return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
 
@@ -106,7 +106,7 @@ export class InventoryController {
       });
     } catch (error) {
       console.error('Create product error:', error);
-      return res.status(500).json({ error: 'Blad serwera' });
+      return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
 
@@ -270,7 +270,7 @@ export class InventoryController {
       });
     } catch (error) {
       console.error('Update product error:', error);
-      return res.status(500).json({ error: 'Blad serwera' });
+      return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
 
@@ -288,7 +288,7 @@ export class InventoryController {
       return res.json({ message: 'Produkt usuniety' });
     } catch (error) {
       console.error('Delete product error:', error);
-      return res.status(500).json({ error: 'Blad serwera' });
+      return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
 
@@ -310,7 +310,7 @@ export class InventoryController {
       });
     } catch (error) {
       console.error('Toggle visibility error:', error);
-      return res.status(500).json({ error: 'Blad serwera' });
+      return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
 
@@ -332,7 +332,7 @@ export class InventoryController {
       });
     } catch (error) {
       console.error('Archive product error:', error);
-      return res.status(500).json({ error: 'Blad serwera' });
+      return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
 
@@ -354,7 +354,7 @@ export class InventoryController {
       });
     } catch (error) {
       console.error('Restore product error:', error);
-      return res.status(500).json({ error: 'Blad serwera' });
+      return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
 
@@ -364,7 +364,7 @@ export class InventoryController {
       return res.json({ products });
     } catch (error) {
       console.error('Get low stock error:', error);
-      return res.status(500).json({ error: 'Blad serwera' });
+      return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
 
@@ -388,7 +388,7 @@ export class InventoryController {
       return res.json({ product, recentMovements: movements });
     } catch (error) {
       console.error('Scan barcode error:', error);
-      return res.status(500).json({ error: 'Blad serwera' });
+      return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
 
@@ -424,13 +424,13 @@ export class InventoryController {
       }
 
       return res.json({
-        message: 'Zaktualizowano ceny dla ' + updated + ' produktow',
+        message: 'Zaktualizowano ceny dla ' + updated + ' produktów',
         updated,
         total: products.length,
       });
     } catch (error) {
       console.error('Recalculate prices error:', error);
-      return res.status(500).json({ error: 'Blad serwera' });
+      return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
 
@@ -645,7 +645,7 @@ export class InventoryController {
       const { productIds, tags, mode } = req.body;
 
       if (!Array.isArray(productIds) || productIds.length === 0) {
-        return res.status(400).json({ error: 'Lista produktow jest wymagana' });
+        return res.status(400).json({ error: 'Lista produktów jest wymagana' });
       }
 
       if (!Array.isArray(tags)) {
@@ -660,13 +660,13 @@ export class InventoryController {
 
       return res.json({
         success: true,
-        message: `Zaktualizowano tagi dla ${result.updated} produktow`,
+        message: `Zaktualizowano tagi dla ${result.updated} produktów`,
         updated: result.updated,
         failed: result.failed,
       });
     } catch (error) {
       console.error('Bulk update tags error:', error);
-      return res.status(500).json({ error: 'Blad serwera' });
+      return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
 }

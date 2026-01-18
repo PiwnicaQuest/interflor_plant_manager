@@ -51,7 +51,7 @@ export class TagsController {
       return res.json({ tags });
     } catch (error) {
       console.error('Error fetching tags:', error);
-      return res.status(500).json({ error: 'Blad serwera' });
+      return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
 
@@ -68,7 +68,7 @@ export class TagsController {
 
       const trimmedName = name.trim();
       if (!trimmedName) {
-        return res.status(400).json({ error: 'Nazwa tagu nie moze byc pusta' });
+        return res.status(400).json({ error: 'Nazwa tagu nie może byc pusta' });
       }
 
       // Get current tags
@@ -85,7 +85,7 @@ export class TagsController {
       definedTags.sort((a, b) => a.localeCompare(b, 'pl'));
 
       // Save to settings
-      await SettingsModel.upsertSetting(TAGS_SETTING_KEY, JSON.stringify(definedTags), 'Lista dostepnych tagow');
+      await SettingsModel.upsertSetting(TAGS_SETTING_KEY, JSON.stringify(definedTags), 'Lista dostępnych tagow');
 
       return res.json({ 
         success: true, 
@@ -93,7 +93,7 @@ export class TagsController {
       });
     } catch (error) {
       console.error('Error creating tag:', error);
-      return res.status(500).json({ error: 'Blad serwera' });
+      return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
 
@@ -116,7 +116,7 @@ export class TagsController {
       const definedTags: string[] = Array.isArray(settingValue) ? settingValue : (settingValue ? JSON.parse(settingValue) : []);
       const newTags = definedTags.filter(t => t !== decodedTagName);
       
-      await SettingsModel.upsertSetting(TAGS_SETTING_KEY, JSON.stringify(newTags), 'Lista dostepnych tagow');
+      await SettingsModel.upsertSetting(TAGS_SETTING_KEY, JSON.stringify(newTags), 'Lista dostępnych tagow');
 
       // Optionally remove from all products
       if (removeFromProducts === 'true') {
@@ -129,7 +129,7 @@ export class TagsController {
       return res.json({ success: true });
     } catch (error) {
       console.error('Error deleting tag:', error);
-      return res.status(500).json({ error: 'Blad serwera' });
+      return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
 
@@ -149,7 +149,7 @@ export class TagsController {
       const trimmedNewName = newName.trim();
 
       if (!trimmedNewName) {
-        return res.status(400).json({ error: 'Nowa nazwa tagu nie moze byc pusta' });
+        return res.status(400).json({ error: 'Nowa nazwa tagu nie może byc pusta' });
       }
 
       // Update in settings
@@ -164,7 +164,7 @@ export class TagsController {
       const newTags = definedTags.map(t => t === decodedOldName ? trimmedNewName : t);
       newTags.sort((a, b) => a.localeCompare(b, 'pl'));
       
-      await SettingsModel.upsertSetting(TAGS_SETTING_KEY, JSON.stringify(newTags), 'Lista dostepnych tagow');
+      await SettingsModel.upsertSetting(TAGS_SETTING_KEY, JSON.stringify(newTags), 'Lista dostępnych tagow');
 
       // Update in all products
       await query(
@@ -175,7 +175,7 @@ export class TagsController {
       return res.json({ success: true });
     } catch (error) {
       console.error('Error updating tag:', error);
-      return res.status(500).json({ error: 'Blad serwera' });
+      return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
 }

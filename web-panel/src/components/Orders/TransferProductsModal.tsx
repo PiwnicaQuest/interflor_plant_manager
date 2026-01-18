@@ -59,7 +59,7 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
         setSelectedCustomerId(sourceCustomerId || null);
       } catch (err) {
         console.error('Error fetching data:', err);
-        setError('Blad podczas ladowania danych');
+        setError('Błąd podczas ładowania danych');
       }
     };
 
@@ -100,7 +100,7 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
 
   const handleCreateNewOrder = async () => {
     if (!selectedCustomerId) {
-      setError('Wybierz kontrahenta dla nowego zamowienia');
+      setError('Wybierz kontrahenta dla nowego zamówienia');
       return;
     }
 
@@ -131,7 +131,7 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
 
     } catch (err: any) {
       console.error('Error creating order:', err);
-      setError(err.response?.data?.error || 'Blad podczas tworzenia zamowienia');
+      setError(err.response?.data?.error || 'Błąd podczas tworzenia zamówienia');
     } finally {
       setCreatingOrder(false);
     }
@@ -139,7 +139,7 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
 
   const handleTransfer = async () => {
     if (!selectedTargetOrderId) {
-      setError('Wybierz zamowienie docelowe');
+      setError('Wybierz zamówienie docelowe');
       return;
     }
 
@@ -241,7 +241,7 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
       if (newSourceItems.length === 0) {
         await api.cancelOrder(
           sourceOrder.id,
-          'Wszystkie produkty zostaly przeniesione do innego zamowienia'
+          'Wszystkie produkty zostały przeniesione do innego zamówienia'
         );
       }
 
@@ -249,7 +249,7 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
       onClose();
     } catch (err: any) {
       console.error('Transfer error:', err);
-      setError(err.response?.data?.error || err.message || 'Blad podczas przenoszenia produktow');
+      setError(err.response?.data?.error || err.message || 'Błąd podczas przenoszenia produktów');
     } finally {
       setLoading(false);
     }
@@ -372,7 +372,7 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
 
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Zamowienie docelowe <span className="text-red-500">*</span>
+              Zamówienie docelowe <span className="text-red-500">*</span>
             </label>
             <div className="flex gap-2">
               <select
@@ -381,7 +381,7 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
                 onChange={(e) => setSelectedTargetOrderId(parseInt(e.target.value))}
                 disabled={showNewOrderForm}
               >
-                <option value="">-- Wybierz zamowienie docelowe --</option>
+                <option value="">-- Wybierz zamówienie docelowe --</option>
                 {sameCustomerOrders.length > 0 && (
                   <optgroup label="Ten sam kontrahent">
                     {sameCustomerOrders.map((order) => (
@@ -419,7 +419,7 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
             {showNewOrderForm && (
               <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                 <h4 className="text-sm font-semibold text-green-800 mb-3">
-                  Utworz nowe zamowienie
+                  Utwórz nowe zamówienie
                 </h4>
                 <div className="flex gap-2">
                   {/* Customer Autocomplete */}
@@ -487,14 +487,14 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
                         ))}
                         {filteredCustomers.length > 20 && (
                           <div className="px-4 py-2 text-xs text-gray-500 text-center border-t">
-                            Wyswietlono 20 z {filteredCustomers.length} wynikow. Zawez wyszukiwanie.
+                            Wyświetlono 20 z {filteredCustomers.length} wynikow. Zawez wyszukiwanie.
                           </div>
                         )}
                       </div>
                     )}
                     {showCustomerDropdown && customerSearchQuery.length >= 2 && filteredCustomers.length === 0 && (
                       <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4 text-center text-gray-500">
-                        Nie znaleziono kontrahentow
+                        Nie znaleziono kontrahentów
                       </div>
                     )}
                   </div>
@@ -514,7 +514,7 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
                 )}
                 {selectedCustomerId === sourceCustomerId && (
                   <p className="text-xs text-green-700 mt-2">
-                    Ten sam kontrahent co zamowienie zrodlowe - ceny zostana zachowane.
+                    Ten sam kontrahent co zamówienie źródłowe - ceny zostana zachowane.
                   </p>
                 )}
                 {selectedCustomerId && selectedCustomerId !== sourceCustomerId && (
@@ -527,15 +527,15 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
 
             {targetOrders.length === 0 && !showNewOrderForm && (
               <p className="text-sm text-gray-500 mt-2">
-                Brak dostepnych zamowien docelowych. Kliknij "+ Nowe" aby utworzyc nowe zamowienie.
+                Brak dostępnych zamówień docelowych. Kliknij "+ Nowe" aby utworzyć nowe zamówienie.
               </p>
             )}
           </div>
 
           {showDifferentCustomerWarning && (
             <div className="bg-yellow-50 border border-yellow-400 text-yellow-800 px-4 py-3 rounded mb-6">
-              <strong>Uwaga:</strong> Wybrane zamowienie docelowe nalezy do innego kontrahenta.
-              Ceny produktow zostana dostosowane do grupy cenowej nowego kontrahenta.
+              <strong>Uwaga:</strong> Wybrane zamówienie docelowe należy do innego kontrahenta.
+              Ceny produktów zostana dostosowane do grupy cenowej nowego kontrahenta.
             </div>
           )}
 
@@ -656,7 +656,7 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
           {getTotalTransferredItems() === transferItems.reduce((sum, item) => sum + item.maxQuantity, 0) &&
             getTotalTransferredItems() > 0 && (
               <p className="text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded p-3 mt-4">
-                <strong>Uwaga:</strong> Przenosisz wszystkie produkty z tego zamowienia. Zamowienie zrodlowe zostanie automatycznie anulowane.
+                <strong>Uwaga:</strong> Przenosisz wszystkie produkty z tego zamówienia. Zamówienie źródłowe zostanie automatycznie anulowane.
               </p>
             )}
         </div>

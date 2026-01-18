@@ -4,16 +4,30 @@ import { api } from '../services/api';
 import { InvoiceTemplate } from '../components/Print/InvoiceTemplate';
 import { Invoice } from '../types';
 
+interface CompanySettings {
+  companyName: string;
+  nip: string;
+  street: string;
+  postalCode: string;
+  city: string;
+  phone?: string;
+  email?: string;
+  bankName?: string;
+  bankAccount?: string;
+  invoiceComment?: string;
+}
+
 export function BulkPrintInvoicesPage() {
   const [searchParams] = useSearchParams();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const ids = searchParams.get('ids')?.split(',').map(Number).filter(Boolean) || [];
 
   useEffect(() => {
-    const fetchInvoices = async () => {
+    const fetchData = async () => {
       if (ids.length === 0) {
         setError('Nie podano ID faktur');
         setLoading(false);
@@ -21,13 +35,21 @@ export function BulkPrintInvoicesPage() {
       }
 
       try {
-        const results = await Promise.all(
-          ids.map(async (id) => {
-            const response = await api.getInvoice(id);
-            return response.invoice;
-          })
-        );
-        setInvoices(results);
+        // Fetch invoices and company settings in parallel
+        const [invoiceResults, settingsResult] = await Promise.all([
+          Promise.all(
+            ids.map(async (id) => {
+              const response = await api.getInvoice(id);
+              return response.invoice;
+            })
+          ),
+          api.getCompanySettings().catch(() => null)
+        ]);
+
+        setInvoices(invoiceResults);
+        if (settingsResult) {
+          setCompanySettings(settingsResult);
+        }
       } catch (err) {
         console.error('Error fetching invoices:', err);
         setError('Błąd podczas pobierania faktur');
@@ -36,7 +58,7 @@ export function BulkPrintInvoicesPage() {
       }
     };
 
-    fetchInvoices();
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -46,6 +68,20 @@ export function BulkPrintInvoicesPage() {
       }, 500);
     }
   }, [loading, invoices]);
+
+  // Build sellerInfo from company settings
+  const sellerInfo = companySettings ? {
+    name: companySettings.companyName,
+    nip: companySettings.nip,
+    address: companySettings.street,
+    postalCode: companySettings.postalCode,
+    city: companySettings.city,
+    phone: companySettings.phone,
+    email: companySettings.email,
+    bankName: companySettings.bankName,
+    bankAccount: companySettings.bankAccount,
+    invoiceComment: companySettings.invoiceComment,
+  } : undefined;
 
   if (loading) {
     return (
@@ -158,7 +194,7 @@ export function BulkPrintInvoicesPage() {
 
         return (
           <div key={invoice.id} className="page-break">
-            <InvoiceTemplate data={invoiceData} />
+            <InvoiceTemplate data={invoiceData} sellerInfo={sellerInfo} />
           </div>
         );
       })}

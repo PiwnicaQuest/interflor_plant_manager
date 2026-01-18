@@ -53,7 +53,7 @@ const defaultCompanyInfo = {
   city: 'Warszawa',
   postalCode: '00-001',
   phone: '+48 123 456 789',
-  email: 'zamowienia@polflor.pl',
+  email: 'zamówienia@polflor.pl',
 };
 
 // Barcode component that renders scannable barcode
@@ -136,7 +136,7 @@ export function OrderTemplate({ data, companyInfo = defaultCompanyInfo, showPric
     const labels: Record<OrderStatus, string> = {
       [OrderStatus.PENDING]: 'Oczekujące',
       [OrderStatus.IN_PROGRESS]: 'W realizacji',
-      [OrderStatus.READY_FOR_PICKUP]: 'Gotowe do odbioru',
+      [OrderStatus.READY_FOR_PICKUP]: 'Gotowe do odbióru',
       [OrderStatus.COMPLETED]: 'Zrealizowane',
       [OrderStatus.CANCELLED]: 'Anulowane',
     };

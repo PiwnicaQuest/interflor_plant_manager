@@ -40,7 +40,7 @@ export function PaymentSuccessModal({
       await onSendEmail();
       setEmailSent(true);
     } catch (err: any) {
-      setEmailError(err.response?.data?.error || 'Blad wysylania');
+      setEmailError(err.response?.data?.error || 'Błąd wysyłania');
     } finally {
       setEmailSending(false);
     }
@@ -109,7 +109,7 @@ export function PaymentSuccessModal({
 
             {paymentDetails && (
               <div className="border-t border-gray-200 pt-2 mt-2">
-                <div className="text-xs text-gray-500 mb-0.5">Szczegoly platnosci</div>
+                <div className="text-xs text-gray-500 mb-0.5">Szczegóły platnosci</div>
                 <div className="text-sm text-gray-700">{paymentDetails}</div>
               </div>
             )}
@@ -146,7 +146,7 @@ export function PaymentSuccessModal({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
-              <span>Podglad</span>
+              <span>Podgląd</span>
             </button>
           </div>
 
@@ -168,7 +168,7 @@ export function PaymentSuccessModal({
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  <span>Wysylanie...</span>
+                  <span>Wysyłanie...</span>
                 </>
               ) : emailSent ? (
                 <>
@@ -184,7 +184,7 @@ export function PaymentSuccessModal({
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
-                  <span>Wyslij fakture mailem</span>
+                  <span>Wyślij fakture mailem</span>
                 </>
               )}
             </button>
@@ -202,7 +202,7 @@ export function PaymentSuccessModal({
           </button>
 
           <p className="text-xs text-gray-400 text-center pt-1">
-            Okno zamknie sie automatycznie za 30 sekund
+            Okno zamknie się automatycznie za 30 sekund
           </p>
         </div>
       </div>

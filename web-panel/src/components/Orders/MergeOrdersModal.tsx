@@ -22,7 +22,7 @@ export function MergeOrdersModal({ masterOrder, onClose, onSuccess }: MergeOrder
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        // Pobierz zamowienia tego samego kontrahenta w statusie pending lub in_progress
+        // Pobierz zamówienia tego samego kontrahenta w statusie pending lub in_progress
         const data = await api.getOrders({ customerId: masterOrder.customerId });
         const validOrders = data.orders.filter(
           (order) =>
@@ -34,7 +34,7 @@ export function MergeOrdersModal({ masterOrder, onClose, onSuccess }: MergeOrder
         setAvailableOrders(validOrders);
       } catch (err) {
         console.error('Error fetching orders:', err);
-        setError('Blad podczas ladowania zamowien');
+        setError('Błąd podczas ładowania zamówień');
       }
     };
 
@@ -77,7 +77,7 @@ export function MergeOrdersModal({ masterOrder, onClose, onSuccess }: MergeOrder
 
   const handleMerge = async () => {
     if (selectedOrderIds.length === 0) {
-      setError('Wybierz przynajmniej jedno zamowienie do polaczenia');
+      setError('Wybierz przynajmniej jedno zamówienie do połączenia');
       return;
     }
 
@@ -92,7 +92,7 @@ export function MergeOrdersModal({ masterOrder, onClose, onSuccess }: MergeOrder
       onClose();
     } catch (err: any) {
       console.error('Merge error:', err);
-      setError(err.response?.data?.error || err.message || 'Blad podczas laczenia zamowien');
+      setError(err.response?.data?.error || err.message || 'Błąd podczas łączenia zamówień');
     } finally {
       setLoading(false);
     }
@@ -103,10 +103,10 @@ export function MergeOrdersModal({ masterOrder, onClose, onSuccess }: MergeOrder
       <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Polacz zamowienia
+            Połącz zamówienia
           </h2>
           <p className="text-gray-600 mb-6">
-            Zamowienie glowne: <strong>{masterOrder.orderNumber}</strong>
+            Zamówienie główne: <strong>{masterOrder.orderNumber}</strong>
           </p>
 
           {error && (
@@ -117,7 +117,7 @@ export function MergeOrdersModal({ masterOrder, onClose, onSuccess }: MergeOrder
 
           {/* Master Order Info */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <h3 className="font-semibold text-blue-900 mb-2">Zamowienie glowne (docelowe)</h3>
+            <h3 className="font-semibold text-blue-900 mb-2">Zamówienie główne (docelowe)</h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-blue-700">Numer:</span>{' '}
@@ -142,7 +142,7 @@ export function MergeOrdersModal({ masterOrder, onClose, onSuccess }: MergeOrder
           <div className="mb-6">
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-lg font-semibold text-gray-900">
-                Zamowienia do polaczenia
+                Zamowienia do połączenia
               </h3>
               {availableOrders.length > 0 && (
                 <div className="flex gap-2">
@@ -167,10 +167,10 @@ export function MergeOrdersModal({ masterOrder, onClose, onSuccess }: MergeOrder
 
             {availableOrders.length === 0 ? (
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center text-gray-500">
-                Brak innych zamowien tego kontrahenta do polaczenia.
+                Brak innych zamówień tego kontrahenta do połączenia.
                 <br />
                 <span className="text-sm">
-                  Tylko zamowienia w statusie "Oczekujace" lub "W realizacji" moga byc laczone.
+                  Tylko zamówienia w statusie "Oczekujące" lub "W realizacji" mogą być łączone.
                 </span>
               </div>
             ) : (
@@ -210,7 +210,7 @@ export function MergeOrdersModal({ masterOrder, onClose, onSuccess }: MergeOrder
                               ? 'bg-yellow-100 text-yellow-800'
                               : 'bg-blue-100 text-blue-800'
                           }`}>
-                            {order.status === 'pending' ? 'Oczekujace' : 'W realizacji'}
+                            {order.status === 'pending' ? 'Oczekujące' : 'W realizacji'}
                           </span>
                         </td>
                         <td className="text-center">{order.itemCount || 0}</td>
@@ -232,7 +232,7 @@ export function MergeOrdersModal({ masterOrder, onClose, onSuccess }: MergeOrder
               <h3 className="font-semibold text-green-900 mb-2">Podsumowanie po polaczeniu</h3>
               <div className="grid grid-cols-3 gap-4 text-sm">
                 <div>
-                  <span className="text-green-700">Zamowienia do polaczenia:</span>{' '}
+                  <span className="text-green-700">Zamowienia do połączenia:</span>{' '}
                   <strong>{mergePreview.ordersToMerge}</strong>
                 </div>
                 <div>
@@ -250,9 +250,9 @@ export function MergeOrdersModal({ masterOrder, onClose, onSuccess }: MergeOrder
           {/* Warning */}
           {selectedOrderIds.length > 0 && (
             <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded mb-6 text-sm">
-              <strong>Uwaga:</strong> Po polaczeniu wybrane zamowienia zostana anulowane,
-              a ich produkty przeniesione do zamowienia glownego ({masterOrder.orderNumber}).
-              Tej operacji nie mozna cofnac.
+              <strong>Uwaga:</strong> Po polaczeniu wybrane zamówienia zostana anulowane,
+              a ich produkty przeniesione do zamówienia głównego ({masterOrder.orderNumber}).
+              Tej operacji nie można cofnąć.
             </div>
           )}
 
@@ -263,7 +263,7 @@ export function MergeOrdersModal({ masterOrder, onClose, onSuccess }: MergeOrder
               disabled={loading || selectedOrderIds.length === 0}
               className="btn btn-primary flex-1"
             >
-              {loading ? 'Laczenie...' : `Polacz ${selectedOrderIds.length > 0 ? `(${selectedOrderIds.length + 1} zamowien)` : ''}`}
+              {loading ? 'Łączenie...' : `Połącz ${selectedOrderIds.length > 0 ? `(${selectedOrderIds.length + 1} zamówień)` : ''}`}
             </button>
             <button onClick={onClose} className="btn btn-secondary flex-1">
               Anuluj

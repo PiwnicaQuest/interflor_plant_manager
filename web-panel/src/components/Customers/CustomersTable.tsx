@@ -25,7 +25,7 @@ export function CustomersTable({
   if (customers.length === 0) {
     return (
       <div className="card p-8 text-center">
-        <p className="text-gray-500">Brak kontrahentow w bazie</p>
+        <p className="text-gray-500">Brak kontrahentów w bazie</p>
       </div>
     );
   }
@@ -100,7 +100,7 @@ export function CustomersTable({
                     </button>
                     <button
                       onClick={() => {
-                        if (window.confirm('Czy na pewno chcesz usunac tego kontrahenta?')) {
+                        if (window.confirm('Czy na pewno chcesz usunąć tego kontrahenta?')) {
                           onDelete(customer.id);
                         }
                       }}

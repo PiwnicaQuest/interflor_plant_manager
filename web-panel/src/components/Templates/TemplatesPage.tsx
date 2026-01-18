@@ -138,7 +138,7 @@ export function TemplatesPage() {
       const duplicated = await API.duplicatePrintTemplate(id);
       setTemplates([duplicated, ...templates]);
     } catch (err) {
-      setError('Błąd podczas duplikowania szablonu');
+      setError('Błąd podczas duplikówania szablonu');
       console.error(err);
     }
   };

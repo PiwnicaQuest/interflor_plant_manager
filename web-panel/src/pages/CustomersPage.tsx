@@ -57,7 +57,7 @@ export function CustomersPage() {
       await fetchCustomers();
       alert(`Kontrahent "${customerName}" zostal trwale usuniety`);
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Blad trwalego usuwania kontrahenta');
+      alert(err.response?.data?.error || 'Błąd trwałego usuwania kontrahenta');
     }
   };
 
@@ -197,12 +197,12 @@ export function CustomersPage() {
       {/* Table */}
       {loading ? (
         <div className="text-center py-12">
-          <p className="text-gray-500">Ladowanie...</p>
+          <p className="text-gray-500">Ładowanie...</p>
         </div>
       ) : (
         <>
           <div className="flex justify-between items-center text-sm text-gray-600">
-            <p>Znaleziono: {filteredAndSortedCustomers.length} kontrahentow</p>
+            <p>Znaleziono: {filteredAndSortedCustomers.length} kontrahentów</p>
           </div>
           <CustomersTable
             customers={filteredAndSortedCustomers}

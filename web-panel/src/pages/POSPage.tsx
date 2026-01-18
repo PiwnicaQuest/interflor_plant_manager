@@ -52,7 +52,7 @@ export function POSPage() {
   const { printInvoice, printReceipt } = usePrint({
     onError: (error) => {
       console.error("Print error:", error);
-      setError("Blad drukowania: " + error);
+      setError("Błąd drukowania: " + error);
     },
     onQueued: (jobId) => {
       console.log("Print job queued:", jobId);
@@ -271,7 +271,7 @@ export function POSPage() {
       }
     } catch (err: any) {
       console.error('Print error:', err);
-      setError(err.message || 'Blad drukowania');
+      setError(err.message || 'Błąd drukowania');
     } finally {
       setPrintLoading(false);
     }
@@ -331,7 +331,7 @@ export function POSPage() {
       }
     } catch (err: any) {
       console.error('Print error:', err);
-      setError(err.message || 'Blad drukowania');
+      setError(err.message || 'Błąd drukowania');
     } finally {
       setPrintLoading(false);
     }
@@ -508,7 +508,7 @@ export function POSPage() {
               <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
                 <div className="px-3 py-2 border-b border-gray-200 bg-gray-50">
                   <h2 className="text-sm font-semibold text-gray-700">
-                    Zamówienia gotowe do odbioru
+                    Zamówienia gotowe do odbióru
                   </h2>
                 </div>
                 <div className="max-h-[calc(100vh-280px)] overflow-y-auto">

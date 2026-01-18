@@ -6,7 +6,7 @@ export async function exportOrderToExcel(order: OrderWithItems): Promise<void> {
   const statusLabels: Record<OrderStatus, string> = {
     [OrderStatus.PENDING]: 'Oczekuje',
     [OrderStatus.IN_PROGRESS]: 'W realizacji',
-    [OrderStatus.READY_FOR_PICKUP]: 'Gotowe do odbioru',
+    [OrderStatus.READY_FOR_PICKUP]: 'Gotowe do odbióru',
     [OrderStatus.COMPLETED]: 'Zakończone',
     [OrderStatus.CANCELLED]: 'Anulowane',
   };
@@ -176,6 +176,6 @@ export async function exportOrderToExcel(order: OrderWithItems): Promise<void> {
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = `zamowienie_${order.orderNumber.replace(/\//g, '-')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+  link.download = `zamówienie_${order.orderNumber.replace(/\//g, '-')}_${new Date().toISOString().split('T')[0]}.xlsx`;
   link.click();
 }

@@ -241,7 +241,7 @@ export function LoginHistoryTab() {
               {loading ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
-                    Ladowanie...
+                    Ładowanie...
                   </td>
                 </tr>
               ) : entries.length === 0 ? (

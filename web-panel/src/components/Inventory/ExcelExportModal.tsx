@@ -168,7 +168,7 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
 
   const exportToExcel = async () => {
     if (filteredProducts.length === 0) {
-      alert('Brak produktow do eksportu w wybranym zakresie');
+      alert('Brak produktów do eksportu w wybranym zakresie');
       return;
     }
 
@@ -187,9 +187,9 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
       // Define columns - dodana kolumna Tagi
       worksheet.columns = [
         { header: 'Zdjecie', key: 'image', width: 12 },
-        { header: 'Nazwa rosliny', key: 'plantName', width: 35 },
+        { header: 'Nazwa rośliny', key: 'plantName', width: 35 },
         { header: 'Doniczka', key: 'potSize', width: 12 },
-        { header: 'Wysokosc (cm)', key: 'height', width: 14 },
+        { header: 'Wysokość (cm)', key: 'height', width: 14 },
         { header: 'Palety', key: 'pallets', width: 10 },
         { header: 'Szt/paleta', key: 'unitsPerPallet', width: 12 },
         { header: 'Razem szt.', key: 'totalUnits', width: 12 },
@@ -328,7 +328,7 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
       onClose();
     } catch (error) {
       console.error('Export error:', error);
-      alert('Wystapil blad podczas eksportu: ' + (error as Error).message);
+      alert('Wystąpił błąd podczas eksportu: ' + (error as Error).message);
     } finally {
       setIsExporting(false);
       setExportProgress('');
@@ -369,7 +369,7 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
           {/* Date range */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Zakres dat dodania produktow
+              Zakres dat dodania produktów
             </label>
             <div className="flex gap-2 mb-2">
               <div className="flex-1">
@@ -586,7 +586,7 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
           {/* Product count */}
           <div className="bg-gray-50 rounded-lg p-3">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Produktow do eksportu:</span>
+              <span className="text-sm text-gray-600">Produktów do eksportu:</span>
               <span className={`text-lg font-bold ${filteredProducts.length > 0 ? 'text-green-600' : 'text-red-500'}`}>
                 {filteredProducts.length}
               </span>
@@ -598,7 +598,7 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
             )}
             {filteredProducts.length > 0 && (
               <p className="text-xs text-gray-500 mt-1">
-                Eksport zawiera kolumne "Kategorie" z autofiltrami w Excelu.
+                Eksport zawiera kolumnę "Kategorie" z autofiltrami w Excelu.
               </p>
             )}
           </div>

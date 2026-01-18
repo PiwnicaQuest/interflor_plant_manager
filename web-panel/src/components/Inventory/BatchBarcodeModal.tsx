@@ -218,7 +218,7 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
     if (productsToprint.length === 0) {
       setPrintStatus({
         type: 'error',
-        message: 'Brak produktow z kodami kreskowymi do wydruku',
+        message: 'Brak produktów z kodami kreskowymi do wydruku',
       });
       setIsPrinting(false);
       return;
@@ -241,7 +241,7 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
       <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] flex flex-col">
         <div className="p-6 border-b">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold">Drukuj kody kreskowe - {products.length} produktow</h2>
+            <h2 className="text-xl font-bold">Drukuj kody kreskowe - {products.length} produktów</h2>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 text-2xl"
@@ -313,7 +313,7 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Produkt</th>
-                <th className="px-4 py-2 text-center text-sm font-medium text-gray-700 w-32">Podglad kodu</th>
+                <th className="px-4 py-2 text-center text-sm font-medium text-gray-700 w-32">Podgląd kodu</th>
                 <th className="px-4 py-2 text-center text-sm font-medium text-gray-700 w-24">Ilosc</th>
               </tr>
             </thead>
@@ -365,7 +365,7 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
         <div className="p-6 border-t bg-gray-50">
           <div className="flex justify-between items-center">
             <div className="text-sm text-gray-600">
-              Lacznie etykiet do wydruku: <span className="font-bold text-lg">{getTotalLabels()}</span>
+              Łącznie etykiet do wydruku: <span className="font-bold text-lg">{getTotalLabels()}</span>
             </div>
             <div className="flex gap-3">
               <button

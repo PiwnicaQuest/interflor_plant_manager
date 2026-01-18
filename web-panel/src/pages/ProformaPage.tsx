@@ -307,7 +307,7 @@ export function ProformaPage() {
     fetchStats();
     } catch (error: any) {
       console.error("Clone error:", error);
-      alert(error.response?.data?.error || "Blad podczas klonowania");
+      alert(error.response?.data?.error || "Błąd podczas klonowania");
     }
   };
 

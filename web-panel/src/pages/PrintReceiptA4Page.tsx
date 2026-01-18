@@ -71,7 +71,7 @@ export function PrintReceiptA4Page() {
           }
         }
       } catch (e) {
-        setError("Nie udalo sie pobrac paragonu");
+        setError("Nie udało się pobrać paragonu");
         console.error(e);
       } finally {
         setLoading(false);
@@ -84,7 +84,7 @@ export function PrintReceiptA4Page() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Ladowanie...</div>
+        <div className="text-lg">Ładowanie...</div>
       </div>
     );
   }

@@ -1,0 +1,25 @@
+{
+  "name": "plantmanager-print-agent-v2",
+  "version": "2.0.0",
+  "description": "Print Agent v2 for PlantManager - supports thermal label, receipt and laser printers",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1",
+    "pdf-to-printer": "^5.3.0",
+    "puppeteer": "^21.5.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.9.0",
+    "@types/uuid": "^9.0.6",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.0"
+  }
+}

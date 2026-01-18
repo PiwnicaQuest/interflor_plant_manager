@@ -25,7 +25,7 @@ function selectMasterFromGroup(products: Product[]): { master: Product; reason: 
   // Priority 1: Existing master (has mergedProductIds)
   const existingMaster = products.find(p => p.mergedProductIds && p.mergedProductIds.length > 0);
   if (existingMaster) {
-    return { master: existingMaster, reason: 'istniejacy master (ma wczesniejsze polaczenia)' };
+    return { master: existingMaster, reason: 'istniejący master (ma wcześniejsze połączenia)' };
   }
 
   // Priority 2: Highest stock
@@ -128,7 +128,7 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
       setUseDateFrom(newUseDateFrom);
       setCustomDates(new Map());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nie udalo sie zaladowac produktow podobnych');
+      setError(err instanceof Error ? err.message : 'Nie udało się załadować produktów podobnych');
     } finally {
       setLoading(false);
     }
@@ -244,7 +244,7 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
     const selection = selectedProducts.get(groupIndex) || new Set();
     
     if (selection.size < 2) {
-      setError('Wybierz co najmniej 2 produkty do polaczenia');
+      setError('Wybierz co najmniej 2 produkty do połączenia');
       return;
     }
     
@@ -261,7 +261,7 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
       setPreviewGroupIndex(null);
       if (onMergeComplete) onMergeComplete();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nie udalo sie polaczyc produktow');
+      setError(err instanceof Error ? err.message : 'Nie udało się połączyć produktów');
     } finally {
       setMerging(false);
     }
@@ -269,7 +269,7 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
 
   const handleBulkMerge = async () => {
     if (selectedGroups.size === 0) {
-      setError('Wybierz co najmniej jedna grupe do polaczenia');
+      setError('Wybierz co najmniej jedna grupe do połączenia');
       return;
     }
     
@@ -303,7 +303,7 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
     setMerging(false);
     
     if (errorCount > 0) {
-      setError('Polaczono ' + successCount + ' grup. Bledy: ' + errorCount);
+      setError('Połączono ' + successCount + ' grup. Bledy: ' + errorCount);
     }
     
     if (onMergeComplete) onMergeComplete();
@@ -326,9 +326,9 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
       <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-screen overflow-hidden flex flex-col" style={{maxHeight: "90vh"}}>
         <div className="p-4 border-b flex justify-between items-center">
           <div>
-            <h2 className="text-xl font-bold">Laczenie podobnych produktow</h2>
+            <h2 className="text-xl font-bold">Łączenie podobnych produktów</h2>
             <p className="text-sm text-gray-500">
-              {activeTab === "groups" ? (searchName || dateFrom || dateTo ? "Wyswietlono " + filteredGroups.length + " z " + groups.length + " grup" : "Znaleziono " + groups.length + " grup podobnych produktow") : "Historia polaczen (" + history.length + ")"}
+              {activeTab === "groups" ? (searchName || dateFrom || dateTo ? "Wyświetlono " + filteredGroups.length + " z " + groups.length + " grup" : "Znaleziono " + groups.length + " grup podobnych produktów") : "Historia polaczen (" + history.length + ")"}
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">x</button>
@@ -351,10 +351,10 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
               {loading ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
-                  <span className="ml-3">Ladowanie...</span>
+                  <span className="ml-3">Ładowanie...</span>
                 </div>
               ) : groups.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">Brak grup podobnych produktow do polaczenia</div>
+                <div className="text-center py-12 text-gray-500">Brak grup podobnych produktów do połączenia</div>
               ) : (
                 <div className="space-y-6">
                   {/* Filters */}
@@ -406,9 +406,9 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
 
                   {selectedGroups.size > 0 && (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex justify-between items-center">
-                      <span className="font-medium text-blue-800">Zaznaczono {selectedGroups.size} grup do polaczenia zbiorczego</span>
+                      <span className="font-medium text-blue-800">Zaznaczono {selectedGroups.size} grup do połączenia zbiorczego</span>
                       <button onClick={handleBulkMerge} disabled={merging} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                        {merging ? "Laczenie..." : "Polacz zaznaczone grupy"}
+                        {merging ? "Łączenie..." : "Połącz zaznaczone grupy"}
                       </button>
                     </div>
                   )}
@@ -430,7 +430,7 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
                               <div>
                                 <h3 className="font-bold text-lg">{group.matchCriteria.plantName}</h3>
                                 <p className="text-sm text-gray-500">
-                                  {group.matchCriteria.potSize} | Wysokosc: {group.matchCriteria.heightRange.min}-{group.matchCriteria.heightRange.max}cm | {group.matchCriteria.unitsPerPallet} szt/paleta | {group.products.length} produktow
+                                  {group.matchCriteria.potSize} | Wysokość: {group.matchCriteria.heightRange.min}-{group.matchCriteria.heightRange.max}cm | {group.matchCriteria.unitsPerPallet} szt/paleta | {group.products.length} produktów
                                 </p>
                               </div>
                             </div>
@@ -439,10 +439,10 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
                                 {selection.size === group.products.length ? "Odznacz wszystkie" : "Zaznacz wszystkie"}
                               </button>
                               <button onClick={() => { setPreviewGroupIndex(groupIndex); setShowPreview(true); }} disabled={!canMerge} className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-100 rounded disabled:opacity-50">
-                                Podglad
+                                Podgląd
                               </button>
                               <button onClick={() => handleMergeGroup(groupIndex)} disabled={!canMerge || merging} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
-                                Polacz ({selection.size})
+                                Połącz ({selection.size})
                               </button>
                             </div>
                           </div>
@@ -541,7 +541,7 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
                                     <td className="p-2 text-xs">{product.createdAt ? new Date(product.createdAt).toLocaleDateString("pl-PL") : "-"}</td>
                                     <td className="p-2">
                                       {isMaster && isSelected && <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full font-medium">MASTER</span>}
-                                      {isExistingMaster && !isMaster && <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">ma polaczenia</span>}
+                                      {isExistingMaster && !isMaster && <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">ma połączenia</span>}
                                     </td>
                                   </tr>
                                 );
@@ -562,7 +562,7 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
               {historyLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
-                  <span className="ml-3">Ladowanie historii...</span>
+                  <span className="ml-3">Ładowanie historii...</span>
                 </div>
               ) : history.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">Brak historii polaczen</div>
@@ -581,7 +581,7 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
                         </div>
                       </div>
                       <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        <div><span className="text-gray-500">Polaczono produktow:</span><span className="ml-2 font-semibold">{entry.mergedProductIds?.length || 0}</span></div>
+                        <div><span className="text-gray-500">Połączono produktów:</span><span className="ml-2 font-semibold">{entry.mergedProductIds?.length || 0}</span></div>
                         <div><span className="text-gray-500">Dodano palet:</span><span className="ml-2 font-semibold text-green-600">+{entry.totalPalletsAdded}</span></div>
                         <div><span className="text-gray-500">Dodano sztuk:</span><span className="ml-2 font-semibold text-green-600">+{entry.totalUnitsAdded}</span></div>
                         <div><span className="text-gray-500">Cena:</span><span className="ml-2">{formatPrice(entry.priceBefore)} - {formatPrice(entry.priceAfter)}</span></div>
@@ -607,7 +607,7 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-screen overflow-auto" style={{maxHeight: "80vh"}}>
             <div className="p-4 border-b flex justify-between items-center">
-              <h3 className="text-lg font-bold">Podglad polaczenia</h3>
+              <h3 className="text-lg font-bold">Podgląd połączenia</h3>
               <button onClick={() => setShowPreview(false)} className="text-gray-400 hover:text-gray-600">x</button>
             </div>
             <div className="p-4">
@@ -635,7 +635,7 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
                     )}
 
                     <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-gray-800 mb-2">Produkty do polaczenia ({preview.toMerge.length})</h4>
+                      <h4 className="font-semibold text-gray-800 mb-2">Produkty do połączenia ({preview.toMerge.length})</h4>
                       <div className="space-y-2">
                         {preview.toMerge.map(p => (
                           <div key={p.id} className="text-sm flex justify-between">
@@ -660,7 +660,7 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
                     <div className="flex justify-end gap-3 pt-4">
                       <button onClick={() => setShowPreview(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Anuluj</button>
                       <button onClick={() => handleMergeGroup(previewGroupIndex)} disabled={merging} className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
-                        {merging ? "Laczenie..." : "Potwierdz polaczenie"}
+                        {merging ? "Łączenie..." : "Potwierdz polaczenie"}
                       </button>
                     </div>
                   </div>

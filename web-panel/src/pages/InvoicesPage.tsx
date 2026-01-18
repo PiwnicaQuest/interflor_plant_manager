@@ -215,11 +215,11 @@ export function InvoicesPage() {
         setEmailModalInvoice(null);
         fetchInvoices(); // Refresh to update buyerSnapshot
       } else {
-        alert('Blad wysylania: ' + result.message);
+        alert('Błąd wysyłania: ' + result.message);
       }
     } catch (error) {
       console.error('Error sending invoice email:', error);
-      alert('Wystapil blad podczas wysylania faktury');
+      alert('Wystąpił błąd podczas wysyłania faktury');
     } finally {
       setIsSendingEmail(false);
     }
@@ -356,7 +356,7 @@ export function InvoicesPage() {
       {/* Table */}
       {loading ? (
         <div className="text-center py-12">
-          <p className="text-gray-500">Ladowanie...</p>
+          <p className="text-gray-500">Ładowanie...</p>
         </div>
       ) : (
         <>

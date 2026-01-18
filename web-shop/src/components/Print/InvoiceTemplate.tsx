@@ -333,7 +333,7 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
         </div>
         <div className="text-center">
           <div className="border-t border-gray-400 pt-2 mt-12">
-            <p className="text-xs text-gray-500">Podpis osoby upoważnionej do odbioru</p>
+            <p className="text-xs text-gray-500">Podpis osoby upoważnionej do odbióru</p>
           </div>
         </div>
       </div>

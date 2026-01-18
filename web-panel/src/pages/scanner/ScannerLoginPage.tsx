@@ -121,7 +121,7 @@ export function ScannerLoginPage() {
                   Logowanie...
                 </span>
               ) : (
-                'Zaloguj sie'
+                'Zaloguj się'
               )}
             </button>
           </form>

@@ -178,11 +178,11 @@ export class CustomerModel {
     orderCount: number;
     invoiceCount: number;
   }> {
-    // Sprawdz czy ma konto w sklepie
+    // Sprawdź czy ma konto w sklepie
     const customer = await this.getById(id);
     const hasShopAccount = customer?.userId ? true : false;
 
-    // Policz zamowienia
+    // Policz zamówienia
     const ordersResult = await query<{ count: string }>(
       'SELECT COUNT(*) as count FROM orders WHERE customer_id = $1',
       [id]

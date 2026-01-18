@@ -304,7 +304,7 @@ export async function generateInvoicePDF(invoice: InvoiceWithItems): Promise<PDF
   yPosition += 15;
   doc.fontSize(8);
   doc.text('Podpis wystawiającego', 80, yPosition);
-  doc.text('Podpis odbiorcy', 350, yPosition);
+  doc.text('Podpis odbiórcy', 350, yPosition);
 
   // Finalize PDF
   doc.end();

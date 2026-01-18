@@ -28,7 +28,7 @@ export function LoginPage() {
       localStorage.setItem('userPermissions', JSON.stringify(response.permissions || []));
       navigate('/inventory');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Blad logowania');
+      setError(err.response?.data?.error || 'Błąd logowania');
     } finally {
       setLoading(false);
     }
@@ -88,7 +88,7 @@ export function LoginPage() {
               disabled={loading}
               className="btn btn-primary w-full"
             >
-              {loading ? 'Logowanie...' : 'Zaloguj sie'}
+              {loading ? 'Logowanie...' : 'Zaloguj się'}
             </button>
           </div>
         </form>

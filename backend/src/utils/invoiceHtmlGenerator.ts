@@ -369,7 +369,7 @@ export async function generateInvoiceHtml(invoice: InvoiceWithItems): Promise<st
       </div>
       <div style="text-align: center;">
         <div style="border-top: 1px solid #9ca3af; padding-top: 8px; margin-top: 50px;">
-          <p style="font-size: 11px; color: #6b7280;">Podpis osoby upoważnionej do odbioru</p>
+          <p style="font-size: 11px; color: #6b7280;">Podpis osoby upoważnionej do odbióru</p>
         </div>
       </div>
     </div>

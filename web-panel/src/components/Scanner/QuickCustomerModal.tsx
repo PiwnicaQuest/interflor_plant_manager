@@ -148,7 +148,7 @@ export function QuickCustomerModal({ onClose, onCustomerCreated }: QuickCustomer
 
       onCustomerCreated(newCustomer);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Nie udalo sie utworzyc kontrahenta');
+      setError(err.response?.data?.error || 'Nie udało się utworzyć kontrahenta');
     } finally {
       setSubmitting(false);
     }

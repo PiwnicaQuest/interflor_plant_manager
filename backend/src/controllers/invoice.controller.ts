@@ -281,11 +281,11 @@ export class InvoiceController {
       if (sent) {
         res.json({ success: true, message: 'Faktura wyslana na adres ' + recipientEmail });
       } else {
-        res.status(500).json({ error: 'Nie udalo sie wyslac emaila. Sprawdz konfiguracje SMTP.' });
+        res.status(500).json({ error: 'Nie udało się wysłać emaila. Sprawdź konfiguracje SMTP.' });
       }
     } catch (error) {
       console.error('Send invoice email error:', error);
-      res.status(500).json({ error: 'Blad serwera podczas wysylania faktury' });
+      res.status(500).json({ error: 'Błąd serwera podczas wysyłania faktury' });
     }
   }
 

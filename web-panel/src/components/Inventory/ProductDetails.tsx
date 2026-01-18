@@ -602,7 +602,7 @@ export function ProductDetails({ product, movements, onClose, onUpdateProduct, o
                           key={id}
                           onClick={() => handleViewSlaveProduct(id)}
                           className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200 transition-colors cursor-pointer"
-                          title="Kliknij aby zobaczyc szczegoly"
+                          title="Kliknij aby zobaczyć szczegóły"
                         >
                           #{id} {product.mergedBarcodes && product.mergedBarcodes[idx] ? `(${product.mergedBarcodes[idx]})` : ""}
                         </button>
@@ -696,7 +696,7 @@ export function ProductDetails({ product, movements, onClose, onUpdateProduct, o
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">
-                      Szczegoly polaczonego produktu #{viewingSlave}
+                      Szczegóły połączonego produktu #{viewingSlave}
                     </h3>
                     <button
                       onClick={handleCloseSlaveView}
@@ -753,18 +753,18 @@ export function ProductDetails({ product, movements, onClose, onUpdateProduct, o
 
                       {slaveDetails.plantPassport && (
                         <div>
-                          <label className="text-xs text-gray-500">Paszport roslin</label>
+                          <label className="text-xs text-gray-500">Paszport roślin</label>
                           <p className="text-sm font-mono bg-gray-50 p-2 rounded">{slaveDetails.plantPassport}</p>
                         </div>
                       )}
 
                       <div className="text-xs text-gray-400 pt-2 border-t">
-                        Polaczono: {slaveDetails.mergedAt ? new Date(slaveDetails.mergedAt).toLocaleString("pl-PL") : "-"}
+                        Połączono: {slaveDetails.mergedAt ? new Date(slaveDetails.mergedAt).toLocaleString("pl-PL") : "-"}
                       </div>
                     </div>
                   ) : (
                     <div className="text-center text-gray-500 py-8">
-                      Nie udalo sie pobrac danych produktu
+                      Nie udało się pobrać danych produktu
                     </div>
                   )}
 

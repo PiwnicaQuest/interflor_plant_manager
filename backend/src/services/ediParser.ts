@@ -168,7 +168,7 @@ export class EdiParser {
   }
 
   /**
-   * Przetwarza segment produktowy
+   * Przetwarza segment produktówy
    */
   private static processProductSegment(segment: string, product: Partial<EdiProduct>): void {
     // RFF+BT - kod kreskowy

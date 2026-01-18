@@ -28,7 +28,7 @@ export function ScannerNewOrderPage() {
       const result = await API.getCustomers();
       setCustomers(result.customers || []);
     } catch (err) {
-      setError('Nie udalo sie pobrac klientow');
+      setError('Nie udało się pobrać klientów');
     } finally {
       setCustomerLoading(false);
     }
@@ -80,7 +80,7 @@ export function ScannerNewOrderPage() {
       // Redirect to order detail page where user can add products
       navigate(`/scanner/orders/${result.orderId}`, { replace: true });
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Nie udalo sie utworzyc zamowienia');
+      setError(err.response?.data?.error || 'Nie udało się utworzyć zamówienia');
     } finally {
       setSubmitting(false);
     }
@@ -90,8 +90,8 @@ export function ScannerNewOrderPage() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-3 py-3">
-        <h1 className="text-lg font-bold text-gray-900">Nowe zamowienie</h1>
-        <p className="text-sm text-gray-500">Wybierz klienta i utworz zamowienie</p>
+        <h1 className="text-lg font-bold text-gray-900">Nowe zamówienie</h1>
+        <p className="text-sm text-gray-500">Wybierz klienta i utworz zamówienie</p>
       </div>
 
       {/* Error */}
@@ -155,7 +155,7 @@ export function ScannerNewOrderPage() {
             </div>
           ) : filteredCustomers.length === 0 ? (
             <div className="text-center py-6 text-gray-500 text-sm">
-              {customerSearch ? 'Brak wynikow' : 'Brak klientow w bazie'}
+              {customerSearch ? 'Brak wynikow' : 'Brak klientów w bazie'}
               <button
                 onClick={() => setShowNewCustomerModal(true)}
                 className="block mx-auto mt-3 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
@@ -212,12 +212,12 @@ export function ScannerNewOrderPage() {
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
-                <span>Utworz zamowienie</span>
+                <span>Utwórz zamówienie</span>
               </>
             )}
           </button>
           <p className="text-center text-xs text-gray-500 mt-2">
-            Po utworzeniu zamowienia bedziesz mogl dodawac produkty
+            Po utworzeniu zamówienia będziesz mogl dodawac produkty
           </p>
         </div>
       )}

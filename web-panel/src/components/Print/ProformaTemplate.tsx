@@ -74,15 +74,15 @@ interface ProformaTemplateProps {
 }
 
 const defaultSellerInfo = {
-  name: "POLFLOR Sp. z o.o.",
-  address: "ul. Kwiatowa 15",
-  city: "Warszawa",
-  postalCode: "00-001",
-  nip: "123-456-78-90",
-  phone: "+48 123 456 789",
-  email: "biuro@polflor.pl",
-  bankAccount: "PL12 1234 5678 9012 3456 7890 1234",
-  bankName: "Bank Przykladowy S.A.",
+  name: "Firma nie skonfigurowana",
+  address: "Skonfiguruj dane firmy",
+  city: "",
+  postalCode: "",
+  nip: "0000000000",
+  phone: "",
+  email: "",
+  bankAccount: "",
+  bankName: "",
 };
 
 export function ProformaTemplate({ data, sellerInfo = defaultSellerInfo }: ProformaTemplateProps) {
@@ -165,7 +165,7 @@ export function ProformaTemplate({ data, sellerInfo = defaultSellerInfo }: Profo
           <h1 className="text-2xl font-bold text-gray-800">PRO FORMA</h1>
           <p className="text-xl font-bold text-purple-600 mt-1">{data.proformaNumber}</p>
           {data.orderNumber && (
-            <p className="text-sm text-gray-500 mt-1">Zamowienie: {data.orderNumber}</p>
+            <p className="text-sm text-gray-500 mt-1">Zamówienie: {data.orderNumber}</p>
           )}
         </div>
         <div className="text-right text-sm">
@@ -337,7 +337,7 @@ export function ProformaTemplate({ data, sellerInfo = defaultSellerInfo }: Profo
         </div>
         <div className="text-center">
           <div className="border-t border-gray-400 pt-2 mt-12">
-            <p className="text-xs text-gray-500">Podpis osoby upowaznonej do odbioru</p>
+            <p className="text-xs text-gray-500">Podpis osoby upowaznonej do odbióru</p>
           </div>
         </div>
       </div>

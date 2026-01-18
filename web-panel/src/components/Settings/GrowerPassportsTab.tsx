@@ -55,7 +55,7 @@ export function GrowerPassportsTab() {
       const data = await response.json();
       setPassports(data.passports || []);
     } catch (err: any) {
-      setError('Nie udalo sie zaladowac paszportow');
+      setError('Nie udało się załadować paszportów');
       console.error(err);
     } finally {
       setLoading(false);
@@ -96,7 +96,7 @@ export function GrowerPassportsTab() {
       setTimeout(() => setSuccess(null), 3000);
       fetchPassports();
     } catch (err: any) {
-      setError(err.message || 'Nie udalo sie dodac paszportu');
+      setError(err.message || 'Nie udało się dodać paszportu');
     } finally {
       setSaving(false);
     }
@@ -145,14 +145,14 @@ export function GrowerPassportsTab() {
       setTimeout(() => setSuccess(null), 3000);
       fetchPassports();
     } catch (err: any) {
-      setError('Nie udalo sie zaktualizowac paszportu');
+      setError('Nie udało się zaktualizować paszportu');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Czy na pewno chcesz usunac ten paszport?')) return;
+    if (!confirm('Czy na pewno chcesz usunąć ten paszport?')) return;
 
     try {
       setSaving(true);
@@ -170,7 +170,7 @@ export function GrowerPassportsTab() {
       setTimeout(() => setSuccess(null), 3000);
       fetchPassports();
     } catch (err: any) {
-      setError('Nie udalo sie usunac paszportu');
+      setError('Nie udało się usunąć paszportu');
     } finally {
       setSaving(false);
     }
@@ -207,14 +207,14 @@ export function GrowerPassportsTab() {
       }
 
       if (passportsToImport.length === 0) {
-        setError('Nie znaleziono poprawnych danych w pliku. Upewnij sie, ze plik zawiera kolumne "Ogrodnik".');
+        setError('Nie znaleziono poprawnych danych w pliku. Upewnij się, że plik zawiera kolumnę "Ogrodnik".');
         return;
       }
 
       // Ask user if they want to replace all or just add
       const replaceAll = confirm(
         `Znaleziono ${passportsToImport.length} rekordow.\n\n` +
-        `Kliknij OK, aby ZASTAPIC cala baze (usunac wszystkie i zaimportowac nowe).\n\n` +
+        `Kliknij OK, aby ZASTAPIC cala baze (usunąć wszystkie i zaimportowac nowe).\n\n` +
         `Kliknij Anuluj, aby DODAC/ZAKTUALIZOWAC istniejace rekordy.`
       );
 
@@ -245,12 +245,12 @@ export function GrowerPassportsTab() {
 
       const result = await response.json();
       const count = result.imported || result.passports?.length || passportsToImport.length;
-      setSuccess(`Zaimportowano ${count} paszportow`);
+      setSuccess(`Zaimportowano ${count} paszportów`);
       setTimeout(() => setSuccess(null), 5000);
       fetchPassports();
     } catch (err: any) {
       console.error('Import error:', err);
-      setError('Blad podczas importu pliku');
+      setError('Błąd podczas importu pliku');
     } finally {
       setSaving(false);
       if (fileInputRef.current) {
@@ -268,12 +268,12 @@ export function GrowerPassportsTab() {
     ]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Paszporty');
-    XLSX.writeFile(wb, 'szablon_paszporty_ogrodnikow.xlsx');
+    XLSX.writeFile(wb, 'szablon_paszporty_ogrodników.xlsx');
   };
 
   const handleUpdateProducts = async () => {
     if (!confirm(
-      'Ta operacja zaktualizuje nazwy ogrodnikow we wszystkich produktach.\n\n' +
+      'Ta operacja zaktualizuje nazwy ogrodników we wszystkich produktach.\n\n' +
       'Produkty, ktore maja Floricode jako ogrodnika, zostana zaktualizowane do prawidlowej nazwy ogrodnika.\n\n' +
       'Czy kontynuowac?'
     )) return;
@@ -291,10 +291,10 @@ export function GrowerPassportsTab() {
       if (!response.ok) throw new Error('Failed to update products');
 
       const result = await response.json();
-      setSuccess(`Zaktualizowano ${result.updated} produktow`);
+      setSuccess(`Zaktualizowano ${result.updated} produktów`);
       setTimeout(() => setSuccess(null), 5000);
     } catch (err: any) {
-      setError('Nie udalo sie zaktualizowac produktow');
+      setError('Nie udało się zaktualizować produktów');
     } finally {
       setUpdatingProducts(false);
     }
@@ -312,7 +312,7 @@ export function GrowerPassportsTab() {
         <div>
           <h2 className="text-xl font-semibold text-gray-900">Ogrodnicy i paszporty</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Zarzadzaj baza danych paszportow ogrodnikow. Floricode pozwala powiazac numery z plikow EDI z nazwami ogrodnikow.
+            Zarządzaj bazą danych paszportów ogrodników. Floricode pozwala powiązać numery z plików EDI z nazwami ogrodników.
           </p>
         </div>
         <div className="flex gap-2 flex-wrap justify-end">
@@ -340,7 +340,7 @@ export function GrowerPassportsTab() {
             onClick={handleUpdateProducts}
             disabled={updatingProducts || passports.length === 0}
             className="btn btn-primary text-sm"
-            title="Zaktualizuj produkty - zamien Floricode na nazwy ogrodnikow"
+            title="Zaktualizuj produkty - zamien Floricode na nazwy ogrodników"
           >
             {updatingProducts ? 'Aktualizowanie...' : 'Aktualizuj produkty'}
           </button>
@@ -430,7 +430,7 @@ export function GrowerPassportsTab() {
       {/* Passports table */}
       {loading ? (
         <div className="text-center py-8">
-          <p className="text-gray-500">Ladowanie paszportow...</p>
+          <p className="text-gray-500">Ładowanie paszportów...</p>
         </div>
       ) : (
         <div className="card overflow-hidden">
@@ -449,7 +449,7 @@ export function GrowerPassportsTab() {
                 {filteredPassports.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="text-center py-8 text-gray-500">
-                      {searchTerm ? 'Nie znaleziono paszportow' : 'Brak paszportow w bazie'}
+                      {searchTerm ? 'Nie znaleziono paszportów' : 'Brak paszportów w bazie'}
                     </td>
                   </tr>
                 ) : (
@@ -537,7 +537,7 @@ export function GrowerPassportsTab() {
           </div>
           {filteredPassports.length > 0 && (
             <div className="px-4 py-2 bg-gray-50 border-t text-sm text-gray-500">
-              Lacznie: {filteredPassports.length} {filteredPassports.length === 1 ? 'paszport' : (filteredPassports.length < 5 ? 'paszporty' : 'paszportow')}
+              Łącznie: {filteredPassports.length} {filteredPassports.length === 1 ? 'paszport' : (filteredPassports.length < 5 ? 'paszporty' : 'paszportów')}
             </div>
           )}
         </div>
