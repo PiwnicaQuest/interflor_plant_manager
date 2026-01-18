@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../services/api';
-import { OrderTemplate } from '../components/Print/OrderTemplate';
+import { OrderTemplateLite } from '../components/Print/OrderTemplateLite';
 import { OrderWithItems } from '../types';
 
 interface CompanySettings {
@@ -35,28 +35,28 @@ export function BulkPrintOrdersPage() {
   useEffect(() => {
     const fetchOrders = async () => {
       if (ids.length === 0) {
-        setError('Nie podano ID zamówień');
+        setError('Nie podano ID zamowien');
         setLoading(false);
         return;
       }
 
       try {
-        setProgress('Pobieranie ustawień firmy...');
-        
+        setProgress('Pobieranie ustawien firmy...');
+
         // Fetch company settings once
         const companyResponse = await api.getCompanySettings().catch(() => null);
         setCompanySettings(companyResponse);
 
-        setProgress(`Pobieranie ${ids.length} zamówień...`);
-        
+        setProgress(`Pobieranie ${ids.length} zamowien...`);
+
         // Use new bulk endpoint - single request for all orders
         const response = await api.getOrdersBulk(ids);
         setOrdersData(response.orders);
-        
+
         setProgress('Renderowanie...');
       } catch (err) {
         console.error('Error fetching orders:', err);
-        setError('Błąd podczas pobierania zamówień');
+        setError('Blad podczas pobierania zamowien');
       } finally {
         setLoading(false);
       }
@@ -69,23 +69,20 @@ export function BulkPrintOrdersPage() {
   useEffect(() => {
     if (!loading && ordersData.length > 0) {
       // Use requestAnimationFrame to wait for browser to paint
-      // Then wait additional time for barcodes to generate
       const waitForRender = () => {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            // Calculate delay based on number of orders (more orders = more barcodes = more time)
-            const baseDelay = 500;
-            const perOrderDelay = 50; // 50ms per order for barcode generation
-            const totalDelay = Math.min(baseDelay + (ordersData.length * perOrderDelay), 3000); // Max 3 seconds
-            
+            // Short delay - lite template renders much faster
+            const delay = Math.min(200 + (ordersData.length * 20), 1500);
+
             setTimeout(() => {
               setProgress('Gotowe do druku!');
               setReadyToPrint(true);
-            }, totalDelay);
+            }, delay);
           });
         });
       };
-      
+
       waitForRender();
     }
   }, [loading, ordersData]);
@@ -93,7 +90,6 @@ export function BulkPrintOrdersPage() {
   // Auto-print when ready
   useEffect(() => {
     if (readyToPrint) {
-      // Small delay to ensure UI updates before print dialog
       setTimeout(() => {
         window.print();
       }, 100);
@@ -109,7 +105,7 @@ export function BulkPrintOrdersPage() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-gray-600">Ładowanie zamówień ({ids.length})...</p>
+          <p className="text-gray-600">Ladowanie zamowien ({ids.length})...</p>
           <p className="text-sm text-gray-500 mt-2">{progress}</p>
         </div>
       </div>
@@ -126,7 +122,7 @@ export function BulkPrintOrdersPage() {
     );
   }
 
-  // Map company settings to companyInfo format (same as PrintOrderPage)
+  // Map company settings to companyInfo format
   const companyInfo = companySettings ? {
     name: companySettings.companyName,
     nip: companySettings.nip,
@@ -154,6 +150,15 @@ export function BulkPrintOrdersPage() {
           .print-status-bar {
             display: none !important;
           }
+          .order-template {
+            max-width: 100% !important;
+            padding: 0 !important;
+            font-size: 10px !important;
+          }
+          .barcode-container svg {
+            max-width: 140px !important;
+            height: 35px !important;
+          }
         }
         @media screen {
           .bulk-print-container {
@@ -180,6 +185,10 @@ export function BulkPrintOrdersPage() {
             z-index: 1000;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
           }
+          .barcode-container svg {
+            max-width: 140px;
+            height: 35px;
+          }
         }
       `}</style>
 
@@ -193,7 +202,7 @@ export function BulkPrintOrdersPage() {
             </>
           ) : (
             <>
-              <span className="text-green-600 font-medium">✓ {ordersData.length} zamówień gotowych do druku</span>
+              <span className="text-green-600 font-medium">&#10003; {ordersData.length} zamowien gotowych do druku</span>
             </>
           )}
         </div>
@@ -211,7 +220,6 @@ export function BulkPrintOrdersPage() {
       </div>
 
       {ordersData.map((order) => {
-        // Use customerSnapshot from order directly (no need to fetch customer separately)
         const snapshot = (order as any).customerSnapshot;
         const customerInfo = snapshot ? {
           customerCode: snapshot.customerCode,
@@ -228,7 +236,7 @@ export function BulkPrintOrdersPage() {
 
         return (
           <div key={order.id} className="page-break">
-            <OrderTemplate
+            <OrderTemplateLite
               data={{
                 id: order.id,
                 orderNumber: order.orderNumber,
