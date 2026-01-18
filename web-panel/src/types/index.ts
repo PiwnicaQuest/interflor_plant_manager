@@ -491,6 +491,7 @@ export enum TemplateType {
 }
 
 export interface TemplateElementStyle {
+  fontFamily?: string;
   fontSize?: number;
   fontWeight?: string;
   textAlign?: string;
