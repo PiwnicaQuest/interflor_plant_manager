@@ -67,7 +67,7 @@ export function LoginPage() {
             </div>
             <div>
               <label htmlFor="password" className="sr-only">
-                Haslo
+                Hasło
               </label>
               <input
                 id="password"
@@ -75,7 +75,7 @@ export function LoginPage() {
                 type="password"
                 required
                 className="input rounded-b-md rounded-t-none"
-                placeholder="Haslo"
+                placeholder="Hasło"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
