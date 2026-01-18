@@ -141,8 +141,8 @@ export class PrintTemplateController {
       // Support both camelCase (frontend) and snake_case (direct API)
       const name = req.body.name;
       const type = req.body.type;
-      const paper_width = req.body.paper_width || req.body.paperWidthMm;
-      const paper_height = req.body.paper_height || req.body.paperHeightMm;
+      const paper_width = req.body.paper_width || req.body.paperWidthMm || req.body.paperWidth;
+      const paper_height = req.body.paper_height || req.body.paperHeightMm || req.body.paperHeight;
       const margin_top = req.body.margin_top ?? req.body.marginTopMm ?? 0;
       const margin_right = req.body.margin_right ?? req.body.marginRightMm ?? 0;
       const margin_bottom = req.body.margin_bottom ?? req.body.marginBottomMm ?? 0;
@@ -222,12 +222,12 @@ export class PrintTemplateController {
       // Support both camelCase (frontend) and snake_case (direct API)
       const name = req.body.name;
       const type = req.body.type;
-      const paper_width = req.body.paper_width || req.body.paperWidthMm;
-      const paper_height = req.body.paper_height || req.body.paperHeightMm;
-      const margin_top = req.body.margin_top ?? req.body.marginTopMm;
-      const margin_right = req.body.margin_right ?? req.body.marginRightMm;
-      const margin_bottom = req.body.margin_bottom ?? req.body.marginBottomMm;
-      const margin_left = req.body.margin_left ?? req.body.marginLeftMm;
+      const paper_width = req.body.paper_width || req.body.paperWidthMm || req.body.paperWidth;
+      const paper_height = req.body.paper_height || req.body.paperHeightMm || req.body.paperHeight;
+      const margin_top = req.body.margin_top ?? req.body.marginTopMm ?? req.body.marginTop;
+      const margin_right = req.body.margin_right ?? req.body.marginRightMm ?? req.body.marginRight;
+      const margin_bottom = req.body.margin_bottom ?? req.body.marginBottomMm ?? req.body.marginBottom;
+      const margin_left = req.body.margin_left ?? req.body.marginLeftMm ?? req.body.marginLeft;
       const elements = req.body.elements;
       const is_default = req.body.is_default ?? req.body.isDefault;
 
