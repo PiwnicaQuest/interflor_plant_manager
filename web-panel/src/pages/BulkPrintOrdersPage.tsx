@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { OrderTemplate } from '../components/Print/OrderTemplate';
@@ -27,6 +27,7 @@ export function BulkPrintOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string>('');
+  const [readyToPrint, setReadyToPrint] = useState(false);
 
   const ids = searchParams.get('ids')?.split(',').map(Number).filter(Boolean) || [];
   const showPrices = searchParams.get('showPrices') !== 'false';
@@ -52,7 +53,7 @@ export function BulkPrintOrdersPage() {
         const response = await api.getOrdersBulk(ids);
         setOrdersData(response.orders);
         
-        setProgress('Gotowe!');
+        setProgress('Renderowanie...');
       } catch (err) {
         console.error('Error fetching orders:', err);
         setError('Błąd podczas pobierania zamówień');
@@ -64,13 +65,44 @@ export function BulkPrintOrdersPage() {
     fetchOrders();
   }, []);
 
+  // Wait for DOM to fully render before enabling print
   useEffect(() => {
     if (!loading && ordersData.length > 0) {
-      setTimeout(() => {
-        window.print();
-      }, 300);
+      // Use requestAnimationFrame to wait for browser to paint
+      // Then wait additional time for barcodes to generate
+      const waitForRender = () => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            // Calculate delay based on number of orders (more orders = more barcodes = more time)
+            const baseDelay = 500;
+            const perOrderDelay = 50; // 50ms per order for barcode generation
+            const totalDelay = Math.min(baseDelay + (ordersData.length * perOrderDelay), 3000); // Max 3 seconds
+            
+            setTimeout(() => {
+              setProgress('Gotowe do druku!');
+              setReadyToPrint(true);
+            }, totalDelay);
+          });
+        });
+      };
+      
+      waitForRender();
     }
   }, [loading, ordersData]);
+
+  // Auto-print when ready
+  useEffect(() => {
+    if (readyToPrint) {
+      // Small delay to ensure UI updates before print dialog
+      setTimeout(() => {
+        window.print();
+      }, 100);
+    }
+  }, [readyToPrint]);
+
+  const handleManualPrint = useCallback(() => {
+    window.print();
+  }, []);
 
   if (loading) {
     return (
@@ -119,19 +151,64 @@ export function BulkPrintOrdersPage() {
           .page-break:last-child {
             page-break-after: avoid;
           }
+          .print-status-bar {
+            display: none !important;
+          }
         }
         @media screen {
           .bulk-print-container {
             background: #f3f4f6;
             min-height: 100vh;
             padding: 20px;
+            padding-top: 60px;
           }
           .page-break {
             margin-bottom: 40px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
           }
+          .print-status-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          }
         }
       `}</style>
+
+      {/* Status bar - only visible on screen */}
+      <div className="print-status-bar">
+        <div className="flex items-center gap-3">
+          {!readyToPrint ? (
+            <>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+              <span className="text-gray-600">{progress}</span>
+            </>
+          ) : (
+            <>
+              <span className="text-green-600 font-medium">✓ {ordersData.length} zamówień gotowych do druku</span>
+            </>
+          )}
+        </div>
+        <button
+          onClick={handleManualPrint}
+          disabled={!readyToPrint}
+          className={`px-4 py-2 rounded font-medium transition-colors ${
+            readyToPrint
+              ? 'bg-blue-600 text-white hover:bg-blue-700'
+              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+          }`}
+        >
+          {readyToPrint ? 'Drukuj ponownie' : 'Przygotowywanie...'}
+        </button>
+      </div>
 
       {ordersData.map((order) => {
         // Use customerSnapshot from order directly (no need to fetch customer separately)
