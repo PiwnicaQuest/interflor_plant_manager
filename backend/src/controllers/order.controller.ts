@@ -371,4 +371,21 @@ export class OrderController {
       return res.status(500).json({ error: 'Błąd serwera podczas łączenia zamówień' });
     }
   }
+
+  static async getByProductId(req: AuthRequest, res: Response) {
+    try {
+      const productId = parseInt(req.params.productId);
+      if (isNaN(productId)) {
+        return res.status(400).json({ error: 'Nieprawidłowe ID produktu' });
+      }
+
+      const limit = parseInt(req.query.limit as string) || 50;
+      const orders = await OrderModel.getByProductId(productId, limit);
+
+      return res.json({ orders });
+    } catch (error: any) {
+      console.error('Get orders by product error:', error);
+      return res.status(500).json({ error: 'Błąd serwera' });
+    }
+  }
 }

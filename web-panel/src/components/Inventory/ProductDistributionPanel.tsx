@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Product, InventoryMovement, Order, Customer } from '../../types';
 import { api } from '../../services/api';
 
@@ -9,10 +10,25 @@ interface ProductDistributionPanelProps {
   onAddToExistingOrder: (product: Product, quantity: number, orderId: number) => Promise<void>;
 }
 
+interface ProductOrderInfo {
+  id: number;
+  orderNumber: string;
+  status: string;
+  totalAmount: number;
+  createdAt: string;
+  completedAt: string | null;
+  customerName: string | null;
+  customerCode: string | null;
+  productQuantity: number;
+  productUnitPrice: number;
+  productTotalPrice: number;
+}
+
 export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAddToExistingOrder }: ProductDistributionPanelProps) {
+  const navigate = useNavigate();
   const [movements, setMovements] = useState<InventoryMovement[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [productOrders, setProductOrders] = useState<Order[]>([]); // Zamówienia zawierające ten produkt
+  const [productOrders, setProductOrders] = useState<ProductOrderInfo[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
   const [quantity, setQuantity] = useState(1);
@@ -34,10 +50,11 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
     if (!product) return;
     setLoading(true);
     try {
-      const [movementsRes, ordersRes, customersRes] = await Promise.all([
+      const [movementsRes, ordersRes, customersRes, productOrdersRes] = await Promise.all([
         api.getProductMovements(product.id, 20),
         api.getOrders(),
         api.getCustomers(),
+        api.getOrdersByProduct(product.id, 50),
       ]);
 
       const movementsData = movementsRes.movements || [];
@@ -45,15 +62,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
       const allOrders = ordersRes.orders || [];
       setOrders(allOrders);
       setCustomers(customersRes.customers || []);
-
-      // Znajdź zamówienia zawierające ten produkt na podstawie ruchów typu 'sale'
-      const orderIdsWithProduct = new Set(
-        movementsData
-          .filter((m: InventoryMovement) => m.movementType === 'sale' && m.referenceId)
-          .map((m: InventoryMovement) => m.referenceId)
-      );
-      const ordersWithProduct = allOrders.filter((o: Order) => orderIdsWithProduct.has(o.id));
-      setProductOrders(ordersWithProduct);
+      setProductOrders(productOrdersRes.orders || []);
     } catch (error) {
       console.error('Error loading distribution data:', error);
     } finally {
@@ -97,6 +106,10 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
     }
   };
 
+  const handleOrderClick = (orderId: number) => {
+    navigate(`/orders?orderId=${orderId}`);
+  };
+
   if (!product) return null;
 
   const formatDate = (dateString: string) => {
@@ -132,7 +145,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
     const labels: Record<string, { text: string; color: string }> = {
       pending: { text: 'Oczekuje', color: 'bg-yellow-100 text-yellow-800' },
       in_progress: { text: 'W realizacji', color: 'bg-blue-100 text-blue-800' },
-      ready_for_pickup: { text: 'Do odbióru', color: 'bg-purple-100 text-purple-800' },
+      ready_for_pickup: { text: 'Do odbioru', color: 'bg-purple-100 text-purple-800' },
       completed: { text: 'Zakończone', color: 'bg-green-100 text-green-800' },
       cancelled: { text: 'Anulowane', color: 'bg-red-100 text-red-800' },
     };
@@ -144,10 +157,9 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
     o.status === 'pending' || o.status === 'in_progress' || o.status === 'ready_for_pickup'
   );
 
-  // Calculate stats from movements
-  const salesMovements = movements.filter(m => m.movementType === 'sale');
-  const totalSold = salesMovements.reduce((sum, m) => sum + Math.abs(m.deltaUnits), 0);
-  const uniqueOrders = new Set(salesMovements.filter(m => m.referenceId).map(m => m.referenceId)).size;
+  // Calculate stats from product orders
+  const totalSold = productOrders.reduce((sum, o) => sum + (o.productQuantity || 0), 0);
+  const uniqueOrders = productOrders.length;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-primary-500 shadow-lg z-40 transition-all duration-300">
@@ -443,29 +455,49 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                   <tr>
                     <th className="text-left px-2 py-1">Nr zamówienia</th>
                     <th className="text-left px-2 py-1">Klient</th>
-                    <th className="text-left px-2 py-1">Status</th>
+                    <th className="text-right px-2 py-1">Ilość</th>
+                    <th className="text-right px-2 py-1">Cena jedn.</th>
                     <th className="text-right px-2 py-1">Wartość</th>
+                    <th className="text-left px-2 py-1">Status</th>
                     <th className="text-left px-2 py-1">Data</th>
                   </tr>
                 </thead>
                 <tbody>
                   {productOrders.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="text-center py-4 text-gray-500">Ten produkt nie był jeszcze zamawiany</td>
+                      <td colSpan={7} className="text-center py-4 text-gray-500">Ten produkt nie był jeszcze zamawiany</td>
                     </tr>
                   ) : (
                     productOrders.map((o) => {
                       const statusInfo = getStatusLabel(o.status);
                       return (
                         <tr key={o.id} className="border-b hover:bg-gray-50">
-                          <td className="px-2 py-1 font-medium text-primary-700">{o.orderNumber}</td>
-                          <td className="px-2 py-1 text-gray-700">{o.customerCode ? `[${o.customerCode}] ` : ""}{o.customerName || '-'}</td>
+                          <td className="px-2 py-1">
+                            <button
+                              onClick={() => handleOrderClick(o.id)}
+                              className="font-medium text-primary-700 hover:text-primary-900 hover:underline focus:outline-none"
+                              title="Przejdź do zamówienia"
+                            >
+                              {o.orderNumber}
+                            </button>
+                          </td>
+                          <td className="px-2 py-1 text-gray-700 truncate max-w-[150px]" title={o.customerName || ''}>
+                            {o.customerCode ? `[${o.customerCode}] ` : ""}{o.customerName || '-'}
+                          </td>
+                          <td className="px-2 py-1 text-right font-medium text-gray-900">
+                            {o.productQuantity} szt.
+                          </td>
+                          <td className="px-2 py-1 text-right text-gray-600">
+                            {Number(o.productUnitPrice).toFixed(2)} zł
+                          </td>
+                          <td className="px-2 py-1 text-right font-medium text-green-700">
+                            {Number(o.productTotalPrice).toFixed(2)} zł
+                          </td>
                           <td className="px-2 py-1">
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${statusInfo.color}`}>
                               {statusInfo.text}
                             </span>
                           </td>
-                          <td className="px-2 py-1 text-right font-medium">{Number(o.totalAmount).toFixed(2)} zł</td>
                           <td className="px-2 py-1 text-gray-600">{formatDate(o.createdAt)}</td>
                         </tr>
                       );

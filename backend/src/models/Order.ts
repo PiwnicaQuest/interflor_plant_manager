@@ -1425,4 +1425,53 @@ export class OrderModel {
       new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
     );
   }
+
+  /**
+   * Get orders containing a specific product
+   */
+  /**
+   * Get orders containing a specific product
+   */
+  static async getByProductId(productId: number, limit: number = 50): Promise<any[]> {
+    const result = await query(
+      `SELECT DISTINCT
+        o.id,
+        o.order_number,
+        o.status,
+        o.total_amount,
+        o.created_at,
+        o.completed_at,
+        c.company_name as customer_name,
+        c.customer_code,
+        c.first_name,
+        c.last_name,
+        oi.quantity,
+        oi.unit_price_gross,
+        oi.total_price,
+        oi.product_snapshot
+      FROM orders o
+      JOIN order_items oi ON oi.order_id = o.id
+      LEFT JOIN customers c ON c.id = o.customer_id
+      WHERE oi.product_id = $1
+      ORDER BY o.created_at DESC
+      LIMIT $2`,
+      [productId, limit]
+    );
+
+    // Note: query function already converts snake_case to camelCase
+    return result.rows.map(row => ({
+      id: row.id,
+      orderNumber: row.orderNumber,
+      status: row.status,
+      totalAmount: row.totalAmount,
+      createdAt: row.createdAt,
+      completedAt: row.completedAt,
+      customerName: row.customerName || (row.firstName ? `${row.firstName} ${row.lastName}` : null),
+      customerCode: row.customerCode,
+      productQuantity: row.quantity,
+      productUnitPrice: row.unitPriceGross,
+      productTotalPrice: row.totalPrice,
+      productSnapshot: row.productSnapshot,
+    }));
+  }
 }

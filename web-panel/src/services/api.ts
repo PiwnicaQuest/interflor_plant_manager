@@ -184,6 +184,11 @@ class ApiClient {
     return response.data;
   }
 
+  async getOrdersByProduct(productId: number, limit?: number): Promise<{ orders: any[] }> {
+    const response = await this.client.get(`/orders/by-product/${productId}`, { params: { limit } });
+    return response.data;
+  }
+
   async getOrder(id: number): Promise<{ order: OrderWithItems }> {
     const response = await this.client.get(`/orders/${id}`);
     return response.data;

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { Order, OrderWithItems, OrderStatus } from '../types';
 import { OrdersTable } from '../components/Orders/OrdersTable';
@@ -25,6 +26,25 @@ export function OrdersPage() {
   const [bulkActionInProgress, setBulkActionInProgress] = useState(false);
   const [bulkTargetStatus, setBulkTargetStatus] = useState<OrderStatus>(OrderStatus.IN_PROGRESS);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Handle orderId from URL (e.g. from ProductDistributionPanel)
+  useEffect(() => {
+    const orderIdParam = searchParams.get("orderId");
+    if (orderIdParam) {
+      const orderId = parseInt(orderIdParam);
+      if (!isNaN(orderId)) {
+        api.getOrder(orderId).then(result => {
+          setSelectedOrder(result.order);
+          // Remove the orderId from URL after opening
+          searchParams.delete("orderId");
+          setSearchParams(searchParams, { replace: true });
+        }).catch(err => {
+          console.error("Error fetching order from URL:", err);
+        });
+      }
+    }
+  }, []);
   const fetchOrders = async () => {
     try {
       setLoading(true);
