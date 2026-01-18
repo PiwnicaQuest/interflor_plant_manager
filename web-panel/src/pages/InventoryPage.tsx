@@ -273,6 +273,14 @@ export function InventoryPage() {
           aVal = new Date(a.createdAt).getTime();
           bVal = new Date(b.createdAt).getTime();
           break;
+        case 'tags':
+          aVal = (a.tags && a.tags.length > 0) ? a.tags[0].toLowerCase() : 'zzzzz';
+          bVal = (b.tags && b.tags.length > 0) ? b.tags[0].toLowerCase() : 'zzzzz';
+          break;
+        case 'tags_count':
+          aVal = a.tags ? a.tags.length : 0;
+          bVal = b.tags ? b.tags.length : 0;
+          break;
         case 'updated_at':
           aVal = new Date(a.updatedAt).getTime();
           bVal = new Date(b.updatedAt).getTime();

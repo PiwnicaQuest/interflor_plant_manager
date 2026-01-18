@@ -7,6 +7,7 @@ const SALT_ROUNDS = 10;
 export interface UserWithProfile extends UserWithoutPassword {
   profileId?: number;
   profileName?: string;
+  companyName?: string;
 }
 
 export class UserModel {
@@ -16,9 +17,11 @@ export class UserModel {
        u.role, u.is_active as "isActive",
        u.profile_id as "profileId",
        pp.name as "profileName",
+       c.company_name as "companyName",
        u.created_at as "createdAt", u.updated_at as "updatedAt"
        FROM users u
        LEFT JOIN permission_profiles pp ON u.profile_id = pp.id
+       LEFT JOIN customers c ON c.user_id = u.id
        ORDER BY u.created_at DESC`
     );
     return result.rows;

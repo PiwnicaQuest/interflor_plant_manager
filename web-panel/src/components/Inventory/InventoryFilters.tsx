@@ -183,6 +183,8 @@ export function InventoryFilters({ filters, onChange }: InventoryFiltersProps) {
             <option value="total_sold">Sprzedane</option>
             <option value="created_at">Data dodania</option>
             <option value="updated_at">Data modyfikacji</option>
+            <option value="tags">Tagi (A-Z)</option>
+            <option value="tags_count">Ilość tagów</option>
           </select>
           <select
             className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary-500"
