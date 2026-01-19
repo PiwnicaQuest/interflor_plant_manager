@@ -46,6 +46,30 @@ export class InvoiceController {
     }
   }
 
+  // Helper to create recipient snapshot from customer if recipient fields are set
+  private static createRecipientSnapshot(customer: any) {
+    const hasRecipient = customer.recipientCompanyName || 
+                         customer.recipientFirstName || 
+                         customer.recipientLastName || 
+                         customer.recipientStreet;
+    
+    if (!hasRecipient) {
+      return undefined;
+    }
+
+    return {
+      companyName: customer.recipientCompanyName,
+      firstName: customer.recipientFirstName,
+      lastName: customer.recipientLastName,
+      street: customer.recipientStreet || '',
+      postalCode: customer.recipientPostalCode || '',
+      city: customer.recipientCity || '',
+      country: '',
+      phone: customer.recipientPhone || '',
+      email: '',
+    };
+  }
+
   static async create(req: AuthRequest, res: Response) {
     try {
       const { orderId, customerId, paymentMethod, paymentDeadline, items } = req.body;
@@ -69,7 +93,11 @@ export class InvoiceController {
           country: customer.country,
           phone: customer.phone,
           email: customer.email,
+          vatEu: customer.vatEu,
         };
+
+        // Create recipient snapshot if customer has recipient data
+        const recipientSnapshot = InvoiceController.createRecipientSnapshot(customer);
 
         const deadline = paymentDeadline ? new Date(paymentDeadline) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
 
@@ -79,7 +107,9 @@ export class InvoiceController {
           buyerSnapshot,
           paymentMethod as PaymentMethod,
           deadline,
-          req.user?.userId
+          req.user?.userId,
+          undefined, // paymentSplits
+          recipientSnapshot
         );
 
         return res.status(201).json({
@@ -110,7 +140,11 @@ export class InvoiceController {
           country: customer.country,
           phone: customer.phone,
           email: customer.email,
+          vatEu: customer.vatEu,
         };
+
+        // Create recipient snapshot if customer has recipient data
+        const recipientSnapshot = InvoiceController.createRecipientSnapshot(customer);
 
         const deadline = paymentDeadline ? new Date(paymentDeadline) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
 
@@ -120,7 +154,8 @@ export class InvoiceController {
           items,
           paymentMethod as PaymentMethod,
           deadline,
-          req.user?.userId
+          req.user?.userId,
+          recipientSnapshot
         );
 
         return res.status(201).json({

@@ -684,7 +684,8 @@ export class InvoiceModel {
     }>,
     paymentMethod: PaymentMethod,
     paymentDeadline: Date | null,
-    createdByUserId?: number
+    createdByUserId?: number,
+    recipientSnapshot?: CustomerSnapshot
   ): Promise<InvoiceWithItems> {
     return transaction(async (client) => {
       // Generate invoice number
@@ -731,16 +732,17 @@ export class InvoiceModel {
       // Insert invoice
       const invoiceResult = await client.query<Invoice>(
         `INSERT INTO invoices (
-          invoice_number, customer_id, buyer_snapshot,
+          invoice_number, customer_id, buyer_snapshot, recipient_snapshot,
           issue_date, sale_date, payment_deadline, payment_method,
           payment_status, paid_amount,
           subtotal_net, total_vat, total_gross, created_by_user_id, invoice_type, transaction_type
-        ) VALUES ($1, $2, $3, CURRENT_DATE, CURRENT_DATE, $4, $5, $6::payment_status, $7, $8, $9, $10, $11, 'invoice'::invoice_type, $12::transaction_type)
+        ) VALUES ($1, $2, $3, $4, CURRENT_DATE, CURRENT_DATE, $5, $6, $7::payment_status, $8, $9, $10, $11, $12, 'invoice'::invoice_type, $13::transaction_type)
         RETURNING *`,
         [
           invoiceNumber,
           customerId,
           JSON.stringify(buyerSnapshot),
+          recipientSnapshot ? JSON.stringify(recipientSnapshot) : null,
           paymentDeadline,
           paymentMethod,
           initialPaymentStatus,
@@ -784,6 +786,7 @@ export class InvoiceModel {
       };
     });
   }
+
 
   static async delete(id: number): Promise<boolean> {
     const result = await query('DELETE FROM invoices WHERE id = $1', [id]);
