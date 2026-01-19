@@ -1,88 +1,231 @@
-import { InvoiceWithItems, PaymentMethod, PaymentStatus, PaymentSplit } from '../types';
 import { SettingsModel } from '../models/Settings';
 
-interface SellerInfo {
-  name: string;
-  address: string;
-  city: string;
-  postalCode: string;
-  nip: string;
-  vatEu?: string;
-  phone?: string;
-  email?: string;
-  bankAccount?: string;
-  bankName?: string;
-  invoiceComment?: string;
+interface InvoiceItem {
+  id: number;
+  description: string;
+  quantity: number;
+  unitPriceNet: number;
+  unitPriceGross?: number;
+  vatRate: number;
+  growerPassport?: string;
 }
 
-/**
- * Generate HTML for invoice printing
- * Used by Print Agent to fetch and print invoices
- */
-export async function generateInvoiceHtml(invoice: InvoiceWithItems): Promise<string> {
+interface CustomerSnapshot {
+  customerCode?: string;
+  companyName?: string;
+  firstName?: string;
+  lastName?: string;
+  nip?: string;
+  vatEu?: string;
+  street?: string;
+  postalCode?: string;
+  city?: string;
+  country?: string;
+  phone?: string;
+  email?: string;
+}
+
+interface Invoice {
+  id: number;
+  invoiceNumber: string;
+  orderId?: number;
+  orderNumber?: string;
+  issueDate: Date | string;
+  saleDate: Date | string;
+  paymentDeadline?: Date | string;
+  paymentMethod?: string;
+  paymentSplits?: Array<{ paymentMethod: string; amount: number }>;
+  paymentStatus: string;
+  items?: InvoiceItem[];
+  subtotalNet: number;
+  totalVat: number;
+  totalGross: number;
+  paidAmount: number;
+  paidAt?: Date | string;
+  notes?: string;
+  buyerSnapshot?: CustomerSnapshot;
+  recipientSnapshot?: CustomerSnapshot;
+  transactionType?: string;
+}
+
+interface VatSummaryRow {
+  rate: number;
+  netValue: number;
+  vatAmount: number;
+  grossValue: number;
+}
+
+function formatDate(date: Date | string | undefined): string {
+  if (!date) return '-';
+  const d = new Date(date);
+  return d.toLocaleDateString('pl-PL', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+}
+
+function formatCurrency(value: number | undefined): string {
+  return (value || 0).toFixed(2);
+}
+
+function getPaymentMethodLabel(method?: string): string {
+  if (!method) return '-';
+  const labels: Record<string, string> = {
+    card: 'Karta',
+    cash: 'Gotówka',
+    transfer: 'Przelew',
+  };
+  return labels[method.toLowerCase()] || method;
+}
+
+function getPaymentStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    unpaid: 'Nieopłacona',
+    partially_paid: 'Częściowo opłacona',
+    paid: 'Opłacona',
+    overdue: 'Przeterminowana',
+  };
+  return labels[status.toLowerCase()] || status;
+}
+
+function escapeHtml(text: string | undefined | null): string {
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function calculateVatSummary(items: InvoiceItem[] | undefined, invoice: Invoice): VatSummaryRow[] {
+  const vatMap = new Map<number, VatSummaryRow>();
+
+  items?.forEach(item => {
+    const rate = item.vatRate;
+    const itemNet = Number(item.unitPriceNet) * Number(item.quantity);
+    const itemVat = itemNet * (rate / 100);
+    const itemGross = itemNet + itemVat;
+
+    const existing = vatMap.get(rate);
+    if (existing) {
+      existing.netValue += itemNet;
+      existing.vatAmount += itemVat;
+      existing.grossValue += itemGross;
+    } else {
+      vatMap.set(rate, {
+        rate,
+        netValue: itemNet,
+        vatAmount: itemVat,
+        grossValue: itemGross,
+      });
+    }
+  });
+
+  // Sort by VAT rate descending
+  const rows = Array.from(vatMap.values()).sort((a, b) => b.rate - a.rate);
+
+  // Adjust for rounding differences - use invoice totals as source of truth
+  if (rows.length > 0) {
+    const sumNet = rows.reduce((sum, r) => sum + r.netValue, 0);
+    const sumVat = rows.reduce((sum, r) => sum + r.vatAmount, 0);
+    const sumGross = rows.reduce((sum, r) => sum + r.grossValue, 0);
+
+    const diffNet = (Number(invoice.subtotalNet) || 0) - sumNet;
+    const diffVat = (Number(invoice.totalVat) || 0) - sumVat;
+    const diffGross = (Number(invoice.totalGross) || 0) - sumGross;
+
+    // Apply rounding adjustment to the first (highest) rate row
+    if (Math.abs(diffNet) < 1 && Math.abs(diffVat) < 1 && Math.abs(diffGross) < 1) {
+      rows[0].netValue += diffNet;
+      rows[0].vatAmount += diffVat;
+      rows[0].grossValue += diffGross;
+    }
+  }
+
+  return rows;
+}
+
+function getAdjustedItems(items: InvoiceItem[] | undefined, invoice: Invoice): Array<InvoiceItem & { adjustedNet: number; adjustedVat: number; adjustedGross: number }> {
+  if (!items || items.length === 0) return [];
+
+  // Calculate raw sums from items
+  const rawSumNet = items.reduce((sum, item) => {
+    return sum + (Number(item.unitPriceNet) * Number(item.quantity));
+  }, 0);
+
+  const rawSumVat = items.reduce((sum, item) => {
+    const itemNet = Number(item.unitPriceNet) * Number(item.quantity);
+    return sum + (itemNet * (item.vatRate / 100));
+  }, 0);
+
+  const rawSumGross = rawSumNet + rawSumVat;
+
+  // Get invoice totals
+  const invoiceNet = Number(invoice.subtotalNet) || 0;
+  const invoiceVat = Number(invoice.totalVat) || 0;
+  const invoiceGross = Number(invoice.totalGross) || 0;
+
+  // Calculate adjusted items
+  let adjustedItems = items.map(item => {
+    const itemNet = Number(item.unitPriceNet) * Number(item.quantity);
+    const itemVat = itemNet * (item.vatRate / 100);
+    const itemGross = itemNet + itemVat;
+
+    const netRatio = rawSumNet > 0 ? invoiceNet / rawSumNet : 1;
+    const vatRatio = rawSumVat > 0 ? invoiceVat / rawSumVat : 1;
+    const grossRatio = rawSumGross > 0 ? invoiceGross / rawSumGross : 1;
+
+    return {
+      ...item,
+      adjustedNet: itemNet * netRatio,
+      adjustedVat: itemVat * vatRatio,
+      adjustedGross: itemGross * grossRatio,
+    };
+  });
+
+  // Final adjustment to ensure exact match (apply difference to last item)
+  if (adjustedItems.length > 0) {
+    const sumAdjNet = adjustedItems.reduce((sum, item) => sum + item.adjustedNet, 0);
+    const sumAdjVat = adjustedItems.reduce((sum, item) => sum + item.adjustedVat, 0);
+    const sumAdjGross = adjustedItems.reduce((sum, item) => sum + item.adjustedGross, 0);
+
+    const lastItem = adjustedItems[adjustedItems.length - 1];
+    lastItem.adjustedNet += invoiceNet - sumAdjNet;
+    lastItem.adjustedVat += invoiceVat - sumAdjVat;
+    lastItem.adjustedGross += invoiceGross - sumAdjGross;
+  }
+
+  return adjustedItems;
+}
+
+export async function generateInvoiceHtml(invoice: Invoice): Promise<string> {
   // Fetch company settings
-  const isProforma = invoice.invoiceType === "proforma";
-  const companySettings = await SettingsModel.getCompanySettings();
+  const settings = await SettingsModel.getCompanySettings();
 
-  // Check if this is a WDT invoice (EU company with VAT-EU)
-  const isWdt = invoice.transactionType === 'wdt';
-
-  const sellerInfo: SellerInfo = {
-    name: companySettings.companyName || 'Nazwa firmy nie skonfigurowana',
-    nip: companySettings.nip || 'NIP nie skonfigurowany',
-    vatEu: companySettings.nip ? 'PL' + companySettings.nip.replace(/[^0-9]/g, '') : undefined,
-    address: companySettings.street || '',
-    postalCode: companySettings.postalCode || '',
-    city: companySettings.city || '',
-    phone: companySettings.phone || '',
-    email: companySettings.email || '',
-    bankName: companySettings.bankName || '',
-    bankAccount: companySettings.bankAccount || '',
-    invoiceComment: companySettings.invoiceComment || '',
-  };
-
-  const formatDate = (date: Date | string): string => {
-    return new Date(date).toLocaleDateString('pl-PL', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-  };
-
-  const formatPrice = (price: number | string | null | undefined): string => {
-    const num = parseFloat(String(price || 0)) || 0;
-    return num.toFixed(2);
-  };
-
-  const getPaymentMethodLabel = (method?: PaymentMethod): string => {
-    if (!method) return '-';
-    const labels: Record<PaymentMethod, string> = {
-      [PaymentMethod.CARD]: 'Karta',
-      [PaymentMethod.CASH]: 'Gotówka',
-      [PaymentMethod.TRANSFER]: 'Przelew',
-    };
-    return labels[method] || method;
-  };
-
-  const getPaymentStatusLabel = (status: PaymentStatus): string => {
-    const labels: Record<PaymentStatus, string> = {
-      [PaymentStatus.UNPAID]: 'Nieopłacona',
-      [PaymentStatus.PARTIALLY_PAID]: 'Częściowo opłacona',
-      [PaymentStatus.PAID]: 'Opłacona',
-      [PaymentStatus.OVERDUE]: 'Przeterminowana',
-    };
-    return labels[status] || status;
+  const sellerInfo = {
+    name: settings.companyName || 'Firma nie skonfigurowana',
+    address: settings.street || 'Skonfiguruj dane firmy w Ustawieniach',
+    city: settings.city || '',
+    postalCode: settings.postalCode || '',
+    nip: settings.nip || '0000000000',
+    phone: settings.phone || '',
+    email: settings.email || '',
+    bankAccount: settings.bankAccount || '',
+    bankName: settings.bankName || '',
+    invoiceComment: settings.invoiceComment || '',
   };
 
   const buyer = invoice.buyerSnapshot;
   const recipient = invoice.recipientSnapshot;
 
-  const getBuyerName = (): string => {
+  const getBuyerName = () => {
     let name = '';
     if (buyer?.companyName) {
       name = buyer.companyName;
     } else if (buyer?.firstName || buyer?.lastName) {
-      name = ((buyer.firstName || '') + ' ' + (buyer.lastName || '')).trim();
+      name = `${buyer.firstName || ''} ${buyer.lastName || ''}`.trim();
     } else {
       name = 'Nabywca';
     }
@@ -92,10 +235,10 @@ export async function generateInvoiceHtml(invoice: InvoiceWithItems): Promise<st
     return name;
   };
 
-  const getRecipientName = (): string => {
+  const getRecipientName = () => {
     if (recipient?.companyName) return recipient.companyName;
     if (recipient?.firstName || recipient?.lastName) {
-      return ((recipient.firstName || '') + ' ' + (recipient.lastName || '')).trim();
+      return `${recipient.firstName || ''} ${recipient.lastName || ''}`.trim();
     }
     return '';
   };
@@ -107,282 +250,313 @@ export async function generateInvoiceHtml(invoice: InvoiceWithItems): Promise<st
     recipient.street
   );
 
-  const totalQuantity = invoice.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
-  const remainingAmount = parseFloat(String(invoice.totalGross)) - parseFloat(String(invoice.paidAmount));
+  const totalQuantity = invoice.items?.reduce((sum, item) => sum + Number(item.quantity), 0) || 0;
+  const vatSummary = calculateVatSummary(invoice.items, invoice);
+  const remainingToPay = Number(invoice.totalGross) - Number(invoice.paidAmount);
+  const adjustedItems = getAdjustedItems(invoice.items, invoice);
 
-  // Generate items HTML
-  const itemsHtml = (invoice.items || []).map((item, index) => {
-    return '<tr>' +
-      '<td style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">' + (index + 1) + '</td>' +
-      '<td style="border: 1px solid #d1d5db; padding: 6px;">' +
-        '<div>' + (item.description || 'Brak opisu') + '</div>' +
-        (item.growerPassport ? '<div style="color: #6b7280; font-size: 10px;">Paszport: ' + item.growerPassport + '</div>' : '') +
-      '</td>' +
-      '<td style="border: 1px solid #d1d5db; padding: 6px; text-align: center; font-weight: 600;">' + item.quantity + '</td>' +
-      '<td style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">szt.</td>' +
-      '<td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">' + formatPrice(item.unitPriceNet) + '</td>' +
-      '<td style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">' + item.vatRate + '%</td>' +
-      '<td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">' + formatPrice(item.totalNet) + '</td>' +
-      '<td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">' + formatPrice(item.totalVat) + '</td>' +
-      '<td style="border: 1px solid #d1d5db; padding: 6px; text-align: right; font-weight: 600;">' + formatPrice(item.totalGross) + '</td>' +
-    '</tr>';
-  }).join('\n');
+  // Determine invoice title based on transaction type
+  const invoiceTitle = invoice.transactionType === 'wdt' ? 'FAKTURA VAT (WDT)' : 'FAKTURA VAT';
 
-  // Generate VAT summary by rate
-  const vatMap = new Map<number, { netValue: number; vatAmount: number; grossValue: number }>();
-  (invoice.items || []).forEach(item => {
-    const rate = item.vatRate;
-    const existing = vatMap.get(rate);
-    if (existing) {
-      existing.netValue += parseFloat(String(item.totalNet)) || 0;
-      existing.vatAmount += parseFloat(String(item.totalVat)) || 0;
-      existing.grossValue += parseFloat(String(item.totalGross)) || 0;
-    } else {
-      vatMap.set(rate, {
-        netValue: parseFloat(String(item.totalNet)) || 0,
-        vatAmount: parseFloat(String(item.totalVat)) || 0,
-        grossValue: parseFloat(String(item.totalGross)) || 0,
-      });
-    }
+  // Generate items rows
+  let itemsHtml = '';
+  adjustedItems.forEach((item, index) => {
+    itemsHtml += `
+      <tr>
+        <td style="border: 1px solid #d1d5db; padding: 5px 4px; text-align: center; vertical-align: top;">${index + 1}</td>
+        <td style="border: 1px solid #d1d5db; padding: 5px 4px; text-align: left; vertical-align: top;">
+          <div style="font-weight: 500;">${escapeHtml(item.description)}</div>
+          ${item.growerPassport ? `<div style="font-size: 8px; color: #6b7280;">Paszport: ${escapeHtml(item.growerPassport)}</div>` : ''}
+          <div style="font-size: 8px; color: #6b7280;">PKWiU: 01.30.10.0</div>
+        </td>
+        <td style="border: 1px solid #d1d5db; padding: 5px 4px; text-align: center; vertical-align: top; font-weight: 600;">${item.quantity}</td>
+        <td style="border: 1px solid #d1d5db; padding: 5px 4px; text-align: center; vertical-align: top;">szt.</td>
+        <td style="border: 1px solid #d1d5db; padding: 5px 4px; text-align: right; vertical-align: top;">${formatCurrency(item.unitPriceNet)}</td>
+        <td style="border: 1px solid #d1d5db; padding: 5px 4px; text-align: right; vertical-align: top;">${formatCurrency(item.unitPriceGross)}</td>
+        <td style="border: 1px solid #d1d5db; padding: 5px 4px; text-align: center; vertical-align: top;">${item.vatRate}%</td>
+        <td style="border: 1px solid #d1d5db; padding: 5px 4px; text-align: right; vertical-align: top;">${formatCurrency(item.adjustedNet)}</td>
+        <td style="border: 1px solid #d1d5db; padding: 5px 4px; text-align: right; vertical-align: top;">${formatCurrency(item.adjustedVat)}</td>
+        <td style="border: 1px solid #d1d5db; padding: 5px 4px; text-align: right; vertical-align: top; font-weight: 600;">${formatCurrency(item.adjustedGross)}</td>
+      </tr>
+    `;
   });
-  
-  const vatSummaryRows = Array.from(vatMap.entries())
-    .sort((a, b) => b[0] - a[0])
-    .map(([rate, values]) => 
-      '<tr>' +
-        '<td style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: center; font-weight: 600;">' + rate + '%</td>' +
-        '<td style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: right;">' + values.netValue.toFixed(2) + ' zł</td>' +
-        '<td style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: right;">' + values.vatAmount.toFixed(2) + ' zł</td>' +
-        '<td style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: right; font-weight: 600;">' + values.grossValue.toFixed(2) + ' zł</td>' +
-      '</tr>'
-    ).join('\n');
-  
-  const vatSummaryHtml = vatSummaryRows ? 
-    '<table style="width: 50%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px; margin-left: auto;">' +
-      '<thead><tr style="background: #f3f4f6;">' +
-        '<th style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: center; width: 25%;">Stawka VAT</th>' +
-        '<th style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: right;">Netto</th>' +
-        '<th style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: right;">VAT</th>' +
-        '<th style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: right;">Brutto</th>' +
-      '</tr></thead>' +
-      '<tbody>' + vatSummaryRows +
-        '<tr style="background: #f8fafc; font-weight: bold;">' +
-          '<td style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: center;">RAZEM</td>' +
-          '<td style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: right;">' + formatPrice(invoice.subtotalNet) + ' zł</td>' +
-          '<td style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: right;">' + formatPrice(invoice.totalVat) + ' zł</td>' +
-          '<td style="border: 1px solid #d1d5db; padding: 5px 10px; text-align: right; color: #2563eb;">' + formatPrice(invoice.totalGross) + ' zł</td>' +
-        '</tr>' +
-      '</tbody>' +
-    '</table>' : '';
 
-  // Generate payment splits HTML if applicable
-  let paymentSplitsHtml = '';
+  // Generate VAT summary rows
+  let vatRowsHtml = '';
+  vatSummary.forEach(row => {
+    vatRowsHtml += `
+      <tr>
+        <td style="border: 1px solid #d1d5db; padding: 4px 8px; text-align: center; font-weight: 600; font-size: 10px;">${row.rate}%</td>
+        <td style="border: 1px solid #d1d5db; padding: 4px 8px; text-align: right; font-size: 10px;">${formatCurrency(row.netValue)} zł</td>
+        <td style="border: 1px solid #d1d5db; padding: 4px 8px; text-align: right; font-size: 10px;">${formatCurrency(row.vatAmount)} zł</td>
+        <td style="border: 1px solid #d1d5db; padding: 4px 8px; text-align: right; font-size: 10px; font-weight: 600;">${formatCurrency(row.grossValue)} zł</td>
+      </tr>
+    `;
+  });
+
+  // Generate payment splits HTML
+  let paymentInfoHtml = '';
   if (invoice.paymentSplits && invoice.paymentSplits.length > 1) {
-    const splitsText = invoice.paymentSplits.map((split: PaymentSplit) =>
-      '<p style="font-size: 14px; padding-left: 8px;">• ' + getPaymentMethodLabel(split.paymentMethod) + ': <span style="font-weight: 600;">' + formatPrice(split.amount) + ' zł</span></p>'
-    ).join('\n');
-    paymentSplitsHtml = '<p style="font-size: 14px; font-weight: 600;">Płatność podzielona:</p>\n' + splitsText;
+    paymentInfoHtml = `
+      <div style="font-weight: 600; margin-bottom: 4px;">Płatność podzielona:</div>
+      ${invoice.paymentSplits.map(split => `
+        <div style="padding-left: 8px;">
+          • ${getPaymentMethodLabel(split.paymentMethod)}: <strong>${formatCurrency(split.amount)} zł</strong>
+        </div>
+      `).join('')}
+    `;
   } else {
-    paymentSplitsHtml = '<p style="font-size: 14px;">Forma: <span style="font-weight: 600;">' + getPaymentMethodLabel(invoice.paymentMethod) + '</span></p>';
+    paymentInfoHtml = `<div>Forma: <strong>${getPaymentMethodLabel(invoice.paymentMethod)}</strong></div>`;
   }
 
-  // Build HTML parts
-  const gridCols = hasRecipient ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)';
-
-  const recipientSection = hasRecipient ? `
-      <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; border: 1px solid #bbf7d0;">
-        <h3 style="font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 8px;">Odbiorca</h3>
-        <p style="font-weight: bold; font-size: 14px;">${getRecipientName()}</p>
-        ${recipient?.street ? '<p style="font-size: 13px;">' + recipient.street + '</p>' : ''}
-        ${(recipient?.postalCode || recipient?.city) ? '<p style="font-size: 13px;">' + (recipient.postalCode || '') + ' ' + (recipient.city || '') + '</p>' : ''}
-        ${recipient?.phone ? '<p style="font-size: 13px; margin-top: 8px;">Tel: <span style="font-weight: 600;">' + recipient.phone + '</span></p>' : ''}
-      </div>
-  ` : '';
-
-  const paidAmountNum = parseFloat(String(invoice.paidAmount));
-  const totalGrossNum = parseFloat(String(invoice.totalGross));
-  const showPaidAmount = paidAmountNum > 0 && paidAmountNum < totalGrossNum;
-
-  const html = `<!DOCTYPE html>
+  return `
+<!DOCTYPE html>
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${isProforma ? "Pro Forma" : "Faktura"} ${invoice.invoiceNumber}</title>
+  <title>Faktura ${escapeHtml(invoice.invoiceNumber)}</title>
   <style>
-    @page { size: A4; margin: 10mm; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; font-size: 12px; color: #111827; line-height: 1.4; }
-    .invoice-container { max-width: 210mm; margin: 0 auto; padding: 20px; background: white; }
     @media print {
-      body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .invoice-container { max-width: 100%; padding: 0; }
+      @page {
+        size: A4 portrait;
+        margin: 8mm;
+      }
+      html, body {
+        width: 210mm;
+        height: 297mm;
+        margin: 0;
+        padding: 0;
+      }
+      .invoice-container {
+        width: 194mm !important;
+        max-width: 194mm !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        font-size: 10px !important;
+      }
       .no-print { display: none !important; }
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
+    }
+    @media screen {
+      .invoice-container {
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      }
     }
   </style>
 </head>
-<body>
-  <div class="invoice-container">
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #1f2937; background-color: #f5f5f5;">
+  <div class="invoice-container" style="background-color: #ffffff; padding: 8mm; width: 190mm; max-width: 190mm; margin: 0 auto; box-sizing: border-box;">
+
     <!-- Header -->
     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #d1d5db;">
       <div>
-        <h1 style="font-size: 22px; font-weight: bold; color: #1f2937;">${isProforma ? "PRO FORMA" : (isWdt ? "FAKTURA VAT - WDT" : "FAKTURA VAT")}</h1>
-        <p style="font-size: 18px; font-weight: bold; color: #2563eb; margin-top: 4px;">${invoice.invoiceNumber}</p>
-        ${invoice.orderId ? '<p style="font-size: 13px; color: #6b7280; margin-top: 4px;">Zamówienie: ' + invoice.orderId + '</p>' : ''}
+        <h1 style="font-size: 22px; font-weight: bold; color: #1f2937; margin: 0;">${invoiceTitle}</h1>
+        <div style="font-size: 18px; font-weight: bold; color: #2563eb; margin-top: 4px;">${escapeHtml(invoice.invoiceNumber)}</div>
+        ${invoice.orderNumber ? `<div style="font-size: 10px; color: #6b7280; margin-top: 4px;">Zamówienie: ${escapeHtml(invoice.orderNumber)}</div>` : ''}
       </div>
-      <div style="text-align: right; font-size: 13px;">
-        <p>Data wystawienia: <span style="font-weight: 600;">${formatDate(invoice.issueDate)}</span></p>
-        <p>Data sprzedaży: <span style="font-weight: 600;">${formatDate(invoice.saleDate)}</span></p>
-        ${invoice.paymentDeadline ? '<p>Termin płatności: <span style="font-weight: 600;">' + formatDate(invoice.paymentDeadline) + '</span></p>' : ''}
+      <div style="text-align: right; font-size: 11px;">
+        <div>Data wystawienia: <strong>${formatDate(invoice.issueDate)}</strong></div>
+        <div>Data sprzedaży: <strong>${formatDate(invoice.saleDate)}</strong></div>
+        ${invoice.paymentDeadline ? `<div>Termin płatności: <strong>${formatDate(invoice.paymentDeadline)}</strong></div>` : ''}
       </div>
     </div>
 
-    <!-- Seller, Buyer & Recipient -->
-    <div style="display: grid; grid-template-columns: ${gridCols}; gap: 15px; margin-bottom: 20px;">
-      <!-- Sprzedawca -->
-      <div style="background: #f9fafb; padding: 15px; border-radius: 8px;">
-        <h3 style="font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 8px;">Sprzedawca</h3>
-        <p style="font-weight: bold;">${sellerInfo.name}</p>
-        <p style="font-size: 13px;">${sellerInfo.address}</p>
-        <p style="font-size: 13px;">${sellerInfo.postalCode} ${sellerInfo.city}</p>
-        <p style="font-size: 13px; margin-top: 8px;">NIP: <span style="font-weight: 600;">${sellerInfo.nip}</span></p>
-        ${isWdt && sellerInfo.vatEu ? '<p style="font-size: 13px;">VAT-UE: <span style="font-weight: 600;">' + sellerInfo.vatEu + '</span></p>' : ''}
-        ${sellerInfo.phone ? '<p style="font-size: 13px;">Tel: ' + sellerInfo.phone + '</p>' : ''}
-        ${sellerInfo.email ? '<p style="font-size: 13px;">Email: ' + sellerInfo.email + '</p>' : ''}
+    <!-- Parties -->
+    <div style="display: grid; grid-template-columns: ${hasRecipient ? '1fr 1fr 1fr' : '1fr 1fr'}; gap: 12px; margin-bottom: 20px;">
+      <!-- Seller -->
+      <div style="padding: 12px; border-radius: 6px; font-size: 11px; background-color: #f9fafb;">
+        <div style="font-size: 9px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 6px;">Sprzedawca</div>
+        <div style="font-weight: bold; font-size: 12px; margin-bottom: 2px;">${escapeHtml(sellerInfo.name)}</div>
+        <div>${escapeHtml(sellerInfo.address)}</div>
+        <div>${escapeHtml(sellerInfo.postalCode)} ${escapeHtml(sellerInfo.city)}</div>
+        <div style="margin-top: 6px;">NIP: <strong>${escapeHtml(sellerInfo.nip)}</strong></div>
+        ${sellerInfo.phone ? `<div>Tel: ${escapeHtml(sellerInfo.phone)}</div>` : ''}
+        ${sellerInfo.email ? `<div>Email: ${escapeHtml(sellerInfo.email)}</div>` : ''}
       </div>
 
-      <!-- Nabywca -->
-      <div style="background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe;">
-        <h3 style="font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 8px;">Nabywca</h3>
-        <p style="font-weight: bold; font-size: 14px;">${getBuyerName()}</p>
-        ${buyer?.street ? '<p style="font-size: 13px;">' + buyer.street + '</p>' : ''}
-        ${(buyer?.postalCode || buyer?.city) ? '<p style="font-size: 13px;">' + (buyer.postalCode || '') + ' ' + (buyer.city || '') + '</p>' : ''}
-        ${buyer?.nip ? '<p style="font-size: 13px; margin-top: 8px;">NIP: <span style="font-weight: 600;">' + buyer.nip + '</span></p>' : ''}
-        ${isWdt && buyer?.vatEu ? '<p style="font-size: 13px;">VAT-UE: <span style="font-weight: 600;">' + buyer.vatEu + '</span></p>' : ''}
-        ${isWdt && buyer?.country ? '<p style="font-size: 13px;">Kraj: <span style="font-weight: 600;">' + buyer.country + '</span></p>' : ''}
+      <!-- Buyer -->
+      <div style="padding: 12px; border-radius: 6px; font-size: 11px; background-color: #eff6ff; border: 1px solid #bfdbfe;">
+        <div style="font-size: 9px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 6px;">Nabywca</div>
+        <div style="font-weight: bold; font-size: 12px; margin-bottom: 2px;">${escapeHtml(getBuyerName())}</div>
+        ${buyer?.street ? `<div>${escapeHtml(buyer.street)}</div>` : ''}
+        ${(buyer?.postalCode || buyer?.city) ? `<div>${escapeHtml(buyer?.postalCode || '')} ${escapeHtml(buyer?.city || '')}</div>` : ''}
+        ${buyer?.nip ? `<div style="margin-top: 6px;">NIP: <strong>${escapeHtml(buyer.nip)}</strong></div>` : ''}
+        ${buyer?.vatEu ? `<div>VAT-EU: <strong>${escapeHtml(buyer.vatEu)}</strong></div>` : ''}
       </div>
 
-      ${recipientSection}
+      ${hasRecipient ? `
+      <!-- Recipient -->
+      <div style="padding: 12px; border-radius: 6px; font-size: 11px; background-color: #f0fdf4; border: 1px solid #bbf7d0;">
+        <div style="font-size: 9px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 6px;">Odbiorca</div>
+        <div style="font-weight: bold; font-size: 12px; margin-bottom: 2px;">${escapeHtml(getRecipientName())}</div>
+        ${recipient?.street ? `<div>${escapeHtml(recipient.street)}</div>` : ''}
+        ${(recipient?.postalCode || recipient?.city) ? `<div>${escapeHtml(recipient?.postalCode || '')} ${escapeHtml(recipient?.city || '')}</div>` : ''}
+        ${recipient?.phone ? `<div style="margin-top: 6px;">Tel: <strong>${escapeHtml(recipient.phone)}</strong></div>` : ''}
+      </div>
+      ` : ''}
     </div>
 
     <!-- Items Table -->
-    <div style="margin-bottom: 20px;">
-      <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-        <thead>
-          <tr style="background: #f3f4f6;">
-            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: left; width: 4%;">Lp.</th>
-            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: left; width: 28%;">Nazwa</th>
-            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: center; width: 6%;">Ilość</th>
-            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: center; width: 5%;">J.m.</th>
-            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: right; width: 11%;">Cena netto</th>
-            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: center; width: 6%;">VAT%</th>
-            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: right; width: 13%;">Kwota netto</th>
-            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: right; width: 13%;">Kwota VAT</th>
-            <th style="border: 1px solid #d1d5db; padding: 6px; text-align: right; width: 14%;">Kwota brutto</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${itemsHtml}
-        </tbody>
-        <tfoot>
-          <tr style="background: #f3f4f6; font-weight: bold;">
-            <td colspan="2" style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">RAZEM:</td>
-            <td style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">${totalQuantity}</td>
-            <td colspan="3" style="border: 1px solid #d1d5db; padding: 6px;"></td>
-            <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">${formatPrice(invoice.subtotalNet)} zł</td>
-            <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right;">${formatPrice(invoice.totalVat)} zł</td>
-            <td style="border: 1px solid #d1d5db; padding: 6px; text-align: right; color: #2563eb;">${formatPrice(invoice.totalGross)} zł</td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
+    <table style="width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 16px; table-layout: fixed;">
+      <colgroup>
+        <col style="width: 4%;" />
+        <col style="width: 31%;" />
+        <col style="width: 6%;" />
+        <col style="width: 5%;" />
+        <col style="width: 9%;" />
+        <col style="width: 9%;" />
+        <col style="width: 5%;" />
+        <col style="width: 10%;" />
+        <col style="width: 10%;" />
+        <col style="width: 11%;" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th style="border: 1px solid #d1d5db; padding: 6px 4px; background-color: #f3f4f6; font-weight: 600; text-align: center;">Lp.</th>
+          <th style="border: 1px solid #d1d5db; padding: 6px 4px; background-color: #f3f4f6; font-weight: 600; text-align: left;">Nazwa towaru/usługi</th>
+          <th style="border: 1px solid #d1d5db; padding: 6px 4px; background-color: #f3f4f6; font-weight: 600; text-align: center;">Ilość</th>
+          <th style="border: 1px solid #d1d5db; padding: 6px 4px; background-color: #f3f4f6; font-weight: 600; text-align: center;">J.m.</th>
+          <th style="border: 1px solid #d1d5db; padding: 6px 4px; background-color: #f3f4f6; font-weight: 600; text-align: center;"><div>Cena</div><div>netto</div></th>
+          <th style="border: 1px solid #d1d5db; padding: 6px 4px; background-color: #f3f4f6; font-weight: 600; text-align: center;"><div>Cena</div><div>brutto</div></th>
+          <th style="border: 1px solid #d1d5db; padding: 6px 4px; background-color: #f3f4f6; font-weight: 600; text-align: center;">VAT%</th>
+          <th style="border: 1px solid #d1d5db; padding: 6px 4px; background-color: #f3f4f6; font-weight: 600; text-align: center;">Kwota netto</th>
+          <th style="border: 1px solid #d1d5db; padding: 6px 4px; background-color: #f3f4f6; font-weight: 600; text-align: center;">Kwota VAT</th>
+          <th style="border: 1px solid #d1d5db; padding: 6px 4px; background-color: #f3f4f6; font-weight: 600; text-align: center;"><div>Kwota</div><div>brutto</div></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemsHtml}
+      </tbody>
+      <tfoot>
+        <tr style="background-color: #f3f4f6; font-weight: bold;">
+          <td colspan="2" style="border: 1px solid #d1d5db; padding: 5px 4px; text-align: right;">RAZEM:</td>
+          <td style="border: 1px solid #d1d5db; padding: 5px 4px; text-align: center;">${totalQuantity}</td>
+          <td colspan="4" style="border: 1px solid #d1d5db; padding: 5px 4px;"></td>
+          <td style="border: 1px solid #d1d5db; padding: 5px 4px; text-align: right;">${formatCurrency(invoice.subtotalNet)} zł</td>
+          <td style="border: 1px solid #d1d5db; padding: 5px 4px; text-align: right;">${formatCurrency(invoice.totalVat)} zł</td>
+          <td style="border: 1px solid #d1d5db; padding: 5px 4px; text-align: right; color: #2563eb;">${formatCurrency(invoice.totalGross)} zł</td>
+        </tr>
+      </tfoot>
+    </table>
 
-    <!-- VAT Summary -->
-    ${vatSummaryHtml}
-    <!-- Summary -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 20px;">
+    <!-- VAT Summary + Payment Box -->
+    <div style="display: grid; grid-template-columns: 1fr auto; gap: 20px; margin-bottom: 20px; align-items: start;">
+      <!-- Left side - VAT Summary + Payment Info -->
       <div>
-        <h3 style="font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 8px;">Płatność</h3>
-        ${paymentSplitsHtml}
-        <p style="font-size: 14px; margin-top: 4px;">Status: <span style="font-weight: 600;">${getPaymentStatusLabel(invoice.paymentStatus)}</span></p>
-        ${showPaidAmount ? '<p style="font-size: 14px;">Zapłacono: <span style="font-weight: 600;">' + formatPrice(invoice.paidAmount) + ' zł</span></p>' : ''}
-        ${sellerInfo.bankAccount ? `
-          <div style="margin-top: 12px; padding: 10px; background: #f9fafb; border-radius: 6px; font-size: 12px;">
-            <p style="font-weight: 600;">${sellerInfo.bankName}</p>
-            <p style="font-family: monospace; margin-top: 4px;">${sellerInfo.bankAccount}</p>
+        <!-- VAT Summary by Rate -->
+        <div style="margin-bottom: 16px;">
+          <div style="font-size: 9px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 6px;">Podsumowanie stawek VAT</div>
+          <table style="width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 16px;">
+            <thead>
+              <tr>
+                <th style="border: 1px solid #d1d5db; padding: 5px 8px; background-color: #f3f4f6; font-weight: 600; text-align: center; font-size: 9px; width: 20%;">Stawka VAT</th>
+                <th style="border: 1px solid #d1d5db; padding: 5px 8px; background-color: #f3f4f6; font-weight: 600; text-align: center; font-size: 9px; width: 26%;">Netto</th>
+                <th style="border: 1px solid #d1d5db; padding: 5px 8px; background-color: #f3f4f6; font-weight: 600; text-align: center; font-size: 9px; width: 26%;">VAT</th>
+                <th style="border: 1px solid #d1d5db; padding: 5px 8px; background-color: #f3f4f6; font-weight: 600; text-align: center; font-size: 9px; width: 31%;">Brutto</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${vatRowsHtml}
+              <tr style="background-color: #f8fafc; font-weight: bold;">
+                <td style="border: 1px solid #d1d5db; padding: 4px 8px; text-align: center; font-size: 10px;">RAZEM</td>
+                <td style="border: 1px solid #d1d5db; padding: 4px 8px; text-align: right; font-size: 10px;">${formatCurrency(invoice.subtotalNet)} zł</td>
+                <td style="border: 1px solid #d1d5db; padding: 4px 8px; text-align: right; font-size: 10px;">${formatCurrency(invoice.totalVat)} zł</td>
+                <td style="border: 1px solid #d1d5db; padding: 4px 8px; text-align: right; font-size: 10px; color: #2563eb;">${formatCurrency(invoice.totalGross)} zł</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Payment Info -->
+        <div style="font-size: 10px;">
+          <div style="font-size: 9px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 6px;">Płatność</div>
+          ${paymentInfoHtml}
+          <div style="margin-top: 4px;">Status: <strong>${getPaymentStatusLabel(invoice.paymentStatus)}</strong></div>
+
+          ${sellerInfo.bankAccount ? `
+          <div style="margin-top: 10px; padding: 10px; background-color: #f9fafb; border-radius: 4px; font-size: 10px;">
+            <div style="font-weight: 600;">${escapeHtml(sellerInfo.bankName)}</div>
+            <div style="font-family: monospace; margin-top: 4px;">${escapeHtml(sellerInfo.bankAccount)}</div>
           </div>
-        ` : ''}
-        ${sellerInfo.invoiceComment ? `
-          <div style="margin-top: 12px; padding: 10px; background: #fefce8; border: 1px solid #fde68a; border-radius: 6px; font-size: 12px;">
-            <p style="color: #854d0e;">${sellerInfo.invoiceComment}</p>
+          ` : ''}
+
+          ${sellerInfo.invoiceComment ? `
+          <div style="margin-top: 10px; padding: 10px; background-color: #fefce8; border: 1px solid #fde047; border-radius: 4px; font-size: 10px; color: #854d0e;">
+            ${escapeHtml(sellerInfo.invoiceComment)}
           </div>
-        ` : ''}
-      </div>
-      <div style="display: flex; justify-content: flex-end;">
-        <div style="background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; min-width: 200px;">
-          <h3 style="font-size: 9px; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">Podsumowanie płatności</h3>
-          <div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; border-bottom: 1px solid #e2e8f0; margin-bottom: 6px;">
-            <span>Wartość faktury:</span>
-            <strong>${formatPrice(invoice.totalGross)} zł</strong>
-          </div>
-          <div style="display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px;">
-            <span>Zapłacono:</span>
-            <strong>${formatPrice(invoice.paidAmount)} zł</strong>
-          </div>
-          <div style="border-top: 1px solid #e2e8f0; margin-top: 8px; padding-top: 8px;">
-            <div style="font-size: 11px; font-weight: 600; margin-bottom: 4px;">Pozostało do zapłaty:</div>
-            <div style="font-size: 16px; font-weight: bold; color: #2563eb; text-align: right;">
-              ${remainingAmount.toFixed(2)} PLN
-            </div>
-          </div>
-          ${invoice.paymentDeadline && remainingAmount > 0 ? '<div style="font-size: 10px; color: #64748b; margin-top: 6px; text-align: right;">Termin: ' + formatDate(invoice.paymentDeadline) + '</div>' : ''}
+          ` : ''}
         </div>
       </div>
+
+      <!-- Right side - Payment Summary Box -->
+      <div style="background-color: #f8fafc; padding: 10px 14px; border-radius: 6px; border: 1px solid #e2e8f0; min-width: 180px;">
+        <div style="font-size: 8px; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 2px;">Podsumowanie płatności</div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 6px;">
+          <span>Wartość faktury:</span>
+          <strong>${formatCurrency(invoice.totalGross)} zł</strong>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: 10px;">
+          <span>Zapłacono:</span>
+          <strong>${formatCurrency(invoice.paidAmount)} zł</strong>
+        </div>
+
+        ${invoice.paidAt && Number(invoice.paidAmount) > 0 ? `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: 9px; color: #64748b;">
+          <span>Data zapłaty:</span>
+          <span>${formatDate(invoice.paidAt)}</span>
+        </div>
+        ` : ''}
+
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: 10px; border-top: 1px solid #e2e8f0; padding-top: 8px; margin-top: 8px;">
+          <span style="font-weight: 600;">Pozostało do zapłaty:</span>
+        </div>
+        <div style="text-align: right;">
+          <span style="font-size: 14px; font-weight: bold; color: #2563eb;">
+            ${formatCurrency(remainingToPay)} PLN
+          </span>
+        </div>
+
+        ${invoice.paymentDeadline && remainingToPay > 0 ? `
+        <div style="font-size: 9px; color: #64748b; margin-top: 6px; text-align: right;">
+          Termin: ${formatDate(invoice.paymentDeadline)}
+        </div>
+        ` : ''}
+      </div>
     </div>
 
-    ${invoice.notes ? `
     <!-- Notes -->
-    <div style="margin-bottom: 20px; padding: 15px; background: #f9fafb; border-radius: 8px;">
-      <h3 style="font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 8px;">Uwagi</h3>
-      <p style="font-size: 13px;">${invoice.notes}</p>
-    </div>
-    ` : ''}
-
-    ${isWdt ? `
-    <!-- WDT Annotation -->
-    <div style="margin-bottom: 20px; padding: 15px; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px;">
-      <p style="font-size: 12px; font-weight: 600; color: #92400e;">
-        Wewnątrzwspólnotowa dostawa towarów - art. 42 ustawy o podatku od towarów i usług.
-      </p>
-      <p style="font-size: 11px; color: #78350f; margin-top: 4px;">
-        Stawka VAT 0% zgodnie z art. 41 ust. 3 ustawy o VAT.
-      </p>
+    ${invoice.notes ? `
+    <div style="margin-bottom: 20px; padding: 12px; background-color: #f9fafb; border-radius: 6px;">
+      <div style="font-size: 9px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 6px;">Uwagi</div>
+      <div>${escapeHtml(invoice.notes)}</div>
     </div>
     ` : ''}
 
     <!-- Signatures -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 50px; padding-top: 20px;">
-      <div style="text-align: center;">
-        <div style="border-top: 1px solid #9ca3af; padding-top: 8px; margin-top: 50px;">
-          <p style="font-size: 11px; color: #6b7280;">Podpis osoby upoważnionej do wystawienia</p>
-        </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 40px; padding-top: 20px;">
+      <div style="border-top: 1px solid #9ca3af; padding-top: 6px; margin-top: 40px; text-align: center; font-size: 9px; color: #6b7280;">
+        Podpis osoby upoważnionej do wystawienia
       </div>
-      <div style="text-align: center;">
-        <div style="border-top: 1px solid #9ca3af; padding-top: 8px; margin-top: 50px;">
-          <p style="font-size: 11px; color: #6b7280;">Podpis osoby upoważnionej do odbióru</p>
-        </div>
+      <div style="border-top: 1px solid #9ca3af; padding-top: 6px; margin-top: 40px; text-align: center; font-size: 9px; color: #6b7280;">
+        Podpis osoby upoważnionej do odbioru
       </div>
     </div>
 
-    <!-- Print Button (no-print) -->
-    <div class="no-print" style="margin-top: 30px; text-align: center;">
-      <button onclick="window.print()" style="padding: 10px 24px; background: #2563eb; color: white; border: none; border-radius: 6px; font-size: 14px; cursor: pointer;">
+    <!-- Print Button -->
+    <div class="no-print" style="margin-top: 24px; text-align: center;">
+      <button onclick="window.print()" style="padding: 10px 24px; background-color: #2563eb; color: white; border: none; border-radius: 6px; font-size: 14px; cursor: pointer;">
         Drukuj fakturę
       </button>
     </div>
   </div>
 </body>
-</html>`;
-
-  return html;
+</html>
+  `;
 }
