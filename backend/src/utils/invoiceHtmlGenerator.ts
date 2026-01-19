@@ -65,8 +65,9 @@ function formatDate(date: Date | string | undefined): string {
   });
 }
 
-function formatCurrency(value: number | undefined): string {
-  return (value || 0).toFixed(2);
+function formatCurrency(value: number | string | undefined | null): string {
+  const num = Number(value) || 0;
+  return num.toFixed(2);
 }
 
 function getPaymentMethodLabel(method?: string): string {
