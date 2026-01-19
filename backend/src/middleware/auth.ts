@@ -183,6 +183,6 @@ export const optionalAuth = (
   }
 };
 
-export const generateToken = (payload: Omit<JWTPayload, 'iat' | 'exp'>): string => {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+export const generateToken = (payload: Omit<JWTPayload, 'iat' | 'exp'>, expiresIn: string = '7d'): string => {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn } as jwt.SignOptions);
 };

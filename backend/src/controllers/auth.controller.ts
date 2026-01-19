@@ -85,13 +85,16 @@ export class AuthController {
       // Pobierz uprawnienia użytkownika z profilu
       const permissions = await PermissionProfileModel.getUserPermissions(user.id);
 
+      // Kontrahenci mają krótszą sesję (5h), pozostali 7 dni
+      const tokenExpiration = user.role === UserRole.CUSTOMER ? '5h' : '7d';
+      
       const token = generateToken({
         firstName: user.firstName,
         userId: user.id,
         email: user.email,
         role: user.role,
         permissions: permissions,
-      });
+      }, tokenExpiration);
 
       const userWithoutPassword = UserModel.stripPassword(user);
 
