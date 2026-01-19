@@ -9,7 +9,6 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalProducts: 0,
-    lowStockCount: 0,
     pendingOrdersCount: 0,
     readyForPickupCount: 0,
   });
@@ -18,9 +17,6 @@ export function DashboardPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
-
-        // Fetch low stock products count
-        const lowStockData = await api.getLowStockProducts();
 
         // Fetch all products for stats
         const allProductsData = await api.getInventory();
@@ -34,7 +30,6 @@ export function DashboardPage() {
 
         setStats({
           totalProducts: allProductsData.products.length,
-          lowStockCount: lowStockData.products.length,
           pendingOrdersCount: pendingData.orders.length,
           readyForPickupCount: readyData.orders.length,
         });
@@ -65,7 +60,7 @@ export function DashboardPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Link to="/inventory" className="card p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
@@ -74,21 +69,6 @@ export function DashboardPage() {
             </div>
             <div className="text-4xl">📦</div>
           </div>
-        </Link>
-
-        <Link to="/inventory?status=low" className="card p-6 hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Niski stan</p>
-              <p className="text-3xl font-bold text-orange-600">{stats.lowStockCount}</p>
-            </div>
-            <div className="text-4xl">⚠️</div>
-          </div>
-          {stats.lowStockCount > 0 && (
-            <div className="mt-2 text-xs text-orange-600 font-medium">
-              Wymaga uwagi!
-            </div>
-          )}
         </Link>
 
         <Link to="/orders?status=pending" className="card p-6 hover:shadow-lg transition-shadow">
@@ -104,7 +84,7 @@ export function DashboardPage() {
         <Link to="/pos" className="card p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Gotowe do odbióru</p>
+              <p className="text-sm text-gray-600 mb-1">Gotowe do odbioru</p>
               <p className="text-3xl font-bold text-green-600">{stats.readyForPickupCount}</p>
             </div>
             <div className="text-4xl">✅</div>
