@@ -227,7 +227,7 @@ export class CustomerModel {
   }
 
   static async getPriceForCustomer(customerId: number, productId: number): Promise<number> {
-    const result = await query<{ price: number }>(
+    const result = await query<{ price: number; is_eu_company: boolean }>(
       `SELECT
         CASE pg.name
           WHEN 'podstawowa' THEN p.base_price_gross
@@ -241,7 +241,8 @@ export class CustomerModel {
           WHEN 'detal' THEN p.base_price_gross
           WHEN 'plus_8' THEN p.price_plus
           ELSE p.base_price_gross
-        END as price
+        END as price,
+        COALESCE(c.is_eu_company, false) as is_eu_company
        FROM products p
        CROSS JOIN customers c
        LEFT JOIN price_groups pg ON c.price_group_id = pg.id
@@ -249,6 +250,14 @@ export class CustomerModel {
       [customerId, productId]
     );
 
-    return result.rows[0]?.price || 0;
+    const row = result.rows[0];
+    if (!row) return 0;
+    
+    // For EU customers (0% VAT), return net price (gross / 1.08)
+    if ((row as any).isEuCompany === true || (row as any).is_eu_company === true) {
+      return Math.round((row.price / 1.08) * 100) / 100;
+    }
+    
+    return row.price || 0;
   }
 }
