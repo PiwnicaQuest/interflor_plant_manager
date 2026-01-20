@@ -75,6 +75,7 @@ export const PAPER_SIZES: Record<string, { width: number; height: number }> = {
   "100x150mm": { width: 100, height: 150 },
   // Receipts
   "58mm": { width: 58, height: 297 },
+  "75mm": { width: 75, height: 297 },
   "80mm": { width: 80, height: 297 },
 };
 

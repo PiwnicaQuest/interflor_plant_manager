@@ -56,7 +56,7 @@ export function ReceiptTemplate({ data, companyInfo = defaultCompanyInfo }: Rece
   };
 
   // Stała szerokość - 58mm dla drukarki termicznej (bez marginesów drukarki)
-  const RECEIPT_WIDTH = "54mm";
+  const RECEIPT_WIDTH = "71mm";
 
   return (
     <div className="receipt-template" id="print-content">
@@ -64,11 +64,11 @@ export function ReceiptTemplate({ data, companyInfo = defaultCompanyInfo }: Rece
         /* Reset dla druku */
         @media print {
           @page {
-            size: 58mm auto;
+            size: 75mm auto;
             margin: 0mm !important;
           }
           html, body {
-            width: 58mm !important;
+            width: 75mm !important;
             margin: 0 !important;
             padding: 0 !important;
             overflow: hidden !important;

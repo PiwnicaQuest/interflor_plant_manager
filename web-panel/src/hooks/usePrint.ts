@@ -84,7 +84,7 @@ const DEFAULT_PAPER_SIZE: Record<DocumentType, string> = {
   barcode_labels: "50x30mm",
   orders: "A4",
   invoices: "A4",
-  receipts: "80mm",
+  receipts: "75mm",
   inventory_reports: "A4",
   delivery_notes: "A4",
 };
@@ -724,6 +724,296 @@ export function usePrint(options: UsePrintOptions = {}) {
     [print]
   );
 
+
+  // Print invoice from PDF (fetches PDF from backend)
+  const printInvoicePdf = useCallback(
+    async (
+      invoiceId: number,
+      opts?: { title?: string }
+    ): Promise<PrintResult> => {
+      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+      const token = localStorage.getItem("token");
+
+      try {
+        const response = await fetch(`${API_URL}/invoices/${invoiceId}/pdf`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!response.ok) {
+          throw new Error("Nie można pobrać PDF faktury");
+        }
+
+        const blob = await response.blob();
+
+        let status = brokerStatus;
+        if (!status) {
+          status = await checkBroker();
+        }
+
+        if (status?.online) {
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve((reader.result as string).split(",")[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+
+          const brokerResponse = await fetch(`${BROKER_BASE_URL}/print`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              documentType: "invoice",
+              contentType: "pdf",
+              content: base64,
+              copies: 1,
+              paperSize: "A4",
+              title: opts?.title,
+            }),
+          });
+
+          const data = await brokerResponse.json();
+          if (brokerResponse.ok && data.success) {
+            const result: PrintResult = { success: true, method: "broker", jobId: data.jobId };
+            setLastResult(result);
+            return result;
+          }
+        }
+
+        const url = URL.createObjectURL(blob);
+        const printWindow = window.open(url, "_blank");
+        if (printWindow) {
+          printWindow.onload = () => setTimeout(() => printWindow.print(), 500);
+        }
+
+        const result: PrintResult = { success: true, method: "browser" };
+        setLastResult(result);
+        return result;
+
+      } catch (error: any) {
+        const result: PrintResult = { success: false, method: "browser", error: error.message || "Błąd drukowania PDF" };
+        setLastResult(result);
+        return result;
+      }
+    },
+    [brokerStatus, checkBroker]
+  );
+
+  const printReceiptPdf = useCallback(
+    async (
+      receiptId: number,
+      opts?: { title?: string }
+    ): Promise<PrintResult> => {
+      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+      const token = localStorage.getItem("token");
+
+      try {
+        const response = await fetch(`${API_URL}/receipts/${receiptId}/pdf`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!response.ok) {
+          throw new Error("Nie mozna pobrac PDF paragonu");
+        }
+
+        const blob = await response.blob();
+
+        let status = brokerStatus;
+        if (!status) {
+          status = await checkBroker();
+        }
+
+        if (status?.online) {
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve((reader.result as string).split(",")[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+
+          const brokerResponse = await fetch(`${BROKER_BASE_URL}/print`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              documentType: "receipt",
+              contentType: "pdf",
+              content: base64,
+              copies: 1,
+              paperSize: "A4",
+              title: opts?.title,
+            }),
+          });
+
+          const data = await brokerResponse.json();
+          if (brokerResponse.ok && data.success) {
+            const result: PrintResult = { success: true, method: "broker", jobId: data.jobId };
+            setLastResult(result);
+            return result;
+          }
+        }
+
+        const url = URL.createObjectURL(blob);
+        const printWindow = window.open(url, "_blank");
+        if (printWindow) {
+          printWindow.onload = () => setTimeout(() => printWindow.print(), 500);
+        }
+
+        const result: PrintResult = { success: true, method: "browser" };
+        setLastResult(result);
+        return result;
+
+      } catch (error: any) {
+        const result: PrintResult = { success: false, method: "browser", error: error.message || "Blad drukowania PDF" };
+        setLastResult(result);
+        return result;
+      }
+    },
+    [brokerStatus, checkBroker]
+  );
+
+  const printProformaPdf = useCallback(
+    async (
+      proformaId: number,
+      opts?: { title?: string }
+    ): Promise<PrintResult> => {
+      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+      const token = localStorage.getItem("token");
+
+      try {
+        const response = await fetch(`${API_URL}/proforma/${proformaId}/pdf`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!response.ok) {
+          throw new Error("Nie mozna pobrac PDF pro formy");
+        }
+
+        const blob = await response.blob();
+
+        let status = brokerStatus;
+        if (!status) {
+          status = await checkBroker();
+        }
+
+        if (status?.online) {
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve((reader.result as string).split(",")[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+
+          const brokerResponse = await fetch(`${BROKER_BASE_URL}/print`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              documentType: "proforma",
+              contentType: "pdf",
+              content: base64,
+              copies: 1,
+              paperSize: "A4",
+              title: opts?.title,
+            }),
+          });
+
+          const data = await brokerResponse.json();
+          if (brokerResponse.ok && data.success) {
+            const result: PrintResult = { success: true, method: "broker", jobId: data.jobId };
+            setLastResult(result);
+            return result;
+          }
+        }
+
+        const url = URL.createObjectURL(blob);
+        const printWindow = window.open(url, "_blank");
+        if (printWindow) {
+          printWindow.onload = () => setTimeout(() => printWindow.print(), 500);
+        }
+
+        const result: PrintResult = { success: true, method: "browser" };
+        setLastResult(result);
+        return result;
+
+      } catch (error: any) {
+        const result: PrintResult = { success: false, method: "browser", error: error.message || "Blad drukowania PDF" };
+        setLastResult(result);
+        return result;
+      }
+    },
+    [brokerStatus, checkBroker]
+  );
+
+  const printOrderPdf = useCallback(
+    async (
+      orderId: number,
+      opts?: { title?: string }
+    ): Promise<PrintResult> => {
+      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+      const token = localStorage.getItem("token");
+
+      try {
+        const response = await fetch(`${API_URL}/orders/${orderId}/pdf`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!response.ok) {
+          throw new Error("Nie mozna pobrac PDF zamowienia");
+        }
+
+        const blob = await response.blob();
+
+        let status = brokerStatus;
+        if (!status) {
+          status = await checkBroker();
+        }
+
+        if (status?.online) {
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve((reader.result as string).split(",")[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+
+          const brokerResponse = await fetch(`${BROKER_BASE_URL}/print`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              documentType: "order",
+              contentType: "pdf",
+              content: base64,
+              copies: 1,
+              paperSize: "A4",
+              title: opts?.title,
+            }),
+          });
+
+          const data = await brokerResponse.json();
+          if (brokerResponse.ok && data.success) {
+            const result: PrintResult = { success: true, method: "broker", jobId: data.jobId };
+            setLastResult(result);
+            return result;
+          }
+        }
+
+        const url = URL.createObjectURL(blob);
+        const printWindow = window.open(url, "_blank");
+        if (printWindow) {
+          printWindow.onload = () => setTimeout(() => printWindow.print(), 500);
+        }
+
+        const result: PrintResult = { success: true, method: "browser" };
+        setLastResult(result);
+        return result;
+
+      } catch (error: any) {
+        const result: PrintResult = { success: false, method: "browser", error: error.message || "Blad drukowania PDF" };
+        setLastResult(result);
+        return result;
+      }
+    },
+    [brokerStatus, checkBroker]
+  );
+
   return {
     // State
     loading,
@@ -744,6 +1034,10 @@ export function usePrint(options: UsePrintOptions = {}) {
     printOrder,
     printReceipt,
     printDeliveryNote,
+    printInvoicePdf,
+    printReceiptPdf,
+    printProformaPdf,
+    printOrderPdf,
   };
 }
 

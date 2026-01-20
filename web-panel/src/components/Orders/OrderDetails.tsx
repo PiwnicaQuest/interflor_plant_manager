@@ -172,7 +172,7 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
       if (documentType === 'invoice') {
         window.open(`/print/invoice/${result.documentId}`, '_blank');
       } else {
-        window.open(`/print/receipt-a4/${result.documentId}`, '_blank');
+        window.open(`/print/receipt/${result.documentId}`, '_blank');
       }
 
       setTimeout(() => {
