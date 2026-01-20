@@ -52,7 +52,7 @@ export class ReportController {
         return res.status(400).json({ error: validation.error });
       }
 
-      const validStatuses = ['all', 'open', 'closed', 'pending', 'in_progress', 'ready_for_pickup', 'completed', 'cancelled'];
+      const validStatuses = ['all', 'open', 'closed', 'pending', 'ready_for_pickup', 'completed', 'cancelled'];
       const status = orderStatus && validStatuses.includes(orderStatus as string) ? orderStatus as string : 'all';
 
       const report = await ReportModel.getSalesReport(startDate as string, endDate as string, status);

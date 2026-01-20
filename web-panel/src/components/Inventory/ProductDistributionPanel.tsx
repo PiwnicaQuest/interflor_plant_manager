@@ -109,7 +109,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
   // Filter orders that can be edited (not completed/cancelled)
   const editableOrders = useMemo(() => {
     return orders.filter(o =>
-      o.status === 'pending' || o.status === 'in_progress' || o.status === 'ready_for_pickup'
+      o.status === 'pending' || o.status === 'ready_for_pickup'
     );
   }, [orders]);
 
@@ -210,7 +210,6 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
   const getStatusLabel = (status: string) => {
     const labels: Record<string, { text: string; color: string }> = {
       pending: { text: 'Oczekuje', color: 'bg-yellow-100 text-yellow-800' },
-      in_progress: { text: 'W realizacji', color: 'bg-blue-100 text-blue-800' },
       ready_for_pickup: { text: 'Do odbioru', color: 'bg-purple-100 text-purple-800' },
       completed: { text: 'Zakonczone', color: 'bg-green-100 text-green-800' },
       cancelled: { text: 'Anulowane', color: 'bg-red-100 text-red-800' },

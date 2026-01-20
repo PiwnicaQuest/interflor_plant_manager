@@ -171,7 +171,7 @@ async function seedOrders(count: number) {
     return;
   }
 
-  const statuses = ['pending', 'in_progress', 'ready_for_pickup', 'completed', 'cancelled'];
+  const statuses = ['pending', 'ready_for_pickup', 'completed', 'cancelled'];
 
   for (let i = 0; i < count; i++) {
     await transaction(async (client) => {

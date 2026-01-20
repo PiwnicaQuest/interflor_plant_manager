@@ -1,3 +1,4 @@
+import { useSmartPrint } from "../../hooks/useSmartPrint";
 import { useEffect } from 'react';
 
 interface CorrectionItem {
@@ -68,6 +69,10 @@ interface CorrectionTemplateProps {
 }
 
 export function CorrectionTemplate({ data, sellerInfo }: CorrectionTemplateProps) {
+  const { print } = useSmartPrint({
+    documentType: "correction",
+    onPrintError: (error) => console.error("Correction print error:", error),
+  });
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pl-PL');
   };
@@ -91,8 +96,8 @@ export function CorrectionTemplate({ data, sellerInfo }: CorrectionTemplateProps
 
   useEffect(() => {
     document.title = 'Korekta ' + data.correctionNumber;
-    setTimeout(() => window.print(), 500);
-  }, [data.correctionNumber]);
+    setTimeout(() => print(), 500);
+  }, [data.correctionNumber, print]);
 
   const styles = {
     container: {

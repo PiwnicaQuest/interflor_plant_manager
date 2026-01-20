@@ -1,3 +1,4 @@
+import { useSmartPrint } from "../../hooks/useSmartPrint";
 import { OrderItem } from '../../types';
 
 interface CustomerInfo {
@@ -50,6 +51,10 @@ const defaultCompanyInfo = {
 };
 
 export function ReceiptA4Template({ data, companyInfo = defaultCompanyInfo }: ReceiptA4TemplateProps) {
+  const { print, isPrinting } = useSmartPrint({
+    documentType: "receipt-a4",
+    onPrintError: (error) => console.error("ReceiptA4 print error:", error),
+  });
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('pl-PL', {
       year: 'numeric',
@@ -423,7 +428,7 @@ export function ReceiptA4Template({ data, companyInfo = defaultCompanyInfo }: Re
       {/* Print Button */}
       <div className="no-print" style={styles.noPrint}>
         <button
-          onClick={() => window.print()}
+          onClick={print}
           style={{
             padding: '10px 24px',
             backgroundColor: '#16a34a',

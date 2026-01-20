@@ -117,7 +117,7 @@ export class ReportModel {
   static async getSalesReport(startDate: string, endDate: string, orderStatus: string = 'all'): Promise<any> {
     // Build status filter
     let statusFilter = '';
-    const openStatuses = ['pending', 'in_progress', 'ready_for_pickup'];
+    const openStatuses = ['pending', 'ready_for_pickup'];
     const closedStatuses = ['completed', 'cancelled'];
 
     if (orderStatus === 'open') {
@@ -206,7 +206,6 @@ export class ReportModel {
 
     const statusLabels: Record<string, string> = {
       pending: 'Oczekujące',
-      in_progress: 'W realizacji',
       ready_for_pickup: 'Gotowe do odbióru',
       completed: 'Zrealizowane',
       cancelled: 'Anulowane',
@@ -220,7 +219,7 @@ export class ReportModel {
     }));
 
     // Calculate totals for open and closed
-    const openStatuses = ['pending', 'in_progress', 'ready_for_pickup'];
+    const openStatuses = ['pending', 'ready_for_pickup'];
     const closedStatuses = ['completed', 'cancelled'];
 
     const openStats = stats.filter((s: any) => openStatuses.includes(s.status));

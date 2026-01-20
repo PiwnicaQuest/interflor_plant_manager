@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "../services/api";
+import { printerService, DocumentType as QzDocumentType } from "../services/printerService";
 
 // Document types that can be printed
 export type DocumentType =
@@ -27,7 +28,7 @@ interface PrinterConfig {
 
 interface PrintResult {
   success: boolean;
-  method: "broker" | "queue" | "browser";
+  method: "broker" | "qztray" | "queue" | "browser";
   jobId?: string;
   error?: string;
 }
@@ -68,6 +69,16 @@ const DOC_TYPE_MAP: Record<DocumentType, BrokerDocumentType> = {
   delivery_notes: "delivery_note",
 };
 
+
+// Map DocumentType to QZ Tray document type
+const QZ_DOC_TYPE_MAP: Record<DocumentType, QzDocumentType> = {
+  barcode_labels: "label",
+  orders: "order",
+  invoices: "invoice",
+  receipts: "receipt",
+  inventory_reports: "order",
+  delivery_notes: "order",
+};
 // Map DocumentType to paper size
 const DEFAULT_PAPER_SIZE: Record<DocumentType, string> = {
   barcode_labels: "50x30mm",
@@ -454,6 +465,54 @@ export function usePrint(options: UsePrintOptions = {}) {
           }
         }
       }
+
+      // ========================================
+      // 1.5. Try QZ Tray (if available and configured)
+      // ========================================
+      if (!forceBrowserPrint) {
+        const qzDocType = QZ_DOC_TYPE_MAP[documentType];
+        const qzPrinter = printerService.getPrinterForDocument(qzDocType);
+        
+        if (qzPrinter && printerService.isConnected()) {
+          try {
+            console.log("[usePrint] Using QZ Tray for", qzDocType, "->", qzPrinter);
+            
+            const wrappedContent = `
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                ${getBasePrintStyles(documentType)}
+              </head>
+              <body>
+                ${htmlContent}
+              </body>
+              </html>
+            `;
+            
+            const success = await printerService.printHtml(wrappedContent, qzDocType, {
+              copies: printOptions?.copies || 1,
+            });
+            
+            if (success) {
+              const result: PrintResult = {
+                success: true,
+                method: "qztray",
+              };
+              setLastResult(result);
+              console.log("[usePrint] QZ Tray print successful");
+              return result;
+            } else {
+              console.warn("[usePrint] QZ Tray print failed, trying next method...");
+            }
+          } catch (error: any) {
+            console.warn("[usePrint] QZ Tray error:", error.message);
+            // Continue to fallback methods
+          }
+        }
+      }
+
 
       // ========================================
       // 2. Try Print Queue (Print Agent)

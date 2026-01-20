@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../services/api';
+import { printerService } from '../services/printerService';
 import { OrderTemplateLite } from '../components/Print/OrderTemplateLite';
 import { OrderWithItems } from '../types';
 
@@ -87,16 +88,53 @@ export function BulkPrintOrdersPage() {
     }
   }, [loading, ordersData]);
 
-  // Auto-print when ready
+  // Auto-print when ready - try QZ Tray first
   useEffect(() => {
-    if (readyToPrint) {
-      setTimeout(() => {
+    const doPrint = async () => {
+      if (readyToPrint) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // Try QZ Tray first
+        const printer = printerService.getPrinterForDocument("order");
+        if (printer && printerService.isConnected()) {
+          try {
+            const printContent = document.getElementById("print-content");
+            if (printContent) {
+              const success = await printerService.printElement(printContent, "order");
+              if (success) {
+                console.log("[BulkPrintOrders] QZ Tray print successful");
+                return;
+              }
+            }
+          } catch (e) {
+            console.warn("[BulkPrintOrders] QZ Tray failed, falling back to browser print");
+          }
+        }
+
+        // Fallback to browser print
         window.print();
-      }, 100);
-    }
+      }
+    };
+    doPrint();
   }, [readyToPrint]);
 
-  const handleManualPrint = useCallback(() => {
+  // Manual print handler - also tries QZ Tray first
+  const handleManualPrint = useCallback(async () => {
+    const printer = printerService.getPrinterForDocument("order");
+    if (printer && printerService.isConnected()) {
+      try {
+        const printContent = document.getElementById("print-content");
+        if (printContent) {
+          const success = await printerService.printElement(printContent, "order");
+          if (success) {
+            console.log("[BulkPrintOrders] Manual QZ Tray print successful");
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn("[BulkPrintOrders] Manual QZ Tray failed, falling back");
+      }
+    }
     window.print();
   }, []);
 
@@ -134,7 +172,7 @@ export function BulkPrintOrdersPage() {
   } : undefined;
 
   return (
-    <div className="bulk-print-container">
+    <div className="bulk-print-container" id="print-content">
       <style>{`
         @media print {
           .bulk-print-container {

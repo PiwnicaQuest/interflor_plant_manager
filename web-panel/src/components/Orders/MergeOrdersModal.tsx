@@ -22,7 +22,7 @@ export function MergeOrdersModal({ masterOrder, onClose, onSuccess }: MergeOrder
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        // Pobierz zamówienia tego samego kontrahenta w statusie pending lub in_progress
+        // Pobierz zamówienia tego samego kontrahenta w statusie pending
         const data = await api.getOrders({ customerId: masterOrder.customerId });
         const validOrders = data.orders.filter(
           (order) =>

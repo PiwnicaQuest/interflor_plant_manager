@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { API } from '../../services/api';
 import type { OrderWithItems, Product, OrderStatus } from '../../types';
+import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Oczekujące',
-  in_progress: 'W realizacji',
   ready_for_pickup: 'Do odbióru',
   completed: 'Zakonczone',
   cancelled: 'Anulowane',
@@ -13,7 +13,6 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  in_progress: 'bg-blue-100 text-blue-800 border-blue-200',
   ready_for_pickup: 'bg-purple-100 text-purple-800 border-purple-200',
   completed: 'bg-green-100 text-green-800 border-green-200',
   cancelled: 'bg-red-100 text-red-800 border-red-200',
@@ -23,11 +22,6 @@ const STATUS_ICONS: Record<string, JSX.Element> = {
   pending: (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  ),
-  in_progress: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
     </svg>
   ),
   ready_for_pickup: (
@@ -49,9 +43,8 @@ const STATUS_ICONS: Record<string, JSX.Element> = {
 
 // Define valid status transitions
 const STATUS_TRANSITIONS: Record<string, string[]> = {
-  pending: ['in_progress', 'cancelled'],
-  in_progress: ['ready_for_pickup', 'pending', 'cancelled'],
-  ready_for_pickup: ['in_progress', 'cancelled'],
+  pending: ['ready_for_pickup', 'cancelled'],
+  ready_for_pickup: ['pending', 'cancelled'],
   completed: [], // Cannot change from completed
   cancelled: [], // Cannot change from cancelled
 };
@@ -66,12 +59,19 @@ interface EditedItem {
   productName: string;
   unitPrice: number;
   imageUrl?: string;
+  // New fields for individual save functionality
+  orderItemId?: number; // ID of the saved order item
+  isSaved: boolean; // Whether item is saved to backend
+  isModified: boolean; // Whether saved item has been modified
+  originalInputValue?: number; // Original value before modification (for saved items)
+  originalUnitPrice?: number; // Original price before modification
+  availableStock?: number; // Current available stock for this product
 }
 
 // Helper function to get correct price based on customer's price group
 const getCustomerPrice = (product: Product, priceGroupName?: string): number => {
   if (!priceGroupName) return product.basePriceGross || 0;
-  
+
   switch (priceGroupName) {
     case 'rabat_10':
       return product.priceDiscount10 || product.basePriceGross || 0;
@@ -106,6 +106,9 @@ export function ScannerOrderDetailPage() {
   const [editMode, setEditMode] = useState(false);
   const [editedItems, setEditedItems] = useState<EditedItem[]>([]);
 
+  // Single item saving state
+  const [savingItemIndex, setSavingItemIndex] = useState<number | null>(null);
+
   // Status change
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
@@ -123,7 +126,31 @@ export function ScannerOrderDetailPage() {
   // Product search
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+
+  // Product orders modal
+  const [showProductOrdersModal, setShowProductOrdersModal] = useState(false);
+  const [productOrdersData, setProductOrdersData] = useState<{ productName: string; orders: any[] } | null>(null);
+  const [loadingProductOrders, setLoadingProductOrders] = useState(false);
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Check if there are unsaved items
+  const hasUnsavedItems = useCallback(() => {
+    return editedItems.some(item => !item.isSaved || item.isModified);
+  }, [editedItems]);
+
+  // Warning when leaving page with unsaved items
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (editMode && hasUnsavedItems()) {
+        e.preventDefault();
+        e.returnValue = 'Masz niezapisane produkty. Czy na pewno chcesz wyjść?';
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [editMode, hasUnsavedItems]);
 
   useEffect(() => {
     if (id) {
@@ -152,28 +179,190 @@ export function ScannerOrderDetailPage() {
     try {
       const result = await API.getOrder(Number(id));
       setOrder(result.order);
+      
+      // Get unique product IDs to fetch current stock
+      const uniqueProductIds = [...new Set(result.order.items.map(item => item.productId).filter(Boolean))] as number[];
+      
+      // Fetch current stock for all products in parallel
+      const stockMap = new Map<number, number>();
+      if (uniqueProductIds.length > 0) {
+        const stockPromises = uniqueProductIds.map(async (productId) => {
+          try {
+            const productData = await API.getProduct(productId);
+            return { productId, stock: productData.product.totalUnits ?? 0 };
+          } catch {
+            return { productId, stock: 0 };
+          }
+        });
+        const stockResults = await Promise.all(stockPromises);
+        stockResults.forEach(({ productId, stock }) => stockMap.set(productId, stock));
+      }
+      
       setEditedItems(result.order.items.map(item => {
         const unitsPerPallet = item.unitsPerPallet || item.productSnapshot?.unitsPerPallet || 1;
         // Używamy rzeczywistej ilości palet (ułamkowej) aby zachować dokładną ilość sztuk
         const actualPalletCount = item.quantity / unitsPerPallet;
         return {
           productId: item.productId ?? 0,
-          quantityMode: 'pallets', // Domyślnie tryb paletek
+          quantityMode: 'pallets' as QuantityMode,
           inputValue: actualPalletCount,
           unitsPerPallet,
           productName: item.productSnapshot?.plantName || item.productName || 'Produkt',
           unitPrice: item.unitPriceGross || 0,
           imageUrl: item.productSnapshot?.imageUrl,
+          // Mark existing items as saved
+          orderItemId: item.id,
+          isSaved: true,
+          isModified: false,
+          originalInputValue: actualPalletCount,
+          originalUnitPrice: item.unitPriceGross || 0,
+          availableStock: stockMap.get(item.productId ?? 0) ?? 0,
         };
       }));
       // Auto-enable edit mode for empty orders
-      if (result.order.items.length === 0 && ['pending', 'in_progress'].includes(result.order.status)) {
+      if (result.order.items.length === 0 && result.order.status === 'pending') {
         setEditMode(true);
       }
     } catch (err: any) {
       setError('Nie udało się pobrać zamówienia');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Save single item to backend
+
+  // Helper function to update stock for a product across all items
+  const updateStockForProduct = (productId: number, quantityChange: number) => {
+    setEditedItems(prevItems => 
+      prevItems.map(item => 
+        item.productId === productId 
+          ? { ...item, availableStock: Math.max(0, (item.availableStock ?? 0) - quantityChange) }
+          : item
+      )
+    );
+  };
+
+  const handleSaveItem = async (index: number) => {
+    if (!order) return;
+
+    const item = editedItems[index];
+    if (item.isSaved && !item.isModified) return; // Already saved and not modified
+
+    setSavingItemIndex(index);
+    setError(null);
+
+    try {
+      if (item.isSaved && item.orderItemId) {
+        // Update existing item
+        await API.updateOrderItem(order.id, item.orderItemId, {
+          quantity: getItemUnits(item),
+          palletCount: Math.ceil(getItemPallets(item)),
+          unitsPerPallet: item.unitsPerPallet,
+        });
+      } else {
+        // Add new item
+        const result = await API.addOrderItem(order.id, {
+          productId: item.productId,
+          quantity: getItemUnits(item),
+          unitPriceGross: item.unitPrice,
+          palletCount: Math.ceil(getItemPallets(item)),
+          unitsPerPallet: item.unitsPerPallet,
+        });
+
+        // Update the item with the returned orderItemId
+        const newItems = [...editedItems];
+        newItems[index] = {
+          ...newItems[index],
+          orderItemId: result.item?.id || result.id,
+          isSaved: true,
+          isModified: false,
+          originalInputValue: item.inputValue,
+          originalUnitPrice: item.unitPrice,
+        };
+        setEditedItems(newItems);
+        setSavingItemIndex(null);
+        // Update stock for this product across all items
+        updateStockForProduct(item.productId, getItemUnits(item));
+        return;
+      }
+
+      // Update local state for existing item update
+      const newItems = [...editedItems];
+      newItems[index] = {
+        ...newItems[index],
+        isSaved: true,
+        isModified: false,
+        originalInputValue: item.inputValue,
+        originalUnitPrice: item.unitPrice,
+      };
+      setEditedItems(newItems);
+      // Update stock based on quantity difference
+      const originalUnits = (item.originalInputValue ?? 0) * item.unitsPerPallet;
+      const newUnits = getItemUnits(item);
+      const quantityDiff = newUnits - originalUnits;
+      if (quantityDiff !== 0) {
+        updateStockForProduct(item.productId, quantityDiff);
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Nie udało się zapisać produktu');
+    } finally {
+      setSavingItemIndex(null);
+    }
+  };
+
+  // Auto-save unsaved items before adding new product
+  // This function saves all unsaved items in a batch and updates state once
+  const autoSaveUnsavedItems = async () => {
+    if (!order) return;
+
+    // Get all unsaved items with their current data
+    const unsavedItems = editedItems
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => !item.isSaved);
+
+    if (unsavedItems.length === 0) return;
+
+    // Save all unsaved items and collect results
+    const saveResults: { index: number; orderItemId: number }[] = [];
+
+    for (const { item, index } of unsavedItems) {
+      try {
+        const result = await API.addOrderItem(order.id, {
+          productId: item.productId,
+          quantity: getItemUnits(item),
+          unitPriceGross: item.unitPrice,
+          palletCount: Math.ceil(getItemPallets(item)),
+          unitsPerPallet: item.unitsPerPallet,
+        });
+        saveResults.push({
+          index,
+          orderItemId: result.item?.id || result.id
+        });
+      } catch (err: any) {
+        console.error('Auto-save error for item', index, err);
+        // Continue with other items even if one fails
+      }
+    }
+
+    // Update state once with all saved items using functional update
+    if (saveResults.length > 0) {
+      setEditedItems(prevItems => {
+        const newItems = [...prevItems];
+        for (const { index, orderItemId } of saveResults) {
+          if (newItems[index]) {
+            newItems[index] = {
+              ...newItems[index],
+              orderItemId,
+              isSaved: true,
+              isModified: false,
+              originalInputValue: newItems[index].inputValue,
+              originalUnitPrice: newItems[index].unitPrice,
+            };
+          }
+        }
+        return newItems;
+      });
     }
   };
 
@@ -192,6 +381,9 @@ export function ScannerOrderDetailPage() {
     setError(null);
 
     try {
+      // Auto-save unsaved items first
+      await autoSaveUnsavedItems();
+
       const result = await API.scanBarcode(barcode);
       if (result.product) {
         handleAddProduct(result.product);
@@ -209,6 +401,33 @@ export function ScannerOrderDetailPage() {
     }
   };
 
+  // Obsługa skanera kodów kreskowych z prefiksem [barcode]
+  const handleDirectBarcodeScan = useCallback(async (barcode: string) => {
+    if (!editMode) return; // Tylko w trybie edycji
+
+    setScanLoading(true);
+    setError(null);
+
+    try {
+      // Auto-save unsaved items first
+      await autoSaveUnsavedItems();
+
+      const result = await API.scanBarcode(barcode);
+      if (result.product) {
+        handleAddProduct(result.product);
+        setLastAddedProduct(result.product.plantName);
+      } else {
+        setError('Produkt nie znaleziony: ' + barcode);
+      }
+    } catch (err: any) {
+      setError('Produkt nie znaleziony: ' + barcode);
+    } finally {
+      setScanLoading(false);
+      setScanInput('');
+    }
+  }, [editMode]);
+
+  useBarcodeScanner({ onScan: handleDirectBarcodeScan, enabled: editMode });
 
   // Search products by name (debounced)
   const handleSearchProducts = async (query: string) => {
@@ -231,7 +450,7 @@ export function ScannerOrderDetailPage() {
           search: query,
           isArchived: false
         });
-        setSearchResults(result.products.slice(0, 10)); // Max 10 results
+        setSearchResults(result.products.slice(0, 20)); // Max 20 results
         setShowSearchDropdown(result.products.length > 0);
       } catch (err) {
         console.error('Search error:', err);
@@ -242,7 +461,10 @@ export function ScannerOrderDetailPage() {
   };
 
   // Handle selecting a product from search results
-  const handleSelectSearchResult = (product: Product) => {
+  const handleSelectSearchResult = async (product: Product) => {
+    // Auto-save unsaved items first
+    await autoSaveUnsavedItems();
+
     handleAddProduct(product);
     setLastAddedProduct(product.plantName);
     setScanInput('');
@@ -255,7 +477,7 @@ export function ScannerOrderDetailPage() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setScanInput(value);
-    
+
     // If input contains letters, trigger search
     if (/[a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/.test(value)) {
       handleSearchProducts(value);
@@ -273,24 +495,36 @@ export function ScannerOrderDetailPage() {
       return;
     }
 
-    const existingIndex = editedItems.findIndex(item => item.productId === product.id);
-    if (existingIndex >= 0) {
-      // Increase value by 1 and move to top of list
-      const updatedItem = { ...editedItems[existingIndex], inputValue: editedItems[existingIndex].inputValue + 1 };
-      const otherItems = editedItems.filter((_, i) => i !== existingIndex);
-      setEditedItems([updatedItem, ...otherItems]);
-    } else {
-      // Add new
-      setEditedItems([{
-        productId: product.id,
-        quantityMode: 'pallets',
-        inputValue: 1,
-        unitsPerPallet: product.unitsPerPallet || 1,
-        productName: product.plantName,
-        unitPrice: getCustomerPrice(product, order?.customerPriceGroupName),
-        imageUrl: product.imageUrl,
-      }, ...editedItems]);
-    }
+    // Use functional update to ensure we work with latest state
+    setEditedItems(prevItems => {
+      const existingIndex = prevItems.findIndex(item => item.productId === product.id);
+      if (existingIndex >= 0) {
+        // Increase value by 1 and move to top of list
+        const existingItem = prevItems[existingIndex];
+        const updatedItem = {
+          ...existingItem,
+          inputValue: existingItem.inputValue + 1,
+          isModified: existingItem.isSaved ? true : existingItem.isModified, // Mark as modified if saved
+          availableStock: product.totalUnits, // Refresh stock from scanned product
+        };
+        const otherItems = prevItems.filter((_, i) => i !== existingIndex);
+        return [updatedItem, ...otherItems];
+      } else {
+        // Add new (unsaved)
+        return [{
+          productId: product.id,
+          quantityMode: 'pallets' as QuantityMode,
+          inputValue: 1,
+          unitsPerPallet: product.unitsPerPallet || 1,
+          productName: product.plantName,
+          unitPrice: getCustomerPrice(product, order?.customerPriceGroupName),
+          imageUrl: product.imageUrl,
+          isSaved: false,
+          availableStock: product.totalUnits,
+          isModified: false,
+        }, ...prevItems];
+      }
+    });
   };
 
   // Toggle quantity mode
@@ -320,31 +554,74 @@ export function ScannerOrderDetailPage() {
     const newItems = [...editedItems];
     const item = newItems[index];
     const newValue = item.quantityMode === "pallets" ? (parseFloat(value) || 0) : (parseInt(value) || 0);
-    newItems[index].inputValue = Math.max(0, newValue);
+    newItems[index] = {
+      ...item,
+      inputValue: Math.max(0, newValue),
+      isModified: item.isSaved ? true : item.isModified, // Mark as modified if saved
+    };
     setEditedItems(newItems);
   };
 
   const handleQuantityChange = (index: number, delta: number) => {
     const newItems = [...editedItems];
-    const newValue = Math.max(1, newItems[index].inputValue + delta);
-    newItems[index].inputValue = newValue;
+    const item = newItems[index];
+    const newValue = Math.max(1, item.inputValue + delta);
+    newItems[index] = {
+      ...item,
+      inputValue: newValue,
+      isModified: item.isSaved ? true : item.isModified, // Mark as modified if saved
+    };
     setEditedItems(newItems);
   };
 
   const handlePriceChange = (index: number, value: string) => {
     const newItems = [...editedItems];
+    const item = newItems[index];
     const newPrice = parseFloat(value) || 0;
-    newItems[index].unitPrice = Math.max(0, newPrice);
+    newItems[index] = {
+      ...item,
+      unitPrice: Math.max(0, newPrice),
+      isModified: item.isSaved ? true : item.isModified, // Mark as modified if saved
+    };
     setEditedItems(newItems);
   };
 
-  const handleRemoveItem = (index: number) => {
+  const handleRemoveItem = async (index: number) => {
+    const item = editedItems[index];
+
+    // If item is saved, delete from backend
+    if (item.isSaved && item.orderItemId && order) {
+      try {
+        await API.deleteOrderItem(order.id, item.orderItemId);
+      } catch (err: any) {
+        setError(err.response?.data?.error || 'Nie udało się usunąć produktu');
+        return;
+      }
+    }
+
     const newItems = [...editedItems];
     newItems.splice(index, 1);
     setEditedItems(newItems);
   };
 
   // Calculate total units for an item
+
+  // Show orders containing this product
+  const handleShowProductOrders = async (productId: number, productName: string) => {
+    setLoadingProductOrders(true);
+    setShowProductOrdersModal(true);
+    setProductOrdersData({ productName, orders: [] });
+    try {
+      const result = await API.getOrdersByProduct(productId, 20);
+      // Filter out current order
+      const filteredOrders = result.orders.filter(o => o.id !== order?.id);
+      setProductOrdersData({ productName, orders: filteredOrders });
+    } catch (err) {
+      setProductOrdersData({ productName, orders: [] });
+    } finally {
+      setLoadingProductOrders(false);
+    }
+  };
   const getItemUnits = (item: EditedItem) => {
     if (item.quantityMode === 'pallets') {
       return Math.round(item.inputValue * item.unitsPerPallet);
@@ -398,6 +675,13 @@ export function ScannerOrderDetailPage() {
   };
 
   const handleCancel = () => {
+    // Check for unsaved items
+    if (hasUnsavedItems()) {
+      if (!window.confirm('Masz niezapisane produkty. Czy na pewno chcesz anulować?')) {
+        return;
+      }
+    }
+
     if (!order) return;
     setEditedItems(order.items.map(item => {
       const unitsPerPallet = item.unitsPerPallet || item.productSnapshot?.unitsPerPallet || 1;
@@ -411,6 +695,11 @@ export function ScannerOrderDetailPage() {
         productName: item.productSnapshot?.plantName || item.productName || 'Produkt',
         unitPrice: item.unitPriceGross || 0,
         imageUrl: item.productSnapshot?.imageUrl,
+        orderItemId: item.id,
+        isSaved: true,
+        isModified: false,
+        originalInputValue: actualPalletCount,
+        originalUnitPrice: item.unitPriceGross || 0,
       };
     }));
     setEditMode(false);
@@ -449,6 +738,16 @@ export function ScannerOrderDetailPage() {
     } finally {
       setChangingStatus(false);
     }
+  };
+
+  // Handle navigation back with unsaved items warning
+  const handleNavigateBack = () => {
+    if (editMode && hasUnsavedItems()) {
+      if (!window.confirm('Masz niezapisane produkty. Czy na pewno chcesz wyjść?')) {
+        return;
+      }
+    }
+    navigate('/scanner/orders');
   };
 
   const calculateTotal = () => {
@@ -493,7 +792,7 @@ export function ScannerOrderDetailPage() {
 
   if (!order) return null;
 
-  const isEditable = order.status === 'pending' || order.status === 'in_progress';
+  const isEditable = order.status === 'pending';
   const availableTransitions = STATUS_TRANSITIONS[order.status] || [];
   const canChangeStatus = availableTransitions.length > 0;
 
@@ -504,7 +803,7 @@ export function ScannerOrderDetailPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button
-              onClick={() => navigate('/scanner/orders')}
+              onClick={handleNavigateBack}
               className="p-1 text-gray-600 hover:text-gray-900"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -680,7 +979,6 @@ export function ScannerOrderDetailPage() {
                   onClick={() => handleStatusChange(status as OrderStatus)}
                   disabled={changingStatus}
                   className={`flex-shrink-0 px-3 py-1.5 rounded-lg font-medium text-xs flex items-center gap-1.5 ${
-                    status === 'in_progress' ? 'bg-blue-500 text-white hover:bg-blue-600' :
                     status === 'ready_for_pickup' ? 'bg-purple-500 text-white hover:bg-purple-600' :
                     status === 'completed' ? 'bg-green-500 text-white hover:bg-green-600' :
                     status === 'pending' ? 'bg-yellow-500 text-white hover:bg-yellow-600' :
@@ -715,43 +1013,110 @@ export function ScannerOrderDetailPage() {
 
           <div className="divide-y divide-gray-100">
             {editedItems.map((item, index) => (
-              <div key={item.productId} className="px-3 py-2">
+              <div
+                key={`${item.productId}-${index}`}
+                className={`px-3 py-2 ${!item.isSaved ? 'bg-yellow-50' : item.isModified ? 'bg-blue-50' : ''}`}
+              >
                 <div className="flex gap-3">
-                  {/* Image thumbnail */}
-                  <button
-                    onClick={() => item.imageUrl && setPreviewImage({ url: item.imageUrl, name: item.productName })}
-                    className={`flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden bg-gray-100 ${item.imageUrl ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
-                    disabled={!item.imageUrl}
-                  >
-                    {item.imageUrl ? (
-                      <img
-                        src={item.imageUrl}
-                        alt={item.productName}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
-                          (e.target as HTMLImageElement).parentElement!.innerHTML = '<svg class="w-6 h-6 text-gray-300 m-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  {/* Image thumbnail + Save button column */}
+                  <div className="flex flex-col items-center gap-1">
+                    <button
+                      onClick={() => item.imageUrl && setPreviewImage({ url: item.imageUrl, name: item.productName })}
+                      className={`flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden bg-gray-100 ${item.imageUrl ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
+                      disabled={!item.imageUrl}
+                    >
+                      {item.imageUrl ? (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.productName}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                            (e.target as HTMLImageElement).parentElement!.innerHTML = '<svg class="w-6 h-6 text-gray-300 m-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      )}
+                    </button>
+
+                    {/* Save/Update button under image - only in edit mode */}
+                    {editMode && (!item.isSaved || item.isModified) && (
+                      <button
+                        onClick={() => handleSaveItem(index)}
+                        disabled={savingItemIndex === index || getItemUnits(item) <= 0}
+                        className={`w-14 h-14 rounded-lg flex items-center justify-center text-white font-bold text-xl transition-colors disabled:opacity-50 ${
+                          item.isModified
+                            ? 'bg-blue-500 hover:bg-blue-600'
+                            : 'bg-green-500 hover:bg-green-600'
+                        }`}
+                        title={item.isModified ? 'Aktualizuj' : 'Zapisz'}
+                      >
+                        {savingItemIndex === index ? (
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white" />
+                        ) : item.isModified ? (
+                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                        ) : (
+                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                          </svg>
+                        )}
+                      </button>
+                    )}
+
+                    {/* Saved indicator */}
+                    {editMode && item.isSaved && !item.isModified && (
+                      <div className="w-14 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+                        <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                       </div>
                     )}
-                  </button>
+                  </div>
 
                   {/* Item details */}
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start">
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-medium text-gray-900">{item.productName}</div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="text-xs font-medium text-gray-900">{item.productName}</div>
+                          {/* Status badges */}
+                          {!item.isSaved && (
+                            <span className="px-1.5 py-0.5 bg-yellow-200 text-yellow-800 text-[10px] font-medium rounded">
+                              Nowy
+                            </span>
+                          )}
+                          {item.isModified && (
+                            <span className="px-1.5 py-0.5 bg-blue-200 text-blue-800 text-[10px] font-medium rounded">
+                              Zmieniony
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs text-gray-500">
                           {item.unitPrice.toFixed(2)} PLN/szt. ({item.unitsPerPallet} szt./pal.)
                         </div>
+                        <div className={`text-xs ${(item.availableStock ?? 0) <= 0 ? "text-red-600 font-medium" : (item.availableStock ?? 0) < 50 ? "text-orange-600" : "text-gray-500"}`}>
+                          Magazyn: {item.availableStock ?? 0} szt. ({Math.floor((item.availableStock ?? 0) / item.unitsPerPallet)} pal.)
+                        </div>
                       </div>
 
+
+                      {/* Button to view other orders with this product */}
+                      <button
+                        onClick={() => handleShowProductOrders(item.productId, item.productName)}
+                        className="p-1 text-blue-500 hover:bg-blue-50 rounded ml-1"
+                        title="Zamówienia z tym produktem"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                      </button>
                       {editMode && (
                         <button
                           onClick={() => handleRemoveItem(index)}
@@ -998,7 +1363,6 @@ export function ScannerOrderDetailPage() {
                   } disabled:opacity-50`}
                 >
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    status === 'in_progress' ? 'bg-blue-100 text-blue-600' :
                     status === 'ready_for_pickup' ? 'bg-purple-100 text-purple-600' :
                     status === 'completed' ? 'bg-green-100 text-green-600' :
                     status === 'pending' ? 'bg-yellow-100 text-yellow-600' :
@@ -1014,7 +1378,6 @@ export function ScannerOrderDetailPage() {
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-gray-900 text-sm">{STATUS_LABELS[status]}</div>
                     <div className="text-xs text-gray-500 truncate">
-                      {status === 'in_progress' && 'Zamówienie jest przygotowywane'}
                       {status === 'ready_for_pickup' && 'Zamówienie czeka na odbiór'}
                       {status === 'completed' && 'Zamówienie zostało odebrane'}
                       {status === 'pending' && 'Przywroc do oczekujacych'}
@@ -1078,6 +1441,76 @@ export function ScannerOrderDetailPage() {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Product Orders Modal */}
+      {showProductOrdersModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-md w-full max-h-[80vh] overflow-hidden shadow-xl flex flex-col">
+            <div className="p-3 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900 text-sm">Zamówienia z produktem</h3>
+                <p className="text-xs text-gray-500 truncate">{productOrdersData?.productName}</p>
+              </div>
+              <button
+                onClick={() => setShowProductOrdersModal(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-auto p-3">
+              {loadingProductOrders ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+                </div>
+              ) : productOrdersData?.orders.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 text-sm">
+                  Brak innych aktywnych zamówień z tym produktem
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {productOrdersData?.orders.map((ord) => (
+                    <div key={ord.id} className="bg-gray-50 rounded-lg p-2.5 border border-gray-200">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-sm text-gray-900">{ord.orderNumber}</span>
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                          ord.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-purple-100 text-purple-800'
+                        }`}>
+                          {STATUS_LABELS[ord.status] || ord.status}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        {ord.customerCode ? `[${ord.customerCode}] ` : ''}{ord.customerName || 'Brak klienta'}
+                      </div>
+                      <div className="flex items-center justify-between mt-1 text-xs">
+                        <span className="text-gray-500">
+                          {new Date(ord.createdAt).toLocaleDateString('pl-PL')}
+                        </span>
+                        <span className="font-medium text-green-600">
+                          {ord.productQuantity} szt.
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="p-3 border-t border-gray-200">
+              <button
+                onClick={() => setShowProductOrdersModal(false)}
+                className="w-full py-2 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 text-sm"
+              >
+                Zamknij
+              </button>
             </div>
           </div>
         </div>

@@ -23,8 +23,8 @@ export function OrdersPage() {
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkCancelModal, setShowBulkCancelModal] = useState(false);
   const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
+  const [bulkTargetStatus, setBulkTargetStatus] = useState<OrderStatus>(OrderStatus.READY_FOR_PICKUP);
   const [bulkActionInProgress, setBulkActionInProgress] = useState(false);
-  const [bulkTargetStatus, setBulkTargetStatus] = useState<OrderStatus>(OrderStatus.IN_PROGRESS);
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -284,7 +284,6 @@ export function OrdersPage() {
     const headers = ['Nr zamówienia', 'Klient', 'Data', 'Pozycje', 'Kwota', 'Status'];
     const statusLabels: Record<OrderStatus, string> = {
       [OrderStatus.PENDING]: 'Oczekuje',
-      [OrderStatus.IN_PROGRESS]: 'W realizacji',
       [OrderStatus.READY_FOR_PICKUP]: 'Gotowe do odbióru',
       [OrderStatus.COMPLETED]: 'Zakończone',
       [OrderStatus.CANCELLED]: 'Anulowane',
@@ -361,7 +360,6 @@ export function OrdersPage() {
             >
               <option value="">Wszystkie</option>
               <option value={OrderStatus.PENDING}>Oczekuje</option>
-              <option value={OrderStatus.IN_PROGRESS}>W realizacji</option>
               <option value={OrderStatus.READY_FOR_PICKUP}>Gotowe do odbióru</option>
               <option value={OrderStatus.COMPLETED}>Zakończone</option>
               <option value={OrderStatus.CANCELLED}>Anulowane</option>
@@ -633,7 +631,6 @@ export function OrdersPage() {
                 onChange={(e) => setBulkTargetStatus(e.target.value as OrderStatus)}
               >
                 <option value={OrderStatus.PENDING}>Oczekuje</option>
-                <option value={OrderStatus.IN_PROGRESS}>W realizacji</option>
                 <option value={OrderStatus.READY_FOR_PICKUP}>Gotowe do odbióru</option>
                 <option value={OrderStatus.COMPLETED}>Zakończone</option>
               </select>

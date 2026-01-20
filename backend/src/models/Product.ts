@@ -334,22 +334,35 @@ export class ProductModel {
     };
   }
 
-static async getMovements(productId: number, limit = 50): Promise<InventoryMovement[]> {
+static async getMovements(productId: number, limit = 50, movementTypes?: string[]): Promise<InventoryMovement[]> {
+    let typeFilter = '';
+    const params: any[] = [productId];
+    
+    if (movementTypes && movementTypes.length > 0) {
+      const placeholders = movementTypes.map((_, i) => `$${i + 2}`).join(', ');
+      typeFilter = ` AND im.movement_type IN (${placeholders})`;
+      params.push(...movementTypes);
+    }
+    
+    params.push(limit);
+    const limitPlaceholder = `$${params.length}`;
+    
     const result = await query<InventoryMovement>(
       `SELECT
         im.*,
         u.email as user_email,
         o.order_number,
         o.status as order_status,
+        c.customer_code as order_customer_code,
         COALESCE(c.company_name, CONCAT(c.first_name, ' ', c.last_name)) as order_customer_name
        FROM inventory_movements im
        LEFT JOIN users u ON im.user_id = u.id
        LEFT JOIN orders o ON im.reference_type = 'order' AND im.reference_id = o.id
        LEFT JOIN customers c ON o.customer_id = c.id
-       WHERE im.product_id = $1 AND (im.hidden IS NULL OR im.hidden = false)
+       WHERE im.product_id = $1 AND (im.hidden IS NULL OR im.hidden = false)${typeFilter}
        ORDER BY im.created_at DESC
-       LIMIT $2`,
-      [productId, limit]
+       LIMIT ${limitPlaceholder}`,
+      params
     );
     return result.rows;
   }

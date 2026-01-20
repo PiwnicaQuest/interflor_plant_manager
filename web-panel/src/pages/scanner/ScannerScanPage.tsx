@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { API } from '../../services/api';
 import type { Product, InventoryMovement } from '../../types';
+import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 
 export function ScannerScanPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -13,6 +14,26 @@ export function ScannerScanPage() {
   const [imageError, setImageError] = useState(false);
   const [showFullImage, setShowFullImage] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Obsługa skanera kodów kreskowych z prefiksem [barcode]
+  const handleBarcodeScan = useCallback(async (barcode: string) => {
+    setSearchLoading(true);
+    setError(null);
+    setSearchResults([]);
+    setSearchQuery('');
+
+    try {
+      const result = await API.scanBarcode(barcode);
+      setSelectedProduct(result.product);
+      setMovements(result.recentMovements || []);
+    } catch (err: any) {
+      setError('Produkt nie znaleziony: ' + barcode);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
+
+  useBarcodeScanner({ onScan: handleBarcodeScan });
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -366,7 +387,7 @@ export function ScannerScanPage() {
                   <h3 className="font-semibold text-gray-700 text-sm">Ostatnie ruchy</h3>
                 </div>
                 <div className="divide-y divide-gray-100 max-h-48 overflow-auto">
-                  {movements.slice(0, 10).map((movement) => (
+                  {movements.slice(0, 50).map((movement) => (
                     <div key={movement.id} className="px-3 py-2 flex justify-between items-center">
                       <div className="flex-1 min-w-0">
                         {movement.movementType === 'order' && movement.orderNumber ? (
@@ -381,14 +402,12 @@ export function ScannerScanPage() {
                               {movement.orderStatus && (
                                 <span className={`px-1 py-0.5 rounded text-[10px] font-medium ${
                                   movement.orderStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                  movement.orderStatus === 'in_progress' ? 'bg-blue-100 text-blue-800' :
                                   movement.orderStatus === 'ready_for_pickup' ? 'bg-purple-100 text-purple-800' :
                                   movement.orderStatus === 'completed' ? 'bg-green-100 text-green-800' :
                                   movement.orderStatus === 'cancelled' ? 'bg-red-100 text-red-800' :
                                   'bg-gray-100 text-gray-800'
                                 }`}>
                                   {movement.orderStatus === 'pending' ? 'Oczekujące' :
-                                   movement.orderStatus === 'in_progress' ? 'W realizacji' :
                                    movement.orderStatus === 'ready_for_pickup' ? 'Do odbióru' :
                                    movement.orderStatus === 'completed' ? 'Zakonczone' :
                                    movement.orderStatus === 'cancelled' ? 'Anulowane' :

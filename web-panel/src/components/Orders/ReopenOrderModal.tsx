@@ -10,7 +10,6 @@ interface ReopenOrderModalProps {
 
 const statusOptions: { value: OrderStatus; label: string }[] = [
   { value: OrderStatus.READY_FOR_PICKUP, label: 'Gotowe do odbióru' },
-  { value: OrderStatus.IN_PROGRESS, label: 'W realizacji' },
   { value: OrderStatus.PENDING, label: 'Oczekuje' },
 ];
 

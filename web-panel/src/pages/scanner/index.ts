@@ -4,3 +4,4 @@ export { ScannerScanPage } from './ScannerScanPage';
 export { ScannerOrdersPage } from './ScannerOrdersPage';
 export { ScannerOrderDetailPage } from './ScannerOrderDetailPage';
 export { ScannerNewOrderPage } from './ScannerNewOrderPage';
+export { ScannerLossPage } from './ScannerLossPage';

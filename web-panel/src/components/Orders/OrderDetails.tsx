@@ -18,7 +18,6 @@ interface OrderDetailsProps {
 
 const statusConfig: Record<OrderStatus, { label: string; class: string }> = {
   [OrderStatus.PENDING]: { label: 'Oczekuje', class: 'badge-info' },
-  [OrderStatus.IN_PROGRESS]: { label: 'W realizacji', class: 'badge-warning' },
   [OrderStatus.READY_FOR_PICKUP]: { label: 'Gotowe do odbióru', class: 'badge-success' },
   [OrderStatus.COMPLETED]: { label: 'Zakończone', class: 'badge-success' },
   [OrderStatus.CANCELLED]: { label: 'Anulowane', class: 'badge-danger' },
@@ -206,7 +205,7 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
   };
 
   const canCreateDocument = () => {
-    return order.status === OrderStatus.READY_FOR_PICKUP || order.status === OrderStatus.IN_PROGRESS || order.status === OrderStatus.PENDING;
+    return order.status === OrderStatus.READY_FOR_PICKUP || order.status === OrderStatus.PENDING;
   };
 
   const canReopenOrder = () => {
@@ -318,7 +317,6 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
     
     const statusLabels: Record<OrderStatus, string> = {
       [OrderStatus.PENDING]: 'Oczekuje',
-      [OrderStatus.IN_PROGRESS]: 'W realizacji',
       [OrderStatus.READY_FOR_PICKUP]: 'Gotowe do odbióru',
       [OrderStatus.COMPLETED]: 'Zakończone',
       [OrderStatus.CANCELLED]: 'Anulowane',

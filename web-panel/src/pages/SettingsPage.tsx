@@ -9,6 +9,7 @@ import { EditPriceGroupModal } from '../components/PriceGroups/EditPriceGroupMod
 import { GrowerPassportsTab } from '../components/Settings/GrowerPassportsTab';
 import { TagsTab } from '../components/Settings/TagsTab';
 import { PrinterSettingsTab } from '../components/Settings/PrinterSettingsTab';
+import { QzTraySettingsTab } from '../components/Settings/QzTraySettingsTab';
 import PermissionProfilesTab from '../components/settings/PermissionProfilesTab';
 import { LoginHistoryTab } from '../components/Settings/LoginHistoryTab';
 
@@ -50,6 +51,7 @@ type TabType = 'company' | 'pricing' | 'email-import' | 'users' | 'login-history
 
 export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('company');
+  const [printerSubTab, setPrinterSubTab] = useState<'qztray' | 'agent'>('qztray');
 
   // Pricing settings state
   const [pricingSettings, setPricingSettings] = useState<PricingSettings>({
@@ -1144,8 +1146,36 @@ export function SettingsPage() {
       {/* Customers viewing modal */}
 
       {/* Grower Passports Tab */}
-      {activeTab === 'printers' && (
+      {activeTab === "printers" && (
         <div className="space-y-6">
+          {/* Sub-tab selector */}
+          <div className="bg-white rounded-lg shadow p-2 flex gap-2">
+            <button
+              onClick={() => setPrinterSubTab("qztray")}
+              className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                printerSubTab === "qztray"
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              QZ Tray (Lokalne)
+            </button>
+            <button
+              onClick={() => setPrinterSubTab("agent")}
+              className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                printerSubTab === "agent"
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              Print Agent (Sieciowe)
+            </button>
+          </div>
+
+          {printerSubTab === "qztray" && <QzTraySettingsTab />}
+
+          {printerSubTab === "agent" && (
+            <>
           {/* Download Print Agent Section */}
           <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-6">
             <div className="flex items-start gap-4">
@@ -1281,6 +1311,8 @@ export function SettingsPage() {
 
           {/* Existing PrinterSettingsTab component */}
           <PrinterSettingsTab />
+            </>
+          )}
         </div>
       )}
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../services/api';
+import { printerService } from '../services/printerService';
 import { ReceiptTemplate } from '../components/Print/ReceiptTemplate';
 import { Receipt, Order } from '../types';
 
@@ -67,12 +68,34 @@ export function BulkPrintReceiptsPage() {
     fetchData();
   }, []);
 
+  // Auto-print when data is loaded - try QZ Tray first
   useEffect(() => {
-    if (!loading && receiptsData.length > 0) {
-      setTimeout(() => {
+    const doPrint = async () => {
+      if (!loading && receiptsData.length > 0) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Try QZ Tray first
+        const printer = printerService.getPrinterForDocument("receipt");
+        if (printer && printerService.isConnected()) {
+          try {
+            const printContent = document.getElementById("print-content");
+            if (printContent) {
+              const success = await printerService.printElement(printContent, "receipt");
+              if (success) {
+                console.log("[BulkPrintReceipts] QZ Tray print successful");
+                return;
+              }
+            }
+          } catch (e) {
+            console.warn("[BulkPrintReceipts] QZ Tray failed, falling back to browser print");
+          }
+        }
+
+        // Fallback to browser print
         window.print();
-      }, 500);
-    }
+      }
+    };
+    doPrint();
   }, [loading, receiptsData]);
 
   // Build companyInfo from company settings
@@ -105,7 +128,7 @@ export function BulkPrintReceiptsPage() {
   }
 
   return (
-    <div className="bulk-print-container">
+    <div className="bulk-print-container" id="print-content">
       <style>{`
         @media print {
           .bulk-print-container {

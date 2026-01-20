@@ -357,17 +357,49 @@ class PrintAgent {
                     deviceScaleFactor: 4, // ~384 DPI for high quality print
                 });
             }
+            // For barcode labels, rotate 180 degrees (TSC printers feed paper from bottom)
+            if (job.documentType === 'barcode_labels') {
+                // Generate TSPL and send to printer
+                const bcMatch = html.match(/data-barcode="([^"]+)"/);
+                const barcode = bcMatch ? bcMatch[1] : '000';
+                const tsplCommands = [
+                    'SIZE 50 mm, 30 mm',
+                    'GAP 2 mm, 0 mm',
+                    'DIRECTION 1',
+                    'CLS',
+                    'BARCODE 80,40,"128",50,1,0,2,2,"' + barcode + '"',
+                    'PRINT ' + (job.copies || 1)
+                ].join('\n');
+                const tsplPath = path.join(CONFIG.tempDir, job.jobId + '.prn');
+                require('fs').writeFileSync(tsplPath, tsplCommands);
+                console.log('  TSPL:', tsplPath, 'Barcode:', barcode);
+                try {
+                    const printer = await Promise.resolve().then(() => __importStar(require('pdf-to-printer')));
+                    await printer.print(tsplPath, { printer: job.printerName || undefined });
+                    console.log('  Printed via pdf-to-printer');
+                }
+                finally {
+                    if (require('fs').existsSync(tsplPath))
+                        require('fs').unlinkSync(tsplPath);
+                }
+                return;
+            }
+            // DEBUG: Save HTML to file for inspection
+            const fs = require("fs");
+            console.log("DEBUG HTML length:", html.length);
+            console.log("DEBUG HTML preview:", html.substring(0, 500));
             await page.setContent(html, { waitUntil: 'networkidle0' });
             const pdfPath = path.join(CONFIG.tempDir, `${job.jobId}.pdf`);
             // Build PDF options
             const pdfOptions = {
                 path: pdfPath,
-                landscape: job.orientation === 'landscape',
+                // landscape is only for standard formats, not custom dimensions
                 printBackground: true,
                 preferCSSPageSize: true, // Respect CSS @page rules
             };
             if (paperConfig.format) {
                 // Standard format (A4, A5, Letter, etc.)
+                pdfOptions.landscape = job.orientation === 'landscape';
                 pdfOptions.format = paperConfig.format;
                 pdfOptions.margin = { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' };
             }
@@ -378,6 +410,7 @@ class PrintAgent {
                 pdfOptions.margin = { top: '0mm', bottom: '0mm', left: '0mm', right: '0mm' };
                 pdfOptions.scale = 1; // No scaling
             }
+            console.log("DEBUG PDF Options:", JSON.stringify(pdfOptions, null, 2));
             await page.pdf(pdfOptions);
             await this.printFile(pdfPath, job);
             fs.unlinkSync(pdfPath);

@@ -152,7 +152,10 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
         case 'text':
           return '<div style="' + baseStyles + ' display: flex; align-items: center; padding: 1px;">' + content + '</div>';
         case 'barcode':
-          return '<svg class="template-barcode" data-barcode="' + content + '" style="' + baseStyles + '"></svg>';
+          // Pass element dimensions as data attributes for JsBarcode
+          const barcodeWidth = Math.max(0.5, Math.min(3, el.width / 30)); // Scale width relative to element width
+          const barcodeHeight = Math.max(20, Math.min(100, el.height * 0.7)); // Scale height to ~70% of element height
+          return '<svg class="template-barcode" data-barcode="' + content + '" data-width="' + barcodeWidth + '" data-height="' + barcodeHeight + '" style="' + baseStyles + '"></svg>';
         case 'rectangle':
           return '<div style="' + baseStyles + '"></div>';
         case 'line':
@@ -162,7 +165,7 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
       }
     }).join('');
 
-    return '<div class="label" style="width: ' + (template.paperWidth * mmToPx) + 'px; height: ' + (template.paperHeight * mmToPx) + 'px; position: relative; border: 1px solid #ddd; margin: 2px; box-sizing: border-box; page-break-inside: avoid;">' + elementsHtml + '</div>';
+    return '<div class="label" style="width: ' + (template.paperWidth * mmToPx) + 'px; height: ' + (template.paperHeight * mmToPx) + 'px; position: relative; margin: 0; box-sizing: border-box; page-break-inside: avoid;">' + elementsHtml + '</div>';
   };
 
   const generatePrintHtml = (): string => {
@@ -196,7 +199,7 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
       '@page { size: ' + paperWidth + 'mm ' + paperHeight + 'mm; margin: 1mm; }' +
       '* { margin: 0; padding: 0; box-sizing: border-box; } body { margin: 0; padding: 0; font-family: Arial, sans-serif; }' +
       '.label-container { width: 100%; }' +
-      '.label { width: ' + (paperWidth - 2) + 'mm; height: ' + (paperHeight - 2) + 'mm; border: 1px solid #ddd; padding: 1mm; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; page-break-inside: avoid; }' +
+      '.label { width: ' + paperWidth + 'mm; height: ' + paperHeight + 'mm; padding: 1mm; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; page-break-inside: avoid; }' +
       '.product-name { font-size: 8px; font-weight: bold; margin-bottom: 1mm; text-align: center; max-width: ' + (paperWidth - 4) + 'mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }' +
       '.product-info { font-size: 7px; color: #333; margin-bottom: 1mm; }' +
       '.barcode-svg { max-width: ' + (paperWidth - 4) + 'mm; height: auto; }' +
@@ -205,7 +208,7 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
       '<div class="label-container">' + labelsHtml + '</div>' +
       '<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>' +
       '<script>' +
-      'document.querySelectorAll(".template-barcode").forEach(function(svg) { var barcode = svg.getAttribute("data-barcode"); if (barcode) { JsBarcode(svg, barcode, { format: "CODE128", width: 1.5, height: 50, displayValue: true, fontSize: 10, margin: 0, textMargin: 1 }); } });' +
+      'document.querySelectorAll(".template-barcode").forEach(function(svg) { var barcode = svg.getAttribute("data-barcode"); var barcodeWidth = parseFloat(svg.getAttribute("data-width")) || 1.5; var barcodeHeight = parseFloat(svg.getAttribute("data-height")) || 50; if (barcode) { JsBarcode(svg, barcode, { format: "CODE128", width: barcodeWidth, height: barcodeHeight, displayValue: true, fontSize: Math.max(8, Math.min(14, barcodeHeight * 0.2)), margin: 0, textMargin: 1 }); } });' +
       'document.querySelectorAll(".barcode-svg").forEach(function(svg) { var barcode = svg.getAttribute("data-barcode"); if (barcode) { JsBarcode(svg, barcode, { format: "CODE128", width: 1.5, height: 50, displayValue: true, fontSize: 10, margin: 0, textMargin: 1 }); } });' +
       '</script></body></html>';
   };

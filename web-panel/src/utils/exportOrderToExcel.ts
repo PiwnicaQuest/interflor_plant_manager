@@ -5,7 +5,6 @@ export async function exportOrderToExcel(order: OrderWithItems): Promise<void> {
   
   const statusLabels: Record<OrderStatus, string> = {
     [OrderStatus.PENDING]: 'Oczekuje',
-    [OrderStatus.IN_PROGRESS]: 'W realizacji',
     [OrderStatus.READY_FOR_PICKUP]: 'Gotowe do odbióru',
     [OrderStatus.COMPLETED]: 'Zakończone',
     [OrderStatus.CANCELLED]: 'Anulowane',

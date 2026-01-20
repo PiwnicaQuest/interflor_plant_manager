@@ -38,7 +38,6 @@ function getDefaultDateRange(): DateRange {
 
 const statusColors: Record<string, string> = {
   pending: '#f59e0b',
-  in_progress: '#3b82f6',
   ready_for_pickup: '#8b5cf6',
   completed: '#10b981',
   cancelled: '#ef4444',
@@ -49,7 +48,6 @@ const statusOptions = [
   { value: 'open', label: 'Otwarte (oczekujące, w realizacji, do odbióru)' },
   { value: 'closed', label: 'Zamknięte (zrealizowane, anulowane)' },
   { value: 'pending', label: 'Oczekujące' },
-  { value: 'in_progress', label: 'W realizacji' },
   { value: 'ready_for_pickup', label: 'Gotowe do odbióru' },
   { value: 'completed', label: 'Zrealizowane' },
   { value: 'cancelled', label: 'Anulowane' },

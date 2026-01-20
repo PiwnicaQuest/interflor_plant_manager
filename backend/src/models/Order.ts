@@ -1452,7 +1452,7 @@ export class OrderModel {
       FROM orders o
       JOIN order_items oi ON oi.order_id = o.id
       LEFT JOIN customers c ON c.id = o.customer_id
-      WHERE oi.product_id = $1
+      WHERE oi.product_id = $1 AND o.status IN ('pending', 'ready_for_pickup')
       ORDER BY o.created_at DESC
       LIMIT $2`,
       [productId, limit]

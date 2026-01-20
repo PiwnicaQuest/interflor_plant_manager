@@ -1,4 +1,5 @@
 import { OrderItem } from "../../types";
+import { useSmartPrint } from "../../hooks/useSmartPrint";
 
 interface ReceiptData {
   receiptNumber: string;
@@ -23,13 +24,18 @@ interface ReceiptTemplateProps {
 }
 
 const defaultCompanyInfo = {
-  name: "Firma nie skonfigurowana",
-  address: "Skonfiguruj dane firmy w Ustawieniach",
-  nip: "0000000000",
-  phone: "",
+  name: "POLFLOR Sp. z o.o.",
+  address: "ul. Kwiatowa 15, 00-001 Warszawa",
+  nip: "123-456-78-90",
+  phone: "+48 123 456 789",
 };
 
 export function ReceiptTemplate({ data, companyInfo = defaultCompanyInfo }: ReceiptTemplateProps) {
+  const { print, isPrinting, isQzConfigured, printerName } = useSmartPrint({
+    documentType: 'receipt',
+    onPrintError: (error) => console.error('Receipt print error:', error),
+  });
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString("pl-PL", {
       year: "numeric",
@@ -53,7 +59,7 @@ export function ReceiptTemplate({ data, companyInfo = defaultCompanyInfo }: Rece
   const RECEIPT_WIDTH = "54mm";
 
   return (
-    <div className="receipt-template">
+    <div className="receipt-template" id="print-content">
       <style>{`
         /* Reset dla druku */
         @media print {
@@ -252,6 +258,16 @@ export function ReceiptTemplate({ data, companyInfo = defaultCompanyInfo }: Rece
           font-size: 11px;
           cursor: pointer;
         }
+        .no-print button:disabled {
+          background: #9ca3af;
+          cursor: not-allowed;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+          animation: spin 1s linear infinite;
+        }
       `}</style>
 
       {/* Header */}
@@ -340,9 +356,14 @@ export function ReceiptTemplate({ data, companyInfo = defaultCompanyInfo }: Rece
 
       {/* Print Button */}
       <div className="no-print">
-        <button onClick={() => window.print()}>
-          Drukuj
+        <button onClick={print} disabled={isPrinting}>
+          {isPrinting ? 'Drukowanie...' : 'Drukuj'}
         </button>
+        {isQzConfigured && printerName && (
+          <p style={{ fontSize: "8px", color: "#666", marginTop: "4px" }}>
+            QZ: {printerName}
+          </p>
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 {
-  "name": "Skaner Magazynowy - PlantManager",
-  "short_name": "Skaner",
+  "name": "Skaner Magazynowy - POLFLOR",
+  "short_name": "POLFLOR",
   "description": "Aplikacja do skanowania kodów i zarządzania zamówieniami magazynowymi",
   "start_url": "/scanner/scan",
   "scope": "/scanner/",
@@ -11,22 +11,28 @@
   "categories": ["business", "productivity"],
   "icons": [
     {
-      "src": "/scanner-icon-192.png",
+      "src": "/polflor-icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/scanner-icon-512.png",
+      "src": "/polflor-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/scanner-icon-maskable-512.png",
+      "src": "/polflor-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    },
+    {
+      "src": "/polflor-icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
   "screenshots": [],

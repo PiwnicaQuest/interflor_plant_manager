@@ -1,4 +1,5 @@
 import { PaymentMethod, PaymentStatus, PaymentSplit } from "../../types";
+import { useSmartPrint } from "../../hooks/useSmartPrint";
 
 interface InvoiceItem {
   id: number;
@@ -95,6 +96,11 @@ interface VatSummaryRow {
 }
 
 export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: InvoiceTemplateProps) {
+  const { print, isPrinting, isQzConfigured, printerName } = useSmartPrint({
+    documentType: 'invoice',
+    onPrintError: (error) => console.error('Invoice print error:', error),
+  });
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("pl-PL", {
       year: "numeric",
@@ -158,11 +164,11 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
   // Calculate VAT summary by rate with rounding adjustment
   const calculateVatSummary = (): VatSummaryRow[] => {
     const vatMap = new Map<number, VatSummaryRow>();
-    
+
     data.items?.forEach(item => {
       const rate = item.vatRate;
       const existing = vatMap.get(rate);
-      
+
       if (existing) {
         existing.netValue += Number(item.totalNet) || 0;
         existing.vatAmount += Number(item.totalVat) || 0;
@@ -179,17 +185,17 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
 
     // Sort by VAT rate descending
     const rows = Array.from(vatMap.values()).sort((a, b) => b.rate - a.rate);
-    
+
     // Adjust for rounding differences - use invoice totals as source of truth
     if (rows.length > 0) {
       const sumNet = rows.reduce((sum, r) => sum + r.netValue, 0);
       const sumVat = rows.reduce((sum, r) => sum + r.vatAmount, 0);
       const sumGross = rows.reduce((sum, r) => sum + r.grossValue, 0);
-      
+
       const diffNet = (Number(data.subtotalNet) || 0) - sumNet;
       const diffVat = (Number(data.totalVat) || 0) - sumVat;
       const diffGross = (Number(data.totalGross) || 0) - sumGross;
-      
+
       // Apply rounding adjustment to the first (highest) rate row
       if (Math.abs(diffNet) < 1 && Math.abs(diffVat) < 1 && Math.abs(diffGross) < 1) {
         rows[0].netValue += diffNet;
@@ -197,7 +203,7 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
         rows[0].grossValue += diffGross;
       }
     }
-    
+
     return rows;
   };
 
@@ -207,20 +213,20 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
   // Calculate adjusted item values to match invoice totals (handles rounding differences)
   const getAdjustedItems = () => {
     if (!data.items || data.items.length === 0) return [];
-    
+
     // Calculate raw sums from items
     const rawSumNet = data.items.reduce((sum, item) => sum + (Number(item.totalNet) || 0), 0);
     const rawSumVat = data.items.reduce((sum, item) => sum + (Number(item.totalVat) || 0), 0);
     const rawSumGross = data.items.reduce((sum, item) => sum + (Number(item.totalGross) || 0), 0);
-    
+
     // Get invoice totals
     const invoiceNet = Number(data.subtotalNet) || 0;
     const invoiceVat = Number(data.totalVat) || 0;
     const invoiceGross = Number(data.totalGross) || 0;
-    
+
     // If sums match (within tolerance), return items as-is
-    if (Math.abs(rawSumNet - invoiceNet) < 0.01 && 
-        Math.abs(rawSumVat - invoiceVat) < 0.01 && 
+    if (Math.abs(rawSumNet - invoiceNet) < 0.01 &&
+        Math.abs(rawSumVat - invoiceVat) < 0.01 &&
         Math.abs(rawSumGross - invoiceGross) < 0.01) {
       return data.items.map(item => ({
         ...item,
@@ -229,34 +235,34 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
         adjustedGross: Number(item.totalGross) || 0,
       }));
     }
-    
+
     // Adjust values proportionally
     const netRatio = rawSumNet > 0 ? invoiceNet / rawSumNet : 1;
     const vatRatio = rawSumVat > 0 ? invoiceVat / rawSumVat : 1;
     const grossRatio = rawSumGross > 0 ? invoiceGross / rawSumGross : 1;
-    
+
     let adjustedItems = data.items.map(item => ({
       ...item,
       adjustedNet: (Number(item.totalNet) || 0) * netRatio,
       adjustedVat: (Number(item.totalVat) || 0) * vatRatio,
       adjustedGross: (Number(item.totalGross) || 0) * grossRatio,
     }));
-    
+
     // Final adjustment to ensure exact match (apply difference to last item)
     if (adjustedItems.length > 0) {
       const sumAdjNet = adjustedItems.reduce((sum, item) => sum + item.adjustedNet, 0);
       const sumAdjVat = adjustedItems.reduce((sum, item) => sum + item.adjustedVat, 0);
       const sumAdjGross = adjustedItems.reduce((sum, item) => sum + item.adjustedGross, 0);
-      
+
       const lastItem = adjustedItems[adjustedItems.length - 1];
       lastItem.adjustedNet += invoiceNet - sumAdjNet;
       lastItem.adjustedVat += invoiceVat - sumAdjVat;
       lastItem.adjustedGross += invoiceGross - sumAdjGross;
     }
-    
+
     return adjustedItems;
   };
-  
+
   const adjustedItems = getAdjustedItems();
 
   // Inline styles for print compatibility
@@ -424,12 +430,12 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
   };
 
   return (
-    <div style={styles.container} className="invoice-template">
+    <div style={styles.container} className="invoice-template" id="print-content">
       <style>{`
         @media print {
-          @page { 
-            size: A4 portrait; 
-            margin: 8mm; 
+          @page {
+            size: A4 portrait;
+            margin: 8mm;
           }
           html, body {
             width: 210mm;
@@ -630,7 +636,7 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
               <div>Forma: <strong>{getPaymentMethodLabel(data.paymentMethod)}</strong></div>
             )}
             <div style={{ marginTop: "4px" }}>Status: <strong>{getPaymentStatusLabel(data.paymentStatus)}</strong></div>
-            
+
             {sellerInfo.bankAccount && (
               <div style={{ marginTop: "10px", padding: "10px", backgroundColor: "#f9fafb", borderRadius: "4px", fontSize: "10px" }}>
                 <div style={{ fontWeight: "600" }}>{sellerInfo.bankName}</div>
@@ -648,24 +654,24 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
         {/* Right side - Payment Summary Box */}
         <div style={styles.totalBox}>
           <div style={styles.totalLabel}>Podsumowanie płatności</div>
-          
+
           <div style={{ ...styles.totalRow, borderBottom: "1px solid #e2e8f0", paddingBottom: "6px", marginBottom: "6px" }}>
             <span>Wartość faktury:</span>
             <strong>{(Number(data.totalGross) || 0).toFixed(2)} zł</strong>
           </div>
-          
+
           <div style={styles.totalRow}>
             <span>Zapłacono:</span>
             <strong>{(Number(data.paidAmount) || 0).toFixed(2)} zł</strong>
           </div>
-          
+
           {data.paidAt && data.paidAmount > 0 && (
             <div style={{ ...styles.totalRow, fontSize: "9px", color: "#64748b" }}>
               <span>Data zapłaty:</span>
               <span>{formatDate(data.paidAt)}</span>
             </div>
           )}
-          
+
           <div style={{ ...styles.totalRow, borderTop: "1px solid #e2e8f0", paddingTop: "8px", marginTop: "8px" }}>
             <span style={{ fontWeight: "600" }}>Pozostało do zapłaty:</span>
           </div>
@@ -674,7 +680,7 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
               {remainingToPay.toFixed(2)} PLN
             </span>
           </div>
-          
+
           {data.paymentDeadline && remainingToPay > 0 && (
             <div style={{ fontSize: "9px", color: "#64748b", marginTop: "6px", textAlign: "right" }}>
               Termin: {formatDate(data.paymentDeadline)}
@@ -704,19 +710,43 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
       {/* Print Button */}
       <div className="no-print" style={styles.noPrint}>
         <button
-          onClick={() => window.print()}
+          onClick={print}
+          disabled={isPrinting}
           style={{
             padding: "10px 24px",
-            backgroundColor: "#2563eb",
+            backgroundColor: isPrinting ? "#9ca3af" : "#2563eb",
             color: "white",
             border: "none",
             borderRadius: "6px",
             fontSize: "14px",
-            cursor: "pointer",
+            cursor: isPrinting ? "not-allowed" : "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
           }}
         >
-          Drukuj fakturę
+          {isPrinting ? (
+            <>
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              Drukowanie...
+            </>
+          ) : (
+            <>
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+              Drukuj fakturę
+            </>
+          )}
         </button>
+        {isQzConfigured && printerName && (
+          <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "8px" }}>
+            QZ Tray: {printerName}
+          </div>
+        )}
       </div>
     </div>
   );

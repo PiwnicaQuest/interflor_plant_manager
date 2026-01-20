@@ -12,7 +12,6 @@ interface OrdersTableProps {
 
 const statusConfig: Record<OrderStatus, { label: string; class: string }> = {
   [OrderStatus.PENDING]: { label: 'Oczekuje', class: 'badge-info' },
-  [OrderStatus.IN_PROGRESS]: { label: 'W realizacji', class: 'badge-warning' },
   [OrderStatus.READY_FOR_PICKUP]: { label: 'Gotowe do odbióru', class: 'badge-success' },
   [OrderStatus.COMPLETED]: { label: 'Zakończone', class: 'badge-success' },
   [OrderStatus.CANCELLED]: { label: 'Anulowane', class: 'badge-danger' },
@@ -129,7 +128,6 @@ export function OrdersTable({
                         onClick={(e) => e.stopPropagation()}
                       >
                         <option value={OrderStatus.PENDING}>Oczekuje</option>
-                        <option value={OrderStatus.IN_PROGRESS}>W realizacji</option>
                         <option value={OrderStatus.READY_FOR_PICKUP}>Gotowe</option>
                         <option value={OrderStatus.COMPLETED}>Zakończone</option>
                         <option value={OrderStatus.CANCELLED}>Anuluj</option>

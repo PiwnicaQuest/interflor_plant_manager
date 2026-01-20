@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { InvoiceTemplate } from '../components/Print/InvoiceTemplate';
+import { printerService } from "../services/printerService";
 import { Invoice } from '../types';
 
 interface CompanySettings {
@@ -62,11 +63,33 @@ export function BulkPrintInvoicesPage() {
   }, []);
 
   useEffect(() => {
-    if (!loading && invoices.length > 0) {
-      setTimeout(() => {
+    const doPrint = async () => {
+      if (!loading && invoices.length > 0) {
+        // Wait for render
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Try QZ Tray first
+        const printer = printerService.getPrinterForDocument("invoice");
+        if (printer && printerService.isConnected()) {
+          try {
+            const printContent = document.getElementById("print-content");
+            if (printContent) {
+              const success = await printerService.printElement(printContent, "invoice");
+              if (success) {
+                console.log("[BulkPrint] QZ Tray print successful");
+                return;
+              }
+            }
+          } catch (e) {
+            console.warn("[BulkPrint] QZ Tray failed, falling back to browser print");
+          }
+        }
+        
+        // Fallback to browser print
         window.print();
-      }, 500);
-    }
+      }
+    };
+    doPrint();
   }, [loading, invoices]);
 
   // Build sellerInfo from company settings

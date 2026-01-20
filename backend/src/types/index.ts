@@ -10,7 +10,6 @@ export enum UserRole {
 
 export enum OrderStatus {
   PENDING = 'pending',
-  IN_PROGRESS = 'in_progress',
   READY_FOR_PICKUP = 'ready_for_pickup',
   COMPLETED = 'completed',
   CANCELLED = 'cancelled'

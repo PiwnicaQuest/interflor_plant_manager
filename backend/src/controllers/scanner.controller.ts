@@ -70,11 +70,12 @@ export class ScannerController {
         // Create product snapshot
         const productSnapshot = {
           id: product.id,
-          plant_name: product.plant_name,
-          pot_size: product.pot_size,
-          plant_height_cm: product.plant_height_cm,
+          plantName: product.plantName,
+          potSize: product.potSize,
+          plantHeightCm: product.plantHeightCm,
           barcode: product.barcode,
-          image_url: product.image_url,
+          imageUrl: product.imageUrl,
+          unitsPerPallet: product.unitsPerPallet || 1,
         };
 
         // Calculate pallet info

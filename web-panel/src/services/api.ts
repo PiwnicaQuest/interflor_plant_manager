@@ -246,6 +246,22 @@ class ApiClient {
     return response.data;
   }
 
+  // Order items - single item operations for scanner
+  async addOrderItem(orderId: number, item: { productId: number; quantity: number; unitPriceGross: number; palletCount?: number; unitsPerPallet?: number }): Promise<any> {
+    const response = await this.client.post(`/orders/${orderId}/items`, item);
+    return response.data;
+  }
+
+  async updateOrderItem(orderId: number, itemId: number, data: { quantity?: number; palletCount?: number; unitsPerPallet?: number }): Promise<any> {
+    const response = await this.client.put(`/orders/${orderId}/items/${itemId}`, data);
+    return response.data;
+  }
+
+  async deleteOrderItem(orderId: number, itemId: number): Promise<{ message: string }> {
+    const response = await this.client.delete(`/orders/${orderId}/items/${itemId}`);
+    return response.data;
+  }
+
   // ============================================
   // CUSTOMERS (TODO: implement on backend)
   // ============================================

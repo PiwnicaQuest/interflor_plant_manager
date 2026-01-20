@@ -176,7 +176,10 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
         case 'text':
           return '<div style="' + baseStyles + ' display: flex; align-items: center; padding: 1px;">' + content + '</div>';
         case 'barcode':
-          return '<svg class="template-barcode" data-barcode="' + content + '" style="' + baseStyles + '"></svg>';
+          // Pass element dimensions as data attributes for JsBarcode
+          const barcodeWidth = Math.max(0.5, Math.min(3, el.width / 30)); // Scale width relative to element width
+          const barcodeHeight = Math.max(20, Math.min(100, el.height * 0.7)); // Scale height to ~70% of element height
+          return '<svg class="template-barcode" data-barcode="' + content + '" data-width="' + barcodeWidth + '" data-height="' + barcodeHeight + '" style="' + baseStyles + '"></svg>';
         case 'rectangle':
           return '<div style="' + baseStyles + '"></div>';
         case 'line':
@@ -186,7 +189,7 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
       }
     }).join('');
 
-    return '<div class="label" style="width: ' + (template.paperWidth * mmToPx) + 'px; height: ' + (template.paperHeight * mmToPx) + 'px; position: relative; border: 1px solid #ddd; margin: 2px; box-sizing: border-box; page-break-inside: avoid;">' + elementsHtml + '</div>';
+    return '<div class="label" style="width: ' + (template.paperWidth * mmToPx) + 'px; height: ' + (template.paperHeight * mmToPx) + 'px; position: relative; margin: 0; box-sizing: border-box; page-break-inside: avoid;">' + elementsHtml + '</div>';
   };
 
   const generatePrintHtml = (): string => {
@@ -222,7 +225,7 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
       '<div class="label-container">' + labelsHtml + '</div>' +
       '<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>' +
       '<script>' +
-      'document.querySelectorAll(".template-barcode").forEach(function(svg) { var barcodeValue = svg.getAttribute("data-barcode"); if (barcodeValue) { JsBarcode(svg, barcodeValue, { format: "CODE128", width: 1.5, height: 50, displayValue: true, fontSize: 10, margin: 0, textMargin: 1 }); } });' +
+      'document.querySelectorAll(".template-barcode").forEach(function(svg) { var barcodeValue = svg.getAttribute("data-barcode"); var barcodeWidth = parseFloat(svg.getAttribute("data-width")) || 1.5; var barcodeHeight = parseFloat(svg.getAttribute("data-height")) || 50; if (barcodeValue) { JsBarcode(svg, barcodeValue, { format: "CODE128", width: barcodeWidth, height: barcodeHeight, displayValue: true, fontSize: Math.max(8, Math.min(14, barcodeHeight * 0.2)), margin: 0, textMargin: 1 }); } });' +
       'document.querySelectorAll("#print-barcode").forEach(function(svg) { JsBarcode(svg, "' + barcode + '", { format: "CODE128", width: 1.5, height: 50, displayValue: true, fontSize: 10, margin: 0, textMargin: 1 }); });' +
       '</script></body></html>';
   };

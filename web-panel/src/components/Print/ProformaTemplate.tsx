@@ -1,3 +1,4 @@
+import { useSmartPrint } from "../../hooks/useSmartPrint";
 import { PaymentMethod, PaymentStatus, PaymentSplit } from "../../types";
 
 interface ProformaItem {
@@ -86,6 +87,10 @@ const defaultSellerInfo = {
 };
 
 export function ProformaTemplate({ data, sellerInfo = defaultSellerInfo }: ProformaTemplateProps) {
+  const { print, isPrinting, isQzConfigured, printerName } = useSmartPrint({
+    documentType: "proforma",
+    onPrintError: (error) => console.error("Proforma print error:", error),
+  });
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("pl-PL", {
       year: "numeric",
@@ -345,7 +350,7 @@ export function ProformaTemplate({ data, sellerInfo = defaultSellerInfo }: Profo
       {/* Print Button */}
       <div className="no-print mt-8 text-center">
         <button
-          onClick={() => window.print()}
+          onClick={print}
           className="px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 font-sans text-sm"
         >
           Drukuj pro forme

@@ -371,7 +371,7 @@ export class InventoryController {
   static async scanBarcode(req: AuthRequest, res: Response) {
     try {
       const { barcode: rawBarcode } = req.body;
-      const barcode = rawBarcode?.trim();
+      const barcode = String(rawBarcode || "").trim();
 
       if (!barcode) {
         return res.status(400).json({ error: 'Kod kreskowy jest wymagany' });
@@ -383,7 +383,7 @@ export class InventoryController {
         return res.status(404).json({ error: 'Produkt nie znaleziony' });
       }
 
-      const movements = await ProductModel.getMovements(product.id, 10);
+      const movements = await ProductModel.getMovements(product.id, 50, ['purchase', 'order']);
 
       return res.json({ product, recentMovements: movements });
     } catch (error) {
@@ -610,7 +610,7 @@ export class InventoryController {
   static async scanBarcodeWithMerged(req: AuthRequest, res: Response) {
     try {
       const { barcode: rawBarcode } = req.body;
-      const barcode = rawBarcode?.trim();
+      const barcode = String(rawBarcode || "").trim();
 
       if (!barcode) {
         return res.status(400).json({ error: 'Kod kreskowy jest wymagany' });
@@ -622,7 +622,7 @@ export class InventoryController {
         return res.status(404).json({ error: 'Produkt nie znaleziony' });
       }
 
-      const movements = await ProductModel.getMovements(product.id, 10);
+      const movements = await ProductModel.getMovements(product.id, 50, ['purchase', 'order']);
 
       // Check if this was a merged barcode lookup
       const wasMergedLookup = product.barcode !== barcode;

@@ -539,7 +539,7 @@ export function POSPage() {
                             </span>
                           </div>
                           <div className="text-xs text-gray-500 mt-0.5">
-                            {order.customerName || 'Brak klienta'}
+                            {order.customerCode ? `[${order.customerCode}] ` : ''}{order.customerName || 'Brak klienta'}
                           </div>
                           <div className="text-xs text-gray-400 mt-0.5">
                             {formatDate(order.createdAt)}
@@ -564,7 +564,7 @@ export function POSPage() {
                           {selectedOrder.orderNumber}
                         </h2>
                         <p className="text-sm text-gray-500">
-                          {selectedOrder.customerName || 'Brak klienta'}
+                          {selectedOrder.customerCode ? `[${selectedOrder.customerCode}] ` : ''}{selectedOrder.customerName || 'Brak klienta'}
                         </p>
                       </div>
                       <div className="text-right">
@@ -757,7 +757,7 @@ export function POSPage() {
                               </span>
                             </div>
                             <div className="text-xs text-gray-500 truncate">
-                              {order.customerName || 'Brak klienta'}
+                              {order.customerCode ? `[${order.customerCode}] ` : ''}{order.customerName || 'Brak klienta'}
                             </div>
                           </div>
 
