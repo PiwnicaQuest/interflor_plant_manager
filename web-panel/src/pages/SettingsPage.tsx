@@ -9,7 +9,6 @@ import { EditPriceGroupModal } from '../components/PriceGroups/EditPriceGroupMod
 import { GrowerPassportsTab } from '../components/Settings/GrowerPassportsTab';
 import { TagsTab } from '../components/Settings/TagsTab';
 import { PrinterSettingsTab } from '../components/Settings/PrinterSettingsTab';
-import { QzTraySettingsTab } from '../components/Settings/QzTraySettingsTab';
 import PermissionProfilesTab from '../components/settings/PermissionProfilesTab';
 import { LoginHistoryTab } from '../components/Settings/LoginHistoryTab';
 
@@ -51,7 +50,7 @@ type TabType = 'company' | 'pricing' | 'email-import' | 'users' | 'login-history
 
 export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('company');
-  const [printerSubTab, setPrinterSubTab] = useState<'qztray' | 'agent'>('qztray');
+  const [printerSubTab, setPrinterSubTab] = useState<'agent'>('agent');
 
   // Pricing settings state
   const [pricingSettings, setPricingSettings] = useState<PricingSettings>({
@@ -1148,176 +1147,8 @@ export function SettingsPage() {
       {/* Grower Passports Tab */}
       {activeTab === "printers" && (
         <div className="space-y-6">
-          {/* Sub-tab selector */}
-          <div className="bg-white rounded-lg shadow p-2 flex gap-2">
-            <button
-              onClick={() => setPrinterSubTab("qztray")}
-              className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
-                printerSubTab === "qztray"
-                  ? "bg-green-600 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              QZ Tray (Lokalne)
-            </button>
-            <button
-              onClick={() => setPrinterSubTab("agent")}
-              className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
-                printerSubTab === "agent"
-                  ? "bg-green-600 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              Print Agent (Sieciowe)
-            </button>
-          </div>
-
-          {printerSubTab === "qztray" && <QzTraySettingsTab />}
-
-          {printerSubTab === "agent" && (
-            <>
-          {/* Download Print Agent Section */}
-          <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-6">
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Print Agent - Drukowanie z systemu</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Aby drukować bezpośrednio z POLFLOR na drukarki lokalne (termiczne, laserowe),
-                  zainstaluj Print Agent na komputerze z podłączonymi drukarkami.
-                </p>
-
-                <div className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-                  <h4 className="font-medium text-gray-900 mb-3">Instrukcja instalacji:</h4>
-                  <div className="space-y-3 text-sm">
-                    <div className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-xs font-bold">1</span>
-                      <div>
-                        <p className="font-medium text-gray-900">Pobierz i rozpakuj</p>
-                        <p className="text-gray-600">Pobierz paczkę i rozpakuj na komputerze z drukarkami</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-xs font-bold">2</span>
-                      <div>
-                        <p className="font-medium text-gray-900">Zainstaluj Node.js</p>
-                        <p className="text-gray-600">
-                          Jeśli nie masz Node.js, pobierz z{' '}
-                          <a href="https://nodejs.org/" target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline">nodejs.org</a>
-                          {' '}(wersja LTS)
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-xs font-bold">3</span>
-                      <div>
-                        <p className="font-medium text-gray-900">Uruchom instalator</p>
-                        <p className="text-gray-600">
-                          <strong>Windows:</strong> Kliknij dwukrotnie <code className="bg-gray-100 px-1 rounded">install-windows.bat</code><br />
-                          <strong>macOS:</strong> Kliknij dwukrotnie <code className="bg-gray-100 px-1 rounded">install-mac.command</code>
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-xs font-bold">4</span>
-                      <div>
-                        <p className="font-medium text-gray-900">Uruchom agenta</p>
-                        <p className="text-gray-600">
-                          <strong>Windows:</strong> <code className="bg-gray-100 px-1 rounded">start-agent.bat</code><br />
-                          <strong>macOS:</strong> <code className="bg-gray-100 px-1 rounded">start-agent.command</code>
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <a
-                  href="/downloads/POLFLOR-PrintAgent-Installer.bat"
-                  download
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Pobierz Instalator (Windows)
-                </a>
-              </div>
-            </div>
-          </div>
-
-          {/* Download Print Broker Section */}
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-6">
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Print Broker - Nowa wersja (zalecana)</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Print Broker to nowa, ulepszona wersja systemu druku. Działa jako lokalny serwer HTTP
-                  i umozliwia szybsze drukowanie bez otwierania okien dialogowych przegladarki.
-                </p>
-
-                <div className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
-                  <h4 className="font-medium text-gray-900 mb-3">Zalety Print Broker:</h4>
-                  <ul className="text-sm text-gray-600 space-y-2">
-                    <li className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
-                      Drukowanie bez okien dialogowych przegladarki
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
-                      Autostart z Windows - zawsze gotowy
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
-                      Automatyczne wykrywanie drukarek
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
-                      Obsluga etykiet, paragonow i dokumentow A4
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="flex gap-3">
-                  <a
-                    href="/downloads/POLFLOR-PrintBroker-Installer.bat"
-                    download
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    Pobierz Print Broker (Windows)
-                  </a>
-                  <a
-                    href="/downloads/POLFLOR-PrintBroker-Uninstall.bat"
-                    download
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
-                  >
-                    Deinstalator
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Existing PrinterSettingsTab component */}
           <PrinterSettingsTab />
-            </>
-          )}
         </div>
-      )}
-
-      {activeTab === 'grower-passports' && (
-        <GrowerPassportsTab />
       )}
 
       {activeTab === 'tags' && (

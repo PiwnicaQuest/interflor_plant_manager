@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Invoice, PaymentStatus, PrintTemplate, PaymentMethod } from '../../types';
-import { API } from '../../services/api';
-import { usePrint } from '../../hooks/usePrint';
+import { useState, useEffect } from "react";
+import { Invoice, PaymentStatus, PaymentMethod } from "../../types";
+import { API } from "../../services/api";
 
 interface InvoiceDetailsProps {
   invoice: Invoice;
@@ -10,62 +9,121 @@ interface InvoiceDetailsProps {
   onRefresh?: () => void;
 }
 
+// Print Broker configuration
+const BROKER_BASE_URL = "http://127.0.0.1:19432";
+const BROKER_TIMEOUT = 2000;
+
+// Check if Print Broker is available
+async function checkBrokerStatus(): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), BROKER_TIMEOUT);
+    const response = await fetch(`${BROKER_BASE_URL}/status`, {
+      method: "GET",
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+// Send PDF to Print Broker
+async function sendPdfToBroker(
+  pdfBase64: string,
+  options?: { printer?: string; copies?: number; title?: string }
+): Promise<{ success: boolean; jobId?: string; error?: string }> {
+  try {
+    const response = await fetch(`${BROKER_BASE_URL}/print`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        documentType: "invoice",
+        contentType: "pdf",
+        content: pdfBase64,
+        printer: options?.printer,
+        copies: options?.copies || 1,
+        paperSize: "A4",
+        title: options?.title,
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      return { success: false, error: data.error || "Błąd Print Broker" };
+    }
+    return { success: true, jobId: data.jobId };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Nie można połączyć z Print Broker" };
+  }
+}
+
+// Fetch PDF from backend and convert to base64
+async function fetchInvoicePdfAsBase64(invoiceId: number): Promise<string> {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+  const token = localStorage.getItem("token");
+  
+  const response = await fetch(`${API_URL}/invoices/${invoiceId}/pdf`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    throw new Error("Nie można pobrać PDF faktury");
+  }
+
+  const blob = await response.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = (reader.result as string).split(",")[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+// Open PDF in browser for printing
+async function openPdfInBrowser(invoiceId: number, invoiceNumber: string): Promise<void> {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+  const token = localStorage.getItem("token");
+  
+  const response = await fetch(`${API_URL}/invoices/${invoiceId}/pdf`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    throw new Error("Nie można pobrać PDF faktury");
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  
+  // Open in new window with print dialog
+  const printWindow = window.open(url, "_blank");
+  if (printWindow) {
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
+    };
+  }
+}
+
 export function InvoiceDetails({ invoice, onClose, onUpdatePayment, onRefresh }: InvoiceDetailsProps) {
-  const [templates, setTemplates] = useState<PrintTemplate[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
-  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
-  const [printStatus, setPrintStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+  const [printStatus, setPrintStatus] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
   const [isEditingPaymentMethod, setIsEditingPaymentMethod] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(invoice.paymentMethod || PaymentMethod.TRANSFER);
   const [isUpdatingPaymentMethod, setIsUpdatingPaymentMethod] = useState(false);
   const [currentInvoice, setCurrentInvoice] = useState<Invoice>(invoice);
+  const [brokerAvailable, setBrokerAvailable] = useState<boolean | null>(null);
 
-  // Use print hook
-  const { printInvoice, hasConfiguredPrinter, getConfig } = usePrint({
-    onQueued: (jobId) => {
-      const config = getConfig('invoices');
-      setPrintStatus({
-        type: 'success',
-        message: `Wysłano do drukarki ${config?.printerName || 'domyślnej'} (job: ${jobId.slice(0, 8)}...)`,
-      });
-      setTimeout(() => setPrintStatus(null), 5000);
-    },
-    onBrowserPrint: () => {
-      setPrintStatus({
-        type: 'info',
-        message: 'Otwarto okno drukowania przeglądarki',
-      });
-      setTimeout(() => setPrintStatus(null), 3000);
-    },
-    onError: (error) => {
-      setPrintStatus({
-        type: 'error',
-        message: error,
-      });
-    },
-  });
-
-  const hasPrinterConfigured = hasConfiguredPrinter('invoices');
-
-  // Load invoice templates
+  // Check broker status on mount
   useEffect(() => {
-    const loadTemplates = async () => {
-      try {
-        const data = await API.getPrintTemplates('invoice');
-        setTemplates(data);
-        const defaultTemplate = data.find(t => t.isDefault);
-        if (defaultTemplate) {
-          setSelectedTemplateId(defaultTemplate.id);
-        } else if (data.length > 0) {
-          setSelectedTemplateId(data[0].id);
-        }
-      } catch (error) {
-        console.error('Error loading templates:', error);
-      }
-    };
-    loadTemplates();
+    checkBrokerStatus().then(setBrokerAvailable);
   }, []);
-
 
   const handleUpdatePaymentMethod = async () => {
     if (selectedPaymentMethod === currentInvoice.paymentMethod) {
@@ -86,172 +144,113 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment, onRefresh }:
       if (onRefresh) onRefresh();
     } catch (error) {
       console.error("Error updating payment method:", error);
-      setPrintStatus({
-        type: "error",
-        message: "Błąd podczas zmiany formy płatności",
-      });
+      setPrintStatus({ type: "error", message: "Błąd podczas zmiany formy płatności" });
     } finally {
       setIsUpdatingPaymentMethod(false);
     }
   };
+
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pl-PL', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
+    return new Date(dateString).toLocaleDateString("pl-PL", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   };
 
   const formatDateShort = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pl-PL');
+    return new Date(dateString).toLocaleDateString("pl-PL");
   };
 
   const getPaymentMethodLabel = (method?: string) => {
-    const labels: Record<string, string> = {
-      card: 'Karta',
-      cash: 'Gotówka',
-      transfer: 'Przelew',
-    };
-    return method ? labels[method] || method : 'Nie określono';
+    const labels: Record<string, string> = { card: "Karta", cash: "Gotówka", transfer: "Przelew" };
+    return method ? labels[method] || method : "Nie określono";
   };
 
   const getPaymentStatusLabel = (status: PaymentStatus): string => {
     const labels: Record<PaymentStatus, string> = {
-      [PaymentStatus.UNPAID]: 'Nieopłacona',
-      [PaymentStatus.PARTIALLY_PAID]: 'Częściowo opłacona',
-      [PaymentStatus.PAID]: 'Opłacona',
-      [PaymentStatus.OVERDUE]: 'Po terminie',
+      [PaymentStatus.UNPAID]: "Nieopłacona",
+      [PaymentStatus.PARTIALLY_PAID]: "Częściowo opłacona",
+      [PaymentStatus.PAID]: "Opłacona",
+      [PaymentStatus.OVERDUE]: "Po terminie",
     };
     return labels[status];
   };
 
   const getPaymentStatusColor = (status: PaymentStatus): string => {
     const colors: Record<PaymentStatus, string> = {
-      [PaymentStatus.UNPAID]: 'text-red-700 bg-red-100',
-      [PaymentStatus.PARTIALLY_PAID]: 'text-yellow-700 bg-yellow-100',
-      [PaymentStatus.PAID]: 'text-green-700 bg-green-100',
-      [PaymentStatus.OVERDUE]: 'text-red-900 bg-red-200',
+      [PaymentStatus.UNPAID]: "text-red-700 bg-red-100",
+      [PaymentStatus.PARTIALLY_PAID]: "text-yellow-700 bg-yellow-100",
+      [PaymentStatus.PAID]: "text-green-700 bg-green-100",
+      [PaymentStatus.OVERDUE]: "text-red-900 bg-red-200",
     };
     return colors[status];
   };
 
-  const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
-
-  // Replace template placeholders with invoice data
-  const replacePlaceholders = (content: string): string => {
-    return content
-      // Invoice data
-      .replace(/\{\{invoiceNumber\}\}/g, invoice.invoiceNumber || '')
-      .replace(/\{\{issueDate\}\}/g, formatDateShort(invoice.issueDate))
-      .replace(/\{\{invoiceDate\}\}/g, formatDateShort(invoice.issueDate))
-      .replace(/\{\{saleDate\}\}/g, formatDateShort(invoice.saleDate))
-      .replace(/\{\{paymentDeadline\}\}/g, invoice.paymentDeadline ? formatDateShort(invoice.paymentDeadline) : '')
-      .replace(/\{\{paymentMethod\}\}/g, getPaymentMethodLabel(invoice.paymentMethod))
-      // Customer data
-      .replace(/\{\{buyerName\}\}/g, invoice.customerName || '')
-      .replace(/\{\{customerName\}\}/g, invoice.customerName || '')
-      .replace(/\{\{buyerAddress\}\}/g, '') // TODO: Add address fields to Invoice type
-      .replace(/\{\{buyerCity\}\}/g, '')
-      .replace(/\{\{buyerPostalCode\}\}/g, '')
-      .replace(/\{\{buyerCountry\}\}/g, 'Polska')
-      .replace(/\{\{buyerTaxId\}\}/g, '')
-      // Amounts
-      .replace(/\{\{subtotal\}\}/g, (Number(invoice.subtotalNet) || 0).toFixed(2) + ' PLN')
-      .replace(/\{\{subtotalNet\}\}/g, (Number(invoice.subtotalNet) || 0).toFixed(2) + ' PLN')
-      .replace(/\{\{tax\}\}/g, (Number(invoice.totalVat) || 0).toFixed(2) + ' PLN')
-      .replace(/\{\{totalVat\}\}/g, (Number(invoice.totalVat) || 0).toFixed(2) + ' PLN')
-      .replace(/\{\{total\}\}/g, (Number(invoice.totalGross) || 0).toFixed(2) + ' PLN')
-      .replace(/\{\{totalGross\}\}/g, (Number(invoice.totalGross) || 0).toFixed(2) + ' PLN')
-      .replace(/\{\{taxRate\}\}/g, '23')
-      .replace(/\{\{paidAmount\}\}/g, (Number(invoice.paidAmount) || 0).toFixed(2) + ' PLN')
-      .replace(/\{\{remainingAmount\}\}/g, ((Number(invoice.totalGross) || 0) - (Number(invoice.paidAmount) || 0)).toFixed(2) + ' PLN')
-      // Notes
-      .replace(/\{\{notes\}\}/g, invoice.notes || '')
-      // Payment status
-      .replace(/\{\{paymentStatus\}\}/g, getPaymentStatusLabel(invoice.paymentStatus))
-      // Items placeholder (simplified)
-      .replace(/\{\{items\}\}/g, 'Pozycje faktury');
-  };
-
-  // Generate print HTML from template
-  const generateTemplateHtml = (template: PrintTemplate): string => {
-    const mmToPx = 3.7795275591;
-
-    const elementsHtml = template.elements.map(el => {
-      const style = el.style || {};
-      const x = el.x * mmToPx;
-      const y = el.y * mmToPx;
-      const width = el.width * mmToPx;
-      const height = el.height * mmToPx;
-
-      const baseStyles = `
-        position: absolute;
-        left: ${x}px;
-        top: ${y}px;
-        width: ${width}px;
-        height: ${height}px;
-        font-size: ${style.fontSize || 10}px;
-        font-weight: ${style.fontWeight || 'normal'};
-        text-align: ${style.textAlign || 'left'};
-        color: ${style.color || '#000000'};
-        background-color: ${style.backgroundColor || 'transparent'};
-        border-width: ${style.borderWidth || 0}px;
-        border-color: ${style.borderColor || '#000000'};
-        border-style: solid;
-        border-radius: ${style.borderRadius || 0}px;
-        box-sizing: border-box;
-        overflow: hidden;
-        white-space: pre-wrap;
-      `;
-
-      const content = replacePlaceholders(el.content || '');
-
-      switch (el.type) {
-        case 'text':
-          return '<div style="' + baseStyles + ' display: flex; align-items: flex-start; padding: 2px;">' + content + '</div>';
-        case 'rectangle':
-          return '<div style="' + baseStyles + '"></div>';
-        case 'line':
-          return '<div style="' + baseStyles + ' height: ' + (style.borderWidth || 1) + 'px; background-color: ' + (style.borderColor || '#000') + '; border: none;"></div>';
-        default:
-          return '';
-      }
-    }).join('');
-
-    return '<div class="page" style="width: ' + (template.paperWidth * mmToPx) + 'px; height: ' + (template.paperHeight * mmToPx) + 'px; position: relative; background: white; box-sizing: border-box; page-break-after: always;">' + elementsHtml + '</div>';
-  };
-
-  // Generate full HTML for printing
-  const generatePrintHtml = (): string => {
-    if (!selectedTemplate) return '';
-
-    const pageHtml = generateTemplateHtml(selectedTemplate);
-
-    return '<!DOCTYPE html><html><head><title>Faktura ' + invoice.invoiceNumber + '</title>' +
-      '<style>' +
-      '@page { size: ' + selectedTemplate.paperWidth + 'mm ' + selectedTemplate.paperHeight + 'mm; margin: 0; }' +
-      '* { margin: 0; padding: 0; box-sizing: border-box; }' +
-      'body { font-family: Arial, sans-serif; margin: 0; padding: 0; }' +
-      '.page { margin: 0 auto; }' +
-      '@media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }' +
-      '</style></head><body>' + pageHtml + '</body></html>';
-  };
-
-  const handlePrintWithTemplate = async () => {
-    if (!selectedTemplate) {
-      alert('Wybierz szablon faktury');
-      return;
-    }
-
+  // Main print handler - uses PDF from backend
+  const handlePrint = async () => {
+    setIsPrinting(true);
     setPrintStatus(null);
-    const htmlContent = generatePrintHtml();
 
-    await printInvoice(htmlContent, {
-      title: 'Faktura ' + invoice.invoiceNumber,
-      invoiceId: invoice.id,
-    });
+    try {
+      // Try Print Broker first if available
+      if (brokerAvailable) {
+        console.log("[InvoiceDetails] Using Print Broker for PDF printing...");
+        const pdfBase64 = await fetchInvoicePdfAsBase64(invoice.id);
+        const result = await sendPdfToBroker(pdfBase64, {
+          title: `Faktura ${invoice.invoiceNumber}`,
+        });
 
-    setShowTemplateSelector(false);
+        if (result.success) {
+          setPrintStatus({
+            type: "success",
+            message: `Wysłano do drukarki (job: ${result.jobId?.slice(0, 8)}...)`,
+          });
+          setTimeout(() => setPrintStatus(null), 5000);
+          setIsPrinting(false);
+          return;
+        }
+        console.warn("[InvoiceDetails] Print Broker failed:", result.error);
+      }
+
+      // Fallback to browser print
+      console.log("[InvoiceDetails] Using browser print fallback...");
+      await openPdfInBrowser(invoice.id, invoice.invoiceNumber || "");
+      setPrintStatus({ type: "info", message: "Otwarto PDF do druku w przeglądarce" });
+      setTimeout(() => setPrintStatus(null), 3000);
+
+    } catch (error: any) {
+      console.error("[InvoiceDetails] Print error:", error);
+      setPrintStatus({ type: "error", message: error.message || "Błąd drukowania" });
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
+  // Download PDF
+  const handleDownloadPdf = async () => {
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+      const token = localStorage.getItem("token");
+      
+      const response = await fetch(`${API_URL}/invoices/${invoice.id}/pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error("Nie można pobrać PDF");
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `faktura-${invoice.invoiceNumber || invoice.id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      setPrintStatus({ type: "error", message: error.message || "Błąd pobierania PDF" });
+    }
   };
 
   return (
@@ -261,27 +260,18 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment, onRefresh }:
           {/* Header */}
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">
-                Faktura {invoice.invoiceNumber}
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">
-                Wystawiono: {formatDate(invoice.issueDate)}
-              </p>
+              <h2 className="text-2xl font-bold text-gray-900">Faktura {invoice.invoiceNumber}</h2>
+              <p className="text-sm text-gray-500 mt-1">Wystawiono: {formatDate(invoice.issueDate)}</p>
             </div>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 text-2xl"
-            >
-              ×
-            </button>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
           </div>
 
           {/* Print status notification */}
           {printStatus && (
-            <div className={'mb-4 px-4 py-3 rounded-lg text-sm ' + (
-              printStatus.type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
-              printStatus.type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
-              'bg-blue-100 text-blue-800 border border-blue-200'
+            <div className={"mb-4 px-4 py-3 rounded-lg text-sm " + (
+              printStatus.type === "success" ? "bg-green-100 text-green-800 border border-green-200" :
+              printStatus.type === "error" ? "bg-red-100 text-red-800 border border-red-200" :
+              "bg-blue-100 text-blue-800 border border-blue-200"
             )}>
               {printStatus.message}
             </div>
@@ -289,11 +279,11 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment, onRefresh }:
 
           {/* Printer status indicator */}
           <div className="mb-4 flex items-center gap-2 text-sm">
-            <div className={'w-2 h-2 rounded-full ' + (hasPrinterConfigured ? 'bg-green-500' : 'bg-gray-400')}></div>
-            <span className={hasPrinterConfigured ? 'text-green-700' : 'text-gray-600'}>
-              {hasPrinterConfigured
-                ? 'Drukarka faktur skonfigurowana - automatyczny wydruk'
-                : 'Brak skonfigurowanej drukarki - wydruk przez przeglądarkę'}
+            <div className={"w-2 h-2 rounded-full " + (brokerAvailable ? "bg-green-500" : "bg-gray-400")}></div>
+            <span className={brokerAvailable ? "text-green-700" : "text-gray-600"}>
+              {brokerAvailable === null ? "Sprawdzanie Print Broker..." :
+               brokerAvailable ? "Print Broker dostępny - automatyczny wydruk PDF" :
+               "Print Broker niedostępny - wydruk przez przeglądarkę"}
             </span>
           </div>
 
@@ -301,7 +291,7 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment, onRefresh }:
           <div className="card p-4 mb-6">
             <h3 className="font-semibold text-gray-900 mb-2">Dane nabywcy</h3>
             <div className="text-sm text-gray-700">
-              <p><strong>Nazwa:</strong> {invoice.customerName || 'Brak danych'}</p>
+              <p><strong>Nazwa:</strong> {invoice.customerName || "Brak danych"}</p>
             </div>
           </div>
 
@@ -333,7 +323,7 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment, onRefresh }:
                         disabled={isUpdatingPaymentMethod}
                         className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
                       >
-                        {isUpdatingPaymentMethod ? '...' : 'Zapisz'}
+                        {isUpdatingPaymentMethod ? "..." : "Zapisz"}
                       </button>
                       <button
                         onClick={() => {
@@ -362,12 +352,8 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment, onRefresh }:
             <div className="card p-4">
               <h3 className="font-semibold text-gray-900 mb-2">Powiązania</h3>
               <div className="text-sm text-gray-700 space-y-1">
-                {invoice.orderId && (
-                  <p><strong>Zamówienie:</strong> #{invoice.orderId}</p>
-                )}
-                {invoice.customerId && (
-                  <p><strong>ID Klienta:</strong> {invoice.customerId}</p>
-                )}
+                {invoice.orderId && <p><strong>Zamówienie:</strong> #{invoice.orderId}</p>}
+                {invoice.customerId && <p><strong>ID Klienta:</strong> {invoice.customerId}</p>}
               </div>
             </div>
           </div>
@@ -378,7 +364,7 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment, onRefresh }:
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Status:</span>
-                <span className={'px-3 py-1 rounded-full text-xs font-semibold ' + getPaymentStatusColor(invoice.paymentStatus)}>
+                <span className={"px-3 py-1 rounded-full text-xs font-semibold " + getPaymentStatusColor(invoice.paymentStatus)}>
                   {getPaymentStatusLabel(invoice.paymentStatus)}
                 </span>
               </div>
@@ -428,7 +414,6 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment, onRefresh }:
             </div>
           )}
 
-
           {/* Summary */}
           <div className="bg-gray-50 p-4 rounded-lg mb-6">
             <div className="space-y-2">
@@ -458,10 +443,17 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment, onRefresh }:
           {/* Actions */}
           <div className="flex gap-3 flex-wrap">
             <button
-              onClick={() => window.open('/print/invoice/' + invoice.id, '_blank')}
-              className="btn btn-outline"
+              onClick={handlePrint}
+              disabled={isPrinting}
+              className="btn btn-outline disabled:opacity-50"
             >
-              Drukuj fakturę
+              {isPrinting ? "Drukowanie..." : "Drukuj fakturę"}
+            </button>
+            <button
+              onClick={handleDownloadPdf}
+              className="btn btn-secondary"
+            >
+              Pobierz PDF
             </button>
             <button
               onClick={() => onUpdatePayment(invoice)}
@@ -469,23 +461,12 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment, onRefresh }:
             >
               Aktualizuj płatność
             </button>
-            {invoice.pdfUrl && (
-              <a
-                href={invoice.pdfUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-secondary"
-              >
-                Pobierz PDF
-              </a>
-            )}
             <button onClick={onClose} className="btn btn-secondary flex-1">
               Zamknij
             </button>
           </div>
         </div>
       </div>
-
     </div>
   );
 }

@@ -1,110 +1,90 @@
-import { useState, useEffect } from 'react';
-import { getBrokerPrinters } from '../../hooks/usePrint';
-import { api } from '../../services/api';
+import { useState, useEffect } from "react";
+
+const BROKER_URL = "http://127.0.0.1:19432";
 
 // Document types that can be printed
 export type DocumentType =
-  | 'barcode_labels'
-  | 'orders'
-  | 'invoices'
-  | 'receipts'
-  | 'inventory_reports'
-  | 'delivery_notes';
+  | "barcode_labels"
+  | "orders"
+  | "invoices"
+  | "receipts"
+  | "inventory_reports"
+  | "delivery_notes";
 
-interface PrintAgent {
-  id: number;
-  agentId: string;
+// Map to broker document types
+const DOC_TYPE_TO_BROKER: Record<DocumentType, string> = {
+  barcode_labels: "label",
+  orders: "order",
+  invoices: "invoice",
+  receipts: "receipt",
+  inventory_reports: "report",
+  delivery_notes: "delivery_note",
+};
+
+interface PrinterInfo {
   name: string;
-  lastSeen: string;
-  isOnline: boolean;
-  availablePrinters: string[];
+  displayName: string;
+  isDefault: boolean;
+  category: string;
 }
 
-interface PrinterConfig {
-  id: number;
-  documentType: DocumentType;
-  agentId: string | null;
-  printerName: string | null;
-  paperSize: string;
-  copies: number;
-  orientation: string;
-  colorMode: string;
-  isActive: boolean;
-  agentName?: string;
-  agentOnline?: boolean;
-}
-
-interface QueueStats {
-  pending: number;
-  processing: number;
-  completed: number;
-  failed: number;
-  todayCompleted: number;
+interface BrokerConfig {
+  port: number;
+  allowedOrigins: string[];
+  defaultPrinters: Record<string, string>;
 }
 
 const DOCUMENT_TYPES: { type: DocumentType; displayName: string; description: string; defaultPaper: string }[] = [
   {
-    type: 'barcode_labels',
-    displayName: 'Etykiety z kodami',
-    description: 'Drukarka termiczna do etykiet z kodami kreskowymi',
-    defaultPaper: '100x50mm'
+    type: "barcode_labels",
+    displayName: "Etykiety z kodami",
+    description: "Drukarka termiczna do etykiet z kodami kreskowymi",
+    defaultPaper: "50x30mm"
   },
   {
-    type: 'orders',
-    displayName: 'Zamówienia',
-    description: 'Wydruki zamówień dla magazynu',
-    defaultPaper: 'A4'
+    type: "orders",
+    displayName: "Zamówienia",
+    description: "Wydruki zamówień dla magazynu",
+    defaultPaper: "A4"
   },
   {
-    type: 'invoices',
-    displayName: 'Faktury',
-    description: 'Faktury VAT i dokumenty księgowe',
-    defaultPaper: 'A4'
+    type: "invoices",
+    displayName: "Faktury",
+    description: "Faktury VAT i dokumenty księgowe",
+    defaultPaper: "A4"
   },
   {
-    type: 'receipts',
-    displayName: 'Paragony',
-    description: 'Paragony fiskalne i potwierdzenia',
-    defaultPaper: '80mm'
+    type: "receipts",
+    displayName: "Paragony",
+    description: "Paragony fiskalne i potwierdzenia",
+    defaultPaper: "80mm"
   },
   {
-    type: 'inventory_reports',
-    displayName: 'Raporty magazynowe',
-    description: 'Raporty stanów i inwentaryzacji',
-    defaultPaper: 'A4'
+    type: "inventory_reports",
+    displayName: "Raporty magazynowe",
+    description: "Raporty stanów i inwentaryzacji",
+    defaultPaper: "A4"
   },
   {
-    type: 'delivery_notes',
-    displayName: 'Listy dostawy',
-    description: 'Dokumenty wydania towaru',
-    defaultPaper: 'A4'
+    type: "delivery_notes",
+    displayName: "Listy dostawy",
+    description: "Dokumenty wydania towaru",
+    defaultPaper: "A4"
   },
-];
-
-const PAPER_SIZES = [
-  'A4',
-  'A5',
-  'Letter',
-  '80mm',
-  '100x50mm',
-  '100x150mm',
-  '57mm',
 ];
 
 export function PrinterSettingsTab() {
-  const [configs, setConfigs] = useState<PrinterConfig[]>([]);
-  const [agents, setAgents] = useState<PrintAgent[]>([]);
-  const [stats, setStats] = useState<QueueStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<DocumentType | null>(null);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [success, setSuccess] = useState("");
+  const [error, setError] = useState("");
   const [brokerOnline, setBrokerOnline] = useState(false);
-  const [brokerPrinters, setBrokerPrinters] = useState<string[]>([]);
+  const [brokerPrinters, setBrokerPrinters] = useState<PrinterInfo[]>([]);
+  const [brokerConfig, setBrokerConfig] = useState<BrokerConfig | null>(null);
+  const [selectedPrinters, setSelectedPrinters] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchData();
-    // Refresh every 30 seconds
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -112,84 +92,102 @@ export function PrinterSettingsTab() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [configsRes, agentsRes, statsRes, brokerPrintersRes] = await Promise.all([
-        api.getPrintConfigs(),
-        api.getPrintAgents(),
-        api.getPrintStats(),
-        getBrokerPrinters().catch(() => []),
-      ]);
+      setError("");
 
-      setConfigs(configsRes.configs || []);
-      setAgents(agentsRes.agents || []);
-      setStats(statsRes.stats || null);
-      setBrokerOnline(brokerPrintersRes.length > 0 || false);
-      setBrokerPrinters(brokerPrintersRes.map((p: any) => p.displayName || p.name));
-      setError('');
+      // Check broker status
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+      try {
+        const statusRes = await fetch(`${BROKER_URL}/status`, {
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (statusRes.ok) {
+          setBrokerOnline(true);
+
+          // Fetch printers and config in parallel
+          const [printersRes, configRes] = await Promise.all([
+            fetch(`${BROKER_URL}/printers`),
+            fetch(`${BROKER_URL}/config`),
+          ]);
+
+          if (printersRes.ok) {
+            const printersData = await printersRes.json();
+            setBrokerPrinters(printersData.printers || []);
+          }
+
+          if (configRes.ok) {
+            const configData = await configRes.json();
+            setBrokerConfig(configData.config || null);
+            setSelectedPrinters(configData.config?.defaultPrinters || {});
+          }
+        } else {
+          setBrokerOnline(false);
+        }
+      } catch (e) {
+        clearTimeout(timeoutId);
+        setBrokerOnline(false);
+      }
     } catch (err: any) {
-      console.error('Error fetching printer data:', err);
-      setError('Nie można załadować konfiguracji drukarek');
+      console.error("Error fetching printer data:", err);
+      setError("Nie można połączyć z Print Broker");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleConfigChange = async (documentType: DocumentType, field: string, value: any) => {
-    // Update local state immediately
-    setConfigs(prev =>
-      prev.map(config =>
-        config.documentType === documentType
-          ? { ...config, [field]: value }
-          : config
-      )
-    );
+  const handlePrinterChange = (documentType: DocumentType, printerName: string) => {
+    const brokerType = DOC_TYPE_TO_BROKER[documentType];
+    setSelectedPrinters(prev => ({
+      ...prev,
+      [brokerType]: printerName || "",
+    }));
   };
 
   const handleSaveConfig = async (documentType: DocumentType) => {
-    const config = configs.find(c => c.documentType === documentType);
-    if (!config) return;
+    if (!brokerOnline) {
+      setError("Print Broker nie jest połączony");
+      return;
+    }
+
+    setSaving(documentType);
+    setError("");
 
     try {
-      setSaving(documentType);
-      setError('');
+      const brokerType = DOC_TYPE_TO_BROKER[documentType];
+      const printerName = selectedPrinters[brokerType] || "";
 
-      await api.updatePrintConfig(documentType, {
-        agentId: config.agentId,
-        printerName: config.printerName,
-        paperSize: config.paperSize,
-        copies: config.copies,
-        orientation: config.orientation,
-        colorMode: config.colorMode,
-        isActive: config.isActive,
+      const response = await fetch(`${BROKER_URL}/config/printer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: brokerType,
+          printer: printerName,
+        }),
       });
 
-      setSuccess('Konfiguracja zapisana');
-      setTimeout(() => setSuccess(''), 3000);
+      if (response.ok) {
+        setSuccess(`Zapisano drukarkę dla: ${DOCUMENT_TYPES.find(d => d.type === documentType)?.displayName}`);
+        setTimeout(() => setSuccess(""), 3000);
+      } else {
+        const data = await response.json();
+        setError(data.error || "Błąd zapisywania konfiguracji");
+      }
     } catch (err: any) {
-      console.error('Error saving config:', err);
-      setError('Błąd zapisywania konfiguracji');
+      setError("Nie można połączyć z Print Broker");
     } finally {
       setSaving(null);
     }
   };
 
-  const handleDeleteAgent = async (agentId: string) => {
-    if (!confirm('Czy na pewno chcesz usunąć tego agenta?')) return;
-
-    try {
-      await api.deletePrintAgent(agentId);
-      await fetchData();
-    } catch (err: any) {
-      setError('Błąd usuwania agenta');
-    }
+  const getSelectedPrinter = (documentType: DocumentType): string => {
+    const brokerType = DOC_TYPE_TO_BROKER[documentType];
+    return selectedPrinters[brokerType] || "";
   };
 
-  const getAgentPrinters = (agentId: string | null): string[] => {
-    if (!agentId) return [];
-    const agent = agents.find(a => a.agentId === agentId);
-    return agent?.availablePrinters || [];
-  };
-
-  if (loading && configs.length === 0) {
+  if (loading && !brokerOnline) {
     return <div className="text-gray-500 p-6">Ładowanie...</div>;
   }
 
@@ -200,40 +198,87 @@ export function PrinterSettingsTab() {
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${agents.some(a => a.isOnline) ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              <div className={`w-3 h-3 rounded-full ${brokerOnline ? "bg-green-500" : "bg-red-500"}`}></div>
               <span className="text-sm text-gray-600">
-                {agents.filter(a => a.isOnline).length} agent(ów) online</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${brokerOnline ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
-              <span className="text-sm text-gray-600">
-                Print Broker {brokerOnline ? 'online' : 'offline'}
+                Print Broker {brokerOnline ? "online" : "offline"}
               </span>
             </div>
-            {stats && (
-              <>
-                <div className="text-sm text-gray-600">
-                  <span className="font-medium">{stats.pending}</span> w kolejce
-                </div>
-                <div className="text-sm text-gray-600">
-                  <span className="font-medium">{stats.todayCompleted}</span> wydrukowano dziś
-                </div>
-              </>
+            {brokerOnline && (
+              <div className="text-sm text-gray-600">
+                <span className="font-medium">{brokerPrinters.length}</span> drukarek dostępnych
+              </div>
             )}
           </div>
           <button
             onClick={fetchData}
-            className="text-sm text-blue-600 hover:text-blue-800"
+            disabled={loading}
+            className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50"
           >
-            Odśwież
+            {loading ? "Sprawdzanie..." : "Odśwież"}
           </button>
+        </div>
+      </div>
+
+      {/* Print Broker Download */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex justify-between items-start">
+          <div>
+            <h2 className="text-lg font-semibold mb-2">Print Broker</h2>
+            <p className="text-sm text-gray-600 mb-3">
+              Aplikacja do drukowania bezpośrednio z przeglądarki. Działa lokalnie na Twoim komputerze.
+            </p>
+            <div className="flex items-center gap-2 mb-3">
+              <div className={`w-3 h-3 rounded-full ${brokerOnline ? "bg-green-500" : "bg-gray-400"}`}></div>
+              <span className="text-sm">
+                {brokerOnline ? "Połączono z Print Broker" : "Print Broker nie jest uruchomiony"}
+              </span>
+            </div>
+            {brokerOnline && brokerPrinters.length > 0 && (
+              <div className="text-sm text-gray-600">
+                <span className="font-medium">Dostępne drukarki:</span>{" "}
+                {brokerPrinters.map(p => p.displayName).join(", ")}
+              </div>
+            )}
+          </div>
+          <a
+            href="https://pm.polflor.wroclaw.pl/api/downloads/print-broker.zip"
+            download
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Pobierz Print Broker
+          </a>
+        </div>
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <h4 className="text-sm font-medium text-gray-700 mb-2">Instrukcja instalacji:</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+            <div>
+              <p className="font-medium text-gray-700">Windows:</p>
+              <ol className="list-decimal list-inside mt-1 space-y-1">
+                <li>Rozpakuj archiwum</li>
+                <li>Zmień nazwę <code className="bg-gray-200 px-1 rounded">start-hidden.vbs.txt</code> na <code className="bg-gray-200 px-1 rounded">start-hidden.vbs</code></li>
+                <li>Uruchom <code className="bg-gray-200 px-1 rounded">start-hidden.vbs</code></li>
+                <li>Ikona pojawi się w zasobniku systemowym</li>
+              </ol>
+            </div>
+            <div>
+              <p className="font-medium text-gray-700">macOS:</p>
+              <ol className="list-decimal list-inside mt-1 space-y-1">
+                <li>Rozpakuj archiwum</li>
+                <li>Uruchom <code className="bg-gray-200 px-1 rounded">./install-macos.sh</code> w terminalu</li>
+                <li>Ikona pojawi się w pasku menu</li>
+              </ol>
+            </div>
+          </div>
         </div>
       </div>
 
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           {error}
-          <button onClick={() => setError('')} className="float-right font-bold">×</button>
+          <button onClick={() => setError("")} className="float-right font-bold">×</button>
         </div>
       )}
 
@@ -243,75 +288,29 @@ export function PrinterSettingsTab() {
         </div>
       )}
 
-      {/* Agents section */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold mb-4">Agenty druku (Print Agents)</h2>
-
-        {agents.length === 0 ? (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <h4 className="text-sm font-medium text-yellow-800 mb-2">Brak agentów druku</h4>
-            <p className="text-sm text-yellow-700 mb-3">
-              Aby drukować automatycznie na wybranych drukarkach, musisz uruchomić Print Agent na komputerze z drukarkami.
-            </p>
-            <div className="text-sm text-yellow-700">
-              <strong>Jak zainstalować:</strong>
-              <ol className="list-decimal list-inside mt-2 space-y-1">
-                <li>Pobierz instalator (przycisk powyżej)</li>
-                <li>Uruchom pobrany plik <code className="bg-yellow-100 px-1 rounded">POLFLOR-PrintAgent-Installer.bat</code></li>
-                <li>Gotowe! Agent uruchomi się automatycznie</li>
-              </ol>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {agents.map(agent => (
-              <div
-                key={agent.agentId}
-                className={`border rounded-lg p-4 ${agent.isOnline ? 'border-green-300 bg-green-50' : 'border-gray-200'}`}
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${agent.isOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                      <h3 className="font-medium">{agent.name}</h3>
-                      <span className="text-xs text-gray-500">({agent.agentId})</span>
-                    </div>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Ostatnio widziany: {new Date(agent.lastSeen).toLocaleString('pl-PL')}
-                    </p>
-                    {agent.availablePrinters && agent.availablePrinters.length > 0 && (
-                      <div className="mt-2">
-                        <span className="text-sm text-gray-600">Drukarki: </span>
-                        <span className="text-sm font-medium">
-                          {agent.availablePrinters.join(', ')}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => handleDeleteAgent(agent.agentId)}
-                    className="text-sm text-red-600 hover:text-red-800"
-                  >
-                    Usuń
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
       {/* Printer Configurations */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold mb-4">Konfiguracja drukarek</h2>
         <p className="text-sm text-gray-500 mb-6">
-          Przypisz drukarki do typów dokumentów. Wydruki będą automatycznie wysyłane do odpowiednich drukarek.
+          Przypisz drukarki do typów dokumentów. Konfiguracja jest zapisywana w Print Broker na Twoim komputerze.
         </p>
+
+        {!brokerOnline && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <h4 className="text-sm font-medium text-yellow-800 mb-2">Print Broker nie jest uruchomiony</h4>
+            <p className="text-sm text-yellow-700">
+              Uruchom Print Broker na swoim komputerze, aby móc konfigurować drukarki.
+              Pobierz go używając przycisku powyżej.
+            </p>
+            <p className="text-sm text-yellow-700 mt-2">
+              <strong>Safari na macOS:</strong> Użyj Chrome lub Firefox - Safari blokuje połączenia localhost.
+            </p>
+          </div>
+        )}
 
         <div className="space-y-6">
           {DOCUMENT_TYPES.map(docType => {
-            const config = configs.find(c => c.documentType === docType.type);
-            const availablePrinters = config?.agentId ? getAgentPrinters(config.agentId) : [];
+            const selectedPrinter = getSelectedPrinter(docType.type);
 
             return (
               <div key={docType.type} className="border border-gray-200 rounded-lg p-4">
@@ -322,100 +321,55 @@ export function PrinterSettingsTab() {
                   </div>
                   <button
                     onClick={() => handleSaveConfig(docType.type)}
-                    disabled={saving === docType.type}
+                    disabled={saving === docType.type || !brokerOnline}
                     className="px-3 py-1 text-sm bg-green-600 hover:bg-green-700 text-white rounded-md disabled:opacity-50"
                   >
-                    {saving === docType.type ? 'Zapisywanie...' : 'Zapisz'}
+                    {saving === docType.type ? "Zapisywanie..." : "Zapisz"}
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  {/* Agent selection */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Agent druku
-                    </label>
-                    <select
-                      value={config?.agentId || ''}
-                      onChange={(e) => handleConfigChange(docType.type, 'agentId', e.target.value || null)}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-                    >
-                      <option value="">-- Wybierz agenta --</option>
-                      {agents.map(agent => (
-                        <option key={agent.agentId} value={agent.agentId}>
-                          {agent.name} {agent.isOnline ? '(online)' : '(offline)'}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Printer selection */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Drukarka
                     </label>
                     <select
-                      value={config?.printerName || ''}
-                      onChange={(e) => handleConfigChange(docType.type, 'printerName', e.target.value || null)}
+                      value={selectedPrinter}
+                      onChange={(e) => handlePrinterChange(docType.type, e.target.value)}
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-                      disabled={!config?.agentId}
+                      disabled={!brokerOnline}
                     >
-                      <option value="">-- Domyślna --</option>
-                      {availablePrinters.map(printer => (
-                        <option key={printer} value={printer}>{printer}</option>
+                      <option value="">-- Domyślna systemowa --</option>
+                      {brokerPrinters.map(printer => (
+                        <option key={printer.name} value={printer.name}>
+                          {printer.displayName} {printer.isDefault ? "(domyślna)" : ""}
+                        </option>
                       ))}
                     </select>
-                    {!config?.agentId && (
-                      <p className="text-xs text-gray-400 mt-1">Najpierw wybierz agenta</p>
+                    {!brokerOnline && (
+                      <p className="text-xs text-gray-400 mt-1">Uruchom Print Broker, aby wybrać drukarkę</p>
                     )}
                   </div>
 
-                  {/* Paper size */}
+                  {/* Paper size info */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Rozmiar papieru
+                      Domyślny rozmiar papieru
                     </label>
-                    <select
-                      value={config?.paperSize || docType.defaultPaper}
-                      onChange={(e) => handleConfigChange(docType.type, 'paperSize', e.target.value)}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-                    >
-                      {PAPER_SIZES.map(size => (
-                        <option key={size} value={size}>{size}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Copies */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Liczba kopii
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="10"
-                      value={config?.copies || 1}
-                      onChange={(e) => handleConfigChange(docType.type, 'copies', parseInt(e.target.value) || 1)}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-                    />
+                    <div className="border border-gray-200 rounded-md px-3 py-2 bg-gray-50 text-gray-600">
+                      {docType.defaultPaper}
+                    </div>
                   </div>
                 </div>
 
                 {/* Status indicator */}
-                {config?.agentId && (
+                {selectedPrinter && brokerOnline && (
                   <div className="mt-3 flex items-center gap-2 text-sm">
-                    {agents.find(a => a.agentId === config.agentId)?.isOnline ? (
-                      <>
-                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                        <span className="text-green-700">Agent online - gotowy do druku</span>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                        <span className="text-red-700">Agent offline - wydruki będą czekać w kolejce</span>
-                      </>
-                    )}
+                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                    <span className="text-green-700">
+                      Przypisano: {brokerPrinters.find(p => p.name === selectedPrinter)?.displayName || selectedPrinter}
+                    </span>
                   </div>
                 )}
               </div>
@@ -432,9 +386,9 @@ export function PrinterSettingsTab() {
             <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
               <span className="text-xl">1</span>
             </div>
-            <h4 className="font-medium mb-2">Uruchom Print Agent</h4>
+            <h4 className="font-medium mb-2">Pobierz Print Broker</h4>
             <p className="text-sm text-gray-600">
-              Na komputerze z drukarkami uruchom aplikację Print Agent. Automatycznie wykryje drukarki.
+              Pobierz i uruchom Print Broker na komputerze z drukarkami.
             </p>
           </div>
           <div className="text-center">
@@ -443,16 +397,16 @@ export function PrinterSettingsTab() {
             </div>
             <h4 className="font-medium mb-2">Skonfiguruj drukarki</h4>
             <p className="text-sm text-gray-600">
-              Przypisz drukarki do typów dokumentów powyżej. Np. drukarkę termiczną do etykiet.
+              Przypisz drukarki do typów dokumentów powyżej i kliknij Zapisz.
             </p>
           </div>
           <div className="text-center">
             <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
               <span className="text-xl">3</span>
             </div>
-            <h4 className="font-medium mb-2">Drukuj automatycznie</h4>
+            <h4 className="font-medium mb-2">Drukuj bezpośrednio</h4>
             <p className="text-sm text-gray-600">
-              Wydruki z panelu będą automatycznie wysyłane na odpowiednie drukarki bez okna dialogowego.
+              Wydruki będą automatycznie wysyłane na przypisane drukarki.
             </p>
           </div>
         </div>
@@ -461,32 +415,6 @@ export function PrinterSettingsTab() {
   );
 }
 
-// Export function to send print job
-export const sendPrintJob = async (
-  documentType: DocumentType,
-  htmlContent: string,
-  title?: string,
-  sourceType?: string,
-  sourceId?: number
-): Promise<{ success: boolean; jobId?: string; error?: string }> => {
-  try {
-    const response = await api.createPrintJob({
-      documentType,
-      contentType: 'html',
-      content: htmlContent,
-      title,
-      sourceType,
-      sourceId,
-    });
-
-    return {
-      success: true,
-      jobId: response.job.jobId,
-    };
-  } catch (error: any) {
-    return {
-      success: false,
-      error: error.response?.data?.error || error.message,
-    };
-  }
-};
+export function getPrinterConfig(documentType: DocumentType): { printerName: string | null } | null {
+  return null; // Config is now stored in broker
+}

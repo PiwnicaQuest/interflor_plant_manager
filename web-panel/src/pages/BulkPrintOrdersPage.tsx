@@ -1,301 +1,193 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { api } from '../services/api';
-import { printerService } from '../services/printerService';
-import { OrderTemplateLite } from '../components/Print/OrderTemplateLite';
-import { OrderWithItems } from '../types';
+import { useEffect, useState, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 
-interface CompanySettings {
-  companyName: string;
-  nip: string;
-  regon: string;
-  street: string;
-  postalCode: string;
-  city: string;
-  country: string;
-  phone: string;
-  email: string;
-  website: string;
-  bankName: string;
-  bankAccount: string;
-  bankSwift: string;
-}
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+const BROKER_URL = "http://127.0.0.1:19432";
 
 export function BulkPrintOrdersPage() {
   const [searchParams] = useSearchParams();
-  const [ordersData, setOrdersData] = useState<OrderWithItems[]>([]);
-  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState<string>('');
-  const [readyToPrint, setReadyToPrint] = useState(false);
+  const [progress, setProgress] = useState<string>("Inicjalizacja...");
+  const [printStatus, setPrintStatus] = useState<"pending" | "success" | "fallback">("pending");
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const ids = searchParams.get('ids')?.split(',').map(Number).filter(Boolean) || [];
-  const showPrices = searchParams.get('showPrices') !== 'false';
+  const ids = searchParams.get("ids") || "";
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      if (ids.length === 0) {
-        setError('Nie podano ID zamowien');
+    document.title = "Drukuj Zamówienia";
+    
+    const fetchAndPrint = async () => {
+      if (!ids) {
+        setError("Nie podano ID zamówień");
         setLoading(false);
         return;
       }
 
+      const idList = ids.split(",").filter(Boolean);
+      setProgress(`Generowanie PDF dla ${idList.length} zamówień...`);
+
       try {
-        setProgress('Pobieranie ustawien firmy...');
+        const token = localStorage.getItem("token");
 
-        // Fetch company settings once
-        const companyResponse = await api.getCompanySettings().catch(() => null);
-        setCompanySettings(companyResponse);
+        const response = await fetch(`${API_URL}/orders/bulk/pdf?ids=${ids}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-        setProgress(`Pobieranie ${ids.length} zamowien...`);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || "Nie udało się pobrać PDF zamówień");
+        }
 
-        // Use new bulk endpoint - single request for all orders
-        const response = await api.getOrdersBulk(ids);
-        setOrdersData(response.orders);
+        setProgress("Przygotowywanie do druku...");
+        const blob = await response.blob();
 
-        setProgress('Renderowanie...');
-      } catch (err) {
-        console.error('Error fetching orders:', err);
-        setError('Blad podczas pobierania zamowien');
+        // Try Print Broker first
+        try {
+          const brokerStatus = await fetch(`${BROKER_URL}/status`, { 
+            method: "GET",
+            signal: AbortSignal.timeout(2000)
+          });
+          
+          if (brokerStatus.ok) {
+            setProgress("Wysyłanie do drukarki...");
+            
+            const base64 = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve((reader.result as string).split(",")[1]);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+
+            const printResponse = await fetch(`${BROKER_URL}/print`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                documentType: "order",
+                contentType: "pdf",
+                content: base64,
+                copies: 1,
+                paperSize: "A4",
+                title: `Zamówienia (${idList.length})`
+              })
+            });
+
+            const result = await printResponse.json();
+            if (result.success) {
+              setPrintStatus("success");
+              setLoading(false);
+              setTimeout(() => window.close(), 1500);
+              return;
+            }
+          }
+        } catch (brokerError) {
+          console.log("Print Broker not available, falling back to browser print");
+        }
+
+        // Fallback to browser print
+        setPrintStatus("fallback");
+        const url = URL.createObjectURL(blob);
+        setPdfUrl(url);
+      } catch (e: any) {
+        setError(e.message || "Błąd podczas pobierania zamówień");
+        console.error(e);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchOrders();
-  }, []);
+    fetchAndPrint();
 
-  // Wait for DOM to fully render before enabling print
-  useEffect(() => {
-    if (!loading && ordersData.length > 0) {
-      // Use requestAnimationFrame to wait for browser to paint
-      const waitForRender = () => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            // Short delay - lite template renders much faster
-            const delay = Math.min(200 + (ordersData.length * 20), 1500);
-
-            setTimeout(() => {
-              setProgress('Gotowe do druku!');
-              setReadyToPrint(true);
-            }, delay);
-          });
-        });
-      };
-
-      waitForRender();
-    }
-  }, [loading, ordersData]);
-
-  // Auto-print when ready - try QZ Tray first
-  useEffect(() => {
-    const doPrint = async () => {
-      if (readyToPrint) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-
-        // Try QZ Tray first
-        const printer = printerService.getPrinterForDocument("order");
-        if (printer && printerService.isConnected()) {
-          try {
-            const printContent = document.getElementById("print-content");
-            if (printContent) {
-              const success = await printerService.printElement(printContent, "order");
-              if (success) {
-                console.log("[BulkPrintOrders] QZ Tray print successful");
-                return;
-              }
-            }
-          } catch (e) {
-            console.warn("[BulkPrintOrders] QZ Tray failed, falling back to browser print");
-          }
-        }
-
-        // Fallback to browser print
-        window.print();
+    return () => {
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
       }
     };
-    doPrint();
-  }, [readyToPrint]);
+  }, [ids]);
 
-  // Manual print handler - also tries QZ Tray first
-  const handleManualPrint = useCallback(async () => {
-    const printer = printerService.getPrinterForDocument("order");
-    if (printer && printerService.isConnected()) {
-      try {
-        const printContent = document.getElementById("print-content");
-        if (printContent) {
-          const success = await printerService.printElement(printContent, "order");
-          if (success) {
-            console.log("[BulkPrintOrders] Manual QZ Tray print successful");
-            return;
-          }
+  const handleIframeLoad = () => {
+    if (printStatus === "fallback") {
+      setTimeout(() => {
+        if (iframeRef.current?.contentWindow) {
+          iframeRef.current.contentWindow.print();
+        } else {
+          window.print();
         }
-      } catch (e) {
-        console.warn("[BulkPrintOrders] Manual QZ Tray failed, falling back");
-      }
+      }, 800);
     }
-    window.print();
-  }, []);
+  };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-gray-600">Ladowanie zamowien ({ids.length})...</p>
-          <p className="text-sm text-gray-500 mt-2">{progress}</p>
-        </div>
+      <div style={{ 
+        minHeight: "100vh", 
+        display: "flex", 
+        flexDirection: "column",
+        alignItems: "center", 
+        justifyContent: "center",
+        fontFamily: "Arial, sans-serif",
+        gap: "16px"
+      }}>
+        <div style={{ 
+          width: "48px", 
+          height: "48px", 
+          border: "4px solid #f3f4f6",
+          borderTop: "4px solid #ea580c",
+          borderRadius: "50%",
+          animation: "spin 1s linear infinite"
+        }} />
+        <style>{"@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }"}</style>
+        <div style={{ fontSize: "18px", color: "#666" }}>{progress}</div>
       </div>
     );
   }
 
-  if (error) {
+  if (printStatus === "success") {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center text-red-600">
-          <p>{error}</p>
-        </div>
+      <div style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "Arial, sans-serif",
+        flexDirection: "column",
+        gap: "10px"
+      }}>
+        <div style={{ fontSize: "24px", color: "#16a34a" }}>✓</div>
+        <div style={{ fontSize: "18px", color: "#16a34a" }}>Wysłano do drukarki</div>
+        <div style={{ fontSize: "14px", color: "#666" }}>Okno zamknie się automatycznie...</div>
       </div>
     );
   }
 
-  // Map company settings to companyInfo format
-  const companyInfo = companySettings ? {
-    name: companySettings.companyName,
-    nip: companySettings.nip,
-    address: companySettings.street,
-    city: companySettings.city,
-    postalCode: companySettings.postalCode,
-    phone: companySettings.phone,
-    email: companySettings.email,
-  } : undefined;
+  if (error || !pdfUrl) {
+    return (
+      <div style={{ 
+        minHeight: "100vh", 
+        display: "flex", 
+        alignItems: "center", 
+        justifyContent: "center",
+        fontFamily: "Arial, sans-serif"
+      }}>
+        <div style={{ fontSize: "18px", color: "#dc2626" }}>{error || "Nie znaleziono zamówień"}</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="bulk-print-container" id="print-content">
-      <style>{`
-        @media print {
-          .bulk-print-container {
-            margin: 0;
-            padding: 0;
-          }
-          .page-break {
-            page-break-after: always;
-          }
-          .page-break:last-child {
-            page-break-after: avoid;
-          }
-          .print-status-bar {
-            display: none !important;
-          }
-          .order-template {
-            max-width: 100% !important;
-            padding: 0 !important;
-            font-size: 10px !important;
-          }
-          .barcode-container svg {
-            max-width: 140px !important;
-            height: 35px !important;
-          }
-        }
-        @media screen {
-          .bulk-print-container {
-            background: #f3f4f6;
-            min-height: 100vh;
-            padding: 20px;
-            padding-top: 60px;
-          }
-          .page-break {
-            margin-bottom: 40px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-          }
-          .print-status-bar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: white;
-            border-bottom: 1px solid #e5e7eb;
-            padding: 12px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            z-index: 1000;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-          }
-          .barcode-container svg {
-            max-width: 140px;
-            height: 35px;
-          }
-        }
-      `}</style>
-
-      {/* Status bar - only visible on screen */}
-      <div className="print-status-bar">
-        <div className="flex items-center gap-3">
-          {!readyToPrint ? (
-            <>
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-              <span className="text-gray-600">{progress}</span>
-            </>
-          ) : (
-            <>
-              <span className="text-green-600 font-medium">&#10003; {ordersData.length} zamowien gotowych do druku</span>
-            </>
-          )}
-        </div>
-        <button
-          onClick={handleManualPrint}
-          disabled={!readyToPrint}
-          className={`px-4 py-2 rounded font-medium transition-colors ${
-            readyToPrint
-              ? 'bg-blue-600 text-white hover:bg-blue-700'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-          }`}
-        >
-          {readyToPrint ? 'Drukuj ponownie' : 'Przygotowywanie...'}
-        </button>
-      </div>
-
-      {ordersData.map((order) => {
-        const snapshot = (order as any).customerSnapshot;
-        const customerInfo = snapshot ? {
-          customerCode: snapshot.customerCode,
-          companyName: snapshot.companyName,
-          firstName: snapshot.firstName,
-          lastName: snapshot.lastName,
-          nip: snapshot.nip,
-          address: snapshot.street,
-          city: snapshot.city,
-          postalCode: snapshot.postalCode,
-          email: snapshot.email,
-          phone: snapshot.phone,
-        } : undefined;
-
-        return (
-          <div key={order.id} className="page-break">
-            <OrderTemplateLite
-              data={{
-                id: order.id,
-                orderNumber: order.orderNumber,
-                status: order.status,
-                customerId: order.customerId,
-                customerName: order.customerName,
-                customerInfo,
-                items: order.items,
-                totalAmount: order.totalAmount,
-                notes: order.notes,
-                customerNotes: order.customerNotes,
-                createdAt: order.createdAt,
-                updatedAt: order.updatedAt,
-                completedAt: order.completedAt,
-              }}
-              companyInfo={companyInfo}
-              showPrices={showPrices}
-            />
-          </div>
-        );
-      })}
+    <div style={{ width: "100%", height: "100vh", margin: 0, padding: 0 }}>
+      <iframe
+        ref={iframeRef}
+        src={pdfUrl}
+        onLoad={handleIframeLoad}
+        style={{
+          width: "100%",
+          height: "100%",
+          border: "none",
+        }}
+        title="Zamówienia PDF"
+      />
     </div>
   );
 }

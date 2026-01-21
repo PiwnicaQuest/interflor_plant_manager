@@ -341,6 +341,31 @@ class ApiClient {
     return response.data;
   }
 
+    async getInvoicePdf(id: number): Promise<Blob> {
+    const response = await this.client.get(`/invoices/${id}/pdf`, { responseType: "blob" });
+    return response.data;
+  }
+
+  async getReceiptPdf(id: number): Promise<Blob> {
+    const response = await this.client.get(`/receipts/${id}/pdf`, { responseType: "blob" });
+    return response.data;
+  }
+
+  async getProformaPdf(id: number): Promise<Blob> {
+    const response = await this.client.get(`/proforma/${id}/pdf`, { responseType: "blob" });
+    return response.data;
+  }
+
+  async getOrderPdf(id: number): Promise<Blob> {
+    const response = await this.client.get(`/orders/${id}/pdf`, { responseType: "blob" });
+    return response.data;
+  }
+
+  async getOrdersBulkPdf(ids: number[]): Promise<Blob> {
+    const response = await this.client.get(`/orders/bulk/pdf?ids=${ids.join(",")}`, { responseType: "blob" });
+    return response.data;
+  }
+
   async getInvoiceHtml(id: number): Promise<string> {
     const response = await this.client.get(`/invoices/${id}/html?t=${Date.now()}`, { responseType: "text" });
     return response.data;
@@ -406,12 +431,13 @@ class ApiClient {
       description: string;
       originalQuantity: number;
       originalUnitPriceNet: number;
+      originalUnitPriceGross: number;
       originalVatRate: number;
       originalTotalNet: number;
       originalTotalVat: number;
       originalTotalGross: number;
       correctedQuantity: number;
-      correctedUnitPriceNet: number;
+      correctedUnitPriceGross: number;
       correctedVatRate: number;
     }>;
   }): Promise<{ correctionId: number; correctionNumber: string }> {

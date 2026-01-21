@@ -13,14 +13,18 @@ interface CorrectionItem {
   description: string;
   originalQuantity: number;
   originalUnitPriceNet: number;
+  originalUnitPriceGross: number;
   originalVatRate: number;
   originalTotalNet: number;
   originalTotalVat: number;
   originalTotalGross: number;
   correctedQuantity: number;
-  correctedUnitPriceNet: number;
+  correctedUnitPriceGross: number;
   correctedVatRate: number;
 }
+
+// Helper to round to 2 decimal places
+const round2 = (num: number) => Math.round((num + Number.EPSILON) * 100) / 100;
 
 export function CreateCorrectionModal({ onClose, onSuccess, preselectedInvoiceId }: CreateCorrectionModalProps) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -60,18 +64,20 @@ export function CreateCorrectionModal({ onClose, onSuccess, preselectedInvoiceId
         const invoice = data.invoice;
         setSelectedInvoice(invoice);
 
-        // Convert invoice items to correction items
+        // Convert invoice items to correction items - using GROSS prices
         const correctionItems: CorrectionItem[] = (invoice.items || []).map((item: any) => ({
           originalItemId: item.id,
           description: item.description,
           originalQuantity: item.quantity,
           originalUnitPriceNet: item.unitPriceNet,
+          originalUnitPriceGross: item.unitPriceGross,
           originalVatRate: item.vatRate,
           originalTotalNet: item.totalNet,
           originalTotalVat: item.totalVat,
           originalTotalGross: item.totalGross,
+          // Corrected values start as copies of original
           correctedQuantity: item.quantity,
-          correctedUnitPriceNet: item.unitPriceNet,
+          correctedUnitPriceGross: item.unitPriceGross,
           correctedVatRate: item.vatRate
         }));
         setItems(correctionItems);
@@ -92,10 +98,11 @@ export function CreateCorrectionModal({ onClose, onSuccess, preselectedInvoiceId
     setItems(newItems);
   };
 
+  // Calculate totals FROM GROSS (same as invoices and database)
   const calculateItemTotals = (item: CorrectionItem) => {
-    const net = item.correctedQuantity * item.correctedUnitPriceNet;
-    const vat = net * item.correctedVatRate / 100;
-    const gross = net + vat;
+    const gross = item.correctedQuantity * item.correctedUnitPriceGross;
+    const net = round2(gross / (1 + item.correctedVatRate / 100));
+    const vat = round2(gross - net);
     return { net, vat, gross };
   };
 
@@ -115,11 +122,15 @@ export function CreateCorrectionModal({ onClose, onSuccess, preselectedInvoiceId
     });
 
     return {
-      originalNet, originalVat, originalGross,
-      correctedNet, correctedVat, correctedGross,
-      diffNet: correctedNet - originalNet,
-      diffVat: correctedVat - originalVat,
-      diffGross: correctedGross - originalGross
+      originalNet: round2(originalNet),
+      originalVat: round2(originalVat),
+      originalGross: round2(originalGross),
+      correctedNet: round2(correctedNet),
+      correctedVat: round2(correctedVat),
+      correctedGross: round2(correctedGross),
+      diffNet: round2(correctedNet - originalNet),
+      diffVat: round2(correctedVat - originalVat),
+      diffGross: round2(correctedGross - originalGross)
     };
   };
 
@@ -143,12 +154,13 @@ export function CreateCorrectionModal({ onClose, onSuccess, preselectedInvoiceId
           description: item.description,
           originalQuantity: item.originalQuantity,
           originalUnitPriceNet: item.originalUnitPriceNet,
+          originalUnitPriceGross: item.originalUnitPriceGross,
           originalVatRate: item.originalVatRate,
           originalTotalNet: item.originalTotalNet,
           originalTotalVat: item.originalTotalVat,
           originalTotalGross: item.originalTotalGross,
           correctedQuantity: item.correctedQuantity,
-          correctedUnitPriceNet: item.correctedUnitPriceNet,
+          correctedUnitPriceGross: item.correctedUnitPriceGross,
           correctedVatRate: item.correctedVatRate
         }))
       });
@@ -263,7 +275,7 @@ export function CreateCorrectionModal({ onClose, onSuccess, preselectedInvoiceId
                       <tr>
                         <th className="px-3 py-2 text-left">Opis</th>
                         <th className="px-3 py-2 text-center" colSpan={2}>Ilość</th>
-                        <th className="px-3 py-2 text-center" colSpan={2}>Cena netto</th>
+                        <th className="px-3 py-2 text-center" colSpan={2}>Cena brutto</th>
                         <th className="px-3 py-2 text-center">VAT</th>
                         <th className="px-3 py-2 text-right">Było brutto</th>
                         <th className="px-3 py-2 text-right">Jest brutto</th>
@@ -284,7 +296,7 @@ export function CreateCorrectionModal({ onClose, onSuccess, preselectedInvoiceId
                     <tbody>
                       {items.map((item, index) => {
                         const corrected = calculateItemTotals(item);
-                        const diff = corrected.gross - item.originalTotalGross;
+                        const diff = round2(corrected.gross - item.originalTotalGross);
                         return (
                           <tr key={index} className="border-b hover:bg-gray-50">
                             <td className="px-3 py-2">{item.description}</td>
@@ -298,14 +310,14 @@ export function CreateCorrectionModal({ onClose, onSuccess, preselectedInvoiceId
                                 className="w-16 border border-gray-300 rounded px-2 py-1 text-center"
                               />
                             </td>
-                            <td className="px-3 py-2 text-center text-gray-500">{item.originalUnitPriceNet.toFixed(2)}</td>
+                            <td className="px-3 py-2 text-center text-gray-500">{item.originalUnitPriceGross.toFixed(2)}</td>
                             <td className="px-3 py-2">
                               <input
                                 type="number"
                                 min="0"
                                 step="0.01"
-                                value={item.correctedUnitPriceNet}
-                                onChange={(e) => handleItemChange(index, 'correctedUnitPriceNet', parseFloat(e.target.value) || 0)}
+                                value={item.correctedUnitPriceGross}
+                                onChange={(e) => handleItemChange(index, 'correctedUnitPriceGross', parseFloat(e.target.value) || 0)}
                                 className="w-20 border border-gray-300 rounded px-2 py-1 text-center"
                               />
                             </td>

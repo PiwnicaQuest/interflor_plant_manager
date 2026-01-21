@@ -49,13 +49,10 @@ export function POSPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Print Agent hook
-  const { printInvoice, printReceipt } = usePrint({
+  const { printInvoicePdf, printProformaPdf, printReceipt } = usePrint({
     onError: (error) => {
       console.error("Print error:", error);
       setError("Błąd drukowania: " + error);
-    },
-    onQueued: (jobId) => {
-      console.log("Print job queued:", jobId);
     },
   });
 
@@ -250,21 +247,16 @@ export function POSPage() {
       setPrintLoading(true);
       setError('');
 
-      let html: string;
       if (checkoutResult.documentType === 'invoice') {
-        html = await api.getInvoiceHtml(checkoutResult.documentId);
-        await printInvoice(html, {
+        await printInvoicePdf(checkoutResult.documentId, {
           title: `Faktura ${checkoutResult.documentNumber}`,
-          invoiceId: checkoutResult.documentId,
         });
       } else if (checkoutResult.documentType === 'proforma') {
-        html = await api.getProformaHtml(checkoutResult.documentId);
-        await printInvoice(html, {
+        await printProformaPdf(checkoutResult.documentId, {
           title: `Proforma ${checkoutResult.documentNumber}`,
-          invoiceId: checkoutResult.documentId,
         });
       } else {
-        html = await api.getReceiptHtml(checkoutResult.documentId);
+        const html = await api.getReceiptHtml(checkoutResult.documentId);
         await printReceipt(html, {
           title: `Paragon ${checkoutResult.documentNumber}`,
         });
@@ -310,21 +302,16 @@ export function POSPage() {
       setPrintLoading(true);
       setError('');
 
-      let html: string;
       if (order.document.type === 'invoice') {
-        html = await api.getInvoiceHtml(order.document.id);
-        await printInvoice(html, {
+        await printInvoicePdf(order.document.id, {
           title: `Faktura ${order.document.number}`,
-          invoiceId: order.document.id,
         });
       } else if (order.document.type === 'proforma') {
-        html = await api.getProformaHtml(order.document.id);
-        await printInvoice(html, {
+        await printProformaPdf(order.document.id, {
           title: `Proforma ${order.document.number}`,
-          invoiceId: order.document.id,
         });
       } else {
-        html = await api.getReceiptHtml(order.document.id);
+        const html = await api.getReceiptHtml(order.document.id);
         await printReceipt(html, {
           title: `Paragon ${order.document.number}`,
         });

@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../services/api';
-import { printerService } from '../services/printerService';
+import ReactDOMServer from 'react-dom/server';
+
 import { ReceiptTemplate } from '../components/Print/ReceiptTemplate';
 import { Receipt, Order } from '../types';
+
+const BROKER_URL = "http://127.0.0.1:19432";
 
 interface CompanySettings {
   companyName: string;
@@ -21,6 +24,8 @@ export function BulkPrintReceiptsPage() {
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [printStatus, setPrintStatus] = useState<"pending" | "success" | "fallback">("pending");
+  const printAttempted = useRef(false);
 
   const ids = searchParams.get('ids')?.split(',').map(Number).filter(Boolean) || [];
 
@@ -33,7 +38,6 @@ export function BulkPrintReceiptsPage() {
       }
 
       try {
-        // Fetch receipts and company settings in parallel
         const [receiptsResults, settingsResult] = await Promise.all([
           Promise.all(
             ids.map(async (id) => {
@@ -68,36 +72,6 @@ export function BulkPrintReceiptsPage() {
     fetchData();
   }, []);
 
-  // Auto-print when data is loaded - try QZ Tray first
-  useEffect(() => {
-    const doPrint = async () => {
-      if (!loading && receiptsData.length > 0) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        // Try QZ Tray first
-        const printer = printerService.getPrinterForDocument("receipt");
-        if (printer && printerService.isConnected()) {
-          try {
-            const printContent = document.getElementById("print-content");
-            if (printContent) {
-              const success = await printerService.printElement(printContent, "receipt");
-              if (success) {
-                console.log("[BulkPrintReceipts] QZ Tray print successful");
-                return;
-              }
-            }
-          } catch (e) {
-            console.warn("[BulkPrintReceipts] QZ Tray failed, falling back to browser print");
-          }
-        }
-
-        // Fallback to browser print
-        window.print();
-      }
-    };
-    doPrint();
-  }, [loading, receiptsData]);
-
   // Build companyInfo from company settings
   const companyInfo = companySettings ? {
     name: companySettings.companyName,
@@ -106,6 +80,65 @@ export function BulkPrintReceiptsPage() {
     phone: companySettings.phone,
   } : undefined;
 
+  // Auto-print when data is loaded - try Print Broker first
+  useEffect(() => {
+    const doPrint = async () => {
+      if (!loading && receiptsData.length > 0 && !printAttempted.current) {
+        printAttempted.current = true;
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Try Print Broker first
+        try {
+          const brokerStatus = await fetch(`${BROKER_URL}/status`, { 
+            method: "GET",
+            signal: AbortSignal.timeout(2000)
+          });
+          
+          if (brokerStatus.ok) {
+            // Get HTML content from the rendered page
+            const printContent = document.getElementById('print-content');
+            if (printContent) {
+              const htmlContent = printContent.innerHTML;
+              
+              const printResponse = await fetch(`${BROKER_URL}/print`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  documentType: "receipt",
+                  contentType: "html",
+                  content: `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+                    @page { size: 80mm auto; margin: 0; }
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    html, body { width: 80mm; font-family: 'Courier New', monospace; font-size: 12px; }
+                    .page-break { page-break-after: always; }
+                    .page-break:last-child { page-break-after: avoid; }
+                  </style></head><body>${htmlContent}</body></html>`,
+                  copies: 1,
+                  paperSize: "80mm",
+                  title: `Paragony (${receiptsData.length})`
+                })
+              });
+
+              const result = await printResponse.json();
+              if (result.success) {
+                setPrintStatus("success");
+                setTimeout(() => window.close(), 1500);
+                return;
+              }
+            }
+          }
+        } catch (brokerError) {
+          console.log("Print Broker not available, falling back to browser print");
+        }
+
+        // Browser print fallback
+        setPrintStatus("fallback");
+        window.print();
+      }
+    };
+    doPrint();
+  }, [loading, receiptsData]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -113,6 +146,24 @@ export function BulkPrintReceiptsPage() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
           <p className="text-gray-600">Ładowanie paragonów ({ids.length})...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (printStatus === "success") {
+    return (
+      <div style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "Arial, sans-serif",
+        flexDirection: "column",
+        gap: "10px"
+      }}>
+        <div style={{ fontSize: "24px", color: "#16a34a" }}>✓</div>
+        <div style={{ fontSize: "18px", color: "#16a34a" }}>Wysłano do drukarki</div>
+        <div style={{ fontSize: "14px", color: "#666" }}>Okno zamknie się automatycznie...</div>
       </div>
     );
   }

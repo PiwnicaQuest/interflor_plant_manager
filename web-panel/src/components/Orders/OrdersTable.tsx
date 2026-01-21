@@ -3,6 +3,7 @@ import { Order, OrderStatus } from '../../types';
 interface OrdersTableProps {
   orders: Order[];
   selectedOrders: number[];
+  onPrint: (order: Order) => void;
   onViewDetails: (order: Order) => void;
   onExportExcel: (order: Order) => void;
   onChangeStatus: (orderId: number, status: OrderStatus) => void;
@@ -12,8 +13,8 @@ interface OrdersTableProps {
 
 const statusConfig: Record<OrderStatus, { label: string; class: string }> = {
   [OrderStatus.PENDING]: { label: 'Oczekuje', class: 'badge-info' },
-  [OrderStatus.READY_FOR_PICKUP]: { label: 'Gotowe do odbióru', class: 'badge-success' },
-  [OrderStatus.COMPLETED]: { label: 'Zakończone', class: 'badge-success' },
+  [OrderStatus.READY_FOR_PICKUP]: { label: 'Gotowe do odbioru', class: 'badge-success' },
+  [OrderStatus.COMPLETED]: { label: 'Zakonczone', class: 'badge-success' },
   [OrderStatus.CANCELLED]: { label: 'Anulowane', class: 'badge-danger' },
 };
 
@@ -21,12 +22,12 @@ const sourceConfig: Record<string, string> = {
   shop: 'Sklep internetowy',
   scanner: 'Scanner PWA',
   panel: 'Panel',
-
 };
 
 export function OrdersTable({
   orders,
   selectedOrders,
+  onPrint,
   onViewDetails,
   onExportExcel,
   onChangeStatus,
@@ -36,7 +37,7 @@ export function OrdersTable({
   if (orders.length === 0) {
     return (
       <div className="card p-8 text-center">
-        <p className="text-gray-500">Brak zamówień</p>
+        <p className="text-gray-500">Brak zamowien</p>
       </div>
     );
   }
@@ -67,14 +68,14 @@ export function OrdersTable({
                   className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                 />
               </th>
-              <th>Nr zamówienia</th>
+              <th>Nr zamowienia</th>
               <th>Kod</th>
               <th>Klient</th>
               <th>Data</th>
               <th>Pozycje</th>
               <th>Kwota</th>
               <th>Status</th>
-              <th>Źródło</th>
+              <th>Zrodlo</th>
               <th>Akcje</th>
             </tr>
           </thead>
@@ -108,10 +109,17 @@ export function OrdersTable({
                 <td>
                   <div className="flex gap-2 items-center">
                     <button
+                      onClick={() => onPrint(order)}
+                      className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                      title="Drukuj zamowienie"
+                    >
+                      Drukuj
+                    </button>
+                    <button
                       onClick={() => onViewDetails(order)}
                       className="text-primary-600 hover:text-primary-700 text-sm font-medium"
                     >
-                      Szczegóły
+                      Szczegoly
                     </button>
                     <button
                       onClick={() => onExportExcel(order)}
@@ -129,7 +137,7 @@ export function OrdersTable({
                       >
                         <option value={OrderStatus.PENDING}>Oczekuje</option>
                         <option value={OrderStatus.READY_FOR_PICKUP}>Gotowe</option>
-                        <option value={OrderStatus.COMPLETED}>Zakończone</option>
+                        <option value={OrderStatus.COMPLETED}>Zakonczone</option>
                         <option value={OrderStatus.CANCELLED}>Anuluj</option>
                       </select>
                     )}

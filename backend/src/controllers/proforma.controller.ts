@@ -5,7 +5,7 @@ import { CustomerModel } from '../models/Customer';
 import { OrderModel } from '../models/Order';
 import { PaymentMethod } from '../types';
 import { emailService } from '../services/emailService';
-import { generateInvoiceHtml } from '../utils/invoiceHtmlGenerator';
+import { generateProformaPdfDirect } from "../utils/proformaPdfGenerator";
 
 export class ProformaController {
   /**
@@ -520,12 +520,41 @@ export class ProformaController {
         res.status(400).json({ error: "To nie jest pro forma" });
         return;
       }
-      const html = await generateInvoiceHtml(proforma);
-      res.setHeader("Content-Type", "text/html; charset=utf-8");
-      res.send(html);
+      const pdfDoc = await generateProformaPdfDirect(proforma);
+      res.setHeader("Content-Type", "application/pdf");
+      pdfDoc.pipe(res);
     } catch (error) {
       console.error("Get HTML error:", error);
       res.status(500).json({ error: "Błąd serwera podczas generowania HTML" });
+    }
+  }
+
+  /**
+   * GET /proforma/:id/pdf - Get proforma as PDF
+   */
+  static async getPdf(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        res.status(400).json({ error: "Nieprawidlowe ID proformy" });
+        return;
+      }
+      const proforma = await InvoiceModel.getById(id);
+      if (!proforma) {
+        res.status(404).json({ error: "Pro forma nie znaleziona" });
+        return;
+      }
+      if (proforma.invoiceType !== "proforma") {
+        res.status(400).json({ error: "To nie jest pro forma" });
+        return;
+      }
+      const pdfDoc = await generateProformaPdfDirect(proforma);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="proforma-${proforma.invoiceNumber}.pdf"`);
+      pdfDoc.pipe(res);
+    } catch (error) {
+      console.error("Get PDF error:", error);
+      res.status(500).json({ error: "Blad serwera podczas generowania PDF" });
     }
   }
 }

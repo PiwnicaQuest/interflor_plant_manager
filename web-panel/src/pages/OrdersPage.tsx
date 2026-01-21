@@ -85,6 +85,10 @@ export function OrdersPage() {
     }
   };
 
+  const handlePrintOrder = (order: Order) => {
+    window.open(`/print/order/${order.id}`, "_blank");
+  };
+
   const handleExportExcel = async (order: Order) => {
     try {
       const data = await api.getOrder(order.id);
@@ -521,6 +525,7 @@ export function OrdersPage() {
           <OrdersTable
             orders={orders}
             selectedOrders={selectedOrders}
+            onPrint={handlePrintOrder}
             onViewDetails={handleViewDetails}
             onExportExcel={handleExportExcel}
             onChangeStatus={handleChangeStatus}

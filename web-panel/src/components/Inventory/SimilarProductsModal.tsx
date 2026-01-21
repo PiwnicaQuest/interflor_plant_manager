@@ -91,7 +91,7 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
     products: group.products.filter(product => {
       // Date filter
       if (dateFrom || dateTo) {
-        const productDate = product.deliveryDate ? new Date(product.deliveryDate) : null;
+        const productDate = product.createdAt ? new Date(product.createdAt) : null;
         if (!productDate) return false;
         if (dateFrom && productDate < new Date(dateFrom)) return false;
         if (dateTo && productDate > new Date(dateTo + "T23:59:59")) return false;

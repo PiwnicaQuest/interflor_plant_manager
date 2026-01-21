@@ -54,11 +54,13 @@ export interface BrokerStatus {
 export interface BrokerConfig {
   port: number;
   allowedOrigins: string[];
-  defaultPrinters: {
+  defaultPrinters: Record<string, string>;
+  _oldDefaultPrinters?: {
     label?: string;
     receipt?: string;
     document?: string;
   };
+
   autoStart: boolean;
 }
 

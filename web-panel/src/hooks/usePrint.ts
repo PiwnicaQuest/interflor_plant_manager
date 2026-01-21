@@ -1,6 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { api } from "../services/api";
-import { printerService, DocumentType as QzDocumentType } from "../services/printerService";
 
 // Document types that can be printed
 export type DocumentType =
@@ -14,21 +12,9 @@ export type DocumentType =
 // Print Broker types
 type BrokerDocumentType = "label" | "receipt" | "invoice" | "order" | "report" | "delivery_note";
 
-interface PrinterConfig {
-  id: number;
-  documentType: DocumentType;
-  agentId: string | null;
-  printerName: string | null;
-  paperSize: string;
-  copies: number;
-  orientation: string;
-  colorMode: string;
-  isActive: boolean;
-}
-
 interface PrintResult {
   success: boolean;
-  method: "broker" | "qztray" | "queue" | "browser";
+  method: "broker" | "browser";
   jobId?: string;
   error?: string;
 }
@@ -42,12 +28,10 @@ interface BrokerStatus {
 interface UsePrintOptions {
   // If true, will always show browser print dialog (for preview)
   forceBrowserPrint?: boolean;
-  // If true, skip broker and use queue/browser
+  // If true, skip broker and use browser
   skipBroker?: boolean;
   // Callback when print job is sent to broker
   onBrokerPrint?: (jobId: string) => void;
-  // Callback when print job is queued
-  onQueued?: (jobId: string) => void;
   // Callback when falling back to browser print
   onBrowserPrint?: () => void;
   // Callback on error
@@ -69,16 +53,6 @@ const DOC_TYPE_MAP: Record<DocumentType, BrokerDocumentType> = {
   delivery_notes: "delivery_note",
 };
 
-
-// Map DocumentType to QZ Tray document type
-const QZ_DOC_TYPE_MAP: Record<DocumentType, QzDocumentType> = {
-  barcode_labels: "label",
-  orders: "order",
-  invoices: "invoice",
-  receipts: "receipt",
-  inventory_reports: "order",
-  delivery_notes: "order",
-};
 // Map DocumentType to paper size
 const DEFAULT_PAPER_SIZE: Record<DocumentType, string> = {
   barcode_labels: "50x30mm",
@@ -331,7 +305,6 @@ export async function getBrokerPrinters(): Promise<
 // ============================================
 
 export function usePrint(options: UsePrintOptions = {}) {
-  const [configs, setConfigs] = useState<PrinterConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastResult, setLastResult] = useState<PrintResult | null>(null);
   const [brokerStatus, setBrokerStatus] = useState<BrokerStatus | null>(null);
@@ -351,22 +324,11 @@ export function usePrint(options: UsePrintOptions = {}) {
     return status;
   }, [brokerChecking, brokerStatus]);
 
-  // Fetch printer configurations and check broker on mount
+  // Check broker on mount
   useEffect(() => {
     const init = async () => {
-      try {
-        // Fetch configs and check broker in parallel
-        const [configResult] = await Promise.all([
-          api.getPrintConfigs(),
-          checkBroker(),
-        ]);
-        setConfigs(configResult.configs || []);
-      } catch (error) {
-        console.error("Failed to fetch print configs:", error);
-        setConfigs([]);
-      } finally {
-        setLoading(false);
-      }
+      await checkBroker();
+      setLoading(false);
     };
 
     init();
@@ -382,23 +344,6 @@ export function usePrint(options: UsePrintOptions = {}) {
       }
     };
   }, []);
-
-  // Check if a document type has a configured printer
-  const hasConfiguredPrinter = useCallback(
-    (documentType: DocumentType): boolean => {
-      const config = configs.find((c) => c.documentType === documentType);
-      return !!(config?.agentId && config?.isActive !== false);
-    },
-    [configs]
-  );
-
-  // Get config for a document type
-  const getConfig = useCallback(
-    (documentType: DocumentType): PrinterConfig | undefined => {
-      return configs.find((c) => c.documentType === documentType);
-    },
-    [configs]
-  );
 
   // Check if broker is available
   const isBrokerAvailable = useCallback((): boolean => {
@@ -424,7 +369,6 @@ export function usePrint(options: UsePrintOptions = {}) {
         forceBrowserPrint,
         skipBroker,
         onBrokerPrint,
-        onQueued,
         onBrowserPrint,
         onError,
       } = options;
@@ -461,122 +405,13 @@ export function usePrint(options: UsePrintOptions = {}) {
             return result;
           } else {
             console.warn("[usePrint] Print Broker failed:", brokerResult.error);
-            // Continue to fallback methods
+            // Continue to browser fallback
           }
         }
       }
 
       // ========================================
-      // 1.5. Try QZ Tray (if available and configured)
-      // ========================================
-      if (!forceBrowserPrint) {
-        const qzDocType = QZ_DOC_TYPE_MAP[documentType];
-        const qzPrinter = printerService.getPrinterForDocument(qzDocType);
-        
-        if (qzPrinter && printerService.isConnected()) {
-          try {
-            console.log("[usePrint] Using QZ Tray for", qzDocType, "->", qzPrinter);
-            
-            const wrappedContent = `
-              <!DOCTYPE html>
-              <html>
-              <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                ${getBasePrintStyles(documentType)}
-              </head>
-              <body>
-                ${htmlContent}
-              </body>
-              </html>
-            `;
-            
-            const success = await printerService.printHtml(wrappedContent, qzDocType, {
-              copies: printOptions?.copies || 1,
-            });
-            
-            if (success) {
-              const result: PrintResult = {
-                success: true,
-                method: "qztray",
-              };
-              setLastResult(result);
-              console.log("[usePrint] QZ Tray print successful");
-              return result;
-            } else {
-              console.warn("[usePrint] QZ Tray print failed, trying next method...");
-            }
-          } catch (error: any) {
-            console.warn("[usePrint] QZ Tray error:", error.message);
-            // Continue to fallback methods
-          }
-        }
-      }
-
-
-      // ========================================
-      // 2. Try Print Queue (Print Agent)
-      // ========================================
-      const config = getConfig(documentType);
-      const useQueue =
-        !forceBrowserPrint && config?.agentId && config?.isActive !== false;
-
-      if (useQueue) {
-        try {
-          console.log("[usePrint] Using Print Queue (Agent)...");
-
-          const wrappedContent = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              ${getBasePrintStyles(documentType)}
-            </head>
-            <body>
-              ${htmlContent}
-            </body>
-            </html>
-          `;
-
-          const response = await api.createPrintJob({
-            documentType,
-            contentType: "html",
-            content: wrappedContent,
-            title: printOptions?.title,
-            sourceType: printOptions?.sourceType,
-            sourceId: printOptions?.sourceId,
-          });
-
-          const result: PrintResult = {
-            success: true,
-            method: "queue",
-            jobId: response.job?.jobId,
-          };
-
-          setLastResult(result);
-          onQueued?.(response.job?.jobId);
-
-          console.log(
-            "[usePrint] Print job queued:",
-            response.job?.jobId,
-            "->",
-            config.printerName || "default printer"
-          );
-          return result;
-        } catch (error: any) {
-          const errorMsg =
-            error.response?.data?.error ||
-            error.message ||
-            "Błąd wysyłania do kolejki druku";
-          console.error("[usePrint] Print queue error:", errorMsg);
-          onError?.(errorMsg);
-          // Continue to browser fallback
-        }
-      }
-
-      // ========================================
-      // 3. Browser print fallback
+      // 2. Browser print fallback
       // ========================================
       try {
         console.log("[usePrint] Using browser print...");
@@ -645,7 +480,7 @@ export function usePrint(options: UsePrintOptions = {}) {
         return result;
       }
     },
-    [configs, options, getConfig, brokerStatus, checkBroker]
+    [options, brokerStatus, checkBroker]
   );
 
   // Print barcodes specifically
@@ -1017,13 +852,10 @@ export function usePrint(options: UsePrintOptions = {}) {
   return {
     // State
     loading,
-    configs,
     lastResult,
     brokerStatus,
 
     // Helpers
-    hasConfiguredPrinter,
-    getConfig,
     isBrokerAvailable,
     checkBroker,
 
@@ -1076,53 +908,4 @@ export async function printViaBroker(
   }
 
   return sendToBroker(documentType, htmlContent, options);
-}
-
-/**
- * Send to print queue via API (for use outside React)
- */
-export async function sendToPrintQueue(
-  documentType: DocumentType,
-  htmlContent: string,
-  options?: {
-    title?: string;
-    sourceType?: string;
-    sourceId?: number;
-  }
-): Promise<{ success: boolean; jobId?: string; error?: string }> {
-  try {
-    const baseStyles = getBasePrintStyles(documentType);
-
-    const wrappedContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        ${baseStyles}
-      </head>
-      <body>
-        ${htmlContent}
-      </body>
-      </html>
-    `;
-
-    const response = await api.createPrintJob({
-      documentType,
-      contentType: "html",
-      content: wrappedContent,
-      title: options?.title,
-      sourceType: options?.sourceType,
-      sourceId: options?.sourceId,
-    });
-
-    return {
-      success: true,
-      jobId: response.job?.jobId,
-    };
-  } catch (error: any) {
-    return {
-      success: false,
-      error: error.response?.data?.error || error.message,
-    };
-  }
 }

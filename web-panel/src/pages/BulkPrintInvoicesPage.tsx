@@ -1,226 +1,148 @@
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { api } from '../services/api';
-import { InvoiceTemplate } from '../components/Print/InvoiceTemplate';
-import { printerService } from "../services/printerService";
-import { Invoice } from '../types';
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 
-interface CompanySettings {
-  companyName: string;
-  nip: string;
-  street: string;
-  postalCode: string;
-  city: string;
-  phone?: string;
-  email?: string;
-  bankName?: string;
-  bankAccount?: string;
-  invoiceComment?: string;
-}
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+const BROKER_URL = "http://127.0.0.1:19432";
 
 export function BulkPrintInvoicesPage() {
   const [searchParams] = useSearchParams();
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState<{ current: number; total: number; status: string }>({ current: 0, total: 0, status: "Inicjalizacja..." });
   const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
 
-  const ids = searchParams.get('ids')?.split(',').map(Number).filter(Boolean) || [];
+  const ids = searchParams.get("ids")?.split(",").map(Number).filter(Boolean) || [];
 
   useEffect(() => {
-    const fetchData = async () => {
+    const printAll = async () => {
       if (ids.length === 0) {
-        setError('Nie podano ID faktur');
-        setLoading(false);
+        setError("Nie podano ID faktur");
         return;
       }
 
+      const token = localStorage.getItem("token");
+      setProgress({ current: 0, total: ids.length, status: "Sprawdzanie Print Broker..." });
+
+      // Check if broker is available
+      let brokerAvailable = false;
       try {
-        // Fetch invoices and company settings in parallel
-        const [invoiceResults, settingsResult] = await Promise.all([
-          Promise.all(
-            ids.map(async (id) => {
-              const response = await api.getInvoice(id);
-              return response.invoice;
-            })
-          ),
-          api.getCompanySettings().catch(() => null)
-        ]);
-
-        setInvoices(invoiceResults);
-        if (settingsResult) {
-          setCompanySettings(settingsResult);
-        }
-      } catch (err) {
-        console.error('Error fetching invoices:', err);
-        setError('Błąd podczas pobierania faktur');
-      } finally {
-        setLoading(false);
+        const brokerCheck = await fetch(`${BROKER_URL}/status`, { method: "GET" });
+        brokerAvailable = brokerCheck.ok;
+      } catch {
+        brokerAvailable = false;
       }
-    };
 
-    fetchData();
-  }, []);
+      if (!brokerAvailable) {
+        // Fallback: open each invoice in separate window
+        setProgress({ current: 0, total: ids.length, status: "Print Broker niedostępny - otwieranie w przeglądarce..." });
+        ids.forEach((id, index) => {
+          setTimeout(() => {
+            window.open(`/print/invoice/${id}`, "_blank");
+            setProgress(p => ({ ...p, current: index + 1 }));
+          }, index * 500);
+        });
+        setTimeout(() => setDone(true), ids.length * 500 + 1000);
+        return;
+      }
 
-  useEffect(() => {
-    const doPrint = async () => {
-      if (!loading && invoices.length > 0) {
-        // Wait for render
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Try QZ Tray first
-        const printer = printerService.getPrinterForDocument("invoice");
-        if (printer && printerService.isConnected()) {
-          try {
-            const printContent = document.getElementById("print-content");
-            if (printContent) {
-              const success = await printerService.printElement(printContent, "invoice");
-              if (success) {
-                console.log("[BulkPrint] QZ Tray print successful");
-                return;
-              }
-            }
-          } catch (e) {
-            console.warn("[BulkPrint] QZ Tray failed, falling back to browser print");
+      // Print via broker
+      for (let i = 0; i < ids.length; i++) {
+        const id = ids[i];
+        setProgress({ current: i + 1, total: ids.length, status: `Drukowanie faktury ${i + 1} z ${ids.length}...` });
+
+        try {
+          // Fetch PDF
+          const response = await fetch(`${API_URL}/invoices/${id}/pdf`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (!response.ok) {
+            console.error(`Failed to fetch PDF for invoice ${id}`);
+            continue;
           }
+
+          const blob = await response.blob();
+
+          // Convert to base64
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve((reader.result as string).split(",")[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+
+          // Send to broker
+          await fetch(`${BROKER_URL}/print`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              documentType: "invoice",
+              contentType: "pdf",
+              content: base64,
+              copies: 1,
+              paperSize: "A4",
+            }),
+          });
+
+          // Small delay between prints
+          await new Promise(resolve => setTimeout(resolve, 300));
+
+        } catch (err) {
+          console.error(`Error printing invoice ${id}:`, err);
         }
-        
-        // Fallback to browser print
-        window.print();
       }
+
+      setProgress({ current: ids.length, total: ids.length, status: "Zakończono!" });
+      setDone(true);
     };
-    doPrint();
-  }, [loading, invoices]);
 
-  // Build sellerInfo from company settings
-  const sellerInfo = companySettings ? {
-    name: companySettings.companyName,
-    nip: companySettings.nip,
-    address: companySettings.street,
-    postalCode: companySettings.postalCode,
-    city: companySettings.city,
-    phone: companySettings.phone,
-    email: companySettings.email,
-    bankName: companySettings.bankName,
-    bankAccount: companySettings.bankAccount,
-    invoiceComment: companySettings.invoiceComment,
-  } : undefined;
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-gray-600">Ładowanie faktur ({ids.length})...</p>
-        </div>
-      </div>
-    );
-  }
+    printAll();
+  }, []);
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center text-red-600">
-          <p>{error}</p>
-        </div>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Arial, sans-serif" }}>
+        <div style={{ textAlign: "center", color: "#dc2626" }}>{error}</div>
       </div>
     );
   }
 
   return (
-    <div className="bulk-print-container">
-      <style>{`
-        @media print {
-          .bulk-print-container {
-            margin: 0;
-            padding: 0;
-          }
-          .page-break {
-            page-break-after: always;
-          }
-          .page-break:last-child {
-            page-break-after: avoid;
-          }
-        }
-        @media screen {
-          .bulk-print-container {
-            background: #f3f4f6;
-            min-height: 100vh;
-            padding: 20px;
-          }
-          .page-break {
-            margin-bottom: 40px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-          }
-        }
-      `}</style>
-
-      {invoices.map((invoice) => {
-        // Map invoice items to template format
-        const mappedItems = (invoice.items || []).map((item) => ({
-          id: item.id,
-          name: item.description || 'Produkt',
-          quantity: item.quantity,
-          unit: 'szt.',
-          unitPriceNet: item.unitPriceNet || 0,
-          unitPriceGross: (item.unitPriceNet || 0) * (1 + (item.vatRate || 0) / 100),
-          totalNet: item.totalNet || 0,
-          totalGross: item.totalGross || 0,
-          vatRate: item.vatRate || 0,
-          totalVat: item.totalVat || 0,
-          unitsPerPallet: 0,
-          growerPassport: item.growerPassport,
-        }));
-
-        // Map buyer info from buyerSnapshot
-        const buyerInfo = invoice.buyerSnapshot ? {
-          companyName: invoice.buyerSnapshot.companyName,
-          firstName: invoice.buyerSnapshot.firstName,
-          lastName: invoice.buyerSnapshot.lastName,
-          nip: invoice.buyerSnapshot.nip,
-          address: invoice.buyerSnapshot.street,
-          city: invoice.buyerSnapshot.city,
-          postalCode: invoice.buyerSnapshot.postalCode,
-        } : undefined;
-
-        // Map recipient info from recipientSnapshot
-        const recipientInfo = invoice.recipientSnapshot ? {
-          companyName: invoice.recipientSnapshot.companyName,
-          firstName: invoice.recipientSnapshot.firstName,
-          lastName: invoice.recipientSnapshot.lastName,
-          address: invoice.recipientSnapshot.street,
-          city: invoice.recipientSnapshot.city,
-          postalCode: invoice.recipientSnapshot.postalCode,
-          phone: invoice.recipientSnapshot.phone,
-        } : undefined;
-
-        // Build invoice data for template
-        const invoiceData = {
-          id: invoice.id,
-          invoiceNumber: invoice.invoiceNumber,
-          orderId: invoice.orderId,
-          issueDate: invoice.issueDate,
-          saleDate: invoice.saleDate,
-          paymentDeadline: invoice.paymentDeadline,
-          paymentMethod: invoice.paymentMethod,
-          paymentSplits: invoice.paymentSplits,
-          paymentStatus: invoice.paymentStatus,
-          items: mappedItems,
-          subtotalNet: invoice.subtotalNet,
-          totalVat: invoice.totalVat,
-          totalGross: invoice.totalGross,
-          paidAmount: invoice.paidAmount,
-          notes: invoice.notes,
-          buyerInfo,
-          recipientInfo,
-        };
-
-        return (
-          <div key={invoice.id} className="page-break">
-            <InvoiceTemplate data={invoiceData} sellerInfo={sellerInfo} />
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Arial, sans-serif", background: "#f3f4f6" }}>
+      <div style={{ textAlign: "center", padding: "40px", background: "white", borderRadius: "12px", boxShadow: "0 4px 6px rgba(0,0,0,0.1)" }}>
+        <h2 style={{ fontSize: "20px", marginBottom: "20px", color: "#1f2937" }}>Drukowanie faktur</h2>
+        
+        <div style={{ marginBottom: "20px" }}>
+          <div style={{ width: "300px", height: "8px", background: "#e5e7eb", borderRadius: "4px", overflow: "hidden" }}>
+            <div style={{ 
+              width: `${(progress.current / progress.total) * 100}%`, 
+              height: "100%", 
+              background: done ? "#22c55e" : "#2563eb", 
+              transition: "width 0.3s ease" 
+            }} />
           </div>
-        );
-      })}
+        </div>
+
+        <p style={{ color: "#6b7280", marginBottom: "10px" }}>{progress.status}</p>
+        <p style={{ color: "#9ca3af", fontSize: "14px" }}>{progress.current} / {progress.total}</p>
+
+        {done && (
+          <button
+            onClick={() => window.close()}
+            style={{ 
+              marginTop: "20px", 
+              padding: "10px 24px", 
+              background: "#2563eb", 
+              color: "white", 
+              border: "none", 
+              borderRadius: "6px", 
+              cursor: "pointer",
+              fontSize: "14px"
+            }}
+          >
+            Zamknij
+          </button>
+        )}
+      </div>
     </div>
   );
 }

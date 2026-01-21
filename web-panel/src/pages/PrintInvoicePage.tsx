@@ -1,147 +1,136 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { api } from "../services/api";
-import { Invoice } from "../types";
-import { InvoiceTemplate } from "../components/Print/InvoiceTemplate";
 
-interface CompanySettings {
-  companyName: string;
-  nip: string;
-  street: string;
-  postalCode: string;
-  city: string;
-  phone?: string;
-  email?: string;
-  bankName?: string;
-  bankAccount?: string;
-  invoiceComment?: string;
-}
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+const BROKER_URL = "http://127.0.0.1:19432";
 
 export function PrintInvoicePage() {
   const { id } = useParams<{ id: string }>();
-  const [invoice, setInvoice] = useState<Invoice | null>(null);
-  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
+  const [html, setHtml] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [printStatus, setPrintStatus] = useState<"pending" | "success" | "fallback">("pending");
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchAndPrint = async () => {
       if (!id) return;
-      
+
       try {
         setLoading(true);
-        
-        // Fetch invoice and company settings in parallel
-        const [invoiceResponse, settingsResponse] = await Promise.all([
-          api.getInvoice(parseInt(id)),
-          api.getCompanySettings().catch(() => null)
-        ]);
-        
-        setInvoice(invoiceResponse.invoice);
-        if (settingsResponse) {
-          setCompanySettings(settingsResponse);
+        const token = localStorage.getItem("token");
+
+        const response = await fetch(`${API_URL}/invoices/${id}/html`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!response.ok) {
+          throw new Error("Nie udalo sie pobrac faktury");
         }
-      } catch (e) {
-        setError("Nie udało się pobrać faktury");
+
+        const htmlContent = await response.text();
+        setHtml(htmlContent);
+
+        // Try Print Broker first
+        try {
+          const brokerStatus = await fetch(`${BROKER_URL}/status`, { 
+            method: "GET",
+            signal: AbortSignal.timeout(2000)
+          });
+          
+          if (brokerStatus.ok) {
+            const printResponse = await fetch(`${BROKER_URL}/print`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                documentType: "invoice",
+                contentType: "html",
+                content: htmlContent,
+                copies: 1,
+                paperSize: "A4",
+                title: `Faktura`
+              })
+            });
+
+            const result = await printResponse.json();
+            if (result.success) {
+              setPrintStatus("success");
+              // Close window after short delay
+              setTimeout(() => window.close(), 1500);
+              return;
+            }
+          }
+        } catch (brokerError) {
+          console.log("Print Broker not available, falling back to browser print");
+        }
+
+        // Fallback to browser print
+        setPrintStatus("fallback");
+        setTimeout(() => {
+          window.print();
+        }, 300);
+
+      } catch (e: any) {
+        setError(e.message || "Blad podczas pobierania faktury");
         console.error(e);
       } finally {
         setLoading(false);
       }
     };
-    
-    fetchData();
+
+    fetchAndPrint();
   }, [id]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Ładowanie...</div>
+      <div style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "Arial, sans-serif"
+      }}>
+        <div style={{ fontSize: "18px", color: "#666" }}>Ladowanie faktury...</div>
       </div>
     );
   }
 
-  if (error || !invoice) {
+  if (printStatus === "success") {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg text-red-600">{error || "Nie znaleziono faktury"}</div>
+      <div style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "Arial, sans-serif",
+        flexDirection: "column",
+        gap: "10px"
+      }}>
+        <div style={{ fontSize: "24px", color: "#16a34a" }}>✓</div>
+        <div style={{ fontSize: "18px", color: "#16a34a" }}>Wysłano do drukarki</div>
+        <div style={{ fontSize: "14px", color: "#666" }}>Okno zamknie się automatycznie...</div>
       </div>
     );
   }
 
-  // Map invoice items to template format
-  const mappedItems = (invoice.items || []).map((item) => ({
-    id: item.id,
-    name: item.description || 'Produkt',
-    quantity: item.quantity,
-    unit: 'szt.',
-    unitPriceNet: item.unitPriceNet || 0,
-    unitPriceGross: (item.unitPriceNet || 0) * (1 + (item.vatRate || 0) / 100),
-    totalNet: item.totalNet || 0,
-    totalGross: item.totalGross || 0,
-    vatRate: item.vatRate || 0,
-    totalVat: item.totalVat || 0,
-    unitsPerPallet: 0,
-    growerPassport: item.growerPassport,
-  }));
+  if (error || !html) {
+    return (
+      <div style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "Arial, sans-serif"
+      }}>
+        <div style={{ fontSize: "18px", color: "#dc2626" }}>{error || "Nie znaleziono faktury"}</div>
+      </div>
+    );
+  }
 
-  // Map buyer info from buyerSnapshot
-  const buyerInfo = invoice.buyerSnapshot ? {
-    companyName: invoice.buyerSnapshot.companyName,
-    firstName: invoice.buyerSnapshot.firstName,
-    lastName: invoice.buyerSnapshot.lastName,
-    nip: invoice.buyerSnapshot.nip,
-    address: invoice.buyerSnapshot.street,
-    city: invoice.buyerSnapshot.city,
-    postalCode: invoice.buyerSnapshot.postalCode,
-  } : undefined;
-
-  // Map recipient info from recipientSnapshot (if different delivery address)
-  const recipientInfo = invoice.recipientSnapshot ? {
-    companyName: invoice.recipientSnapshot.companyName,
-    firstName: invoice.recipientSnapshot.firstName,
-    lastName: invoice.recipientSnapshot.lastName,
-    address: invoice.recipientSnapshot.street,
-    city: invoice.recipientSnapshot.city,
-    postalCode: invoice.recipientSnapshot.postalCode,
-    phone: invoice.recipientSnapshot.phone,
-  } : undefined;
-
-  // Build invoice data for template
-  const invoiceData = {
-    id: invoice.id,
-    invoiceNumber: invoice.invoiceNumber,
-    orderId: invoice.orderId,
-    issueDate: invoice.issueDate,
-    saleDate: invoice.saleDate,
-    paymentDeadline: invoice.paymentDeadline,
-    paymentMethod: invoice.paymentMethod,
-    paymentSplits: invoice.paymentSplits,
-    paymentStatus: invoice.paymentStatus,
-    items: mappedItems,
-    subtotalNet: invoice.subtotalNet,
-    totalVat: invoice.totalVat,
-    totalGross: invoice.totalGross,
-    paidAmount: invoice.paidAmount,
-    notes: invoice.notes,
-    buyerInfo,
-    recipientInfo,
-  };
-
-  // Map seller info from company settings
-  const sellerInfo = companySettings ? {
-    name: companySettings.companyName || 'Nazwa firmy',
-    address: companySettings.street || '',
-    city: companySettings.city || '',
-    postalCode: companySettings.postalCode || '',
-    nip: companySettings.nip || '',
-    phone: companySettings.phone,
-    email: companySettings.email,
-    bankAccount: companySettings.bankAccount,
-    bankName: companySettings.bankName,
-    invoiceComment: companySettings.invoiceComment,
-  } : undefined;
-
+  // Render HTML content directly (for browser print fallback)
   return (
-    <InvoiceTemplate data={invoiceData} sellerInfo={sellerInfo} />
+    <div
+      style={{ width: "100%", minHeight: "100vh", margin: 0, padding: 0 }}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
   );
 }

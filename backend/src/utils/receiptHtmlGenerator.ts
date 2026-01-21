@@ -31,7 +31,7 @@ export async function generateReceiptHtml(receipt: ReceiptWithItems): Promise<st
   const getPaymentMethodLabel = (method: string) => {
     const labels: Record<string, string> = {
       card: 'Karta',
-      cash: 'Gotowka',
+      cash: 'Gotówka',
       transfer: 'Przelew',
     };
     return labels[method] || method;
@@ -50,7 +50,7 @@ export async function generateReceiptHtml(receipt: ReceiptWithItems): Promise<st
 
     return `
       <tr style="border-bottom: 1px dotted #ddd;">
-        <td style="padding: 4px 2px; max-width: 100px; word-wrap: break-word;">${productName}</td>
+        <td style="padding: 4px 2px; word-wrap: break-word;">${productName}</td>
         <td style="text-align: center; font-size: 10px;">${unitsPerPallet || '-'}</td>
         <td style="text-align: center; font-size: 10px;">${palletCount}</td>
         <td style="text-align: center; font-weight: 600;">${quantity}</td>
@@ -71,14 +71,14 @@ export async function generateReceiptHtml(receipt: ReceiptWithItems): Promise<st
     `).join('');
     paymentHtml = `
       <div>
-        <p style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Platnosc podzielona:</p>
+        <p style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Płatność podzielona:</p>
         ${splitsHtml}
       </div>
     `;
   } else {
     paymentHtml = `
       <div style="display: flex; justify-content: space-between; font-size: 12px;">
-        <span>Forma platnosci:</span>
+        <span>Forma płatności:</span>
         <span style="font-weight: 600;">${getPaymentMethodLabel(receipt.paymentMethod)}</span>
       </div>
     `;
@@ -95,99 +95,126 @@ export async function generateReceiptHtml(receipt: ReceiptWithItems): Promise<st
   <title>Paragon ${receipt.receiptNumber}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
+    html, body {
+      width: 72mm;
+      margin: 0;
+      padding: 0;
       font-family: 'Courier New', Courier, monospace;
-      font-size: 14px;
+      font-size: 12px;
+      line-height: 1.3;
       background: white;
       color: black;
     }
     @media print {
-      @page { size: 75mm auto; margin: 2mm; }
-      body { margin: 0; padding: 0; }
-      .receipt { max-width: 100% !important; padding: 0 !important; }
+      @page { 
+        size: 72mm auto; 
+        margin: 0; 
+      }
+      html, body { 
+        width: 72mm; 
+        margin: 0; 
+        padding: 0; 
+      }
+      .receipt { 
+        width: 72mm; 
+        max-width: 72mm; 
+        padding: 2mm; 
+        margin: 0; 
+      }
     }
     .receipt {
-      max-width: 75mm;
-      margin: 0 auto;
-      padding: 16px;
+      width: 72mm;
+      max-width: 72mm;
+      margin: 0;
+      padding: 8px;
       background: white;
     }
     .header {
       text-align: center;
       border-bottom: 2px dashed black;
-      padding-bottom: 12px;
-      margin-bottom: 12px;
+      padding-bottom: 8px;
+      margin-bottom: 8px;
     }
     .header h1 {
-      font-size: 16px;
+      font-size: 14px;
       font-weight: bold;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }
     .header p {
-      font-size: 12px;
+      font-size: 10px;
     }
     .title {
       text-align: center;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
     .title h2 {
-      font-size: 14px;
+      font-size: 12px;
       font-weight: bold;
     }
     .date-section {
       border-bottom: 1px dashed #999;
-      padding-bottom: 8px;
-      margin-bottom: 8px;
-      font-size: 12px;
+      padding-bottom: 6px;
+      margin-bottom: 6px;
+      font-size: 10px;
     }
     .items-section {
       border-bottom: 1px dashed #999;
-      padding-bottom: 8px;
-      margin-bottom: 8px;
+      padding-bottom: 6px;
+      margin-bottom: 6px;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 12px;
+      font-size: 10px;
+      table-layout: fixed;
     }
     th {
       text-align: left;
-      padding: 4px 2px;
+      padding: 2px 1px;
       border-bottom: 1px solid #999;
-      font-size: 11px;
+      font-size: 9px;
+      white-space: nowrap;
+      overflow: hidden;
     }
-    th:nth-child(2), th:nth-child(3), th:nth-child(4) { text-align: center; }
-    th:nth-child(5), th:nth-child(6) { text-align: right; }
+    td {
+      padding: 2px 1px;
+      font-size: 10px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    th:nth-child(1) { width: 35%; }
+    th:nth-child(2), th:nth-child(3), th:nth-child(4) { text-align: center; width: 12%; }
+    th:nth-child(5), th:nth-child(6) { text-align: right; width: 14%; }
     .total-section {
       border-bottom: 2px dashed black;
-      padding-bottom: 12px;
-      margin-bottom: 12px;
+      padding-bottom: 8px;
+      margin-bottom: 8px;
     }
     .total {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 16px;
+      font-size: 14px;
       font-weight: bold;
     }
     .payment-section {
       border-bottom: 1px dashed #999;
-      padding-bottom: 8px;
-      margin-bottom: 8px;
+      padding-bottom: 6px;
+      margin-bottom: 6px;
     }
     .footer {
       text-align: center;
-      font-size: 12px;
-      margin-top: 16px;
+      font-size: 10px;
+      margin-top: 8px;
     }
     .footer p {
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }
     .footer .timestamp {
-      font-size: 10px;
+      font-size: 9px;
       color: #666;
-      margin-top: 8px;
-      padding-top: 8px;
+      margin-top: 6px;
+      padding-top: 6px;
       border-top: 1px dotted #999;
     }
   </style>
@@ -202,9 +229,9 @@ export async function generateReceiptHtml(receipt: ReceiptWithItems): Promise<st
     </div>
 
     <div class="title">
-      <h2>DOWOD WYDANIA</h2>
-      <p style="font-weight: bold;">${receipt.receiptNumber}</p>
-      ${orderNumber ? `<p style="font-size: 12px;">Zamówienie: ${orderNumber}</p>` : ''}
+      <h2>DOWÓD WYDANIA</h2>
+      <p style="font-weight: bold; font-size: 11px;">${receipt.receiptNumber}</p>
+      ${orderNumber ? `<p style="font-size: 10px;">Zamówienie: ${orderNumber}</p>` : ''}
     </div>
 
     <div class="date-section">
@@ -216,11 +243,11 @@ export async function generateReceiptHtml(receipt: ReceiptWithItems): Promise<st
         <thead>
           <tr>
             <th>Nazwa</th>
-            <th style="width: 40px;">Szt/pal</th>
-            <th style="width: 40px;">Pal.</th>
-            <th style="width: 32px;">Szt.</th>
-            <th style="width: 56px;">Cena</th>
-            <th style="width: 56px;">Wart.</th>
+            <th>S/p</th>
+            <th>Pal</th>
+            <th>Szt</th>
+            <th>Cena</th>
+            <th>Wart</th>
           </tr>
         </thead>
         <tbody>
@@ -241,7 +268,7 @@ export async function generateReceiptHtml(receipt: ReceiptWithItems): Promise<st
     </div>
 
     <div class="footer">
-      <p style="font-weight: 600;">Dziekujemy za zakupy!</p>
+      <p style="font-weight: 600;">Dziękujemy za zakupy!</p>
       <p style="color: #666;">Zapraszamy ponownie</p>
       <div class="timestamp">
         <p>${formatDate(createdAtDate)}</p>

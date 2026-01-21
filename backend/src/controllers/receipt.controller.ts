@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { ReceiptModel } from '../models/Receipt';
+import { generateReceiptPdfDirect } from "../utils/receiptPdfGenerator";
 import { generateReceiptHtml } from '../utils/receiptHtmlGenerator';
 
 export class ReceiptController {
@@ -185,6 +186,31 @@ export class ReceiptController {
     } catch (error: any) {
       console.error("Bulk delete receipts error:", error);
       return res.status(500).json({ error: "Błąd serwera podczas usuwania paragonów" });
+    }
+  }
+
+  /**
+   * GET /receipts/:id/pdf - Get receipt as PDF
+   */
+  static async getPdf(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        res.status(400).json({ error: "Nieprawidlowe ID paragonu" });
+        return;
+      }
+      const receipt = await ReceiptModel.getById(id);
+      if (!receipt) {
+        res.status(404).json({ error: "Paragon nie znaleziony" });
+        return;
+      }
+      const pdfDoc = await generateReceiptPdfDirect(receipt);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="paragon-${receipt.receiptNumber}.pdf"`);
+      pdfDoc.pipe(res);
+    } catch (error) {
+      console.error("Get PDF error:", error);
+      res.status(500).json({ error: "Blad serwera podczas generowania PDF" });
     }
   }
 }

@@ -145,6 +145,8 @@ app.delete("/inventory-movements", requireAuth, InventoryMovementController.hide
 
 app.get('/orders', requireAuth, OrderController.getAll);
 app.get('/orders/bulk', requireAuth, OrderController.getBulk);
+app.get('/orders/bulk/pdf', requireAuth, OrderController.getBulkPdf);
+app.get('/orders/:id/pdf', requireAuth, OrderController.getPdf);
 app.get('/orders/by-product/:productId', requireAuth, OrderController.getByProductId);
 app.get('/orders/:id/status-history', requireAuth, OrderController.getStatusHistory);
 app.get('/orders/:id', requireAuth, OrderController.getById);
@@ -184,6 +186,7 @@ app.get("/proforma/stats", requireAuth, ProformaController.getStats);
 app.get("/proforma/expiring", requireAuth, ProformaController.getExpiring);
 app.get("/proforma/expired", requireAuth, ProformaController.getExpired);
 app.get("/proforma/:id/html", requireAuth, ProformaController.getHTML);
+app.get("/proforma/:id/pdf", requireAuth, ProformaController.getPdf);
 app.get("/proforma/:id", requireAuth, ProformaController.getById);
 app.post("/proforma", requireAuth, requirePermission('invoices:create'), ProformaController.create);
 app.post("/proforma/from-order/:orderId", requireAuth, requirePermission('invoices:create'), ProformaController.createFromOrder);
@@ -229,6 +232,7 @@ app.get('/receipts', requireAuth, ReceiptController.getAll);
 app.get('/receipts/number/:receiptNumber', requireAuth, ReceiptController.getByReceiptNumber);
 app.delete('/receipts/bulk', requireAuth, requirePermission('receipts:create'), ReceiptController.deleteBulk);
 app.get("/receipts/:id/html", requireAuth, ReceiptController.getHTML);
+app.get("/receipts/:id/pdf", requireAuth, ReceiptController.getPdf);
 app.get('/receipts/:id', requireAuth, ReceiptController.getById);
 app.put('/receipts/:id', requireAuth, requirePermission('receipts:create'), ReceiptController.update);
 app.delete('/receipts/:id', requireAuth, requirePermission('receipts:create'), ReceiptController.delete);

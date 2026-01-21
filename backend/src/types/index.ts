@@ -717,6 +717,7 @@ export interface InvoiceCorrectionItem {
   originalTotalGross: number;
   correctedQuantity: number;
   correctedUnitPriceNet: number;
+  correctedUnitPriceGross: number;
   correctedVatRate: number;
   correctedTotalNet: number;
   correctedTotalVat: number;

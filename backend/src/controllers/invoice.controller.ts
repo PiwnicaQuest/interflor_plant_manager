@@ -3,10 +3,19 @@ import { AuthRequest } from '../middleware/auth';
 import { InvoiceModel } from '../models/Invoice';
 import { CustomerModel } from '../models/Customer';
 import { PaymentMethod } from '../types';
-import { generateInvoicePDF } from '../utils/pdfGenerator';
-import { generateInvoicePDFPuppeteer } from '../utils/invoicePdfPuppeteer';
+import { generateInvoicePdfDirect } from '../utils/invoicePdfGenerator';
 import { emailService } from '../services/emailService';
 import { generateInvoiceHtml } from '../utils/invoiceHtmlGenerator';
+
+// Helper function to convert PDFKit stream to Buffer
+async function pdfToBuffer(pdfDoc: PDFKit.PDFDocument): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    pdfDoc.on('data', (chunk: Buffer) => chunks.push(chunk));
+    pdfDoc.on('end', () => resolve(Buffer.concat(chunks)));
+    pdfDoc.on('error', reject);
+  });
+}
 
 export class InvoiceController {
   static async getAll(req: AuthRequest, res: Response) {
@@ -187,12 +196,12 @@ export class InvoiceController {
         return;
       }
 
-      // Generate PDF (now async to fetch company settings)
-      const pdfDoc = await generateInvoicePDF(invoice);
+      // Generate PDF using new unified generator
+      const pdfDoc = await generateInvoicePdfDirect(invoice);
 
       // Set response headers
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename=Faktura_${invoice.invoiceNumber}.pdf`);
+      res.setHeader('Content-Disposition', `attachment; filename=Faktura_${invoice.invoiceNumber.replace(/\//g, '_')}.pdf`);
 
       // Pipe PDF to response
       pdfDoc.pipe(res);
@@ -236,27 +245,25 @@ export class InvoiceController {
       const id = parseInt(req.params.id);
 
       if (isNaN(id)) {
-        res.status(400).json({ error: "Nieprawidłowe ID faktury" });
+        res.status(400).json({ error: 'Nieprawidłowe ID faktury' });
         return;
       }
 
       const invoice = await InvoiceModel.getById(id);
 
       if (!invoice) {
-        res.status(404).json({ error: "Faktura nie znaleziona" });
+        res.status(404).json({ error: 'Faktura nie znaleziona' });
         return;
       }
-
+      // Generate HTML
       const html = await generateInvoiceHtml(invoice);
-
-      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.send(html);
     } catch (error) {
-      console.error("Get HTML error:", error);
-      res.status(500).json({ error: "Błąd serwera podczas generowania HTML" });
+      console.error('Get HTML error:', error);
+      res.status(500).json({ error: 'Błąd serwera' });
     }
   }
-
 
   static async sendEmail(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -264,7 +271,7 @@ export class InvoiceController {
       const { email: customEmail, subject, message } = req.body;
 
       if (isNaN(id)) {
-        res.status(400).json({ error: 'Nieprawidlowe ID faktury' });
+        res.status(400).json({ error: 'Nieprawidłowe ID faktury' });
         return;
       }
 
@@ -283,8 +290,9 @@ export class InvoiceController {
         return;
       }
 
-      // Generate PDF using puppeteer for consistent styling with print
-      const pdfBuffer = await generateInvoicePDFPuppeteer(invoice);
+      // Generate PDF using new unified generator
+      const pdfDoc = await generateInvoicePdfDirect(invoice);
+      const pdfBuffer = await pdfToBuffer(pdfDoc);
 
       // Get customer name
       const buyerSnapshot = invoice.buyerSnapshot;
@@ -314,16 +322,15 @@ export class InvoiceController {
       );
 
       if (sent) {
-        res.json({ success: true, message: 'Faktura wyslana na adres ' + recipientEmail });
+        res.json({ success: true, message: 'Faktura wysłana na adres ' + recipientEmail });
       } else {
-        res.status(500).json({ error: 'Nie udało się wysłać emaila. Sprawdź konfiguracje SMTP.' });
+        res.status(500).json({ error: 'Nie udało się wysłać emaila. Sprawdź konfigurację SMTP.' });
       }
     } catch (error) {
       console.error('Send invoice email error:', error);
       res.status(500).json({ error: 'Błąd serwera podczas wysyłania faktury' });
     }
   }
-
 
   static async updatePaymentMethod(req: AuthRequest, res: Response) {
     try {

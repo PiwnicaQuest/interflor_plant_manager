@@ -88,15 +88,7 @@ export function OrderTemplate({ data, companyInfo = defaultCompanyInfo, showPric
   const [printStatus, setPrintStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
   // Use print hook
-  const { printOrder, hasConfiguredPrinter, getConfig } = usePrint({
-    onQueued: (jobId) => {
-      const config = getConfig('orders');
-      setPrintStatus({
-        type: 'success',
-        message: `Wysłano do drukarki ${config?.printerName || 'domyślnej'} (job: ${jobId.slice(0, 8)}...)`,
-      });
-      setTimeout(() => setPrintStatus(null), 5000);
-    },
+  const { printOrder, isBrokerAvailable } = usePrint({
     onBrowserPrint: () => {
       setPrintStatus({
         type: 'info',
@@ -112,7 +104,7 @@ export function OrderTemplate({ data, companyInfo = defaultCompanyInfo, showPric
     },
   });
 
-  const hasPrinterConfigured = hasConfiguredPrinter('orders');
+  const hasPrinterConfigured = isBrokerAvailable();
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('pl-PL', {

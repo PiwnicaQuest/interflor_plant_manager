@@ -3,6 +3,8 @@ import { AuthRequest } from '../middleware/auth';
 import { OrderModel } from '../models/Order';
 import { CustomerModel } from '../models/Customer';
 import { CreateOrderRequest, UpdateOrderStatusRequest, CancelOrderRequest, OrderStatus } from '../types';
+import { generateOrderPdfDirect } from '../utils/orderPdfGenerator';
+import { generateBulkOrdersPdf } from '../utils/orderBulkPdfGenerator';
 
 export class OrderController {
   static async getAll(req: AuthRequest, res: Response) {
@@ -386,6 +388,59 @@ export class OrderController {
     } catch (error: any) {
       console.error('Get orders by product error:', error);
       return res.status(500).json({ error: 'Błąd serwera' });
+    }
+  }
+
+  static async getPdf(req: AuthRequest, res: Response) {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Nieprawidlowe ID zamowienia" });
+      }
+
+      const order = await OrderModel.getById(id);
+      if (!order) {
+        return res.status(404).json({ error: "Zamowienie nie znalezione" });
+      }
+
+      const doc = await generateOrderPdfDirect(order);
+      
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", "inline; filename=zamowienie-" + order.orderNumber + ".pdf");
+      
+      doc.pipe(res);
+    } catch (error: any) {
+      console.error("Generate order PDF error:", error);
+      return res.status(500).json({ error: "Nie udalo sie wygenerowac PDF" });
+    }
+  }
+
+  static async getBulkPdf(req: AuthRequest, res: Response) {
+    try {
+      const idsParam = req.query.ids as string;
+      if (!idsParam) {
+        return res.status(400).json({ error: "Parametr ids jest wymagany" });
+      }
+
+      const ids = idsParam.split(",").map(id => parseInt(id.trim())).filter(id => !isNaN(id) && id > 0);
+      if (ids.length === 0) {
+        return res.status(400).json({ error: "Brak prawidlowych ID zamowien" });
+      }
+
+      const orders = await OrderModel.getByIds(ids);
+      if (orders.length === 0) {
+        return res.status(404).json({ error: "Nie znaleziono zamowien" });
+      }
+
+      const doc = await generateBulkOrdersPdf(orders);
+      
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", "inline; filename=zamowienia-bulk.pdf");
+      
+      doc.pipe(res);
+    } catch (error: any) {
+      console.error("Generate bulk orders PDF error:", error);
+      return res.status(500).json({ error: "Nie udalo sie wygenerowac PDF" });
     }
   }
 }

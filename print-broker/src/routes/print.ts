@@ -5,6 +5,7 @@ import { printDocument } from "../services/documentPrinter";
 import { printLabel } from "../services/labelPrinter";
 import { printReceipt } from "../services/receiptPrinter";
 import { PrintRequest, PrintResponse, DOC_TYPE_TO_CATEGORY } from "../types";
+import { loadConfig } from "./config";
 
 const router = Router();
 
@@ -130,20 +131,42 @@ router.post("/document", async (req: Request, res: Response) => {
 });
 
 async function resolvePrinter(request: PrintRequest): Promise<string | null> {
+  // 1. Use printer from request if specified
   if (request.printer) {
     const printer = printerDetector.getPrinter(request.printer);
-    if (printer) return printer.name;
+    if (printer) {
+      console.log("[Print] Using requested printer: " + printer.name);
+      return printer.name;
+    }
   }
 
+  // 2. Check config for user-assigned printer for this document type
+  const config = loadConfig();
+  const configuredPrinter = config.defaultPrinters?.[request.documentType];
+  if (configuredPrinter) {
+    const printer = printerDetector.getPrinter(configuredPrinter);
+    if (printer) {
+      console.log("[Print] Using configured printer for " + request.documentType + ": " + printer.name);
+      return printer.name;
+    }
+  }
+
+  // 3. Fallback to category-based detection
   const category = DOC_TYPE_TO_CATEGORY[request.documentType] || "standard";
   const printers = await printerDetector.getPrinters();
   const defaultPrinter = printerDetector.getDefaultForCategory(category);
 
-  if (defaultPrinter) return defaultPrinter.name;
+  if (defaultPrinter) {
+    console.log("[Print] Using category default: " + defaultPrinter.name);
+    return defaultPrinter.name;
+  }
 
+  // 4. Fallback to any available printer
   if (printers.length > 0) {
     const defaultAny = printers.find(p => p.isDefault);
-    return defaultAny?.name || printers[0].name;
+    const selected = defaultAny?.name || printers[0].name;
+    console.log("[Print] Using fallback printer: " + selected);
+    return selected;
   }
 
   return null;

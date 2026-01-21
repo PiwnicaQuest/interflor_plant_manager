@@ -8,7 +8,7 @@ import { SettingsModel } from "../models/Settings";
 import { InvoiceModel } from '../models/Invoice';
 import { UserRole } from '../types';
 import { query } from '../models/database';
-import { generateInvoicePDF } from '../utils/pdfGenerator';
+import { generateInvoicePdfDirect } from '../utils/invoicePdfGenerator';
 
 export class ShopController {
   static async getCatalog(req: AuthRequest, res: Response) {
@@ -794,7 +794,7 @@ export class ShopController {
       }
 
       // Generate PDF
-      const pdfDoc = await generateInvoicePDF(invoice);
+      const pdfDoc = await generateInvoicePdfDirect(invoice);
 
       // Set response headers
       res.setHeader('Content-Type', 'application/pdf');

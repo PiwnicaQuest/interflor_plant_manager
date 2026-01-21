@@ -1,6 +1,9 @@
 import { query, transaction } from './database';
 import { InvoiceCorrection, InvoiceCorrectionItem, InvoiceCorrectionWithItems } from '../types';
 
+// Helper function to round to 2 decimal places
+const round2 = (num: number): number => Math.round((num + Number.EPSILON) * 100) / 100;
+
 interface CreateCorrectionData {
   originalInvoiceId: number;
   correctionReason: string;
@@ -9,12 +12,13 @@ interface CreateCorrectionData {
     description: string;
     originalQuantity: number;
     originalUnitPriceNet: number;
+    originalUnitPriceGross: number;
     originalVatRate: number;
     originalTotalNet: number;
     originalTotalVat: number;
     originalTotalGross: number;
     correctedQuantity: number;
-    correctedUnitPriceNet: number;
+    correctedUnitPriceGross: number;
     correctedVatRate: number;
   }[];
   createdByUserId?: number;
@@ -122,25 +126,26 @@ export const InvoiceCorrectionModel = {
       const invoice = invoiceResult.rows[0];
       const correctionNumber = await this.generateCorrectionNumber();
 
-      // Calculate totals
+      // Calculate totals FROM GROSS (same as invoices!)
+      let correctedTotalGross = 0;
       let correctedSubtotalNet = 0;
       let correctedTotalVat = 0;
-      let correctedTotalGross = 0;
 
       for (const item of data.items) {
-        const itemNet = item.correctedQuantity * item.correctedUnitPriceNet;
-        const itemVat = Math.round((itemNet * (item.correctedVatRate / 100) + Number.EPSILON) * 100) / 100;
-        const itemGross = itemNet + itemVat;
+        // Calculate from gross price (same logic as invoice_items table)
+        const itemGross = item.correctedQuantity * item.correctedUnitPriceGross;
+        const itemNet = round2(itemGross / (1 + item.correctedVatRate / 100));
+        const itemVat = round2(itemGross - itemNet);
 
+        correctedTotalGross += itemGross;
         correctedSubtotalNet += itemNet;
         correctedTotalVat += itemVat;
-        correctedTotalGross += itemGross;
       }
 
       // Round totals
-      correctedSubtotalNet = Math.round((correctedSubtotalNet + Number.EPSILON) * 100) / 100;
-      correctedTotalVat = Math.round((correctedTotalVat + Number.EPSILON) * 100) / 100;
-      correctedTotalGross = Math.round((correctedTotalGross + Number.EPSILON) * 100) / 100;
+      correctedTotalGross = round2(correctedTotalGross);
+      correctedSubtotalNet = round2(correctedSubtotalNet);
+      correctedTotalVat = round2(correctedTotalVat);
 
       // Insert correction
       const correctionResult = await client.query(
@@ -172,15 +177,18 @@ export const InvoiceCorrectionModel = {
 
       const correctionId = correctionResult.rows[0].id;
 
-      // Insert correction items
+      // Insert correction items with gross price
       for (const item of data.items) {
+        // Calculate net price from gross for storage
+        const correctedUnitPriceNet = round2(item.correctedUnitPriceGross / (1 + item.correctedVatRate / 100));
+        
         await client.query(
           `INSERT INTO invoice_correction_items (
             correction_id, original_item_id, description,
             original_quantity, original_unit_price_net, original_vat_rate,
             original_total_net, original_total_vat, original_total_gross,
-            corrected_quantity, corrected_unit_price_net, corrected_vat_rate
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+            corrected_quantity, corrected_unit_price_net, corrected_unit_price_gross, corrected_vat_rate
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
           [
             correctionId,
             item.originalItemId || null,
@@ -192,7 +200,8 @@ export const InvoiceCorrectionModel = {
             item.originalTotalVat,
             item.originalTotalGross,
             item.correctedQuantity,
-            item.correctedUnitPriceNet,
+            correctedUnitPriceNet,
+            item.correctedUnitPriceGross,
             item.correctedVatRate
           ]
         );
@@ -274,6 +283,7 @@ export const InvoiceCorrectionModel = {
       originalTotalGross: parseFloat(row.originalTotalGross as string),
       correctedQuantity: row.correctedQuantity as number,
       correctedUnitPriceNet: parseFloat(row.correctedUnitPriceNet as string),
+      correctedUnitPriceGross: parseFloat(row.correctedUnitPriceGross as string),
       correctedVatRate: parseFloat(row.correctedVatRate as string),
       correctedTotalNet: parseFloat(row.correctedTotalNet as string),
       correctedTotalVat: parseFloat(row.correctedTotalVat as string),

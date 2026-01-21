@@ -25,15 +25,7 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
   const [printStatus, setPrintStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
   // Use print hook
-  const { printBarcodes, hasConfiguredPrinter, getConfig } = usePrint({
-    onQueued: (jobId) => {
-      const config = getConfig('barcode_labels');
-      setPrintStatus({
-        type: 'success',
-        message: 'Wyslano do drukarki ' + (config?.printerName || 'domyslnej') + ' (job: ' + jobId.slice(0, 8) + '...)',
-      });
-      setTimeout(() => setPrintStatus(null), 5000);
-    },
+  const { printBarcodes, isBrokerAvailable } = usePrint({
     onBrowserPrint: () => {
       setPrintStatus({
         type: 'info',
@@ -49,7 +41,7 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
     },
   });
 
-  const hasPrinterConfigured = hasConfiguredPrinter('barcode_labels');
+  const hasPrinterConfigured = isBrokerAvailable();
 
   // Load label templates
   useEffect(() => {

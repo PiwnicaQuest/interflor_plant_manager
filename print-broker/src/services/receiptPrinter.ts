@@ -1,6 +1,7 @@
 /**
  * Receipt Printer Service
  * Handles thermal receipt printing (POS receipts, 58mm/80mm)
+ * Uses PDF generation for high quality output
  */
 
 import * as fs from "fs";
@@ -34,43 +35,7 @@ export async function printReceipt(request: PrintRequest, printerName: string): 
 }
 
 /**
- * Wrap HTML with CSS reset to ensure correct width and no offset
- */
-function wrapHtmlWithReset(html: string, widthPx: number): string {
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <style>
-    *, *::before, *::after {
-      box-sizing: border-box;
-    }
-    html, body {
-      margin: 0 !important;
-      padding: 0 !important;
-      width: ${widthPx}px !important;
-      max-width: ${widthPx}px !important;
-      background: white !important;
-      overflow-x: hidden !important;
-    }
-    body {
-      font-family: 'Courier New', monospace;
-    }
-    table {
-      width: 100% !important;
-      max-width: 100% !important;
-    }
-    img {
-      max-width: 100% !important;
-    }
-  </style>
-</head>
-<body>${html}</body>
-</html>`;
-}
-
-/**
- * Print HTML receipt by converting to image with correct width
+ * Print HTML receipt by converting to PDF for high quality
  */
 async function printHtmlReceipt(
   html: string,
@@ -91,20 +56,18 @@ async function printHtmlReceipt(
 
     // Receipt width (58mm or 80mm paper)
     const paper = PAPER_SIZES[paperSize] || { width: 80, height: 297 };
+    const widthMm = paper.width;
 
-    // Receipt printers typically 203 DPI
-    const dpi = 203;
-    const mmToPx = dpi / 25.4;
-    const widthPx = Math.round(paper.width * mmToPx);
+    // Convert mm to pixels for viewport (96 DPI standard)
+    const widthPx = Math.round(widthMm * 96 / 25.4);
 
-    console.log(`[ReceiptPrinter] Paper: ${paper.width}mm = ${widthPx}px @ ${dpi}DPI`);
+    console.log(`[ReceiptPrinter] Paper: ${widthMm}mm = ${widthPx}px`);
 
-    // Set fixed width, tall viewport for variable content
-    await page.setViewport({ width: widthPx, height: 2000, deviceScaleFactor: 1 });
+    // Set viewport - tall for variable content
+    await page.setViewport({ width: widthPx, height: 2000, deviceScaleFactor: 2 });
 
-    // Wrap HTML with CSS reset to ensure correct width
-    const wrappedHtml = wrapHtmlWithReset(html, widthPx);
-    await page.setContent(wrappedHtml, { waitUntil: ["load", "networkidle0"], timeout: 30000 });
+    // Set content
+    await page.setContent(html, { waitUntil: ["load", "networkidle0"], timeout: 30000 });
 
     // Force white background
     await page.evaluate(() => {
@@ -113,7 +76,7 @@ async function printHtmlReceipt(
     });
 
     // Wait for rendering
-    await page.evaluate(() => new Promise(resolve => setTimeout(resolve, 500)));
+    await page.evaluate(() => new Promise(resolve => setTimeout(resolve, 300)));
 
     // Get actual content height
     const contentHeight = await page.evaluate(() => {
@@ -125,24 +88,29 @@ async function printHtmlReceipt(
       );
     });
 
-    console.log(`[ReceiptPrinter] Content height: ${contentHeight}px`);
+    // Convert content height to mm
+    const heightMm = Math.ceil(contentHeight * 25.4 / 96) + 5; // Add 5mm padding
 
-    // Screenshot of exact content - full width, no horizontal clip offset
-    const imagePath = path.join(TEMP_DIR, `${jobId}.png`);
-    await page.screenshot({
-      path: imagePath,
-      type: "png",
-      clip: { x: 0, y: 0, width: widthPx, height: Math.min(contentHeight + 20, 5000) },
-      omitBackground: false
+    console.log(`[ReceiptPrinter] Content height: ${contentHeight}px = ${heightMm}mm`);
+
+    // Generate PDF with exact paper size
+    const pdfPath = path.join(TEMP_DIR, `${jobId}.pdf`);
+    await page.pdf({
+      path: pdfPath,
+      width: `${widthMm}mm`,
+      height: `${heightMm}mm`,
+      printBackground: true,
+      preferCSSPageSize: false,
+      margin: { top: "0mm", bottom: "0mm", left: "0mm", right: "0mm" }
     });
 
-    console.log(`[ReceiptPrinter] Screenshot saved: ${imagePath}`);
+    console.log(`[ReceiptPrinter] PDF generated: ${pdfPath}`);
 
     // Send to printer
-    await sendReceiptToPrinter(imagePath, printerName, copies);
+    await sendReceiptToPrinter(pdfPath, printerName, copies);
 
     // Cleanup
-    fs.unlinkSync(imagePath);
+    fs.unlinkSync(pdfPath);
 
   } finally {
     await browser.close();
@@ -182,24 +150,23 @@ async function printRawReceipt(rawData: string, printerName: string, copies: num
   console.log(`[ReceiptPrinter] Raw data sent to ${printerName}`);
 }
 
-async function sendReceiptToPrinter(imagePath: string, printerName: string, copies: number): Promise<void> {
+async function sendReceiptToPrinter(pdfPath: string, printerName: string, copies: number): Promise<void> {
   if (process.platform === "win32") {
-    for (let i = 0; i < copies; i++) {
-      try {
-        const pdfToPrinter = await import("pdf-to-printer");
-        await pdfToPrinter.print(imagePath, { printer: printerName });
-      } catch (e) {
-        await execAsync(
-          `rundll32 shimgvw.dll,ImageView_PrintTo "${imagePath}" "${printerName}"`,
-          { timeout: 30000 }
-        );
+    try {
+      const pdfToPrinter = await import("pdf-to-printer");
+      await pdfToPrinter.print(pdfPath, { printer: printerName, copies });
+    } catch (e) {
+      // Fallback - use Windows print
+      const printerArg = printerName ? `/d:"${printerName}"` : "";
+      for (let i = 0; i < copies; i++) {
+        await execAsync(`print ${printerArg} "${pdfPath}"`);
       }
     }
   } else {
-    for (let i = 0; i < copies; i++) {
-      await execAsync(`lpr -P "${printerName}" "${imagePath}"`);
-    }
+    // macOS / Linux (CUPS)
+    const printerArg = printerName ? `-P "${printerName}"` : "";
+    await execAsync(`lpr ${printerArg} -# ${copies} "${pdfPath}"`);
   }
 
-  console.log(`[ReceiptPrinter] Image sent to ${printerName}`);
+  console.log(`[ReceiptPrinter] PDF sent to ${printerName}`);
 }

@@ -1,0 +1,408 @@
+import PDFDocument from "pdfkit";
+import { InvoiceWithItems, CustomerSnapshot } from "../types";
+import { SettingsModel } from "../models/Settings";
+
+const FONT_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf";
+const FONT_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
+
+const PURPLE = "#7c3aed";
+const TEXT = "#111827";
+const GRAY = "#6b7280";
+const LIGHT_GRAY = "#f3f4f6";
+const LIGHT_PURPLE = "#ede9fe";
+const BORDER = "#d1d5db";
+const PURPLE_BORDER = "#c4b5fd";
+const GREEN = "#15803d";
+const YELLOW_BG = "#fef9c3";
+
+const PAGE_W = 595.28;
+const PAGE_H = 841.89;
+const ML = 35;
+const MR = 35;
+const MT = 35;
+const MB = 35;
+const CW = PAGE_W - ML - MR;
+
+function fmtDate(d: Date | string | undefined): string {
+  if (!d) return "-";
+  return new Date(d).toLocaleDateString("pl-PL");
+}
+
+function fmtNum(v: number | string | undefined | null): string {
+  return (Number(v) || 0).toFixed(2);
+}
+
+function payMethodLabel(m?: string): string {
+  if (!m) return "-";
+  const l: Record<string, string> = { card: "Karta", cash: "Gotówka", transfer: "Przelew" };
+  return l[m.toLowerCase()] || m;
+}
+
+function payStatusLabel(s: string): string {
+  const l: Record<string, string> = { unpaid: "Nieopłacona", partially_paid: "Częściowo opłacona", paid: "Opłacona", overdue: "Po terminie" };
+  return l[s.toLowerCase()] || s;
+}
+
+function getBuyer(b?: CustomerSnapshot) {
+  if (!b) return { name: "", addr: "", city: "", nip: "", code: "" };
+  let n = b.companyName || `${b.firstName || ""} ${b.lastName || ""}`.trim();
+  return { 
+    name: n, 
+    addr: b.street || "", 
+    city: `${b.postalCode || ""} ${b.city || ""}`.trim(), 
+    nip: b.nip || "",
+    code: (b as any).customerCode || ""
+  };
+}
+
+function getRecipient(r?: CustomerSnapshot) {
+  if (!r) return null;
+  const name = r.companyName || `${r.firstName || ""} ${r.lastName || ""}`.trim();
+  if (!name && !r.street && !r.city) return null;
+  return { 
+    name: name, 
+    addr: r.street || "", 
+    city: `${r.postalCode || ""} ${r.city || ""}`.trim(),
+    phone: (r as any).phone || ""
+  };
+}
+
+function roundedRect(doc: PDFKit.PDFDocument, x: number, y: number, w: number, h: number, r: number) {
+  doc.moveTo(x + r, y)
+    .lineTo(x + w - r, y)
+    .quadraticCurveTo(x + w, y, x + w, y + r)
+    .lineTo(x + w, y + h - r)
+    .quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+    .lineTo(x + r, y + h)
+    .quadraticCurveTo(x, y + h, x, y + h - r)
+    .lineTo(x, y + r)
+    .quadraticCurveTo(x, y, x + r, y)
+    .closePath();
+}
+
+export async function generateProformaPdfDirect(proforma: InvoiceWithItems): Promise<PDFKit.PDFDocument> {
+  const settings = await SettingsModel.getCompanySettings();
+  const seller = {
+    name: settings.companyName || "",
+    addr: settings.street || "",
+    city: `${settings.postalCode || ""} ${settings.city || ""}`.trim(),
+    nip: settings.nip || "",
+    bank: settings.bankName || "",
+    account: settings.bankAccount || "",
+    comment: settings.invoiceComment || "",
+  };
+  const buyer = getBuyer(proforma.buyerSnapshot);
+  const items = proforma.items || [];
+
+  const doc = new PDFDocument({ size: "A4", margins: { top: MT, bottom: MB, left: ML, right: MR }, bufferPages: true });
+  doc.registerFont("R", FONT_REGULAR);
+  doc.registerFont("B", FONT_BOLD);
+
+  let y = MT;
+
+  // === HEADER ===
+  doc.font("B").fontSize(22).fillColor(TEXT).text("FAKTURA PRO FORMA", ML, y);
+  y += 30;
+  doc.font("B").fontSize(16).fillColor(PURPLE).text(proforma.invoiceNumber || "", ML, y);
+
+  // Dates - right side
+  doc.font("R").fontSize(10).fillColor(TEXT);
+  const dateX = PAGE_W - MR - 180;
+  doc.text("Data wystawienia: ", dateX, MT, { continued: true }).font("B").text(fmtDate(proforma.issueDate));
+  doc.font("R").text("Data sprzedaży: ", dateX, MT + 16, { continued: true }).font("B").text(fmtDate(proforma.saleDate));
+  if (proforma.paymentDeadline) {
+    doc.font("R").text("Termin płatności: ", dateX, MT + 32, { continued: true }).font("B").text(fmtDate(proforma.paymentDeadline));
+  }
+
+  y += 35;
+
+  // === SELLER & BUYER & RECIPIENT BOXES ===
+  const recipient = getRecipient(proforma.recipientSnapshot);
+  const hasRecipient = recipient !== null;
+  const boxW = hasRecipient ? 168 : 252;
+  const boxH = 115;
+  const gap = hasRecipient ? 12 : 20;
+  const radius = 8;
+  const LIGHT_GREEN = "#dcfce7";
+  const GREEN_BORDER = "#86efac";
+
+  // Seller box
+  roundedRect(doc, ML, y, boxW, boxH, radius);
+  doc.fill(LIGHT_GRAY);
+  roundedRect(doc, ML, y, boxW, boxH, radius);
+  doc.stroke(BORDER);
+
+  doc.font("B").fontSize(9).fillColor(GRAY).text("SPRZEDAWCA", ML + 10, y + 10);
+  doc.font("B").fontSize(hasRecipient ? 10 : 11).fillColor(TEXT).text(seller.name, ML + 10, y + 24, { width: boxW - 20 });
+  doc.font("R").fontSize(9).text(seller.addr, ML + 10, y + 56);
+  doc.text(seller.city, ML + 10, y + 70);
+  doc.text("NIP: ", ML + 10, y + 86, { continued: true }).font("B").text(seller.nip);
+
+  // Buyer box
+  const bx = ML + boxW + gap;
+  roundedRect(doc, bx, y, boxW, boxH, radius);
+  doc.fill(LIGHT_PURPLE);
+  roundedRect(doc, bx, y, boxW, boxH, radius);
+  doc.strokeColor(PURPLE_BORDER).lineWidth(1).stroke();
+
+  doc.font("B").fontSize(9).fillColor(GRAY).text("NABYWCA", bx + 10, y + 10);
+  let buyerNameDisplay = buyer.code ? "[" + buyer.code + "] " + buyer.name : buyer.name;
+  doc.font("B").fontSize(hasRecipient ? 10 : 11).fillColor(PURPLE).text(buyerNameDisplay, bx + 10, y + 24, { width: boxW - 20 });
+  doc.font("R").fontSize(9).fillColor(TEXT).text(buyer.addr, bx + 10, y + 56);
+  doc.text(buyer.city, bx + 10, y + 70);
+  if (buyer.nip) {
+    doc.text("NIP: ", bx + 10, y + 86, { continued: true }).font("B").fillColor(PURPLE).text(buyer.nip);
+  }
+
+  // Recipient box (if different from buyer)
+  if (hasRecipient) {
+    const rx = bx + boxW + gap;
+    roundedRect(doc, rx, y, boxW, boxH, radius);
+    doc.fill(LIGHT_GREEN);
+    roundedRect(doc, rx, y, boxW, boxH, radius);
+    doc.strokeColor(GREEN_BORDER).lineWidth(1).stroke();
+
+    doc.font("B").fontSize(9).fillColor(GRAY).text("ODBIORCA", rx + 10, y + 10);
+    doc.font("B").fontSize(10).fillColor("#16a34a").text(recipient.name, rx + 10, y + 24, { width: boxW - 20 });
+    doc.font("R").fontSize(9).fillColor(TEXT).text(recipient.addr, rx + 10, y + 56);
+    doc.text(recipient.city, rx + 10, y + 70);
+    if (recipient.phone) {
+      doc.text("Tel: ", rx + 10, y + 86, { continued: true }).font("B").text(recipient.phone);
+    }
+  }
+
+  y += boxH + 22;
+
+  // === ITEMS TABLE ===
+  const cw = [22, 140, 32, 26, 48, 48, 32, 60, 52, 56];
+  const cx: number[] = [];
+  let tx = ML;
+  for (const w of cw) { cx.push(tx); tx += w; }
+
+  // Header
+  const hh = 32;
+  doc.rect(ML, y, CW, hh).fillAndStroke(LIGHT_GRAY, BORDER);
+  doc.font("B").fontSize(7).fillColor(GRAY);
+  const headers = ["Lp.", "Nazwa towaru/usługi", "Ilość", "J.m.", "Cena\nnetto", "Cena\nbrutto", "VAT%", "Kwota netto", "Kwota VAT", "Kwota\nbrutto"];
+  headers.forEach((h, i) => {
+    const align = i < 2 ? "left" : (i === 6 ? "center" : "right");
+    doc.text(h, cx[i] + 3, y + 6, { width: cw[i] - 6, align });
+  });
+  y += hh;
+
+  cx.forEach((x, i) => { if (i > 0) doc.moveTo(x, y - hh).lineTo(x, y).stroke(BORDER); });
+
+  // Rows
+  let totalQty = 0;
+  const ROW_HEIGHT = 52;
+  
+  items.forEach((item, idx) => {
+    if (y + ROW_HEIGHT > PAGE_H - MB - 30) { 
+      doc.addPage(); 
+      y = MT; 
+    }
+
+    const bg = idx % 2 === 0 ? "#ffffff" : "#fafafa";
+    doc.rect(ML, y, CW, ROW_HEIGHT).fillAndStroke(bg, BORDER);
+    cx.forEach((x, i) => { if (i > 0) doc.moveTo(x, y).lineTo(x, y + ROW_HEIGHT).stroke(BORDER); });
+
+    const qty = Number(item.quantity) || 0;
+    totalQty += qty;
+    const uNet = Number(item.unitPriceNet) || 0;
+    const uGross = uNet * (1 + item.vatRate / 100);
+    const tNet = Number(item.totalNet) || uNet * qty;
+    const tVat = Number(item.totalVat) || tNet * item.vatRate / 100;
+    const tGross = Number(item.totalGross) || tNet + tVat;
+
+    // Lp
+    doc.font("R").fontSize(9).fillColor(TEXT).text((idx + 1).toString(), cx[0] + 2, y + 18, { width: cw[0] - 4, align: "center" });
+
+    // Name
+    const name = item.description || "Produkt";
+    doc.font("R").fontSize(9).fillColor(TEXT).text(name, cx[1] + 4, y + 5, { width: cw[1] - 8 });
+    
+    // Passport + PKWiU
+    const passport = (item as any).growerPassport || "";
+    const pkwiu = "01.30.10.0";
+    doc.font("R").fontSize(7).fillColor(GRAY);
+    if (passport) {
+      doc.text(`Paszport: ${passport}`, cx[1] + 4, y + 32, { width: cw[1] - 8 });
+      doc.text(`PKWiU: ${pkwiu}`, cx[1] + 4, y + 41, { width: cw[1] - 8 });
+    } else {
+      doc.text(`PKWiU: ${pkwiu}`, cx[1] + 4, y + 38, { width: cw[1] - 8 });
+    }
+
+    // Qty
+    doc.font("B").fontSize(9).fillColor(PURPLE).text(qty.toString(), cx[2] + 2, y + 18, { width: cw[2] - 4, align: "center" });
+
+    // Jm
+    doc.font("R").fontSize(9).fillColor(TEXT).text("szt.", cx[3] + 2, y + 18, { width: cw[3] - 4, align: "center" });
+
+    // Prices
+    doc.font("R").fontSize(8).text(fmtNum(uNet), cx[4] + 2, y + 18, { width: cw[4] - 4, align: "right" });
+    doc.text(fmtNum(uGross), cx[5] + 2, y + 18, { width: cw[5] - 4, align: "right" });
+    doc.text(`${item.vatRate}%`, cx[6] + 2, y + 18, { width: cw[6] - 4, align: "center" });
+    doc.text(fmtNum(tNet), cx[7] + 2, y + 18, { width: cw[7] - 4, align: "right" });
+    doc.text(fmtNum(tVat), cx[8] + 2, y + 18, { width: cw[8] - 4, align: "right" });
+
+    doc.font("B").fontSize(8).text(fmtNum(tGross), cx[9] + 2, y + 18, { width: cw[9] - 4, align: "right" });
+
+    y += ROW_HEIGHT;
+  });
+
+  // RAZEM row
+  const rzh = 26;
+  doc.rect(ML, y, CW, rzh).fillAndStroke(LIGHT_GRAY, BORDER);
+  cx.forEach((x, i) => { if (i > 0) doc.moveTo(x, y).lineTo(x, y + rzh).stroke(BORDER); });
+
+  doc.font("B").fontSize(9).fillColor(TEXT).text("RAZEM:", cx[0] + 2, y + 8, { width: cw[0] + cw[1] - 4, align: "right" });
+  doc.fillColor(PURPLE).text(totalQty.toString(), cx[2] + 2, y + 8, { width: cw[2] - 4, align: "center" });
+  doc.fillColor(TEXT).fontSize(8);
+  doc.text(`${fmtNum(proforma.subtotalNet)} zł`, cx[7] + 2, y + 8, { width: cw[7] - 4, align: "right" });
+  doc.text(`${fmtNum(proforma.totalVat)} zł`, cx[8] + 2, y + 8, { width: cw[8] - 4, align: "right" });
+  doc.fillColor(PURPLE).text(`${fmtNum(proforma.totalGross)} zł`, cx[9] + 2, y + 8, { width: cw[9] - 4, align: "right" });
+
+  y += rzh + 18;
+
+  // === BOTTOM SECTION ===
+  const bottomSectionHeight = 220;
+  if (y + bottomSectionHeight > PAGE_H - MB) { 
+    doc.addPage(); 
+    y = MT; 
+  }
+
+  const leftW = 345;
+  const rightW = 175;
+  const rightX = PAGE_W - MR - rightW;
+  const startY = y;
+
+  // VAT Summary
+  doc.font("B").fontSize(9).fillColor(GRAY).text("PODSUMOWANIE STAWEK VAT", ML, y);
+  y += 16;
+
+  const vatCw = [70, 92, 88, 95];
+  const vatX: number[] = [];
+  let vx = ML;
+  for (const w of vatCw) { vatX.push(vx); vx += w; }
+
+  const vhh = 22;
+  doc.rect(ML, y, leftW, vhh).fillAndStroke(LIGHT_GRAY, BORDER);
+  vatX.forEach((x, i) => { if (i > 0) doc.moveTo(x, y).lineTo(x, y + vhh).stroke(BORDER); });
+  doc.font("B").fontSize(8).fillColor(GRAY);
+  ["Stawka VAT", "Netto", "VAT", "Brutto"].forEach((h, i) => {
+    doc.text(h, vatX[i] + 6, y + 7, { width: vatCw[i] - 12, align: i === 0 ? "left" : "right" });
+  });
+  y += vhh;
+
+  const vatMap = new Map<number, { net: number; vat: number; gross: number }>();
+  items.forEach(item => {
+    const r = item.vatRate;
+    const n = Number(item.totalNet) || Number(item.unitPriceNet) * Number(item.quantity);
+    const v = Number(item.totalVat) || n * r / 100;
+    const g = Number(item.totalGross) || n + v;
+    const e = vatMap.get(r) || { net: 0, vat: 0, gross: 0 };
+    e.net += n; e.vat += v; e.gross += g;
+    vatMap.set(r, e);
+  });
+
+  vatMap.forEach((v, rate) => {
+    const vrh = 22;
+    doc.rect(ML, y, leftW, vrh).stroke(BORDER);
+    vatX.forEach((x, i) => { if (i > 0) doc.moveTo(x, y).lineTo(x, y + vrh).stroke(BORDER); });
+    doc.font("B").fontSize(9).fillColor(PURPLE).text(`${rate}%`, vatX[0] + 6, y + 6, { width: vatCw[0] - 12 });
+    doc.font("R").fillColor(TEXT).fontSize(9);
+    doc.text(`${fmtNum(v.net)} zł`, vatX[1] + 6, y + 6, { width: vatCw[1] - 12, align: "right" });
+    doc.text(`${fmtNum(v.vat)} zł`, vatX[2] + 6, y + 6, { width: vatCw[2] - 12, align: "right" });
+    doc.font("B").fillColor(PURPLE).text(`${fmtNum(v.gross)} zł`, vatX[3] + 6, y + 6, { width: vatCw[3] - 12, align: "right" });
+    y += vrh;
+  });
+
+  const vrhz = 24;
+  doc.rect(ML, y, leftW, vrhz).fillAndStroke(LIGHT_GRAY, BORDER);
+  vatX.forEach((x, i) => { if (i > 0) doc.moveTo(x, y).lineTo(x, y + vrhz).stroke(BORDER); });
+  doc.font("B").fontSize(9).fillColor(TEXT).text("RAZEM", vatX[0] + 6, y + 7, { width: vatCw[0] - 12 });
+  doc.text(`${fmtNum(proforma.subtotalNet)} zł`, vatX[1] + 6, y + 7, { width: vatCw[1] - 12, align: "right" });
+  doc.text(`${fmtNum(proforma.totalVat)} zł`, vatX[2] + 6, y + 7, { width: vatCw[2] - 12, align: "right" });
+  doc.fillColor(PURPLE).text(`${fmtNum(proforma.totalGross)} zł`, vatX[3] + 6, y + 7, { width: vatCw[3] - 12, align: "right" });
+  y += vrhz + 18;
+
+  // PŁATNOŚĆ
+  doc.font("B").fontSize(9).fillColor(GRAY).text("PŁATNOŚĆ", ML, y);
+  y += 14;
+  doc.font("R").fontSize(10).fillColor(TEXT).text("Forma: ", ML, y, { continued: true }).font("B").text(payMethodLabel(proforma.paymentMethod));
+  y += 14;
+  doc.font("R").text("Status: ", ML, y, { continued: true }).font("B").text(payStatusLabel(proforma.paymentStatus));
+  y += 20;
+
+  if (seller.account) {
+    const bbh = 40;
+    roundedRect(doc, ML, y, leftW, bbh, 6);
+    doc.fill(LIGHT_PURPLE);
+    roundedRect(doc, ML, y, leftW, bbh, 6);
+    doc.strokeColor(PURPLE_BORDER).lineWidth(1).stroke();
+    doc.font("B").fontSize(10).fillColor(PURPLE).text(seller.bank, ML + 12, y + 8);
+    doc.font("R").fontSize(10).fillColor(TEXT).text(`Numer konta: ${seller.account}`, ML + 12, y + 24);
+    y += bbh + 10;
+  }
+
+  // Pro forma disclaimer
+  const disclaimerH = 36;
+  roundedRect(doc, ML, y, leftW, disclaimerH, 6);
+  doc.fill(LIGHT_PURPLE);
+  roundedRect(doc, ML, y, leftW, disclaimerH, 6);
+  doc.strokeColor(PURPLE_BORDER).lineWidth(1).stroke();
+  doc.font("R").fontSize(8).fillColor("#5b21b6").text(
+    "Pro forma nie jest dokumentem księgowym. Stanowi wstępną kalkulację kosztów i nie uprawnia do odliczenia podatku VAT.",
+    ML + 12, y + 10, { width: leftW - 24 }
+  );
+  y += disclaimerH + 10;
+
+  if (seller.comment) {
+    const commentLines = Math.ceil(seller.comment.length / 50);
+    const pbh = Math.max(28, 16 + commentLines * 12);
+    roundedRect(doc, ML, y, leftW, pbh, 6);
+    doc.fill(YELLOW_BG);
+    roundedRect(doc, ML, y, leftW, pbh, 6);
+    doc.stroke("#fde047");
+    doc.font("B").fontSize(9).fillColor(GREEN).text(seller.comment, ML + 12, y + 8, { width: leftW - 24 });
+    y += pbh;
+  }
+
+  // Payment Summary - right side
+  const psY = startY;
+  const psh = 105;
+  roundedRect(doc, rightX, psY, rightW, psh, 6);
+  doc.fill(LIGHT_GRAY);
+  roundedRect(doc, rightX, psY, rightW, psh, 6);
+  doc.stroke(BORDER);
+
+  doc.font("B").fontSize(8).fillColor(GRAY).text("PODSUMOWANIE PŁATNOŚCI", rightX + 12, psY + 12, { width: rightW - 24 });
+
+  doc.font("R").fontSize(10).fillColor(TEXT);
+  doc.text("Wartość pro formy:", rightX + 12, psY + 32);
+  doc.font("B").text(`${fmtNum(proforma.totalGross)} zł`, rightX + 12, psY + 32, { width: rightW - 24, align: "right" });
+
+  doc.font("R").text("Zapłacono:", rightX + 12, psY + 50);
+  doc.font("B").text(`${fmtNum(proforma.paidAmount)} zł`, rightX + 12, psY + 50, { width: rightW - 24, align: "right" });
+
+  const remain = Number(proforma.totalGross) - Number(proforma.paidAmount);
+  doc.font("R").fontSize(9).text("Pozostało do zapłaty:", rightX + 12, psY + 70);
+  doc.font("B").fontSize(16).fillColor(PURPLE).text(`${fmtNum(remain)} PLN`, rightX + 12, psY + 84, { width: rightW - 24, align: "center" });
+
+  // === SIGNATURES ===
+  y = Math.max(y + 60, PAGE_H - MB - 55);
+  if (y > PAGE_H - MB - 25) { doc.addPage(); y = MT + 60; }
+
+  doc.strokeColor(BORDER).lineWidth(0.5);
+  doc.moveTo(ML + 30, y).lineTo(ML + 210, y).stroke();
+  doc.moveTo(PAGE_W - MR - 210, y).lineTo(PAGE_W - MR - 30, y).stroke();
+
+  doc.font("R").fontSize(8).fillColor(GRAY);
+  doc.text("Podpis osoby upoważnionej do wystawienia", ML + 30, y + 6, { width: 180, align: "center" });
+  doc.text("Podpis osoby upoważnionej do odbioru", PAGE_W - MR - 210, y + 6, { width: 180, align: "center" });
+
+  doc.end();
+  return doc;
+}
+
+export default generateProformaPdfDirect;
