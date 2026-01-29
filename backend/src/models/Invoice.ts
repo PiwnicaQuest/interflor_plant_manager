@@ -4,6 +4,28 @@ import { Invoice, InvoiceItem, InvoiceWithItems, PaymentMethod, CustomerSnapshot
 // Helper function to round to 2 decimal places (for currency calculations)
 const round2 = (num: number): number => Math.round(num * 100) / 100;
 
+// Recalculate invoice totals from actual item values in database (GENERATED columns)
+const recalculateInvoiceTotals = async (client: any, invoiceId: number): Promise<{
+  subtotalNet: number;
+  totalVat: number;
+  totalGross: number;
+}> => {
+  const result = await client.query(`
+    SELECT
+      COALESCE(SUM(total_net), 0) as subtotal_net,
+      COALESCE(SUM(total_vat), 0) as total_vat,
+      COALESCE(SUM(total_gross), 0) as total_gross
+    FROM invoice_items
+    WHERE invoice_id = $1
+  `, [invoiceId]);
+
+  return {
+    subtotalNet: parseFloat(result.rows[0].subtotalNet) || 0,
+    totalVat: parseFloat(result.rows[0].totalVat) || 0,
+    totalGross: parseFloat(result.rows[0].totalGross) || 0,
+  };
+};
+
 // EU VAT number prefixes (excluding PL)
 const EU_VAT_PREFIXES = ['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'EL', 'ES', 'FI', 'FR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PT', 'RO', 'SE', 'SI', 'SK'];
 
@@ -11,14 +33,14 @@ const EU_VAT_PREFIXES = ['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'EL', '
 const isWdtTransaction = (buyerSnapshot: CustomerSnapshot): boolean => {
   const country = buyerSnapshot.country?.toLowerCase() || '';
   const isPolish = country === 'polska' || country === 'poland' || country === '';
-  
+
   if (isPolish) return false;
-  
+
   // Check vatEu field
   if (buyerSnapshot.vatEu && buyerSnapshot.vatEu.trim() !== '') {
     return true;
   }
-  
+
   // Check if NIP starts with EU country prefix (e.g., CZ12345678)
   const nip = (buyerSnapshot.nip || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   for (const prefix of EU_VAT_PREFIXES) {
@@ -26,7 +48,7 @@ const isWdtTransaction = (buyerSnapshot: CustomerSnapshot): boolean => {
       return true;
     }
   }
-  
+
   return false;
 };
 
@@ -43,7 +65,8 @@ export class InvoiceModel {
       COALESCE(
         buyer_snapshot->>'companyName',
         CONCAT(buyer_snapshot->>'firstName', ' ', buyer_snapshot->>'lastName')
-      ) as customer_name
+      ) as customer_name,
+      buyer_snapshot->>'customerCode' as customer_code
       FROM invoices WHERE 1=1`;
     const params: any[] = [];
     let paramIndex = 1;
@@ -268,6 +291,21 @@ export class InvoiceModel {
         insertedItems.push(itemResult.rows[0]);
       }
 
+      // Recalculate totals from actual database values (GENERATED columns)
+      const actualTotals = await recalculateInvoiceTotals(client, invoice.id);
+
+      // Update invoice with actual totals
+      await client.query(`
+        UPDATE invoices
+        SET subtotal_net = $1, total_vat = $2, total_gross = $3
+        WHERE id = $4
+      `, [actualTotals.subtotalNet, actualTotals.totalVat, actualTotals.totalGross, invoice.id]);
+
+      // Update local invoice object
+      invoice.subtotalNet = actualTotals.subtotalNet;
+      invoice.totalVat = actualTotals.totalVat;
+      invoice.totalGross = actualTotals.totalGross;
+
       return {
         ...invoice,
         items: insertedItems,
@@ -325,11 +363,11 @@ export class InvoiceModel {
         const originalVatRate = item.vatRate || 8.0;
         // For WDT, VAT rate is 0%
         const vatRate = isWdt ? 0 : originalVatRate;
-        
+
         // Calculate original net price from gross (removing Polish VAT)
         const originalUnitPriceGross = item.unitPriceGross;
         const originalUnitPriceNet = round2(originalUnitPriceGross / (1 + originalVatRate / 100));
-        
+
         // For WDT: customer pays NET price (no Polish VAT), gross = net because VAT = 0%
         // For domestic: normal gross/net calculation
         const unitPriceNet = originalUnitPriceNet;
@@ -412,6 +450,21 @@ export class InvoiceModel {
 
         insertedItems.push(itemResult.rows[0]);
       }
+
+      // Recalculate totals from actual database values (GENERATED columns)
+      const actualTotals = await recalculateInvoiceTotals(client, invoice.id);
+
+      // Update invoice with actual totals
+      await client.query(`
+        UPDATE invoices
+        SET subtotal_net = $1, total_vat = $2, total_gross = $3
+        WHERE id = $4
+      `, [actualTotals.subtotalNet, actualTotals.totalVat, actualTotals.totalGross, invoice.id]);
+
+      // Update local invoice object
+      invoice.subtotalNet = actualTotals.subtotalNet;
+      invoice.totalVat = actualTotals.totalVat;
+      invoice.totalGross = actualTotals.totalGross;
 
       return {
         ...invoice,
@@ -509,6 +562,21 @@ export class InvoiceModel {
         insertedItems.push(itemResult.rows[0]);
       }
 
+      // Recalculate totals from actual database values (GENERATED columns)
+      const actualTotals = await recalculateInvoiceTotals(client, invoice.id);
+
+      // Update invoice with actual totals
+      await client.query(`
+        UPDATE invoices
+        SET subtotal_net = $1, total_vat = $2, total_gross = $3
+        WHERE id = $4
+      `, [actualTotals.subtotalNet, actualTotals.totalVat, actualTotals.totalGross, invoice.id]);
+
+      // Update local invoice object
+      invoice.subtotalNet = actualTotals.subtotalNet;
+      invoice.totalVat = actualTotals.totalVat;
+      invoice.totalGross = actualTotals.totalGross;
+
       return {
         ...invoice,
         items: insertedItems,
@@ -568,11 +636,11 @@ export class InvoiceModel {
         const originalVatRate = item.vatRate || 8.0;
         // For WDT, VAT rate is 0%
         const vatRate = isWdt ? 0 : originalVatRate;
-        
+
         // Calculate original net price from gross (removing Polish VAT)
         const originalUnitPriceGross = item.unitPriceGross;
         const originalUnitPriceNet = round2(originalUnitPriceGross / (1 + originalVatRate / 100));
-        
+
         // For WDT: customer pays NET price (no Polish VAT), gross = net because VAT = 0%
         // For domestic: normal gross/net calculation
         const unitPriceNet = originalUnitPriceNet;
@@ -663,6 +731,21 @@ export class InvoiceModel {
 
         insertedItems.push(itemResult.rows[0]);
       }
+
+      // Recalculate totals from actual database values (GENERATED columns)
+      const actualTotals = await recalculateInvoiceTotals(client, invoice.id);
+
+      // Update invoice with actual totals
+      await client.query(`
+        UPDATE invoices
+        SET subtotal_net = $1, total_vat = $2, total_gross = $3
+        WHERE id = $4
+      `, [actualTotals.subtotalNet, actualTotals.totalVat, actualTotals.totalGross, invoice.id]);
+
+      // Update local invoice object
+      invoice.subtotalNet = actualTotals.subtotalNet;
+      invoice.totalVat = actualTotals.totalVat;
+      invoice.totalGross = actualTotals.totalGross;
 
       return {
         ...invoice,
@@ -780,6 +863,21 @@ export class InvoiceModel {
         insertedItems.push(itemResult.rows[0]);
       }
 
+      // Recalculate totals from actual database values (GENERATED columns)
+      const actualTotals = await recalculateInvoiceTotals(client, invoice.id);
+
+      // Update invoice with actual totals
+      await client.query(`
+        UPDATE invoices
+        SET subtotal_net = $1, total_vat = $2, total_gross = $3
+        WHERE id = $4
+      `, [actualTotals.subtotalNet, actualTotals.totalVat, actualTotals.totalGross, invoice.id]);
+
+      // Update local invoice object
+      invoice.subtotalNet = actualTotals.subtotalNet;
+      invoice.totalVat = actualTotals.totalVat;
+      invoice.totalGross = actualTotals.totalGross;
+
       return {
         ...invoice,
         items: insertedItems,
@@ -876,7 +974,7 @@ export class InvoiceModel {
 
       // Update proforma invoice
       const invoiceResult = await client.query<Invoice>(
-        `UPDATE invoices SET 
+        `UPDATE invoices SET
           customer_id = $1,
           buyer_snapshot = $2,
           payment_deadline = $3,
@@ -927,6 +1025,21 @@ export class InvoiceModel {
         insertedItems.push(itemResult.rows[0]);
       }
 
+      // Recalculate totals from actual database values (GENERATED columns)
+      const actualTotals = await recalculateInvoiceTotals(client, invoice.id);
+
+      // Update invoice with actual totals
+      await client.query(`
+        UPDATE invoices
+        SET subtotal_net = $1, total_vat = $2, total_gross = $3
+        WHERE id = $4
+      `, [actualTotals.subtotalNet, actualTotals.totalVat, actualTotals.totalGross, invoice.id]);
+
+      // Update local invoice object
+      invoice.subtotalNet = actualTotals.subtotalNet;
+      invoice.totalVat = actualTotals.totalVat;
+      invoice.totalGross = actualTotals.totalGross;
+
       return {
         ...invoice,
         items: insertedItems,
@@ -976,7 +1089,7 @@ export class InvoiceModel {
         buyer_snapshot->>'companyName',
         CONCAT(buyer_snapshot->>'firstName', ' ', buyer_snapshot->>'lastName')
       ) as customer_name
-      FROM invoices 
+      FROM invoices
       WHERE invoice_type = 'proforma'
         AND payment_deadline IS NOT NULL
         AND payment_deadline >= CURRENT_DATE
@@ -998,7 +1111,7 @@ export class InvoiceModel {
         buyer_snapshot->>'companyName',
         CONCAT(buyer_snapshot->>'firstName', ' ', buyer_snapshot->>'lastName')
       ) as customer_name
-      FROM invoices 
+      FROM invoices
       WHERE invoice_type = 'proforma'
         AND payment_deadline IS NOT NULL
         AND payment_deadline < CURRENT_DATE
@@ -1040,7 +1153,7 @@ export class InvoiceModel {
       totalValue: string;
       convertedValue: string;
     }>(`
-      SELECT 
+      SELECT
         COUNT(*)::text as total,
         COUNT(*) FILTER (WHERE proforma_status = 'draft' OR proforma_status IS NULL)::text as draft,
         COUNT(*) FILTER (WHERE proforma_status = 'sent')::text as sent,
@@ -1055,7 +1168,7 @@ export class InvoiceModel {
 
     // Get average conversion time (for converted proformas)
     const conversionTimeResult = await query<{ avg_days: string | null }>(`
-      SELECT 
+      SELECT
         AVG(EXTRACT(EPOCH FROM (
           (SELECT MIN(created_at) FROM invoices i2 WHERE i2.proforma_id = i.id) - i.created_at
         )) / 86400)::text as avg_days
@@ -1070,7 +1183,7 @@ export class InvoiceModel {
       totalValue: string;
       convertedValue: string;
     }>(`
-      SELECT 
+      SELECT
         COUNT(*)::text as total,
         COUNT(*) FILTER (WHERE proforma_status = 'converted')::text as converted,
         COALESCE(SUM(total_gross), 0)::text as total_value,
@@ -1136,7 +1249,7 @@ export class InvoiceModel {
     // Determine if we should auto-mark as paid
     const isImmediatePayment = newPaymentMethod === 'cash' || newPaymentMethod === 'card';
     const wasTransfer = oldPaymentMethod === 'transfer';
-    
+
     let newPaymentStatus = currentInvoice.payment_status;
     let newPaidAmount = parseFloat(currentInvoice.paid_amount) || 0;
     let newPaymentDeadline = currentInvoice.payment_deadline;
@@ -1150,9 +1263,9 @@ export class InvoiceModel {
 
     // Update invoice
     const updateResult = await query<any>(
-      `UPDATE invoices 
-       SET payment_method = $1, 
-           payment_status = $2::payment_status, 
+      `UPDATE invoices
+       SET payment_method = $1,
+           payment_status = $2::payment_status,
            paid_amount = $3,
            payment_deadline = $4,
            updated_at = CURRENT_TIMESTAMP
@@ -1167,7 +1280,7 @@ export class InvoiceModel {
 
     // Log the change
     await query(
-      `INSERT INTO invoice_audit_log 
+      `INSERT INTO invoice_audit_log
        (invoice_id, action, field_name, old_value, new_value, changed_by_user_id, notes)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [
@@ -1177,7 +1290,7 @@ export class InvoiceModel {
         oldPaymentMethod,
         newPaymentMethod,
         userId || null,
-        isImmediatePayment && wasTransfer 
+        isImmediatePayment && wasTransfer
           ? 'Automatycznie oznaczono jako opłacone po zmianie na płatność natychmiastową'
           : null
       ]
@@ -1186,7 +1299,7 @@ export class InvoiceModel {
     // If payment status also changed, log that too
     if (newPaymentStatus !== currentInvoice.payment_status) {
       await query(
-        `INSERT INTO invoice_audit_log 
+        `INSERT INTO invoice_audit_log
          (invoice_id, action, field_name, old_value, new_value, changed_by_user_id, notes)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
@@ -1247,8 +1360,8 @@ export class InvoiceModel {
       newValue: row.new_value,
       changedByUserId: row.changed_by_user_id,
       changedByEmail: row.changed_by_email,
-      changedByName: row.first_name && row.last_name 
-        ? row.first_name + ' ' + row.last_name 
+      changedByName: row.first_name && row.last_name
+        ? row.first_name + ' ' + row.last_name
         : row.changed_by_email,
       changedAt: row.changed_at,
       notes: row.notes,
