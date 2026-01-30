@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { ProductModel } from '../models/Product';
 import { SettingsModel } from '../models/Settings';
-import { CreateProductRequest, UpdateProductRequest, MovementType } from '../types';
+import { CreateProductRequest, UpdateProductRequest, MovementType, UserRole } from '../types';
 
 export class InventoryController {
   static async getAll(req: AuthRequest, res: Response) {
@@ -115,6 +115,19 @@ export class InventoryController {
       const id = parseInt(req.params.id);
       if (isNaN(id)) { return res.status(400).json({ error: "Niepoprawne ID produktu" }); }
       const data: UpdateProductRequest = req.body;
+
+      // Restrict price and quantity fields to admin only
+      const adminOnlyFields = [
+        'purchasePricePln', 'pricePlus', 'basePriceGross',
+        'priceDiscount10', 'priceDiscount12', 'priceDiscount15', 'priceDiscount20', 'priceDiscount25',
+        'priceAuchan8', 'vatRate',
+        'palletCount', 'unitsPerPallet', 'totalUnits'
+      ];
+      if (req.user?.role !== UserRole.ADMIN) {
+        for (const field of adminOnlyFields) {
+          delete (data as any)[field];
+        }
+      }
 
       const existingProduct = await ProductModel.getById(id);
 

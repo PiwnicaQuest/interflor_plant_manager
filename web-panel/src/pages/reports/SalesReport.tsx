@@ -13,12 +13,13 @@ interface OrderStatusStats {
     status: string;
     label: string;
     ordersCount: number;
+    totalNet: number;
     totalGross: number;
   }>;
   summary: {
-    open: { ordersCount: number; totalGross: number };
-    closed: { ordersCount: number; totalGross: number };
-    all: { ordersCount: number; totalGross: number };
+    open: { ordersCount: number; totalNet: number; totalGross: number };
+    closed: { ordersCount: number; totalNet: number; totalGross: number };
+    all: { ordersCount: number; totalNet: number; totalGross: number };
   };
 }
 
@@ -282,6 +283,7 @@ export function SalesReport() {
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Liczba zamówień</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Wartość netto</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Wartość brutto</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Śr. wartość</th>
               </tr>
@@ -299,6 +301,7 @@ export function SalesReport() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900 text-right">{stat.ordersCount}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900 text-right">{formatCurrency(stat.totalNet)}</td>
                   <td className="px-4 py-3 text-sm text-gray-900 text-right">{formatCurrency(stat.totalGross)}</td>
                   <td className="px-4 py-3 text-sm text-gray-900 text-right">
                     {formatCurrency(stat.ordersCount > 0 ? stat.totalGross / stat.ordersCount : 0)}
@@ -310,6 +313,7 @@ export function SalesReport() {
               <tr>
                 <td className="px-4 py-3 text-sm font-semibold text-gray-900">Razem</td>
                 <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right">{statusStats.summary.all.ordersCount}</td>
+                <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right">{formatCurrency(statusStats.summary.all.totalNet)}</td>
                 <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right">{formatCurrency(statusStats.summary.all.totalGross)}</td>
                 <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right">
                   {formatCurrency(statusStats.summary.all.ordersCount > 0 ? statusStats.summary.all.totalGross / statusStats.summary.all.ordersCount : 0)}

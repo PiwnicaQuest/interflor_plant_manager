@@ -111,7 +111,7 @@ router.get('/:id/pdf', requireAuth, async (req: Request, res: Response): Promise
     const filename = 'Korekta_' + correction.correctionNumber.replace(/\//g, '-') + '.pdf';
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"');
+    res.setHeader('Content-Disposition', 'inline; filename="' + filename + '"');
     res.send(pdfBuffer);
   } catch (error: unknown) {
     const err = error as Error;

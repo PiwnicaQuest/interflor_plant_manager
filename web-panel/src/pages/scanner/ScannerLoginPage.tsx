@@ -8,6 +8,7 @@ export function ScannerLoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionMessage, setSessionMessage] = useState('');
   const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
@@ -16,6 +17,12 @@ export function ScannerLoginPage() {
       || (window.navigator as any).standalone 
       || document.referrer.includes('android-app://');
     setIsStandalone(isInStandaloneMode);
+
+    const reason = localStorage.getItem('logoutReason');
+    if (reason === 'session_kicked') {
+      setSessionMessage('Sesja została zakończona — zalogowano się na innym urządzeniu.');
+      localStorage.removeItem('logoutReason');
+    }
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -70,6 +77,11 @@ export function ScannerLoginPage() {
         {/* Login Form - COMPACT */}
         <div className="bg-white rounded-xl shadow-xl p-5">
           <form onSubmit={handleSubmit} className="space-y-3">
+            {sessionMessage && (
+              <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-3 py-2 rounded-lg text-xs">
+                {sessionMessage}
+              </div>
+            )}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-xs">
                 {error}
@@ -78,16 +90,16 @@ export function ScannerLoginPage() {
 
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">
-                Email
+                Email lub login
               </label>
               <input
-                type="email"
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="twoj@email.pl"
+                placeholder="email lub login"
                 className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
                 required
-                autoComplete="email"
+                autoComplete="username"
                 autoFocus
               />
             </div>

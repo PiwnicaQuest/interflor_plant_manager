@@ -158,6 +158,8 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
         border-color: ${style.borderColor || '#000000'};
         border-style: solid;
         border-radius: ${style.borderRadius || 0}px;
+        transform: rotate(${style.rotation || 0}deg);
+        transform-origin: center center;
         box-sizing: border-box;
         overflow: hidden;
       `;
@@ -181,22 +183,22 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
       }
     }).join('');
 
-    return '<div class="label" style="width: ' + (template.paperWidth * mmToPx) + 'px; height: ' + (template.paperHeight * mmToPx) + 'px; position: relative; margin: 0; box-sizing: border-box; page-break-inside: avoid;">' + elementsHtml + '</div>';
+    return '<div class="template-label" style="width: ' + (template.paperWidth * mmToPx) + 'px; height: ' + (template.paperHeight * mmToPx) + 'px; position: relative; margin: 0; box-sizing: border-box; page-break-inside: avoid;">' + elementsHtml + '</div>';
   };
 
   const generatePrintHtml = (): string => {
     let labelsHtml: string;
 
-    if (selectedTemplate) {
+    if (false && selectedTemplate) { // Disabled - using hardcoded template
       // Use custom template
-      labelsHtml = Array(labelCount).fill('').map(() => generateTemplateHtml(selectedTemplate)).join('');
+      labelsHtml = Array(labelCount).fill('').map(() => generateTemplateHtml(selectedTemplate!)).join('');
     } else {
       // Fallback to default hardcoded template
       labelsHtml = Array(labelCount).fill('').map(() =>
         '<div class="label">' +
         '<div class="product-name">' + (product?.plantName || '') + '</div>' +
-        '<svg class="barcode-svg" id="print-barcode"></svg>' +
         '<div class="units-info">' + (product?.unitsPerPallet || '-') + ' szt./paleta</div>' +
+        '<svg class="barcode-svg" id="print-barcode"></svg>' +
         '</div>'
       ).join('');
     }
@@ -209,10 +211,11 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
       '@page { size: ' + paperWidth + 'mm ' + paperHeight + 'mm; margin: 0; }' +
       '* { margin: 0; padding: 0; box-sizing: border-box; } body { margin: 0; padding: 0; font-family: Arial, sans-serif; }' +
       '.label-container { width: 100%; }' +
-      '.label { width: ' + paperWidth + 'mm; height: ' + paperHeight + 'mm; padding: 2mm; display: flex; flex-direction: column; align-items: center; justify-content: center; page-break-inside: avoid; overflow: hidden; }' +
-      '.product-name { font-size: 8px; font-weight: bold; text-align: center; max-width: ' + (paperWidth - 2) + 'mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; margin-bottom: 0.5mm; }' +
-      '.barcode-svg { max-width: ' + (paperWidth - 4) + 'mm; height: auto; }' +
-      '.units-info { font-size: 6px; font-weight: bold; margin-top: 0.5mm; color: #333; }' +
+      '.template-label { position: relative; page-break-inside: avoid; page-break-after: always; overflow: hidden; }' +
+      '.label { width: ' + paperWidth + 'mm; height: ' + paperHeight + 'mm; padding: 0mm; display: flex; flex-direction: column; align-items: center; justify-content: center; page-break-inside: avoid; page-break-after: always; overflow: hidden; }' +
+      '.product-name { font-size: 10px; font-weight: bold; text-align: center; max-width: ' + (paperWidth - 2) + 'mm; line-height: 1.2; margin-bottom: 0.5mm; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-wrap: break-word; }' +
+      '.barcode-svg { max-width: ' + (paperWidth - 4) + 'mm; height: auto; margin-top: 4mm; margin-left: 2mm; }' +
+      '.units-info { font-size: 6px; font-weight: bold; margin-top: 2.5mm; color: #333; }' +
       '</style></head><body>' +
       '<div class="label-container">' + labelsHtml + '</div>' +
       '<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>' +
@@ -232,6 +235,7 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
     await printBarcodes(htmlContent, {
       title: 'Etykiety - ' + (product?.plantName || ''),
       productId: product?.id,
+      copies: labelCount,
     });
 
     setShowPrintPreview(false);

@@ -1,0 +1,14 @@
+{
+  "port": 19432,
+  "allowedOrigins": [
+    "https://pm.polflor.wroclaw.pl",
+    "http://localhost:5173",
+    "http://localhost:3000"
+  ],
+  "defaultPrinters": {
+    "label": null,
+    "receipt": null,
+    "document": null
+  },
+  "autoStart": false
+}

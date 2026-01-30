@@ -47,8 +47,8 @@ export function TemplateEditor({ template, onSave, onCancel }: TemplateEditorPro
   const [elements, setElements] = useState<TemplateElement[]>(template.elements || []);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [templateName, setTemplateName] = useState(template.name);
-  const [paperWidth, setPaperWidth] = useState(template.paperWidth);
-  const [paperHeight, setPaperHeight] = useState(template.paperHeight);
+  const [paperWidth, setPaperWidth] = useState(template.paperWidth || 50);
+  const [paperHeight, setPaperHeight] = useState(template.paperHeight || 30);
   const [marginTop, setMarginTop] = useState(template.marginTop ?? 0);
   const [marginRight, setMarginRight] = useState(template.marginRight ?? 0);
   const [marginBottom, setMarginBottom] = useState(template.marginBottom ?? 0);

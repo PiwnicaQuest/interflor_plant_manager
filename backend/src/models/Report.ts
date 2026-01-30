@@ -151,10 +151,11 @@ export class ReportModel {
         SELECT
           DATE(r.created_at) as date,
           COUNT(DISTINCT r.id) as "ordersCount",
-          COALESCE(SUM(r.total_amount), 0) as "totalRevenue",
-          COALESCE(SUM(r.total_amount), 0) as "totalNet",
-          0 as "totalVat"
+          COALESCE(SUM(ri.total_gross), 0) as "totalRevenue",
+          COALESCE(SUM(ri.total_gross / (1 + ri.vat_rate/100)), 0) as "totalNet",
+          COALESCE(SUM(ri.total_gross - ri.total_gross / (1 + ri.vat_rate/100)), 0) as "totalVat"
         FROM receipts r
+        INNER JOIN receipt_items ri ON ri.receipt_id = r.id
         LEFT JOIN orders o ON r.order_id = o.id
         WHERE r.created_at >= $1::date AND r.created_at < ($2::date + interval '1 day')
         ${statusFilter}
@@ -196,8 +197,23 @@ export class ReportModel {
       `SELECT
         o.status,
         COUNT(DISTINCT o.id) as "ordersCount",
-        COALESCE(SUM(o.total_amount), 0) as "totalGross"
+        COALESCE(SUM(o.total_amount), 0) as "totalGross",
+        COALESCE(SUM(
+          CASE
+            WHEN i.id IS NOT NULL THEN i.subtotal_net
+            WHEN r.id IS NOT NULL THEN r_totals.total_net
+            ELSE o.total_amount / 1.08
+          END
+        ), 0) as "totalNet"
       FROM orders o
+      LEFT JOIN invoices i ON i.order_id = o.id AND i.invoice_type != 'proforma'
+      LEFT JOIN receipts r ON r.order_id = o.id AND i.id IS NULL
+      LEFT JOIN LATERAL (
+        SELECT
+          SUM(ri.total_gross / (1 + ri.vat_rate/100)) as total_net
+        FROM receipt_items ri
+        WHERE ri.receipt_id = r.id
+      ) r_totals ON r.id IS NOT NULL
       WHERE o.created_at >= $1::date AND o.created_at < ($2::date + interval '1 day')
       GROUP BY o.status
       ORDER BY "totalGross" DESC`,
@@ -216,6 +232,7 @@ export class ReportModel {
       label: statusLabels[row.status] || row.status,
       ordersCount: Number(row.ordersCount),
       totalGross: Number(row.totalGross),
+      totalNet: Number(row.totalNet),
     }));
 
     // Calculate totals for open and closed
@@ -231,14 +248,17 @@ export class ReportModel {
         open: {
           ordersCount: openStats.reduce((sum: number, s: any) => sum + s.ordersCount, 0),
           totalGross: openStats.reduce((sum: number, s: any) => sum + s.totalGross, 0),
+          totalNet: openStats.reduce((sum: number, s: any) => sum + s.totalNet, 0),
         },
         closed: {
           ordersCount: closedStats.reduce((sum: number, s: any) => sum + s.ordersCount, 0),
           totalGross: closedStats.reduce((sum: number, s: any) => sum + s.totalGross, 0),
+          totalNet: closedStats.reduce((sum: number, s: any) => sum + s.totalNet, 0),
         },
         all: {
           ordersCount: stats.reduce((sum: number, s: any) => sum + s.ordersCount, 0),
           totalGross: stats.reduce((sum: number, s: any) => sum + s.totalGross, 0),
+          totalNet: stats.reduce((sum: number, s: any) => sum + s.totalNet, 0),
         },
       },
     };
@@ -315,11 +335,12 @@ export class ReportModel {
         WHERE i.issue_date >= $1::date AND i.issue_date <= $2::date AND i.invoice_type != 'proforma'
         UNION ALL
         SELECT
-          COALESCE(SUM(r.total_amount), 0) as "totalGross",
-          COALESCE(SUM(r.total_amount), 0) as "totalNet",
-          0 as "totalVat",
-          COUNT(r.id) as "ordersCount"
+          COALESCE(SUM(ri.total_gross), 0) as "totalGross",
+          COALESCE(SUM(ri.total_gross / (1 + ri.vat_rate/100)), 0) as "totalNet",
+          COALESCE(SUM(ri.total_gross - ri.total_gross / (1 + ri.vat_rate/100)), 0) as "totalVat",
+          COUNT(DISTINCT r.id) as "ordersCount"
         FROM receipts r
+        INNER JOIN receipt_items ri ON ri.receipt_id = r.id
         WHERE r.created_at >= $1::date AND r.created_at < ($2::date + interval '1 day')
       ) combined`,
       [startDate, endDate]
@@ -553,12 +574,13 @@ export class ReportModel {
     const receiptsResult = await query<any>(
       `SELECT
         'receipt' as "documentType",
-        COUNT(*) as count,
-        COALESCE(SUM(total_amount), 0) as "totalGross",
-        0 as "totalNet",
-        0 as "totalVat"
-      FROM receipts
-      WHERE created_at >= $1::date AND created_at < ($2::date + interval '1 day')`,
+        COUNT(DISTINCT r.id) as count,
+        COALESCE(SUM(ri.total_gross), 0) as "totalGross",
+        COALESCE(SUM(ri.total_gross / (1 + ri.vat_rate/100)), 0) as "totalNet",
+        COALESCE(SUM(ri.total_gross - ri.total_gross / (1 + ri.vat_rate/100)), 0) as "totalVat"
+      FROM receipts r
+      INNER JOIN receipt_items ri ON ri.receipt_id = r.id
+      WHERE r.created_at >= $1::date AND r.created_at < ($2::date + interval '1 day')`,
       [startDate, endDate]
     );
 

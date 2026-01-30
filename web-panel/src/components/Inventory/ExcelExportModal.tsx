@@ -35,6 +35,12 @@ const getProxyImageUrl = (imageUrl: string | null | undefined): string | null =>
   return fullUrl;
 };
 
+// Get optimized image URL from new image API (for Excel export, use full size)
+const getOptimizedImageUrl = (barcode: string | null | undefined): string | null => {
+  if (!barcode) return null;
+  return `${API_URL}/images/${encodeURIComponent(barcode)}/full`;
+};
+
 const getPrice = (product: Product, priceGroup: PriceGroup): number => {
   switch (priceGroup) {
     case 'base': return product.basePriceGross || 0;
@@ -272,7 +278,7 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
         }
 
         // Add image (using proxy for external images)
-        const imageUrl = getProxyImageUrl(product.imageUrl);
+        const imageUrl = product.barcode ? getOptimizedImageUrl(product.barcode) : getProxyImageUrl(product.imageUrl);
         if (imageUrl) {
           const imageData = await fetchImageAsBase64(imageUrl);
           if (imageData) {

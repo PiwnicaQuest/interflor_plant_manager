@@ -242,11 +242,7 @@ export async function updateSetting(req: Request, res: Response) {
       return res.status(400).json({ error: 'value must be a string' });
     }
 
-    const setting = await SettingsModel.updateSetting(key, value);
-
-    if (!setting) {
-      return res.status(404).json({ error: 'Setting not found' });
-    }
+    const setting = await SettingsModel.upsertSetting(key, value);
 
     return res.json({ setting });
   } catch (error: any) {

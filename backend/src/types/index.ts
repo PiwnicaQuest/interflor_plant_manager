@@ -71,6 +71,7 @@ export interface User {
   id: number;
   email: string;
   login?: string;
+  sessionId?: string;
   firstName?: string;
   permissions?: string[];
   lastName?: string;
@@ -86,6 +87,7 @@ export interface UserWithoutPassword {
   id: number;
   email: string;
   login?: string;
+  sessionId?: string;
   firstName?: string;
   permissions?: string[];
   lastName?: string;
@@ -379,6 +381,8 @@ export interface JWTPayload {
   role: UserRole;
   firstName?: string;
   permissions?: string[];
+  login?: string;
+  sessionId?: string;
   iat?: number;
   exp?: number;
 }
@@ -417,6 +421,7 @@ export interface CreateUserRequest {
   permissions?: string[];
   lastName?: string;
   login?: string;
+  sessionId?: string;
 }
 
 export interface UpdateUserRequest {
@@ -428,6 +433,7 @@ export interface UpdateUserRequest {
   permissions?: string[];
   lastName?: string;
   login?: string;
+  sessionId?: string;
 }
 
 export interface ChangePasswordRequest {

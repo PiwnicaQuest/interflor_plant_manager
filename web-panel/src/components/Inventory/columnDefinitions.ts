@@ -63,17 +63,7 @@ export const ALL_COLUMNS: ColumnDefinition[] = [
   },
   
   // Date columns
-  {
-    key: 'updatedAt',
-    label: 'Aktualizacja',
-    shortLabel: 'Akt.',
-    group: 'date',
-    defaultWidth: 85,
-    minWidth: 70,
-    editable: true,
-    filterable: false,
-    description: 'Data ostatniej aktualizacji produktu',
-  },
+
   {
     key: 'createdAt',
     label: 'Dodano',

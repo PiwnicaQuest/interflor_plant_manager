@@ -138,34 +138,7 @@ export function InventoryFilters({ filters, onChange }: InventoryFiltersProps) {
           )}
         </button>
 
-        {/* Center-left: Date range filters - always visible */}
-        <div className="flex items-center gap-2 border-l border-gray-300 pl-3">
-          <span className="text-xs text-gray-500">Data:</span>
-          <input
-            type="date"
-            className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary-500 w-32"
-            value={filters.dateFrom || ''}
-            onChange={(e) => handleChange('dateFrom', e.target.value)}
-            title="Data od"
-          />
-          <span className="text-xs text-gray-400">-</span>
-          <input
-            type="date"
-            className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary-500 w-32"
-            value={filters.dateTo || ''}
-            onChange={(e) => handleChange('dateTo', e.target.value)}
-            title="Data do"
-          />
-          {hasDateFilter && (
-            <button
-              onClick={clearDateFilters}
-              className="text-xs text-gray-500 hover:text-red-600 ml-1"
-              title="Wyczyść daty"
-            >
-              ✕
-            </button>
-          )}
-        </div>
+
 
         {/* Center-right: Sorting controls */}
         <div className="flex items-center gap-2 border-l border-gray-300 pl-3">

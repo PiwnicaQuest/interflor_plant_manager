@@ -54,7 +54,7 @@ export async function generateCorrectionHTML(correction: InvoiceCorrectionWithIt
   <title>Faktura korygujaca ${correction.correctionNumber}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
+    html, body { background: white !important; } body {
       font-family: 'Segoe UI', Arial, sans-serif;
       font-size: 11px;
       line-height: 1.4;
@@ -237,7 +237,7 @@ export async function generateCorrectionHTML(correction: InvoiceCorrectionWithIt
     }
 
     @media print {
-      body { padding: 0; }
+      html, body { background: white !important; } body { padding: 0; }
       @page { margin: 10mm; }
     }
   </style>

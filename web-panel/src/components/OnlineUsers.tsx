@@ -1,11 +1,22 @@
 import { useState, useEffect } from 'react';
 import { websocketService } from '../services/websocketService';
 
+interface UserSession {
+  sessionId: string;
+  device: string;
+  browser: string;
+  os: string;
+  ipAddress: string;
+  source: string;
+  createdAt: string;
+}
+
 interface OnlineUser {
   userId: number;
   email: string;
   role: string;
   connectedAt: string;
+  sessions: UserSession[];
 }
 
 interface OnlineUsersData {
@@ -13,24 +24,42 @@ interface OnlineUsersData {
   customers: OnlineUser[];
 }
 
+const deviceIcon = (device: string) => {
+  switch (device) {
+    case 'iPhone':
+    case 'Telefon':
+      return '📱';
+    case 'iPad':
+    case 'Tablet':
+      return '📱';
+    default:
+      return '💻';
+  }
+};
+
+const sourceLabel = (source: string) => {
+  switch (source) {
+    case 'shop': return 'Sklep';
+    case 'panel': return 'Panel';
+    default: return source;
+  }
+};
+
 export function OnlineUsers() {
   const [onlineData, setOnlineData] = useState<OnlineUsersData>({ employees: [], customers: [] });
   const [isConnected, setIsConnected] = useState(false);
-  const [, setTick] = useState(0); // Force re-render for duration updates
+  const [, setTick] = useState(0);
 
-  // Update duration every minute
   useEffect(() => {
     const interval = setInterval(() => {
       setTick(t => t + 1);
-    }, 60000); // Update every minute
+    }, 60000);
     return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    // Connect to WebSocket
     websocketService.connect();
 
-    // Subscribe to online-users channel after authentication
     const handleAuthSuccess = () => {
       setIsConnected(true);
       websocketService.subscribe('online-users');
@@ -43,7 +72,6 @@ export function OnlineUsers() {
     const unsubAuth = websocketService.on('auth:success', handleAuthSuccess);
     const unsubOnlineUsers = websocketService.on('online-users:update', handleOnlineUsersUpdate);
 
-    // Check if already connected
     if (websocketService.getConnectionState()) {
       websocketService.subscribe('online-users');
       websocketService.send('get-online-users');
@@ -76,7 +104,6 @@ export function OnlineUsers() {
     }
   };
 
-  // Format login time as "DD.MM.YYYY, HH:MM"
   const formatLoginTime = (connectedAt: string) => {
     const connected = new Date(connectedAt);
     return connected.toLocaleString('pl-PL', {
@@ -88,7 +115,6 @@ export function OnlineUsers() {
     });
   };
 
-  // Format duration as "Xh Ym" or "Ym"
   const formatDuration = (connectedAt: string) => {
     const connected = new Date(connectedAt);
     const now = new Date();
@@ -108,6 +134,14 @@ export function OnlineUsers() {
     const days = Math.floor(hours / 24);
     const remainingHours = hours % 24;
     return remainingHours > 0 ? `${days}d ${remainingHours}h` : `${days}d`;
+  };
+
+  const formatDeviceLabel = (session: UserSession) => {
+    const parts: string[] = [];
+    if (session.os) parts.push(session.os);
+    if (session.browser) parts.push(session.browser);
+    if (parts.length === 0) return session.device || 'Nieznane';
+    return parts.join(' / ');
   };
 
   return (
@@ -139,30 +173,56 @@ export function OnlineUsers() {
           {onlineData.employees.length > 0 ? (
             <div className="space-y-2">
               {onlineData.employees.map((user) => (
-                <div key={user.userId} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-                        <span className="text-primary-700 font-medium text-sm">
-                          {user.email.charAt(0).toUpperCase()}
-                        </span>
+                <div key={user.userId} className="p-2 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+                          <span className="text-primary-700 font-medium text-sm">
+                            {user.email.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
                       </div>
-                      <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <span title="Czas logowania">{formatLoginTime(user.connectedAt)}</span>
-                        <span className="text-gray-300">•</span>
-                        <span className="text-green-600 font-medium" title="Czas online">
-                          {formatDuration(user.connectedAt)}
-                        </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <span title="Czas logowania">{formatLoginTime(user.connectedAt)}</span>
+                          <span className="text-gray-300">•</span>
+                          <span className="text-green-600 font-medium" title="Czas online">
+                            {formatDuration(user.connectedAt)}
+                          </span>
+                        </div>
                       </div>
                     </div>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getRoleBadgeColor(user.role)}`}>
+                      {getRoleLabel(user.role)}
+                    </span>
                   </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getRoleBadgeColor(user.role)}`}>
-                    {getRoleLabel(user.role)}
-                  </span>
+                  {/* Sessions / Devices */}
+                  {user.sessions && user.sessions.length > 0 && (
+                    <div className="mt-2 ml-11 space-y-1">
+                      {user.sessions.map((session) => (
+                        <div
+                          key={session.sessionId}
+                          className="flex items-center gap-2 text-xs text-gray-500 bg-white px-2 py-1 rounded border border-gray-100"
+                        >
+                          <span title={session.device}>{deviceIcon(session.device)}</span>
+                          <span className="font-medium text-gray-700">{formatDeviceLabel(session)}</span>
+                          <span className="text-gray-300">•</span>
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                            session.source === 'panel'
+                              ? 'bg-blue-50 text-blue-600'
+                              : 'bg-green-50 text-green-600'
+                          }`}>
+                            {sourceLabel(session.source)}
+                          </span>
+                          <span className="text-gray-300">•</span>
+                          <span className="text-gray-400" title={session.ipAddress}>{session.ipAddress}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -180,7 +240,7 @@ export function OnlineUsers() {
           {onlineData.customers.length > 0 ? (
             <div className="space-y-2">
               {onlineData.customers.map((user) => (
-                <div key={user.userId} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                <div key={user.userId} className="p-2 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
@@ -201,6 +261,30 @@ export function OnlineUsers() {
                       </div>
                     </div>
                   </div>
+                  {/* Sessions / Devices */}
+                  {user.sessions && user.sessions.length > 0 && (
+                    <div className="mt-2 ml-11 space-y-1">
+                      {user.sessions.map((session) => (
+                        <div
+                          key={session.sessionId}
+                          className="flex items-center gap-2 text-xs text-gray-500 bg-white px-2 py-1 rounded border border-gray-100"
+                        >
+                          <span title={session.device}>{deviceIcon(session.device)}</span>
+                          <span className="font-medium text-gray-700">{formatDeviceLabel(session)}</span>
+                          <span className="text-gray-300">•</span>
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                            session.source === 'panel'
+                              ? 'bg-blue-50 text-blue-600'
+                              : 'bg-green-50 text-green-600'
+                          }`}>
+                            {sourceLabel(session.source)}
+                          </span>
+                          <span className="text-gray-300">•</span>
+                          <span className="text-gray-400" title={session.ipAddress}>{session.ipAddress}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

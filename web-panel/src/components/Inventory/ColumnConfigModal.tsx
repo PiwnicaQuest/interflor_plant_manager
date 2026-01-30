@@ -107,6 +107,7 @@ interface ColumnConfigModalProps {
   onReorder: (newOrder: string[]) => void;
   onToggleVisibility: (columnKey: string) => void;
   onReset: () => void;
+  hiddenColumns?: string[];
 }
 
 export function ColumnConfigModal({
@@ -117,6 +118,7 @@ export function ColumnConfigModal({
   onReorder,
   onToggleVisibility,
   onReset,
+  hiddenColumns = [],
 }: ColumnConfigModalProps) {
   const [localOrder, setLocalOrder] = useState<string[]>(columnOrder);
   const [localVisible, setLocalVisible] = useState<string[]>(visibleColumns);
@@ -186,7 +188,7 @@ export function ColumnConfigModal({
   };
 
   const handleShowAll = () => {
-    const allKeys = ALL_COLUMNS.map(col => col.key);
+    const allKeys = ALL_COLUMNS.map(col => col.key).filter(k => !hiddenColumns.includes(k));
     setLocalVisible(allKeys);
     setHasChanges(true);
   };
@@ -200,7 +202,7 @@ export function ColumnConfigModal({
 
   const orderedColumns = localOrder
     .map(key => ALL_COLUMNS.find(col => col.key === key)!)
-    .filter(Boolean);
+    .filter(col => col && !hiddenColumns.includes(col.key));
 
   const visibleCount = localVisible.length;
   const totalCount = ALL_COLUMNS.length;

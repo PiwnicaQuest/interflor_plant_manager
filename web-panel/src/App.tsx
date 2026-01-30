@@ -34,6 +34,7 @@ import {
   ScannerOrderDetailPage,
   ScannerNewOrderPage,
   ScannerLossPage,
+  ScannerInventoryPage,
 } from "./pages/scanner";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -57,6 +58,36 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+
+function AdminGuard({ children }: { children: React.ReactNode }) {
+  const token = localStorage.getItem('token');
+  if (token) {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (payload.role !== 'admin') {
+        return <Navigate to="/inventory" replace />;
+      }
+    } catch {
+      return <Navigate to="/inventory" replace />;
+    }
+  }
+  return <>{children}</>;
+}
+
+function DefaultRedirect() {
+  const token = localStorage.getItem('token');
+  if (token) {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (payload.role === 'admin') {
+        return <Navigate to="/dashboard" replace />;
+      }
+    } catch {}
+  }
+  return <Navigate to="/inventory" replace />;
+}
+
+
 function App() {
   return (
     <NotificationProvider>
@@ -66,8 +97,8 @@ function App() {
 
           {/* Main admin panel */}
           <Route path="/" element={<Layout />}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<DashboardPage />} />
+            <Route index element={<DefaultRedirect />} />
+            <Route path="dashboard" element={<AdminGuard><DashboardPage /></AdminGuard>} />
             <Route path="inventory" element={<InventoryPage />} />
             <Route path="inventory-movements" element={<InventoryMovementsPage />} />
             <Route path="orders" element={<OrdersPage />} />
@@ -92,6 +123,7 @@ function App() {
             <Route path="orders/new" element={<ScannerNewOrderPage />} />
             <Route path="orders/:id" element={<ScannerOrderDetailPage />} />
             <Route path="losses" element={<ScannerLossPage />} />
+            <Route path="inventory" element={<ScannerInventoryPage />} />
           </Route>
 
           {/* Print routes - outside Layout for clean printing */}

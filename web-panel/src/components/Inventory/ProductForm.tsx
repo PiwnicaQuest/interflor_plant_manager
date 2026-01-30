@@ -13,6 +13,7 @@ interface ProductFormProps {
   onClose: () => void;
   onSubmit: (data: Partial<Product>) => Promise<{ productId: number } | void>;
   initialData?: Partial<Product>;
+  isAdmin?: boolean;
 }
 
 // Generowanie kodu kreskowego EAN-13
@@ -291,7 +292,7 @@ function AddGrowerModal({
   );
 }
 
-export function ProductForm({ onClose, onSubmit, initialData }: ProductFormProps) {
+export function ProductForm({ onClose, onSubmit, initialData, isAdmin = false }: ProductFormProps) {
   const isDuplicate = !!initialData;
 
   const [formData, setFormData] = useState<Partial<Product>>(() => {
@@ -720,6 +721,7 @@ export function ProductForm({ onClose, onSubmit, initialData }: ProductFormProps
                     value={formData.palletCount || ''}
                     onChange={(e) => handleChange('palletCount', parseInt(e.target.value) || 0)}
                     required
+                    disabled={!isAdmin}
                   />
                 </div>
                 <div>
@@ -732,6 +734,7 @@ export function ProductForm({ onClose, onSubmit, initialData }: ProductFormProps
                     value={formData.unitsPerPallet || ''}
                     onChange={(e) => handleChange('unitsPerPallet', parseInt(e.target.value) || 0)}
                     required
+                    disabled={!isAdmin}
                   />
                 </div>
                 <div>
@@ -762,6 +765,7 @@ export function ProductForm({ onClose, onSubmit, initialData }: ProductFormProps
                     className="input"
                     value={formData.purchasePricePln || ''}
                     onChange={(e) => handleChange('purchasePricePln', parsePrice(e.target.value))}
+                    disabled={!isAdmin}
                   />
                 </div>
                 <div>
@@ -774,6 +778,7 @@ export function ProductForm({ onClose, onSubmit, initialData }: ProductFormProps
                     className="input"
                     value={formData.basePriceGross || ''}
                     onChange={(e) => handleChange('basePriceGross', parsePrice(e.target.value))}
+                    disabled={!isAdmin}
                   />
                 </div>
                 <div>

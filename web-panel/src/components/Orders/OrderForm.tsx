@@ -251,6 +251,7 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
   };
 
   const toggleInputMode = (index: number) => { const newItems = [...items]; newItems[index].inputMode = newItems[index].inputMode === 'pallets' ? 'units' : 'pallets'; setItems(newItems); };
+  const updateItemPrice = (index: number, price: number) => { const newItems = [...items]; newItems[index].price = price; setItems(newItems); };
   const calculateTotal = () => items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
   const handleAddCustomer = async () => {
@@ -274,7 +275,7 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
     setLoading(true); setError('');
     try {
       if (isEditMode && order) {
-        await api.updateOrder(order.id, { items: items.map(item => ({ productId: item.productId!, quantity: item.quantity, palletCount: item.palletCount, unitsPerPallet: item.unitsPerPallet })) });
+        await api.updateOrder(order.id, { items: items.map(item => ({ productId: item.productId!, quantity: item.quantity, palletCount: item.palletCount, unitsPerPallet: item.unitsPerPallet, unitPriceGross: item.price })) });
       } else {
         await api.createOrder({
           customerId: selectedCustomerId!,
@@ -317,7 +318,7 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
                         {item.inputMode === 'pallets' ? <input type="number" className="input" min="0" value={item.palletCount} onChange={(e) => updateItemPalletCount(index, parseInt(e.target.value))} /> : <input type="number" className="input" min="1" max={(item.product?.totalUnits || 0) + (item.originalQuantity || 0)} value={item.quantity} onChange={(e) => updateItemQuantity(index, parseInt(e.target.value))} />}
                       </div>
                       <div className="col-span-2"><label className="block text-xs text-gray-600 mb-1">Szt/paleta</label><input type="text" className="input bg-gray-100" value={item.unitsPerPallet} readOnly /></div>
-                      <div className="col-span-2"><label className="block text-xs text-gray-600 mb-1">Cena jedn.</label><input type="text" className="input bg-white" value={(item.price || 0).toFixed(2)} readOnly /></div>
+                      <div className="col-span-2"><label className="block text-xs text-gray-600 mb-1">Cena jedn.</label><input type="number" className="input" step="0.01" min="0" value={item.price || 0} onChange={(e) => updateItemPrice(index, parseFloat(e.target.value) || 0)} /></div>
                       <div className="col-span-1"><button type="button" onClick={() => removeItem(index)} className="btn btn-danger w-full">X</button></div>
                     </div>
                     {item.product && item.quantity > 0 && (<div className="mt-2 text-sm text-gray-600 flex justify-between items-center border-t pt-2"><span><strong>{item.palletCount}</strong> palet x <strong>{item.unitsPerPallet}</strong> szt/paleta = <strong>{item.quantity}</strong> szt.</span><span className="font-semibold text-gray-800">Wartość: {(item.price * item.quantity).toFixed(2)} PLN</span></div>)}

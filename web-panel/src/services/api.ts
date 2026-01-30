@@ -78,7 +78,13 @@ class ApiClient {
       },
       (error) => {
         if (error.response?.status === 401) {
+          const code = error.response?.data?.code;
+          if (code === 'SESSION_INVALIDATED') {
+            localStorage.setItem('logoutReason', 'session_kicked');
+          }
           localStorage.removeItem('token');
+          localStorage.removeItem('userPermissions');
+          localStorage.removeItem('userRole');
           window.location.href = '/login';
         }
         return Promise.reject(error);
@@ -103,6 +109,14 @@ class ApiClient {
   async me(): Promise<{ user: any; customer?: Customer }> {
     const response = await this.client.get('/auth/me');
     return response.data;
+  }
+
+  async logout(): Promise<void> {
+    try {
+      await this.client.post('/auth/logout');
+    } catch {
+      // Ignore errors - we're logging out anyway
+    }
   }
 
   // ============================================
@@ -1020,6 +1034,22 @@ class ApiClient {
     error?: string;
   }> {
     const response = await this.client.post("/settings/email-import/sync");
+    return response.data;
+  }
+
+  async syncEmailImportForce(): Promise<{
+    success: boolean;
+    result?: {
+      emailsFound: number;
+      emailsProcessed: number;
+      productsImported: number;
+      productsUpdated: number;
+      productsFailed: number;
+      errors: string[];
+    };
+    error?: string;
+  }> {
+    const response = await this.client.post("/settings/email-import/sync-force");
     return response.data;
   }
 

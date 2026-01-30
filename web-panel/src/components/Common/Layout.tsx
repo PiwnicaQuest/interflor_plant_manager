@@ -1,4 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { api } from '../../services/api';
 import { NavDropdown } from './NavDropdown';
 import { useState, useCallback, useMemo } from 'react';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -17,6 +18,8 @@ export function Layout() {
   const navigate = useNavigate();
   const { showNotification } = useNotifications();
   const [toasts, setToasts] = useState<Array<{ id: string; type: any; message: string }>>([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const getUserInfo = () => {
     const token = localStorage.getItem('token');
     if (!token) return null;
@@ -36,7 +39,8 @@ export function Layout() {
   const isAdmin = userRole === 'admin';
   const isWarehouse = userRole === 'warehouse';
   const displayName = userInfo?.firstName || userInfo?.email?.split('@')[0] || '';
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await api.logout();
     localStorage.removeItem('token');
     localStorage.removeItem('userPermissions');
     localStorage.removeItem('userRole');
@@ -103,8 +107,8 @@ export function Layout() {
   const navGroups: NavGroup[] = useMemo(() => {
     const groups: NavGroup[] = [];
 
-    // Dashboard - always visible
-    groups.push([{ path: '/dashboard', label: 'Dashboard' }]);
+    // Dashboard - only for admin
+    if (isAdmin) { groups.push([{ path: '/dashboard', label: 'Dashboard' }]); }
 
     // Magazyn
     const magazynItems: NavItem[] = [];
@@ -179,14 +183,24 @@ export function Layout() {
   }, [hasPermission, hasAnyPermission]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onClose={handleCloseToast} />
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="flex-shrink-0 bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center h-14 md:h-16">
             <div className="flex items-center space-x-8">
+              {/* Hamburger button - mobile only */}
+              <button
+                className="md:hidden p-2 rounded-md text-gray-600 hover:bg-gray-100"
+                onClick={() => setMobileMenuOpen(true)}
+                aria-label="Otwórz menu"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
               <div className="flex items-center gap-2">
                 <img src="/polflor-logo.png" alt="POLFLOR" className="h-8" />
               </div>
@@ -223,10 +237,10 @@ export function Layout() {
             </div>
             <div className="flex items-center gap-3">
               <NotificationCenter />
-              <span className="text-sm font-medium text-gray-700">{displayName}</span>
+              <span className="hidden md:inline text-sm font-medium text-gray-700">{displayName}</span>
               <button
                 onClick={handleLogout}
-                className="px-4 py-2 text-sm text-gray-700 hover:text-gray-900"
+                className="hidden md:inline-block px-4 py-2 text-sm text-gray-700 hover:text-gray-900"
               >
                 Wyloguj
               </button>
@@ -234,8 +248,99 @@ export function Layout() {
           </div>
         </div>
       </header>
+
+      {/* Mobile menu drawer */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          {/* Overlay */}
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          {/* Slide-in panel */}
+          <div className="fixed inset-y-0 left-0 w-72 bg-white shadow-xl overflow-y-auto">
+            {/* Drawer header */}
+            <div className="flex items-center justify-between px-4 h-14 border-b border-gray-200">
+              <img src="/polflor-logo.png" alt="POLFLOR" className="h-8" />
+              <button
+                className="p-2 rounded-md text-gray-600 hover:bg-gray-100"
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="Zamknij menu"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            {/* Navigation links */}
+            <nav className="px-2 py-4 space-y-1">
+              {navGroups.map((group, groupIndex) => (
+                <div key={groupIndex}>
+                  {groupIndex > 0 && (
+                    <div className="h-px bg-gray-200 my-2 mx-2"></div>
+                  )}
+                  {'type' in group && group.type === 'dropdown' ? (
+                    <div>
+                      <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        {group.label}
+                      </div>
+                      {group.items.map((item) => (
+                        <NavLink
+                          key={item.path}
+                          to={item.path}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={({ isActive }) =>
+                            `block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                              isActive
+                                ? 'bg-primary-100 text-primary-700'
+                                : 'text-gray-700 hover:bg-gray-100'
+                            }`
+                          }
+                        >
+                          {item.label}
+                        </NavLink>
+                      ))}
+                    </div>
+                  ) : (
+                    (group as NavItem[]).map((item) => (
+                      <NavLink
+                        key={item.path}
+                        to={item.path}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={({ isActive }) =>
+                          `block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                            isActive
+                              ? 'bg-primary-100 text-primary-700'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`
+                        }
+                      >
+                        {item.label}
+                      </NavLink>
+                    ))
+                  )}
+                </div>
+              ))}
+            </nav>
+            {/* User info + logout */}
+            <div className="border-t border-gray-200 px-4 py-4 mt-2">
+              <div className="text-sm font-medium text-gray-700 mb-3">{displayName}</div>
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleLogout();
+                }}
+                className="w-full text-left px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                Wyloguj
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
-      <main className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 overflow-auto">
         <Outlet />
       </main>
     </div>

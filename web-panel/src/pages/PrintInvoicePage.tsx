@@ -9,10 +9,10 @@ export function PrintInvoicePage() {
   const [html, setHtml] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [printStatus, setPrintStatus] = useState<"pending" | "success" | "fallback">("pending");
+  const [printStatus, setPrintStatus] = useState<"idle" | "printing" | "success">("idle");
 
   useEffect(() => {
-    const fetchAndPrint = async () => {
+    const fetchInvoice = async () => {
       if (!id) return;
 
       try {
@@ -29,46 +29,6 @@ export function PrintInvoicePage() {
 
         const htmlContent = await response.text();
         setHtml(htmlContent);
-
-        // Try Print Broker first
-        try {
-          const brokerStatus = await fetch(`${BROKER_URL}/status`, { 
-            method: "GET",
-            signal: AbortSignal.timeout(2000)
-          });
-          
-          if (brokerStatus.ok) {
-            const printResponse = await fetch(`${BROKER_URL}/print`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                documentType: "invoice",
-                contentType: "html",
-                content: htmlContent,
-                copies: 1,
-                paperSize: "A4",
-                title: `Faktura`
-              })
-            });
-
-            const result = await printResponse.json();
-            if (result.success) {
-              setPrintStatus("success");
-              // Close window after short delay
-              setTimeout(() => window.close(), 1500);
-              return;
-            }
-          }
-        } catch (brokerError) {
-          console.log("Print Broker not available, falling back to browser print");
-        }
-
-        // Fallback to browser print
-        setPrintStatus("fallback");
-        setTimeout(() => {
-          window.print();
-        }, 300);
-
       } catch (e: any) {
         setError(e.message || "Blad podczas pobierania faktury");
         console.error(e);
@@ -77,60 +37,139 @@ export function PrintInvoicePage() {
       }
     };
 
-    fetchAndPrint();
+    fetchInvoice();
   }, [id]);
+
+  const handlePrint = async () => {
+    if (!html) return;
+
+    setPrintStatus("printing");
+
+    // Try Print Broker first
+    try {
+      const brokerStatus = await fetch(`${BROKER_URL}/status`, {
+        method: "GET",
+        signal: AbortSignal.timeout(2000),
+      });
+
+      if (brokerStatus.ok) {
+        const printResponse = await fetch(`${BROKER_URL}/print`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            documentType: "invoice",
+            contentType: "html",
+            content: html,
+            copies: 1,
+            paperSize: "A4",
+            title: "Faktura",
+          }),
+        });
+
+        const result = await printResponse.json();
+        if (result.success) {
+          setPrintStatus("success");
+          return;
+        }
+      }
+    } catch (brokerError) {
+      console.log("Print Broker not available, falling back to browser print");
+    }
+
+    // Fallback to browser print
+    window.print();
+    setPrintStatus("idle");
+  };
 
   if (loading) {
     return (
-      <div style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontFamily: "Arial, sans-serif"
-      }}>
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontFamily: "Arial, sans-serif",
+        }}
+      >
         <div style={{ fontSize: "18px", color: "#666" }}>Ladowanie faktury...</div>
-      </div>
-    );
-  }
-
-  if (printStatus === "success") {
-    return (
-      <div style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontFamily: "Arial, sans-serif",
-        flexDirection: "column",
-        gap: "10px"
-      }}>
-        <div style={{ fontSize: "24px", color: "#16a34a" }}>✓</div>
-        <div style={{ fontSize: "18px", color: "#16a34a" }}>Wysłano do drukarki</div>
-        <div style={{ fontSize: "14px", color: "#666" }}>Okno zamknie się automatycznie...</div>
       </div>
     );
   }
 
   if (error || !html) {
     return (
-      <div style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontFamily: "Arial, sans-serif"
-      }}>
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontFamily: "Arial, sans-serif",
+        }}
+      >
         <div style={{ fontSize: "18px", color: "#dc2626" }}>{error || "Nie znaleziono faktury"}</div>
       </div>
     );
   }
 
-  // Render HTML content directly (for browser print fallback)
   return (
-    <div
-      style={{ width: "100%", minHeight: "100vh", margin: 0, padding: 0 }}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    <>
+      {/* Toolbar - hidden when printing */}
+      <div
+        className="print-hide"
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 100,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "12px",
+          padding: "10px 20px",
+          backgroundColor: "#f9fafb",
+          borderBottom: "1px solid #e5e7eb",
+          fontFamily: "Arial, sans-serif",
+        }}
+      >
+        {printStatus === "success" ? (
+          <span style={{ color: "#16a34a", fontSize: "14px", fontWeight: 500 }}>
+            ✓ Wysłano do drukarki
+          </span>
+        ) : (
+          <button
+            onClick={handlePrint}
+            disabled={printStatus === "printing"}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "8px 20px",
+              backgroundColor: printStatus === "printing" ? "#9ca3af" : "#16a34a",
+              color: "#fff",
+              border: "none",
+              borderRadius: "6px",
+              fontSize: "14px",
+              fontWeight: 500,
+              cursor: printStatus === "printing" ? "not-allowed" : "pointer",
+            }}
+          >
+            🖨️ {printStatus === "printing" ? "Drukowanie..." : "Drukuj"}
+          </button>
+        )}
+      </div>
+
+      <style>{`
+        @media print {
+          .print-hide { display: none !important; }
+        }
+      `}</style>
+
+      {/* Invoice preview */}
+      <div
+        style={{ width: "100%", minHeight: "100vh", margin: 0, padding: 0 }}
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    </>
   );
 }

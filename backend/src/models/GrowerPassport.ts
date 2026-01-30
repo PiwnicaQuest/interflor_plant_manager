@@ -12,14 +12,14 @@ export interface GrowerPassport {
 export class GrowerPassportModel {
   static async getAll(): Promise<GrowerPassport[]> {
     const result = await query<GrowerPassport>(
-      'SELECT * FROM grower_passports ORDER BY grower_name'
+      'SELECT id, grower_name as "growerName", passport_number as "passportNumber", floricode, created_at as "createdAt", updated_at as "updatedAt" FROM grower_passports ORDER BY grower_name'
     );
     return result.rows;
   }
 
   static async getByGrowerName(growerName: string): Promise<GrowerPassport | null> {
     const result = await query<GrowerPassport>(
-      'SELECT * FROM grower_passports WHERE grower_name = $1',
+      'SELECT id, grower_name as "growerName", passport_number as "passportNumber", floricode, created_at as "createdAt", updated_at as "updatedAt" FROM grower_passports WHERE grower_name = $1',
       [growerName]
     );
     return result.rows[0] || null;
@@ -27,7 +27,7 @@ export class GrowerPassportModel {
 
   static async getByFloricode(floricode: string): Promise<GrowerPassport | null> {
     const result = await query<GrowerPassport>(
-      'SELECT * FROM grower_passports WHERE floricode = $1',
+      'SELECT id, grower_name as "growerName", passport_number as "passportNumber", floricode, created_at as "createdAt", updated_at as "updatedAt" FROM grower_passports WHERE floricode = $1',
       [floricode]
     );
     return result.rows[0] || null;
@@ -35,7 +35,7 @@ export class GrowerPassportModel {
 
   static async getById(id: number): Promise<GrowerPassport | null> {
     const result = await query<GrowerPassport>(
-      'SELECT * FROM grower_passports WHERE id = $1',
+      'SELECT id, grower_name as "growerName", passport_number as "passportNumber", floricode, created_at as "createdAt", updated_at as "updatedAt" FROM grower_passports WHERE id = $1',
       [id]
     );
     return result.rows[0] || null;
@@ -104,7 +104,7 @@ export class GrowerPassportModel {
   // Get passport map for multiple growers (for efficient lookup)
   static async getPassportMap(): Promise<Map<string, string>> {
     const result = await query<{ growerName: string; passportNumber: string }>(
-      'SELECT grower_name, passport_number FROM grower_passports'
+      'SELECT grower_name as "growerName", passport_number as "passportNumber" FROM grower_passports'
     );
     const map = new Map<string, string>();
     for (const row of result.rows) {
@@ -116,7 +116,7 @@ export class GrowerPassportModel {
   // Get floricode to grower name map (for EDI import)
   static async getFloricodeMap(): Promise<Map<string, { growerName: string; passportNumber: string }>> {
     const result = await query<{ floricode: string; growerName: string; passportNumber: string }>(
-      'SELECT floricode, grower_name, passport_number FROM grower_passports WHERE floricode IS NOT NULL'
+      'SELECT floricode, grower_name as "growerName", passport_number as "passportNumber" FROM grower_passports WHERE floricode IS NOT NULL'
     );
     const map = new Map<string, { growerName: string; passportNumber: string }>();
     for (const row of result.rows) {

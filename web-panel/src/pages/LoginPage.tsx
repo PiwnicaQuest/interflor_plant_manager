@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 
@@ -7,7 +7,16 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sessionMessage, setSessionMessage] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const reason = localStorage.getItem('logoutReason');
+    if (reason === 'session_kicked') {
+      setSessionMessage('Sesja została zakończona — zalogowano się na innym urządzeniu.');
+      localStorage.removeItem('logoutReason');
+    }
+  }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -44,6 +53,11 @@ export function LoginPage() {
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {sessionMessage && (
+            <div className="bg-yellow-50 border border-yellow-400 text-yellow-800 px-4 py-3 rounded">
+              {sessionMessage}
+            </div>
+          )}
           {error && (
             <div className="bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded">
               {error}

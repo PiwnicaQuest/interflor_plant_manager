@@ -45,7 +45,7 @@ export function Layout() {
           <div className="flex justify-between items-center h-14 sm:h-16">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-1.5 sm:gap-2" onClick={closeMobileMenu}>
-              <img src="/polflor-logo.png" alt="POLFLOR" className="h-7 sm:h-8" />
+              <img src="/polflor-logo.png" alt="POLFLOR" className="h-10 sm:h-12" />
             </Link>
 
             {/* Desktop Navigation */}

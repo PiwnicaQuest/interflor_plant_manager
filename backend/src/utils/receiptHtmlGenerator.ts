@@ -42,17 +42,13 @@ export async function generateReceiptHtml(receipt: ReceiptWithItems): Promise<st
 
   const itemsHtml = items.map((item: any) => {
     const productName = item.productName || item.productSnapshot?.plantName || item.description || `Produkt #${item.productId || item.id}`;
-    const unitsPerPallet = item.productSnapshot?.unitsPerPallet || item.unitsPerPallet || 0;
     const quantity = item.quantity || 1;
-    const palletCount = unitsPerPallet > 0 ? (quantity / unitsPerPallet).toFixed(2) : '-';
     const unitPrice = Number(item.unitPriceGross || item.unitPrice || 0);
     const totalPrice = Number(item.totalPrice || item.total || (unitPrice * quantity));
 
     return `
       <tr style="border-bottom: 1px dotted #ddd;">
         <td style="padding: 4px 2px; word-wrap: break-word;">${productName}</td>
-        <td style="text-align: center; font-size: 10px;">${unitsPerPallet || '-'}</td>
-        <td style="text-align: center; font-size: 10px;">${palletCount}</td>
         <td style="text-align: center; font-weight: 600;">${quantity}</td>
         <td style="text-align: right;">${unitPrice.toFixed(2)}</td>
         <td style="text-align: right; font-weight: 600;">${totalPrice.toFixed(2)}</td>
@@ -64,20 +60,20 @@ export async function generateReceiptHtml(receipt: ReceiptWithItems): Promise<st
   let paymentHtml = '';
   if (receipt.paymentSplits && receipt.paymentSplits.length > 1) {
     const splitsHtml = receipt.paymentSplits.map(split => `
-      <div style="display: flex; justify-content: space-between; font-size: 12px;">
+      <div style="display: flex; justify-content: space-between; font-size: 13px;">
         <span>${getPaymentMethodLabel(split.paymentMethod)}:</span>
         <span>${Number(split.amount).toFixed(2)} PLN</span>
       </div>
     `).join('');
     paymentHtml = `
       <div>
-        <p style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Płatność podzielona:</p>
+        <p style="font-size: 13px; font-weight: 600; margin-bottom: 4px;">Płatność podzielona:</p>
         ${splitsHtml}
       </div>
     `;
   } else {
     paymentHtml = `
-      <div style="display: flex; justify-content: space-between; font-size: 12px;">
+      <div style="display: flex; justify-content: space-between; font-size: 13px;">
         <span>Forma płatności:</span>
         <span style="font-weight: 600;">${getPaymentMethodLabel(receipt.paymentMethod)}</span>
       </div>
@@ -96,35 +92,36 @@ export async function generateReceiptHtml(receipt: ReceiptWithItems): Promise<st
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
-      width: 72mm;
+      width: 77mm;
       margin: 0;
       padding: 0;
-      font-family: 'Courier New', Courier, monospace;
-      font-size: 12px;
+      font-family: "Courier New", Courier, monospace;
+      font-weight: bold;
+      font-size: 13px;
       line-height: 1.3;
       background: white;
       color: black;
     }
     @media print {
       @page { 
-        size: 72mm auto; 
+        size: 77mm auto; 
         margin: 0; 
       }
       html, body { 
-        width: 72mm; 
+        width: 77mm; 
         margin: 0; 
         padding: 0; 
       }
       .receipt { 
-        width: 72mm; 
-        max-width: 72mm; 
+        width: 77mm; 
+        max-width: 77mm; 
         padding: 2mm; 
         margin: 0; 
       }
     }
     .receipt {
-      width: 72mm;
-      max-width: 72mm;
+      width: 77mm;
+      max-width: 77mm;
       margin: 0;
       padding: 8px;
       background: white;
@@ -136,26 +133,26 @@ export async function generateReceiptHtml(receipt: ReceiptWithItems): Promise<st
       margin-bottom: 8px;
     }
     .header h1 {
-      font-size: 14px;
+      font-size: 15px;
       font-weight: bold;
       margin-bottom: 2px;
     }
     .header p {
-      font-size: 10px;
+      font-size: 11px;
     }
     .title {
       text-align: center;
       margin-bottom: 8px;
     }
     .title h2 {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: bold;
     }
     .date-section {
       border-bottom: 1px dashed #999;
       padding-bottom: 6px;
       margin-bottom: 6px;
-      font-size: 10px;
+      font-size: 11px;
     }
     .items-section {
       border-bottom: 1px dashed #999;
@@ -165,26 +162,26 @@ export async function generateReceiptHtml(receipt: ReceiptWithItems): Promise<st
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 10px;
+      font-size: 11px;
       table-layout: fixed;
     }
     th {
       text-align: left;
       padding: 2px 1px;
       border-bottom: 1px solid #999;
-      font-size: 9px;
+      font-size: 10px;
       white-space: nowrap;
       overflow: hidden;
     }
     td {
       padding: 2px 1px;
-      font-size: 10px;
+      font-size: 11px;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    th:nth-child(1) { width: 35%; }
-    th:nth-child(2), th:nth-child(3), th:nth-child(4) { text-align: center; width: 12%; }
-    th:nth-child(5), th:nth-child(6) { text-align: right; width: 14%; }
+    th:nth-child(1) { width: 45%; }
+    th:nth-child(2) { text-align: center; width: 15%; }
+    th:nth-child(3), th:nth-child(4) { text-align: right; width: 20%; }
     .total-section {
       border-bottom: 2px dashed black;
       padding-bottom: 8px;
@@ -194,7 +191,7 @@ export async function generateReceiptHtml(receipt: ReceiptWithItems): Promise<st
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 14px;
+      font-size: 15px;
       font-weight: bold;
     }
     .payment-section {
@@ -204,14 +201,14 @@ export async function generateReceiptHtml(receipt: ReceiptWithItems): Promise<st
     }
     .footer {
       text-align: center;
-      font-size: 10px;
+      font-size: 11px;
       margin-top: 8px;
     }
     .footer p {
       margin-bottom: 2px;
     }
     .footer .timestamp {
-      font-size: 9px;
+      font-size: 10px;
       color: #666;
       margin-top: 6px;
       padding-top: 6px;
@@ -230,8 +227,8 @@ export async function generateReceiptHtml(receipt: ReceiptWithItems): Promise<st
 
     <div class="title">
       <h2>DOWÓD WYDANIA</h2>
-      <p style="font-weight: bold; font-size: 11px;">${receipt.receiptNumber}</p>
-      ${orderNumber ? `<p style="font-size: 10px;">Zamówienie: ${orderNumber}</p>` : ''}
+      <p style="font-weight: bold; font-size: 12px;">${receipt.receiptNumber}</p>
+      ${orderNumber ? `<p style="font-size: 11px;">Zamówienie: ${orderNumber}</p>` : ''}
     </div>
 
     <div class="date-section">
@@ -243,8 +240,6 @@ export async function generateReceiptHtml(receipt: ReceiptWithItems): Promise<st
         <thead>
           <tr>
             <th>Nazwa</th>
-            <th>S/p</th>
-            <th>Pal</th>
             <th>Szt</th>
             <th>Cena</th>
             <th>Wart</th>

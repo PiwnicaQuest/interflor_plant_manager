@@ -9,6 +9,7 @@ import { GrowerPassportModel } from "../models/GrowerPassport";
 import { MovementType } from "../types";
 import { query } from "../models/database";
 import { EdiParser, EdiProduct } from "./ediParser";
+import { ImageService } from "./imageService";
 
 interface EmailConfig {
   authTimeout?: number;
@@ -851,6 +852,12 @@ export class EmailImportService {
             );
           }
           console.log("[EMAIL IMPORT] Created: " + productData.plantName + " (" + productData.palletCount + " palet)");
+          // Pre-cache image in background (non-blocking)
+          if (productData.imageUrl && productData.barcode) {
+            ImageService.processAndCache(productData.barcode, productData.imageUrl).catch(err => {
+              console.error("[EMAIL IMPORT] Image cache failed for " + productData.barcode + ":", err.message);
+            });
+          }
           result.success++;
         } catch (error: any) {
           result.failed++;
@@ -1002,6 +1009,12 @@ export class EmailImportService {
         const deltaUnits = (productData.palletCount || 0) * (productData.unitsPerPallet || 0);
         if (deltaUnits > 0) {
           await ProductModel.createMovement(newProduct.id, null, MovementType.PURCHASE, deltaUnits, productData.palletCount || 0, "Import z email");
+        }
+        // Pre-cache image in background (non-blocking)
+        if (productData.imageUrl && productData.barcode) {
+          ImageService.processAndCache(productData.barcode, productData.imageUrl).catch(err => {
+            console.error("[EMAIL IMPORT] Image cache failed for " + productData.barcode + ":", err.message);
+          });
         }
         result.success++;
       } catch (error: any) {

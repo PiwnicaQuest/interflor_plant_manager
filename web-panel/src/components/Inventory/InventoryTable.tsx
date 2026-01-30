@@ -23,14 +23,19 @@ const getFullImageUrl = (imageUrl: string | null | undefined) => {
   return `${BASE_URL}${imageUrl}${cacheBuster}`;
 };
 
+
+// Get optimized image URL from new image API
+const getOptimizedImageUrl = (barcode: string | null | undefined, size: "thumb" | "medium" | "full"): string | null => {
+  if (!barcode) return null;
+  return `${API_URL}/images/${encodeURIComponent(barcode)}/${size}`;
+};
 // Column widths management
 type ColumnWidths = { [key: string]: number };
 
 const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
-  checkbox: 32,
+  checkbox: 40,
   image: 28,
   plantName: 140,
-  updatedAt: 70,
   createdAt: 70,
   potSize: 50,
   plantHeight: 40,
@@ -72,7 +77,6 @@ const saveColumnWidths = (widths: ColumnWidths) => {
 
 // Editable columns in order (for keyboard navigation)
 const EDITABLE_COLUMNS: (keyof Product)[] = [
-  'updatedAt',
   'createdAt',
   'plantName',
   'potSize',
@@ -106,10 +110,13 @@ export interface ColumnFilters {
   colVisible?: string;
   colGrower?: string;
   colPassport?: string;
+  colCreatedAtFrom?: string;
+  colCreatedAtTo?: string;
 }
 
 interface InventoryTableProps {
   products: Product[];
+  isAdmin?: boolean;
   selectedProducts: number[];
   onToggleVisibility: (productId: number) => void;
   onViewDetails: (product: Product) => void;
@@ -161,13 +168,26 @@ export function InventoryTable({
   columnFilters = {},
   onColumnFilterChange,
   visibleColumns,
-  columnOrder
+  columnOrder,
+  isAdmin = false
 }: InventoryTableProps) {
+  // Fields restricted to admin only
+  const adminOnlyFields: (keyof Product)[] = [
+    'purchasePricePln', 'pricePlus', 'basePriceGross',
+    'priceDiscount10', 'priceDiscount12', 'priceDiscount15', 'priceDiscount20', 'priceDiscount25',
+    'priceAuchan8', 'vatRate',
+    'palletCount', 'unitsPerPallet', 'totalUnits'
+  ];
+
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
   const [focusedRowId, setFocusedRowId] = useState<number | null>(null);
   const [editValue, setEditValue] = useState<string>('');
   const [hoveredImage, setHoveredImage] = useState<{ url: string; name: string } | null>(null);
+  const [showDateRangeModal, setShowDateRangeModal] = useState(false);
+  const [dateFrom, setDateFrom] = useState(columnFilters.colCreatedAtFrom || '');
+  const [dateTo, setDateTo] = useState(columnFilters.colCreatedAtTo || '');
+  const [dateModalPos, setDateModalPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>(loadColumnWidths);
   const [resizing, setResizing] = useState<string | null>(null);
   const [resizePreviewX, setResizePreviewX] = useState<number | null>(null);
@@ -361,7 +381,7 @@ export function InventoryTable({
 
   // Default column order (moved before early return to respect React hooks rules)
   const DEFAULT_COLUMN_ORDER = [
-    "checkbox", "updatedAt", "createdAt", "visible", "image", "plantName", "tags",
+    "checkbox", "createdAt", "visible", "image", "plantName", "tags",
     "palletCount", "unitsPerPallet", "totalUnits", "potSize", "plantHeight",
     "purchasePrice", "pricePlus", "basePrice",
     "discount10", "discount12", "discount15", "discount20", "discount25", "auchan8",
@@ -396,8 +416,8 @@ export function InventoryTable({
   const renderFilterCell = useCallback((columnKey: string) => {
     if (!onColumnFilterChange) return null;
 
-    const inputClass = "w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500";
-    const selectClass = "w-full px-0.5 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500";
+    const inputClass = "w-full px-0 py-px text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500";
+    const selectClass = "w-full px-0 py-px text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary-500";
 
     switch (columnKey) {
       case 'visible':
@@ -532,6 +552,25 @@ export function InventoryTable({
             className={inputClass}
           />
         );
+      case 'createdAt': {
+        const hasDateFilter = columnFilters.colCreatedAtFrom || columnFilters.colCreatedAtTo;
+        return (
+          <button
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              setDateModalPos({ top: rect.bottom + 4, left: rect.left });
+              setDateFrom(columnFilters.colCreatedAtFrom || '');
+              setDateTo(columnFilters.colCreatedAtTo || '');
+              setShowDateRangeModal(true);
+            }}
+            className={`w-full px-0 py-px text-xs border rounded text-left truncate ${hasDateFilter ? 'border-cyan-400 bg-cyan-50 text-cyan-700 font-medium' : 'border-gray-300 text-gray-400'}`}
+          >
+            {hasDateFilter
+              ? `${columnFilters.colCreatedAtFrom || '...'} - ${columnFilters.colCreatedAtTo || '...'}`
+              : 'Daty...'}
+          </button>
+        );
+      }
       default:
         return null;
     }
@@ -551,12 +590,17 @@ export function InventoryTable({
 
   const handleCellClick = (product: Product, field: keyof Product) => {
     setFocusedRowId(product.id);
+    // Admin-only fields check
+    if (!isAdmin && adminOnlyFields.includes(field)) {
+      setSelectedCell({ productId: product.id, field });
+      return;
+    }
     // Immediately enter edit mode on click
     setSelectedCell({ productId: product.id, field });
     setEditingCell({ productId: product.id, field });
     const value = product[field];
     // Format date for date input
-    if (field === 'createdAt' || field === 'updatedAt') {
+    if (field === 'createdAt') {
       setEditValue(formatDateForInput(value));
     } else {
       setEditValue(value !== null && value !== undefined ? String(value) : '');
@@ -566,11 +610,16 @@ export function InventoryTable({
   // Double click to immediately edit
   const handleCellDoubleClick = (product: Product, field: keyof Product, e?: React.MouseEvent) => {
     e?.stopPropagation(); // Prevent row onDoubleClick from firing
+    // Admin-only fields check
+    if (!isAdmin && adminOnlyFields.includes(field)) {
+      setSelectedCell({ productId: product.id, field });
+      return;
+    }
     setSelectedCell({ productId: product.id, field });
     setEditingCell({ productId: product.id, field });
     const value = product[field];
     // Format date for date input
-    if (field === 'createdAt' || field === 'updatedAt') {
+    if (field === 'createdAt') {
       setEditValue(formatDateForInput(value));
     } else {
       setEditValue(value !== null && value !== undefined ? String(value) : '');
@@ -587,7 +636,7 @@ export function InventoryTable({
           'priceDiscount25',
   'priceAuchan8', 'vatRate', 'totalUnits'];
         // Handle date field - convert YYYY-MM-DD to ISO date string
-        if (editingCell.field === 'createdAt' || editingCell.field === 'updatedAt') {
+        if (editingCell.field === 'createdAt') {
           if (editValue) {
             finalValue = new Date(editValue).toISOString();
           } else {
@@ -655,7 +704,7 @@ export function InventoryTable({
     const cellEditing = isEditing(product.id, field);
 
     // Check if it's a date field
-    const isDateField = field === 'createdAt' || field === 'updatedAt';
+    const isDateField = field === 'createdAt';
 
     if (cellEditing) {
       if (isDateField) {
@@ -667,7 +716,7 @@ export function InventoryTable({
             onChange={(e) => setEditValue(e.target.value)}
             onBlur={handleCellBlur}
             onKeyDown={handleInputKeyDown}
-            className={`w-full px-0.5 py-0 border border-primary-500 rounded text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 ${className}`}
+            className={`w-full px-0 py-0 border border-primary-500 rounded text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 ${className}`}
             autoFocus
           />
         );
@@ -680,7 +729,7 @@ export function InventoryTable({
           onBlur={handleCellBlur}
           onKeyDown={handleInputKeyDown}
           onFocus={(e) => e.target.select()}
-          className={`w-full px-1 py-0.5 border border-primary-500 rounded text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 ${className}`}
+          className={`w-full px-0 py-px border border-primary-500 rounded text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 ${className}`}
           autoFocus
         />
       );
@@ -689,7 +738,7 @@ export function InventoryTable({
       <span
         onClick={() => handleCellClick(product, field)}
         onDoubleClick={(e) => handleCellDoubleClick(product, field, e)}
-        className={`cursor-pointer px-1 py-0.5 rounded inline-block w-full truncate transition-colors ${
+        className={`cursor-pointer px-0 py-px rounded inline-block w-full truncate transition-colors ${
           cellSelected
             ? 'bg-blue-200 ring-2 ring-blue-400'
             : 'hover:bg-white/50'
@@ -760,7 +809,6 @@ export function InventoryTable({
     checkbox: { label: "", style: headerStyles.checkbox, borderClass: "border-b-2 border-gray-300" },
     image: { label: "📷", style: headerStyles.image, title: "Zdjęcie", borderClass: "border-b-2 border-gray-300" },
     plantName: { label: "Nazwa", style: headerStyles.info, title: "Nazwa rośliny", borderClass: "border-b-2 border-slate-400 border-l border-slate-300" },
-    updatedAt: { label: "📅U", style: headerStyles.date, title: "Data aktualizacji", borderClass: "border-b-2 border-cyan-400 border-l border-cyan-300" },
     createdAt: { label: "📅D", style: headerStyles.date, title: "Data dodania", borderClass: "border-b-2 border-cyan-400 border-l border-cyan-300" },
     potSize: { label: "⌀", style: headerStyles.info, title: "Rozmiar doniczki", borderClass: "border-b-2 border-slate-400 border-l border-slate-300" },
     plantHeight: { label: "↕", style: headerStyles.info, title: "Wysokość rośliny", borderClass: "border-b-2 border-slate-400" },
@@ -805,9 +853,8 @@ export function InventoryTable({
   // Cell configurations for dynamic rendering - styles and border classes
   const cellConfigs: Record<string, { styleKey: string; borderClass: string; extraClass?: string }> = {
     checkbox: { styleKey: "checkbox", borderClass: "border-b border-gray-200" },
-    image: { styleKey: "image", borderClass: "border-b border-gray-200", extraClass: "!px-0.5 !py-0.5" },
+    image: { styleKey: "image", borderClass: "border-b border-gray-200", extraClass: "!px-0 !py-px text-center" },
     plantName: { styleKey: "info", borderClass: "border-b border-slate-200 border-l border-slate-200", extraClass: "text-xs" },
-    updatedAt: { styleKey: "date", borderClass: "border-b border-cyan-200 border-l border-cyan-200", extraClass: "text-center text-xs text-gray-600" },
     createdAt: { styleKey: "date", borderClass: "border-b border-cyan-200 border-l border-cyan-200", extraClass: "text-center text-xs text-gray-600" },
     potSize: { styleKey: "info", borderClass: "border-b border-slate-200 border-l border-slate-200", extraClass: "text-center text-xs" },
     plantHeight: { styleKey: "info", borderClass: "border-b border-slate-200", extraClass: "text-center text-xs" },
@@ -834,8 +881,7 @@ export function InventoryTable({
   // Get cell title for tooltips
   const getCellTitle = (columnKey: string, product: Product) => {
     switch (columnKey) {
-      case "updatedAt":
-        return product.updatedAt ? new Date(product.updatedAt).toLocaleString("pl-PL") : "";
+
       case "createdAt":
         return product.createdAt ? new Date(product.createdAt).toLocaleString("pl-PL") : "";
       case "grower":
@@ -854,18 +900,20 @@ export function InventoryTable({
         return (
           <div className="flex justify-center items-center w-full"><input type="checkbox" checked={isRowSelected} onChange={() => onSelectProduct(product.id)} className="w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer" /></div>
         );
-      case "image":
+      case "image": {
+        // Use optimized image URLs if barcode is available, otherwise fallback to original
+        const thumbUrl = product.barcode ? getOptimizedImageUrl(product.barcode, "thumb") : imageUrl;
+        const mediumUrl = product.barcode ? getOptimizedImageUrl(product.barcode, "medium") : imageUrl;
         return product.imageUrl ? (
-          <div className="relative cursor-zoom-in inline-block w-6 h-6" onMouseEnter={() => imageUrl && setHoveredImage({ url: imageUrl, name: product.plantName })} onMouseLeave={() => setHoveredImage(null)}>
-            <img src={imageUrl || ""} alt={product.plantName} className="w-6 h-6 object-cover rounded transition-transform hover:scale-110" />
+          <div className="relative cursor-zoom-in inline-block w-6 h-6" onMouseEnter={() => mediumUrl && setHoveredImage({ url: mediumUrl, name: product.plantName })} onMouseLeave={() => setHoveredImage(null)}>
+            <img src={thumbUrl || ""} alt={product.plantName} className="w-6 h-6 object-cover rounded transition-transform hover:scale-110" />
           </div>
         ) : (
           <div className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center text-sm">🌿</div>
         );
+      }
       case "plantName":
         return renderEditableCell(product, "plantName", product.plantName);
-      case "updatedAt":
-        return renderEditableCell(product, "updatedAt", formatDate(product.updatedAt));
       case "createdAt":
         return renderEditableCell(product, "createdAt", formatDate(product.createdAt));
       case "potSize":
@@ -881,30 +929,30 @@ export function InventoryTable({
       case "totalSold":
         return product.totalSold || 0;
       case "purchasePrice":
-        return renderEditableCell(product, "purchasePricePln", product.purchasePricePln?.toFixed(2) || "-");
+        return renderEditableCell(product, "purchasePricePln", product.purchasePricePln ? `${product.purchasePricePln.toFixed(2)} zł` : "-");
       case "pricePlus":
-        return renderEditableCell(product, "pricePlus", product.pricePlus?.toFixed(2) || "-", "font-bold");
+        return renderEditableCell(product, "pricePlus", product.pricePlus ? `${product.pricePlus.toFixed(2)} zł` : "-", "font-bold");
       case "basePrice":
-        return renderEditableCell(product, "basePriceGross", product.basePriceGross?.toFixed(2) || "-");
+        return renderEditableCell(product, "basePriceGross", product.basePriceGross ? `${product.basePriceGross.toFixed(2)} zł` : "-");
       case "discount10":
-        return renderEditableCell(product, "priceDiscount10", product.priceDiscount10?.toFixed(2) || "-");
+        return renderEditableCell(product, "priceDiscount10", product.priceDiscount10 ? `${product.priceDiscount10.toFixed(2)} zł` : "-");
       case "discount12":
-        return renderEditableCell(product, "priceDiscount12", product.priceDiscount12?.toFixed(2) || "-");
+        return renderEditableCell(product, "priceDiscount12", product.priceDiscount12 ? `${product.priceDiscount12.toFixed(2)} zł` : "-");
       case "discount15":
-        return renderEditableCell(product, "priceDiscount15", product.priceDiscount15?.toFixed(2) || "-");
+        return renderEditableCell(product, "priceDiscount15", product.priceDiscount15 ? `${product.priceDiscount15.toFixed(2)} zł` : "-");
       case "discount20":
-        return renderEditableCell(product, "priceDiscount20", product.priceDiscount20?.toFixed(2) || "-");
+        return renderEditableCell(product, "priceDiscount20", product.priceDiscount20 ? `${product.priceDiscount20.toFixed(2)} zł` : "-");
       case "discount25":
-        return renderEditableCell(product, "priceDiscount25", product.priceDiscount25?.toFixed(2) || "-");
+        return renderEditableCell(product, "priceDiscount25", product.priceDiscount25 ? `${product.priceDiscount25.toFixed(2)} zł` : "-");
       case "auchan8":
         // Auchan - edytowalna cena, domyslnie cena podstawowa
         const auchan8Value = product.priceAuchan8 
-          ? parseFloat(String(product.priceAuchan8)).toFixed(2) 
-          : (product.basePriceGross ? product.basePriceGross.toFixed(2) : "-");
+          ? `${parseFloat(String(product.priceAuchan8)).toFixed(2)} zł` 
+          : (product.basePriceGross ? `${product.basePriceGross.toFixed(2)} zł` : "-");
         return renderEditableCell(product, "priceAuchan8", auchan8Value);
       case "visible":
         return (
-          <button onClick={() => onToggleVisibility(product.id)} className={`px-1.5 py-0.5 rounded text-xs font-medium ${product.visibleInShop ? "bg-green-200 text-green-800" : "bg-gray-200 text-gray-600"}`}>
+          <button onClick={() => onToggleVisibility(product.id)} className={`px-1.5 py-0.5 rounded text-xs font-medium ${product.visibleInShop ? "bg-green-200 text-green-800" : "bg-red-200 text-red-800"}`}>
             {product.visibleInShop ? "Tak" : "Nie"}
           </button>
         );
@@ -1001,11 +1049,11 @@ export function InventoryTable({
         style={{
           overflow: 'hidden',
           whiteSpace: 'nowrap',
-          ...(columnKey === "image" ? { padding: "2px" } : {})
+          ...(columnKey === "image" ? { padding: "1px" } : {})
         }}
         title={title}
       >
-        <div className="truncate pr-2">{children}</div>
+        <div className="truncate pr-1 text-center">{children}</div>
         <div
           className="absolute right-[-6px] top-0 h-full w-4 cursor-col-resize group z-10"
           onMouseDown={(e) => handleMouseDown(e, columnKey)}
@@ -1017,7 +1065,7 @@ export function InventoryTable({
   };
 
   return (
-    <>
+    <div className="h-full flex flex-col">
       {/* Resize preview line */}
       {resizing && resizePreviewX !== null && (
         <div
@@ -1035,8 +1083,8 @@ export function InventoryTable({
         </div>
       )}
 
-      <div className="card overflow-hidden" style={{ maxHeight: "calc(100vh - 280px)" }}>
-        <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: "calc(100vh - 300px)" }}>
+      <div className="card overflow-hidden flex flex-col flex-1 min-h-0">
+        <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
           <table ref={tableRef} className="table border-separate border-spacing-0" style={{ tableLayout: 'fixed', width: '100%' }}>
             <colgroup>
               {sortedColumnKeys.filter(k => isColumnVisible(k)).map((columnKey) => {
@@ -1074,7 +1122,7 @@ export function InventoryTable({
                     return (
                       <th
                         key={columnKey}
-                        className={`p-0.5 border-b border-gray-300 ${leftBorder} ${!isColumnVisible(columnKey) ? 'hidden' : ''}`}
+                        className={`p-px border-b border-gray-300 ${leftBorder} ${!isColumnVisible(columnKey) ? 'hidden' : ''}`}
                       style={{ overflow: 'hidden' }}
                       >
                         {renderFilterCell(columnKey)}
@@ -1114,7 +1162,7 @@ export function InventoryTable({
                                 textOverflow: 'ellipsis',
                                 whiteSpace: 'nowrap'
                               } : {}),
-                              ...(columnKey === "image" ? { padding: "2px" } : {})
+                              ...(columnKey === "image" ? { padding: "1px" } : {})
                             }}
                             title={getCellTitle(columnKey, product)}
                           >
@@ -1134,6 +1182,65 @@ export function InventoryTable({
           <button onClick={resetColumnWidths} className="text-blue-600 hover:text-blue-800 hover:underline">Resetuj szerokości</button>
         </div>
       </div>
-    </>
+
+      {/* Date range modal */}
+      {showDateRangeModal && (
+        <div className="fixed inset-0 z-50" onClick={() => setShowDateRangeModal(false)}>
+          <div className="absolute bg-white rounded-lg shadow-xl border border-gray-200 p-4 w-72"
+            style={{ top: dateModalPos.top, left: dateModalPos.left }}
+            onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-gray-800 mb-4">Zakres dat dodania</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Od</label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Do</label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => {
+                  if (onColumnFilterChange) {
+                    onColumnFilterChange('colCreatedAtFrom', dateFrom);
+                    onColumnFilterChange('colCreatedAtTo', dateTo);
+                  }
+                  setShowDateRangeModal(false);
+                }}
+                className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-medium py-2 rounded transition-colors"
+              >
+                Zastosuj
+              </button>
+              <button
+                onClick={() => {
+                  setDateFrom('');
+                  setDateTo('');
+                  if (onColumnFilterChange) {
+                    onColumnFilterChange('colCreatedAtFrom', '');
+                    onColumnFilterChange('colCreatedAtTo', '');
+                  }
+                  setShowDateRangeModal(false);
+                }}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium py-2 rounded transition-colors"
+              >
+                Wyczysc
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

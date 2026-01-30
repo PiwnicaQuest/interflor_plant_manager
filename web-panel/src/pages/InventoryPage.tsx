@@ -17,6 +17,15 @@ import { useColumnPreferences } from '../hooks/useColumnPreferences';
 import { ColumnConfigModal } from '../components/Inventory/ColumnConfigModal';
 
 export function InventoryPage() {
+  const isAdmin = (() => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return false;
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return payload.role === "admin";
+    } catch { return false; }
+  })();
+
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<InventoryFilterValues>(() => {
@@ -78,6 +87,11 @@ export function InventoryPage() {
     reorderColumns,
     resetToDefaults,
   } = useColumnPreferences();
+
+  // Hide purchase price and price+ columns for non-admins
+  const filteredVisibleColumns = isAdmin
+    ? visibleColumns
+    : visibleColumns.filter(col => col !== "purchasePrice" && col !== "pricePlus");
 
   // Zapisz ustawienie do localStorage
   useEffect(() => {
@@ -234,6 +248,18 @@ export function InventoryPage() {
     if (columnFilters.colPassport) {
       const searchLower = columnFilters.colPassport.toLowerCase();
       result = result.filter(p => p.growerPassport?.toLowerCase().includes(searchLower));
+    }
+
+    // Column date range filter
+    if (columnFilters.colCreatedAtFrom) {
+      const fromDate = new Date(columnFilters.colCreatedAtFrom);
+      fromDate.setHours(0, 0, 0, 0);
+      result = result.filter(p => new Date(p.createdAt) >= fromDate);
+    }
+    if (columnFilters.colCreatedAtTo) {
+      const toDate = new Date(columnFilters.colCreatedAtTo);
+      toDate.setHours(23, 59, 59, 999);
+      result = result.filter(p => new Date(p.createdAt) <= toDate);
     }
 
     const sortField = filters.sortBy || 'plant_name';
@@ -753,9 +779,9 @@ export function InventoryPage() {
   };
 
   return (
-    <div className={`space-y-3 ${focusedProduct && distributionPanelEnabled ? 'pb-80' : ''}`}>
+    <div className={`h-full flex flex-col ${focusedProduct && distributionPanelEnabled ? 'pb-80' : ''}`}>
       {/* Sticky Header, Tabs and Filters */}
-      <div className="sticky top-0 z-30 bg-white -mx-6 px-6 pt-2 pb-2 shadow-sm border-b border-gray-100">
+      <div className="flex-shrink-0 z-30 bg-white px-6 pt-2 pb-2 shadow-sm border-b border-gray-100">
         {/* Header */}
         <div className="flex justify-between items-center">
         <div>
@@ -1002,7 +1028,8 @@ export function InventoryPage() {
         </div>
       )}
 
-      {/* Products Table */}
+      {/* Products Table - Scrollable Area */}
+      <div className="flex-1 overflow-auto min-h-0 px-6">
       {loading ? (
         <div className="text-center py-12">
           <p className="text-gray-500">Ładowanie...</p>
@@ -1026,13 +1053,16 @@ export function InventoryPage() {
           isArchiveView={activeTab === 'archived'}
           columnFilters={columnFilters}
           onColumnFilterChange={handleColumnFilterChange}
-          visibleColumns={visibleColumns}
+          visibleColumns={filteredVisibleColumns}
+          isAdmin={isAdmin}
         />
       )}
 
-      {/* Pagination Controls */}
+      </div>
+
+      {/* Pagination Controls - Fixed at bottom */}
       {!loading && totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 mt-2 rounded-b-lg">
+        <div className="flex-shrink-0 flex items-center justify-between mx-6 px-4 py-3 bg-white border-t border-gray-200 rounded-b-lg">
           <div className="text-sm text-gray-700">
             Pokazuję {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredProducts.length)} z {filteredProducts.length} produktów
           </div>
@@ -1147,6 +1177,7 @@ export function InventoryPage() {
           }}
           onSubmit={handleCreateProduct}
           initialData={editingProduct || undefined}
+          isAdmin={isAdmin}
         />
       )}
 
@@ -1344,11 +1375,12 @@ export function InventoryPage() {
         <ColumnConfigModal
           isOpen={showColumnConfig}
           onClose={() => setShowColumnConfig(false)}
-          visibleColumns={visibleColumns}
+          visibleColumns={filteredVisibleColumns}
           columnOrder={columnOrder}
           onReorder={reorderColumns}
           onToggleVisibility={toggleColumnVisibility}
           onReset={resetToDefaults}
+          hiddenColumns={isAdmin ? [] : ['purchasePrice', 'pricePlus']}
         />
       )}
     </div>

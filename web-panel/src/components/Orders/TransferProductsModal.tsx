@@ -233,9 +233,8 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
         }
       });
 
-      if (newSourceItems.length > 0) {
-        await api.updateOrder(sourceOrder.id, { items: newSourceItems });
-      }
+      // Always update source order first to restore stock
+      await api.updateOrder(sourceOrder.id, { items: newSourceItems });
       await api.updateOrder(selectedTargetOrderId, { items: newTargetItems });
 
       if (newSourceItems.length === 0) {

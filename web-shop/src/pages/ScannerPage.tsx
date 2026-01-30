@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { api } from '../services/api';
 import { useCart } from '../contexts/CartContext';
 import { Link } from 'react-router-dom';
@@ -19,6 +19,17 @@ interface ScannedProduct {
   barcode?: string;
 }
 
+// Only 1D barcode formats for faster detection
+const BARCODE_FORMATS = [
+  Html5QrcodeSupportedFormats.EAN_13,
+  Html5QrcodeSupportedFormats.EAN_8,
+  Html5QrcodeSupportedFormats.CODE_128,
+  Html5QrcodeSupportedFormats.CODE_39,
+  Html5QrcodeSupportedFormats.UPC_A,
+  Html5QrcodeSupportedFormats.UPC_E,
+  Html5QrcodeSupportedFormats.ITF,
+];
+
 export function ScannerPage() {
   const [scanning, setScanning] = useState(false);
   const [scannedProduct, setScannedProduct] = useState<ScannedProduct | null>(null);
@@ -27,6 +38,8 @@ export function ScannerPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [torchOn, setTorchOn] = useState(false);
+  const [torchSupported, setTorchSupported] = useState(false);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isStartingRef = useRef(false);
@@ -44,6 +57,8 @@ export function ScannerPage() {
       }
     }
     setScanning(false);
+    setTorchOn(false);
+    setTorchSupported(false);
   }, []);
 
   useEffect(() => {
@@ -89,15 +104,27 @@ export function ScannerPage() {
 
       // Create scanner instance if needed
       if (!scannerRef.current) {
-        scannerRef.current = new Html5Qrcode('scanner-container');
+        scannerRef.current = new Html5Qrcode('scanner-container', {
+          formatsToSupport: BARCODE_FORMATS,
+          verbose: false,
+        });
       }
 
       await scannerRef.current.start(
         { facingMode: 'environment' },
         {
-          fps: 10,
-          qrbox: { width: 250, height: 150 },
-          aspectRatio: 1.0,
+          fps: 15,
+          qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+            const width = Math.floor(minEdge * 0.85);
+            const height = Math.floor(width * 0.45);
+            return { width, height };
+          },
+          videoConstraints: {
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
         },
         onScanSuccess,
         () => {} // Ignore scan failures
@@ -105,15 +132,46 @@ export function ScannerPage() {
 
       setScanning(true);
 
+      // Check torch support
+      try {
+        const track = scannerRef.current.getRunningTrackSettings();
+        if (track && 'torch' in track) {
+          setTorchSupported(true);
+        }
+        // Alternative check via capabilities
+        const capabilities = scannerRef.current.getRunningTrackCameraCapabilities();
+        if (capabilities && capabilities.torchFeature && capabilities.torchFeature().isSupported()) {
+          setTorchSupported(true);
+        }
+      } catch {
+        // Torch not supported on this device
+      }
+
     } catch (err: any) {
       console.error('Camera error:', err);
       setCameraError(
         err.message?.includes('Permission')
-          ? 'Brak dostepu do kamery. Zezwol na dostep w ustawieniach przegladarki.'
-          : 'Nie udało się uruchomić kamery. Sprawdź czy inne aplikacje nie używają kamery.'
+          ? 'Brak dostępu do kamery. Zezwól na dostęp w ustawieniach przeglądarki.'
+          : 'Nie udało się uruchomić kamery. Sprawdź, czy inne aplikacje nie używają kamery.'
       );
     } finally {
       isStartingRef.current = false;
+    }
+  };
+
+  const toggleTorch = async () => {
+    if (!scannerRef.current) return;
+    try {
+      const capabilities = scannerRef.current.getRunningTrackCameraCapabilities();
+      if (capabilities && capabilities.torchFeature) {
+        const torch = capabilities.torchFeature();
+        if (torch.isSupported()) {
+          await torch.apply(!torchOn);
+          setTorchOn(!torchOn);
+        }
+      }
+    } catch (err) {
+      console.error('Torch toggle error:', err);
     }
   };
 
@@ -186,14 +244,14 @@ export function ScannerPage() {
         )}
 
         {/* Scanner section */}
-        <div 
+        <div
           className="bg-white rounded-xl shadow-sm overflow-hidden mb-4"
           style={{ display: showScanner ? 'block' : 'none' }}
         >
           {/* Scanner container - ALWAYS in DOM, never conditionally rendered */}
           <div className="relative bg-gray-900" style={{ minHeight: '300px' }}>
             <div id="scanner-container" style={{ width: '100%', minHeight: '300px' }} />
-            
+
             {/* Overlay for start button - only visual, doesn't affect scanner-container */}
             {!scanning && (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
@@ -207,7 +265,7 @@ export function ScannerPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                   </div>
-                  <span className="font-medium">Wlacz kamere</span>
+                  <span className="font-medium">Włącz kamerę</span>
                 </button>
               </div>
             )}
@@ -216,13 +274,30 @@ export function ScannerPage() {
           {/* Controls when scanning */}
           {scanning && (
             <div className="p-3 bg-gray-800 text-center">
-              <p className="text-white text-sm mb-2">Skieruj kamere na kod kreskowy</p>
-              <button
-                onClick={stopScanner}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700"
-              >
-                Zatrzymaj skanowanie
-              </button>
+              <p className="text-white text-sm mb-2">Skieruj kamerę na kod kreskowy</p>
+              <div className="flex items-center justify-center gap-3">
+                {torchSupported && (
+                  <button
+                    onClick={toggleTorch}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
+                      torchOn
+                        ? 'bg-yellow-500 text-gray-900 hover:bg-yellow-400'
+                        : 'bg-gray-600 text-white hover:bg-gray-500'
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    {torchOn ? 'Wyłącz latarkę' : 'Latarka'}
+                  </button>
+                )}
+                <button
+                  onClick={stopScanner}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700"
+                >
+                  Zatrzymaj
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -299,7 +374,7 @@ export function ScannerPage() {
                     : 'bg-red-100 text-red-700'
                 }`}>
                   {scannedProduct.palletCount > 0
-                    ? `Dostepne: ${scannedProduct.palletCount} palet`
+                    ? `Dostępne: ${scannedProduct.palletCount} palet`
                     : 'Brak na stanie'
                   }
                 </span>
@@ -308,7 +383,7 @@ export function ScannerPage() {
               {scannedProduct.palletCount > 0 && (
                 <>
                   <div className="flex items-center gap-4 mb-4">
-                    <span className="text-sm font-medium text-gray-700">Ilosc palet:</span>
+                    <span className="text-sm font-medium text-gray-700">Ilość palet:</span>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setQuantity(Math.max(1, quantity - 1))}
@@ -373,12 +448,12 @@ export function ScannerPage() {
         {/* Instructions */}
         {!scanning && !scannedProduct && !loading && !error && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <h3 className="font-medium text-blue-800 mb-2">Jak uzywac skanera?</h3>
+            <h3 className="font-medium text-blue-800 mb-2">Jak używać skanera?</h3>
             <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
-              <li>Kliknij "Wlacz kamere" powyzej</li>
-              <li>Zezwol przegladarce na dostep do kamery</li>
-              <li>Skieruj kamere na kod kreskowy produktu</li>
-              <li>Po zeskanowaniu wybierz ilosc i dodaj do koszyka</li>
+              <li>Kliknij „Włącz kamerę" powyżej</li>
+              <li>Zezwól przeglądarce na dostęp do kamery</li>
+              <li>Skieruj kamerę na kod kreskowy produktu</li>
+              <li>Po zeskanowaniu wybierz ilość i dodaj do koszyka</li>
             </ol>
           </div>
         )}

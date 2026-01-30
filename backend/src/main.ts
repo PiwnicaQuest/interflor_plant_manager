@@ -18,6 +18,7 @@ import { UserRole, JWTPayload } from './types';
 
 // Import controllers
 import { AuthController } from './controllers/auth.controller';
+import { SessionModel } from './models/Session';
 import { InventoryController } from './controllers/inventory.controller';
 import { OrderController } from './controllers/order.controller';
 import { CustomerController } from './controllers/customer.controller';
@@ -48,6 +49,7 @@ import { LossesController } from "./controllers/losses.controller";
 import { TagsController } from "./controllers/tags.controller";
 import { PermissionProfileController } from "./controllers/permissionProfile.controller";
 import { LoginHistoryController } from "./controllers/loginHistory.controller";
+import { ImageService, ImageSize } from './services/imageService';
 
 // Initialize Express
 const app = express();
@@ -91,6 +93,8 @@ app.post('/auth/login', authLimiter, AuthController.login);
 // Self-registration disabled - shop accounts are created by admin only
 // app.post('/auth/register', AuthController.register);
 app.get('/auth/me', requireAuth, AuthController.me);
+app.post('/auth/logout', requireAuth, AuthController.logout);
+app.get('/auth/sessions', requireAuth, AuthController.getActiveSessions);
 
 // ============================================
 // INVENTORY ROUTES
@@ -363,6 +367,19 @@ app.put("/settings/email-import", requireAuth, requirePermission('settings:edit'
 
 // Manualna synchronizacja email importu
 app.post("/settings/email-import/sync", requireAuth, requirePermission('settings:edit'), async (req: Request, res: Response) => {
+
+// Force sync email import (last 24h, SEEN + UNSEEN)
+app.post("/settings/email-import/sync-force", requireAuth, requirePermission("settings:edit"), async (req: Request, res: Response) => {
+  try {
+    console.log("[API] Force email sync (24h) triggered by user: " + (req as any).user?.email);
+    const emailImportService = new EmailImportService();
+    const result = await emailImportService.syncEmailsForce();
+    res.json({ success: true, result });
+  } catch (error: any) {
+    console.error("[API] Force email sync error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
   try {
     console.log("[API] Manual email sync triggered by user: " + (req as any).user?.email);
     const emailImportService = new EmailImportService();
@@ -428,6 +445,38 @@ app.post('/migration/run-settings', requireAuth, requirePermission('settings:edi
 // ============================================
 // SHOP ROUTES (public catalog)
 // ============================================
+
+// Shop website settings (public - for catalog tabs)
+app.get('/shop/settings', async (req: Request, res: Response) => {
+  try {
+    const { SettingsModel } = await import('./models/Settings');
+    
+    const tab1Enabled = await SettingsModel.getSetting('shop_tab_1_enabled');
+    const tab1Name = await SettingsModel.getSetting('shop_tab_1_name');
+    const tab1Tag = await SettingsModel.getSetting('shop_tab_1_tag');
+    const tab1Color = await SettingsModel.getSetting('shop_tab_1_color');
+    
+    const tab2Enabled = await SettingsModel.getSetting('shop_tab_2_enabled');
+    const tab2Name = await SettingsModel.getSetting('shop_tab_2_name');
+    const tab2Tag = await SettingsModel.getSetting('shop_tab_2_tag');
+    const tab2Color = await SettingsModel.getSetting('shop_tab_2_color');
+    
+    const tabs = [];
+    
+    if (tab1Enabled === 'true' && tab1Name && tab1Tag) {
+      tabs.push({ id: 1, name: tab1Name, tag: tab1Tag, color: tab1Color || '#16a34a' });
+    }
+    
+    if (tab2Enabled === 'true' && tab2Name && tab2Tag) {
+      tabs.push({ id: 2, name: tab2Name, tag: tab2Tag, color: tab2Color || '#16a34a' });
+    }
+    
+    res.json({ tabs });
+  } catch (error) {
+    console.error('Error fetching shop settings:', error);
+    res.status(500).json({ error: 'Błąd pobierania ustawień sklepu' });
+  }
+});
 
 app.get('/shop/catalog', optionalAuth, ShopController.getCatalog);
 app.post('/shop/cart/checkout', requireAuth, requireRoleOrPermission([UserRole.CUSTOMER], 'shop:order'), ShopController.checkout);
@@ -508,8 +557,130 @@ app.get("/image-proxy", requireAuth, async (req: Request, res: Response) => {
     res.status(500).json({ error: "Błąd proxy obrazka" });
   }
 });
-
 // ============================================
+// ============================================
+// OPTIMIZED IMAGE API (with caching and compression)
+// ============================================
+
+// Get optimized image by barcode and size
+app.get("/images/:barcode/:size", async (req: Request, res: Response) => {
+  try {
+    const { barcode, size } = req.params;
+    
+    // Validate size parameter
+    const validSizes: ImageSize[] = ["thumb", "medium", "full"];
+    if (!validSizes.includes(size as ImageSize)) {
+      res.status(400).json({ error: "Invalid size. Use: thumb, medium, or full" });
+      return;
+    }
+    
+    // Get product to find image URL
+    const { ProductModel } = await import("./models/Product");
+    const product = await ProductModel.getByBarcode(barcode);
+    
+    if (!product) {
+      res.status(404).json({ error: "Product not found" });
+      return;
+    }
+    
+    if (!product.imageUrl) {
+      res.status(404).json({ error: "Product has no image" });
+      return;
+    }
+
+    // Check if cached version exists first (for both local and external images)
+    const fs = await import("fs");
+    const path = await import("path");
+    const cacheDir = path.default.join(__dirname, "../uploads/cache", barcode.replace(/[^a-zA-Z0-9]/g, "_"));
+    const cachePath = path.default.join(cacheDir, size + ".webp");
+    
+    // Try to serve from cache first
+    if (fs.default.existsSync(cachePath)) {
+      const imageBuffer = fs.default.readFileSync(cachePath);
+      res.set("Content-Type", "image/webp");
+      res.set("Cache-Control", "public, max-age=300, must-revalidate");
+      res.set("ETag", `"${barcode}-${size}-${imageBuffer.length}"`);
+      res.send(imageBuffer);
+      return;
+    }
+    
+    // No cache - check if external URL to fetch and cache
+    const isExternalUrl = product.imageUrl.startsWith("http://") || product.imageUrl.startsWith("https://");
+    
+    if (!isExternalUrl) {
+      // For local images without cache, redirect to original
+      res.redirect(product.imageUrl);
+      return;
+    }
+    
+    // Get or generate optimized image for external URLs
+    const imageBuffer = await ImageService.getImage(barcode, size as ImageSize, product.imageUrl);
+    
+    if (!imageBuffer) {
+      // If processing fails, redirect to original image
+      res.redirect(product.imageUrl);
+      return;
+    }
+    
+    // Send WebP image with caching headers (short cache, must revalidate)
+    res.set("Content-Type", "image/webp");
+    res.set("Cache-Control", "public, max-age=300, must-revalidate"); // 5 minutes, then revalidate
+    res.set("ETag", `"${barcode}-${size}-${imageBuffer.length}"`);
+    res.send(imageBuffer);
+  } catch (error) {
+    console.error("Image API error:", error);
+    res.status(500).json({ error: "Image processing failed" });
+  }
+});
+
+app.post("/images/:barcode/cache", requireAuth, requirePermission("inventory:edit"), async (req: Request, res: Response) => {
+  try {
+    const { barcode } = req.params;
+    
+    const { ProductModel } = await import("./models/Product");
+    const product = await ProductModel.getByBarcode(barcode);
+    
+    if (!product || !product.imageUrl) {
+      res.status(404).json({ error: "Product not found or has no image" });
+      return;
+    }
+    
+    const success = await ImageService.processAndCache(barcode, product.imageUrl);
+    
+    if (success) {
+      res.json({ message: "Image cached successfully", barcode });
+    } else {
+      res.status(500).json({ error: "Failed to cache image" });
+    }
+  } catch (error) {
+    console.error("Cache image error:", error);
+    res.status(500).json({ error: "Failed to cache image" });
+  }
+});
+
+// Get cache statistics (admin only)
+app.get("/images/cache/stats", requireAuth, requirePermission("inventory:view"), async (req: Request, res: Response) => {
+  try {
+    const stats = ImageService.getCacheStats();
+    res.json(stats);
+  } catch (error) {
+    console.error("Cache stats error:", error);
+    res.status(500).json({ error: "Failed to get cache stats" });
+  }
+});
+
+// Clean old cache (admin only)
+app.post("/images/cache/clean", requireAuth, requirePermission("inventory:edit"), async (req: Request, res: Response) => {
+  try {
+    const result = await ImageService.cleanOldCache();
+    res.json({ message: "Cache cleaned", ...result });
+  } catch (error) {
+    console.error("Cache clean error:", error);
+    res.status(500).json({ error: "Failed to clean cache" });
+  }
+});
+
+
 // PRINT SYSTEM ROUTES
 // ============================================
 
@@ -534,8 +705,37 @@ interface WSClient extends WebSocket {
   subscriptions?: Set<string>;
 }
 
-// Helper function to get online users (deduplicated by userId)
-const getOnlineUsers = () => {
+// Parse user agent to extract device info
+const parseUserAgent = (ua: string): { device: string; browser: string; os: string } => {
+  if (!ua) return { device: 'Nieznane', browser: '', os: '' };
+
+  let device = 'Komputer';
+  let os = '';
+  let browser = '';
+
+  // OS detection
+  if (/iPhone/.test(ua)) { os = 'iOS'; device = 'iPhone'; }
+  else if (/iPad/.test(ua)) { os = 'iPadOS'; device = 'iPad'; }
+  else if (/Android/.test(ua)) {
+    os = 'Android';
+    device = /Mobile/.test(ua) ? 'Telefon' : 'Tablet';
+  }
+  else if (/Mac OS X/.test(ua)) { os = 'macOS'; }
+  else if (/Windows/.test(ua)) { os = 'Windows'; }
+  else if (/Linux/.test(ua)) { os = 'Linux'; }
+
+  // Browser detection
+  if (/Edg\//.test(ua)) browser = 'Edge';
+  else if (/OPR\/|Opera/.test(ua)) browser = 'Opera';
+  else if (/Chrome\//.test(ua) && !/Edg/.test(ua)) browser = 'Chrome';
+  else if (/Safari\//.test(ua) && !/Chrome/.test(ua)) browser = 'Safari';
+  else if (/Firefox\//.test(ua)) browser = 'Firefox';
+
+  return { device, browser, os };
+};
+
+// Helper function to get online users (deduplicated by userId) with session/device info
+const getOnlineUsers = async () => {
   const employeesMap = new Map<number, { userId: number; email: string; role: string; connectedAt: Date }>();
   const customersMap = new Map<number, { userId: number; email: string; role: string; connectedAt: Date }>();
 
@@ -559,15 +759,51 @@ const getOnlineUsers = () => {
     }
   });
 
+  // Fetch active sessions for all online users
+  const allUserIds = [...Array.from(employeesMap.keys()), ...Array.from(customersMap.keys())];
+  let sessionsMap = new Map<number, Array<{ sessionId: string; device: string; browser: string; os: string; ipAddress: string; source: string; createdAt: Date }>>();
+
+  if (allUserIds.length > 0) {
+    try {
+      const { query: dbQuery } = await import('./models/database');
+      const result = await dbQuery(
+        "SELECT user_id, session_id, ip_address, user_agent, source, created_at FROM user_sessions WHERE user_id = ANY($1) AND is_active = true AND expires_at > NOW() ORDER BY created_at DESC",
+        [allUserIds]
+      );
+      for (const row of result.rows) {
+        const uid = row.userId;
+        const parsed = parseUserAgent(row.userAgent || '');
+        const session = {
+          sessionId: row.sessionId,
+          device: parsed.device,
+          browser: parsed.browser,
+          os: parsed.os,
+          ipAddress: row.ipAddress || '',
+          source: row.source || 'panel',
+          createdAt: row.createdAt,
+        };
+        if (!sessionsMap.has(uid)) sessionsMap.set(uid, []);
+        sessionsMap.get(uid)!.push(session);
+      }
+    } catch (err) {
+      console.error('[OnlineUsers] Error fetching sessions:', err);
+    }
+  }
+
+  const enrichUser = (user: { userId: number; email: string; role: string; connectedAt: Date }) => ({
+    ...user,
+    sessions: sessionsMap.get(user.userId) || [],
+  });
+
   return {
-    employees: Array.from(employeesMap.values()),
-    customers: Array.from(customersMap.values())
+    employees: Array.from(employeesMap.values()).map(enrichUser),
+    customers: Array.from(customersMap.values()).map(enrichUser),
   };
 };
 
 // Broadcast user status to all admins subscribed to 'online-users' channel
-const broadcastOnlineUsers = () => {
-  const onlineUsers = getOnlineUsers();
+const broadcastOnlineUsers = async () => {
+  const onlineUsers = await getOnlineUsers();
   wss.clients.forEach((client) => {
     const wsClient = client as WSClient;
     if (wsClient.readyState === WebSocket.OPEN && wsClient.subscriptions?.has('online-users')) {
@@ -585,7 +821,7 @@ wss.on('connection', (ws: WSClient) => {
   ws.subscriptions = new Set();
   ws.connectedAt = new Date();
 
-  ws.on('message', (message: string) => {
+  ws.on('message', async (message: string) => {
     try {
       const data = JSON.parse(message.toString());
 
@@ -599,6 +835,16 @@ wss.on('connection', (ws: WSClient) => {
 
             // Verify JWT token
             const decoded = jwt.verify(data.token, JWT_SECRET) as JWTPayload;
+
+            // Validate session
+            if (decoded.sessionId) {
+              const sessionValid = await SessionModel.isValid(decoded.sessionId);
+              if (!sessionValid) {
+                ws.send(JSON.stringify({ type: 'auth:failed', error: 'Sesja zakończona' }));
+                ws.close();
+                return;
+              }
+            }
 
             // Store user info in WSClient
             ws.userId = decoded.userId;
@@ -634,7 +880,7 @@ wss.on('connection', (ws: WSClient) => {
 
             // If subscribing to online-users, send current list immediately
             if (data.channel === 'online-users') {
-              const onlineUsers = getOnlineUsers();
+              const onlineUsers = await getOnlineUsers();
               ws.send(JSON.stringify({
                 type: 'online-users:update',
                 data: onlineUsers
@@ -656,10 +902,10 @@ wss.on('connection', (ws: WSClient) => {
             ws.send(JSON.stringify({ type: 'error', error: 'Wymagana autoryzacja' }));
             return;
           }
-          const onlineUsers = getOnlineUsers();
+          const onlineUsersData = await getOnlineUsers();
           ws.send(JSON.stringify({
             type: 'online-users:update',
-            data: onlineUsers
+            data: onlineUsersData
           }));
           break;
       }
@@ -700,8 +946,8 @@ export const broadcast = (channel: string, data: any) => {
 // ONLINE USERS API ENDPOINT
 // ============================================
 
-app.get('/online-users', requireAuth, requirePermission('users:view'), (_req: Request, res: Response) => {
-  const onlineUsers = getOnlineUsers();
+app.get('/online-users', requireAuth, requirePermission('users:view'), async (_req: Request, res: Response) => {
+  const onlineUsers = await getOnlineUsers();
   res.json(onlineUsers);
 });
 
@@ -720,6 +966,19 @@ app.use((err: any, _req: Request, res: Response, _next: any) => {
 
 // Initialize email service
 emailService.initialize();
+
+
+// Session cleanup - every hour
+setInterval(async () => {
+  try {
+    const cleaned = await SessionModel.cleanExpired();
+    if (cleaned > 0) {
+      console.log(`[Session] Cleaned ${cleaned} expired/inactive sessions`);
+    }
+  } catch (error) {
+    console.error('[Session] Cleanup error:', error);
+  }
+}, 60 * 60 * 1000);
 
 httpServer.listen(PORT, () => {
   console.log(`🚀 PlantManager Backend running on port ${PORT}`);

@@ -72,6 +72,8 @@ export const PAPER_SIZES: Record<string, { width: number; height: number }> = {
   "Letter": { width: 216, height: 279 },
   // Labels
   "50x30mm": { width: 50, height: 30 },
+  
+  "30x50mm": { width: 30, height: 50 },
   "57x30mm": { width: 57, height: 30 },
   "100x50mm": { width: 100, height: 50 },
   "100x150mm": { width: 100, height: 150 },

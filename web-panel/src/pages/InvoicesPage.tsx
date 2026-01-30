@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import ExcelJS from 'exceljs';
 import { api } from '../services/api';
 import { Invoice } from '../types';
 import { InvoicesTable } from '../components/Invoices/InvoicesTable';
@@ -7,7 +8,7 @@ import { PaymentStatusModal } from '../components/Invoices/PaymentStatusModal';
 import { CreateCorrectionModal } from '../components/Invoices/CreateCorrectionModal';
 import { EmailInputModal } from '../components/Invoices/EmailInputModal';
 
-export type SortField = 'invoiceNumber' | 'customerName' | 'issueDate' | 'paymentDeadline' | 'paymentStatus' | 'totalGross';
+export type SortField = 'invoiceNumber' | 'customerCode' | 'customerName' | 'issueDate' | 'paymentDeadline' | 'paymentStatus' | 'totalGross';
 export type SortOrder = 'asc' | 'desc';
 
 export function InvoicesPage() {
@@ -29,6 +30,7 @@ export function InvoicesPage() {
   const [sendingEmailId, setSendingEmailId] = useState<number | null>(null);
   const [emailModalInvoice, setEmailModalInvoice] = useState<Invoice | null>(null);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const fetchInvoices = async () => {
     try {
@@ -188,6 +190,181 @@ export function InvoicesPage() {
     });
   };
 
+  // Export selected invoices to Excel
+  const handleExportToExcel = async () => {
+    if (selectedInvoices.length === 0) {
+      alert('Wybierz faktury do eksportu');
+      return;
+    }
+
+    setIsExporting(true);
+
+    try {
+      // Get selected invoices data
+      const invoicesToExport = filteredAndSortedInvoices.filter(inv =>
+        selectedInvoices.includes(inv.id)
+      );
+
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'PlantManager';
+      workbook.created = new Date();
+
+      const worksheet = workbook.addWorksheet('Faktury', {
+        views: [{ state: 'frozen', ySplit: 1 }]
+      });
+
+      // Define columns
+      worksheet.columns = [
+        { header: 'Nazwa kontrahenta', key: 'customerName', width: 40 },
+        { header: 'NIP', key: 'nip', width: 15 },
+        { header: 'Data wystawienia', key: 'issueDate', width: 15 },
+        { header: 'Data sprzedaży', key: 'saleDate', width: 15 },
+        { header: 'Numer dokumentu', key: 'invoiceNumber', width: 20 },
+        { header: 'Kwota netto', key: 'subtotalNet', width: 15 },
+        { header: 'VAT', key: 'totalVat', width: 12 },
+        { header: 'Kwota brutto', key: 'totalGross', width: 15 },
+      ];
+
+      // Style header row
+      const headerRow = worksheet.getRow(1);
+      headerRow.height = 25;
+      headerRow.eachCell((cell) => {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF2563EB' }
+        };
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
+      });
+
+      // Add data rows
+      invoicesToExport.forEach((invoice, index) => {
+        // Get customer name from buyerSnapshot or customerName
+        const customerName = invoice.buyerSnapshot?.companyName ||
+          (invoice.buyerSnapshot?.firstName && invoice.buyerSnapshot?.lastName
+            ? `${invoice.buyerSnapshot.firstName} ${invoice.buyerSnapshot.lastName}`
+            : invoice.customerName) || '';
+
+        // Get NIP
+        const nip = invoice.buyerSnapshot?.nip || '';
+
+        // Format dates
+        const formatDate = (dateStr: string) => {
+          if (!dateStr) return '';
+          const date = new Date(dateStr);
+          return date.toLocaleDateString('pl-PL');
+        };
+
+        const row = worksheet.addRow({
+          customerName,
+          nip,
+          issueDate: formatDate(invoice.issueDate),
+          saleDate: formatDate(invoice.saleDate),
+          invoiceNumber: invoice.invoiceNumber || '',
+          subtotalNet: Number(invoice.subtotalNet) || 0,
+          totalVat: Number(invoice.totalVat) || 0,
+          totalGross: Number(invoice.totalGross) || 0,
+        });
+
+        row.eachCell((cell, colNumber) => {
+          cell.alignment = {
+            vertical: 'middle',
+            horizontal: colNumber <= 5 ? 'left' : 'right'
+          };
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+            left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+            bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+            right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
+          };
+
+          // Format currency columns
+          if (colNumber >= 6) {
+            cell.numFmt = '#,##0.00 "zł"';
+          }
+        });
+
+        // Alternate row colors
+        if (index % 2 === 1) {
+          row.eachCell((cell) => {
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'FFF5F5F5' }
+            };
+          });
+        }
+      });
+
+      // Add summary row
+      const summaryRow = worksheet.addRow({
+        customerName: 'RAZEM:',
+        nip: '',
+        issueDate: '',
+        saleDate: '',
+        invoiceNumber: `${invoicesToExport.length} faktur`,
+        subtotalNet: invoicesToExport.reduce((sum, inv) => sum + (Number(inv.subtotalNet) || 0), 0),
+        totalVat: invoicesToExport.reduce((sum, inv) => sum + (Number(inv.totalVat) || 0), 0),
+        totalGross: invoicesToExport.reduce((sum, inv) => sum + (Number(inv.totalGross) || 0), 0),
+      });
+
+      summaryRow.eachCell((cell, colNumber) => {
+        cell.font = { bold: true };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE8F4FD' }
+        };
+        cell.border = {
+          top: { style: 'medium' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
+        if (colNumber >= 6) {
+          cell.numFmt = '#,##0.00 "zł"';
+          cell.alignment = { horizontal: 'right', vertical: 'middle' };
+        }
+      });
+
+      // Enable autofilter
+      worksheet.autoFilter = {
+        from: { row: 1, column: 1 },
+        to: { row: invoicesToExport.length + 1, column: 8 }
+      };
+
+      // Generate file
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const dateStr = new Date().toISOString().split('T')[0];
+      a.download = `faktury_${dateStr}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Wystąpił błąd podczas eksportu: ' + (error as Error).message);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // Send invoice by email
   const handleSendEmail = (invoice: Invoice) => {
     setEmailModalInvoice(invoice);
@@ -200,7 +377,7 @@ export function InvoicesPage() {
     try {
       // Send the invoice
       const result = await api.sendInvoiceEmail(emailModalInvoice.id, { email });
-      
+
       if (result.success) {
         // Save email to customer if requested and customer exists
         if (saveToCustomer && emailModalInvoice.customerId && !emailModalInvoice.buyerSnapshot?.email) {
@@ -210,8 +387,8 @@ export function InvoicesPage() {
             console.error('Error saving email to customer:', e);
           }
         }
-        
-        alert('Faktura zostala wysłana na adres ' + email);
+
+        alert('Faktura została wysłana na adres ' + email);
         setEmailModalInvoice(null);
         fetchInvoices(); // Refresh to update buyerSnapshot
       } else {
@@ -226,7 +403,7 @@ export function InvoicesPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Faktury</h1>
@@ -336,6 +513,28 @@ export function InvoicesPage() {
               Zaznaczono <strong>{selectedInvoices.length}</strong> z {filteredAndSortedInvoices.length} faktur
             </div>
             <div className="flex gap-2">
+              <button
+                onClick={handleExportToExcel}
+                disabled={isExporting}
+                className="btn btn-success btn-sm flex items-center gap-2"
+              >
+                {isExporting ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Eksportowanie...
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Eksportuj do Excel ({selectedInvoices.length})
+                  </>
+                )}
+              </button>
               <button
                 onClick={handlePrintSelected}
                 className="btn btn-primary btn-sm"

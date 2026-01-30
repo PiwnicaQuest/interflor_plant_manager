@@ -226,6 +226,14 @@ class ApiService {
     });
     return this.handleResponse(response);
   }
+
+  // Shop settings (public - for catalog tabs)
+  async getShopSettings(): Promise<{ tabs: Array<{ id: number; name: string; tag: string }> }> {
+    const response = await fetch(API_URL + "/shop/settings", {
+      headers: this.getHeaders(false), // No auth required
+    });
+    return this.handleResponse(response);
+  }
 }
 
 export const api = new ApiService();

@@ -1,6 +1,6 @@
 import { Invoice, PaymentStatus } from '../../types';
 
-type SortField = 'invoiceNumber' | 'customerName' | 'issueDate' | 'paymentDeadline' | 'paymentStatus' | 'totalGross';
+type SortField = 'invoiceNumber' | 'customerCode' | 'customerName' | 'issueDate' | 'paymentDeadline' | 'paymentStatus' | 'totalGross';
 type SortOrder = 'asc' | 'desc';
 
 interface InvoicesTableProps {
@@ -137,6 +137,7 @@ export function InvoicesTable({
               {onSort ? (
                 <>
                   <SortableHeader field="invoiceNumber">Nr faktury</SortableHeader>
+                  <SortableHeader field="customerCode">Kod klienta</SortableHeader>
                   <SortableHeader field="customerName">Klient</SortableHeader>
                   <SortableHeader field="issueDate">Data wystawienia</SortableHeader>
                   <SortableHeader field="paymentDeadline">Termin płatnośći</SortableHeader>
@@ -149,6 +150,7 @@ export function InvoicesTable({
               ) : (
                 <>
                   <th>Nr faktury</th>
+                  <th>Kod klienta</th>
                   <th>Klient</th>
                   <th>Data wystawienia</th>
                   <th>Termin płatnośći</th>
@@ -175,6 +177,7 @@ export function InvoicesTable({
                   </td>
                 )}
                 <td className="font-medium">{invoice.invoiceNumber}</td>
+                <td className="text-sm text-gray-600">{invoice.customerCode || '-'}</td>
                 <td>{invoice.customerName || 'Brak danych'}</td>
                 <td className="text-sm">{formatDate(invoice.issueDate)}</td>
                 <td className="text-sm">

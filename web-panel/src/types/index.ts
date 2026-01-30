@@ -499,6 +499,7 @@ export interface TemplateElementStyle {
   borderWidth?: number;
   borderColor?: string;
   borderRadius?: number;
+  rotation?: number;
 }
 
 export interface TemplateElement {

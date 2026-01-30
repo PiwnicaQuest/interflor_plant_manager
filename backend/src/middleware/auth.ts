@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { JWTPayload, UserRole } from '../types';
 import { PermissionProfileModel } from '../models/PermissionProfile';
+import { SessionModel } from '../models/Session';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -15,24 +16,37 @@ export interface AuthRequest extends Request {
   user?: JWTPayload;
 }
 
-export const requireAuth = (
+export const requireAuth = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ) => {
   try {
     const authHeader = req.headers.authorization;
+    const queryToken = req.query.token as string;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if ((!authHeader || !authHeader.startsWith('Bearer ')) && !queryToken) {
       return res.status(401).json({ error: 'Token autoryzacji nie został podany' });
     }
 
-    const token = authHeader.substring(7);
+    const token = queryToken || (authHeader ? authHeader.substring(7) : "");
     console.log('[AUTH] Verifying token:', token.substring(0, 20) + '...');
     console.log('[AUTH] Using JWT_SECRET:', JWT_SECRET.substring(0, 10) + '...');
 
     const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
     console.log('[AUTH] Token verified successfully for user:', decoded.email);
+
+    // Session validation
+    if (decoded.sessionId) {
+      const sessionValid = await SessionModel.isValid(decoded.sessionId);
+      if (!sessionValid) {
+        console.log(`[AUTH] Session ${decoded.sessionId} is no longer valid for user ${decoded.email}`);
+        return res.status(401).json({
+          error: 'Sesja wygasła lub została zakończona na innym urządzeniu',
+          code: 'SESSION_INVALIDATED'
+        });
+      }
+    }
 
     req.user = decoded;
     return next();
@@ -80,7 +94,7 @@ export const requirePermission = (permission: string) => {
 
     try {
       const hasPermission = await PermissionProfileModel.userHasPermission(req.user.userId, permission);
-      
+
       if (!hasPermission) {
         console.log(`[AUTH] User ${req.user.email} does not have permission: ${permission}`);
         return res.status(403).json({ error: 'Brak uprawnień do tej operacji' });
@@ -111,7 +125,7 @@ export const requireAnyPermission = (permissions: string[]) => {
     try {
       const userPermissions = await PermissionProfileModel.getUserPermissions(req.user.userId);
       const hasAny = permissions.some(p => userPermissions.includes(p));
-      
+
       if (!hasAny) {
         console.log(`[AUTH] User ${req.user.email} does not have any of permissions: ${permissions.join(', ')}`);
         return res.status(403).json({ error: 'Brak uprawnień do tej operacji' });
@@ -148,7 +162,7 @@ export const requireRoleOrPermission = (allowedRoles: UserRole[], permission: st
     // Sprawdź uprawnienie
     try {
       const hasPermission = await PermissionProfileModel.userHasPermission(req.user.userId, permission);
-      
+
       if (hasPermission) {
         return next();
       }

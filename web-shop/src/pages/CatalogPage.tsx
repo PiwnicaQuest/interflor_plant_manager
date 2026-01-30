@@ -6,6 +6,21 @@ import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+
+// Get optimized image URL from new image API
+const getOptimizedImageUrl = (barcode: string | null | undefined, size: "thumb" | "medium" | "full"): string | null => {
+  if (!barcode) return null;
+  return `${API_URL}/images/${encodeURIComponent(barcode)}/${size}`;
+};
+interface ShopTab {
+  id: number;
+  name: string;
+  tag: string;
+  color?: string;
+}
+
 export function CatalogPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,12 +36,29 @@ export function CatalogPage() {
   const [enlargedImage, setEnlargedImage] = useState<{url: string, name: string} | null>(null);
   const [palletQuantities, setPalletQuantities] = useState<Record<number, number>>({});
 
+  // Shop tabs state
+  const [shopTabs, setShopTabs] = useState<ShopTab[]>([]);
+  const [activeTab, setActiveTab] = useState<string>('all'); // 'all' or tab tag name
+
   const { addItem } = useCart();
   const { isAuthenticated } = useAuth();
 
+  // Fetch shop tab settings
+  useEffect(() => {
+    const fetchShopSettings = async () => {
+      try {
+        const result = await api.getShopSettings();
+        setShopTabs(result.tabs || []);
+      } catch (err) {
+        console.error('Error fetching shop settings:', err);
+      }
+    };
+    fetchShopSettings();
+  }, []);
+
   useEffect(() => {
     fetchProducts();
-  }, [search, potSize, sortBy, sortOrder, selectedCategories]);
+  }, [search, potSize, sortBy, sortOrder, selectedCategories, activeTab]);
 
   // Escape key handler for lightbox
   useEffect(() => {
@@ -42,12 +74,24 @@ export function CatalogPage() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
+
+      // Determine tags to filter by
+      let tagsToFilter = selectedCategories.length > 0 ? [...selectedCategories] : [];
+
+      // If a shop tab is active (not 'all'), add its tag to the filter
+      if (activeTab !== 'all') {
+        const activeShopTab = shopTabs.find(t => t.tag === activeTab);
+        if (activeShopTab && !tagsToFilter.includes(activeShopTab.tag)) {
+          tagsToFilter = [activeShopTab.tag, ...tagsToFilter];
+        }
+      }
+
       const result = await api.getCatalog({
         search,
         potSize,
         sortBy,
         sortOrder,
-        tags: selectedCategories.length > 0 ? selectedCategories : undefined
+        tags: tagsToFilter.length > 0 ? tagsToFilter : undefined
       });
       setProducts(result.products);
       setPotSizes(result.filters.potSizes);
@@ -209,6 +253,41 @@ export function CatalogPage() {
             </p>
           )}
         </div>
+
+        {/* Shop tabs - only visible when authenticated and tabs exist */}
+        {isAuthenticated && shopTabs.length > 0 && (
+          <div className="mb-4 sm:mb-6 overflow-x-auto">
+            <div className="flex gap-1 sm:gap-2 min-w-max">
+              {/* All plants tab - always first */}
+              <button
+                onClick={() => setActiveTab('all')}
+                className={`px-3 sm:px-4 py-2 rounded-lg font-medium text-sm sm:text-base whitespace-nowrap transition-colors ${
+                  activeTab === 'all'
+                    ? 'bg-green-600 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Wszystkie rosliny
+              </button>
+
+              {/* Dynamic tabs from settings */}
+              {shopTabs.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.tag)}
+                  className="px-3 sm:px-4 py-2 rounded-lg font-medium text-sm sm:text-base whitespace-nowrap transition-colors"
+                  style={
+                    activeTab === tab.tag
+                      ? { backgroundColor: tab.color || '#16a34a', color: '#fff', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }
+                      : { backgroundColor: (tab.color || '#16a34a') + '20', color: tab.color || '#16a34a' }
+                  }
+                >
+                  {tab.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Mobile filters button */}
         <div className="lg:hidden mb-4">
@@ -372,11 +451,11 @@ export function CatalogPage() {
                   {/* Image */}
                   <div
                     className={"aspect-square bg-gray-100 relative " + (product.imageUrl ? "cursor-pointer group/img" : "")}
-                    onClick={() => product.imageUrl && setEnlargedImage({ url: product.imageUrl, name: product.plantName })}
+                    onClick={() => product.imageUrl && setEnlargedImage({ url: (product.barcode ? getOptimizedImageUrl(product.barcode, "full") : product.imageUrl) || product.imageUrl, name: product.plantName })}
                   >
                     {product.imageUrl ? (
                       <img
-                        src={product.imageUrl}
+                        src={product.barcode ? getOptimizedImageUrl(product.barcode, "medium") || product.imageUrl : product.imageUrl}
                         alt={product.plantName}
                         className="w-full h-full object-cover"
                       />

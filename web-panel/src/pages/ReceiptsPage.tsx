@@ -185,7 +185,7 @@ export function ReceiptsPage() {
   const allSelected = receipts.length > 0 && selectedReceipts.length === receipts.length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Paragony</h1>
@@ -386,7 +386,7 @@ export function ReceiptsPage() {
                   <p className="text-gray-500">Ładowanie szczegółów...</p>
                 </div>
               ) : (
-                <div className="space-y-6">
+                <div className="space-y-6 p-6">
                   {/* Basic info */}
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <div>

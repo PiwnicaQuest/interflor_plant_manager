@@ -416,14 +416,24 @@ static async getMovements(productId: number, limit = 50, movementTypes?: string[
   }>> {
     // First, get all active, non-merged products with height info
     const sql = `
-      SELECT *
-      FROM products
-      WHERE (is_archived = false OR is_archived IS NULL)
-        AND merged_into_id IS NULL
-        AND plant_name IS NOT NULL
-        AND pot_size IS NOT NULL
-        AND plant_height_cm IS NOT NULL
-      ORDER BY plant_name, pot_size, plant_height_cm
+      SELECT p.*,
+             COALESCE(gp_sub.grower, p.grower) as grower,
+             gp_sub.passport_number as grower_passport
+      FROM products p
+      LEFT JOIN LATERAL (
+          SELECT gp.grower_name as grower, gp.passport_number
+          FROM grower_passports gp
+          WHERE LTRIM(p.grower, '0') = gp.floricode
+             OR p.grower = gp.floricode
+             OR LOWER(p.grower) = LOWER(gp.grower_name)
+          LIMIT 1
+      ) gp_sub ON true
+      WHERE (p.is_archived = false OR p.is_archived IS NULL)
+        AND p.merged_into_id IS NULL
+        AND p.plant_name IS NOT NULL
+        AND p.pot_size IS NOT NULL
+        AND p.plant_height_cm IS NOT NULL
+      ORDER BY p.plant_name, p.pot_size, p.plant_height_cm
     `;
 
     const result = await query<Product>(sql);
@@ -457,6 +467,8 @@ static async getMovements(productId: number, limit = 50, movementTypes?: string[
         if (p.potSize !== product.potSize) return false;
         // Same units per pallet
         if (p.unitsPerPallet !== product.unitsPerPallet) return false;
+        // Same grower
+        if (p.grower !== product.grower) return false;
 
         // Height difference <= 10cm
         const heightDiff = Math.abs((p.plantHeightCm || 0) - (product.plantHeightCm || 0));
@@ -497,16 +509,27 @@ static async getMovements(productId: number, limit = 50, movementTypes?: string[
     if (!product) return [];
 
     const sql = `
-      SELECT *
-      FROM products
-      WHERE (is_archived = false OR is_archived IS NULL)
-        AND merged_into_id IS NULL
-        AND id != $1
-        AND plant_name = $2
-        AND pot_size = $3
-        AND plant_height_cm IS NOT NULL
-        AND ABS(COALESCE(plant_height_cm, 0) - $4) <= 5
-      ORDER BY plant_height_cm
+      SELECT p.*,
+             COALESCE(gp_sub.grower, p.grower) as grower,
+             gp_sub.passport_number as grower_passport
+      FROM products p
+      LEFT JOIN LATERAL (
+          SELECT gp.grower_name as grower, gp.passport_number
+          FROM grower_passports gp
+          WHERE LTRIM(p.grower, '0') = gp.floricode
+             OR p.grower = gp.floricode
+             OR LOWER(p.grower) = LOWER(gp.grower_name)
+          LIMIT 1
+      ) gp_sub ON true
+      WHERE (p.is_archived = false OR p.is_archived IS NULL)
+        AND p.merged_into_id IS NULL
+        AND p.id != $1
+        AND p.plant_name = $2
+        AND p.pot_size = $3
+        AND p.plant_height_cm IS NOT NULL
+        AND ABS(COALESCE(p.plant_height_cm, 0) - $4) <= 5
+        AND p.grower = $5
+      ORDER BY p.plant_height_cm
     `;
 
     const result = await query<Product>(sql, [
@@ -514,6 +537,7 @@ static async getMovements(productId: number, limit = 50, movementTypes?: string[
       product.plantName,
       product.potSize,
       product.plantHeightCm || 0,
+      product.grower || '',
     ]);
 
     return result.rows;
@@ -787,7 +811,20 @@ static async getMovements(productId: number, limit = 50, movementTypes?: string[
   // Get merged products for a master product
   static async getMergedProducts(masterId: number): Promise<Product[]> {
     const result = await query<Product>(
-      'SELECT * FROM products WHERE merged_into_id = $1 ORDER BY plant_name',
+      `SELECT p.*,
+              COALESCE(gp_sub.grower, p.grower) as grower,
+              gp_sub.passport_number as grower_passport
+       FROM products p
+       LEFT JOIN LATERAL (
+           SELECT gp.grower_name as grower, gp.passport_number
+           FROM grower_passports gp
+           WHERE LTRIM(p.grower, '0') = gp.floricode
+              OR p.grower = gp.floricode
+              OR LOWER(p.grower) = LOWER(gp.grower_name)
+           LIMIT 1
+       ) gp_sub ON true
+       WHERE p.merged_into_id = $1
+       ORDER BY p.plant_name`,
       [masterId]
     );
     return result.rows;

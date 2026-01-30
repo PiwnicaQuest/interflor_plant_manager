@@ -11,6 +11,7 @@ import { TagsTab } from '../components/Settings/TagsTab';
 import { PrinterSettingsTab } from '../components/Settings/PrinterSettingsTab';
 import PermissionProfilesTab from '../components/settings/PermissionProfilesTab';
 import { LoginHistoryTab } from '../components/Settings/LoginHistoryTab';
+import { WebsiteSettingsTab } from '../components/Settings/WebsiteSettingsTab';
 
 interface PricingSettings {
   costPercentage: number;
@@ -46,7 +47,7 @@ interface EmailImportSettings {
   enabled: boolean;
 }
 
-type TabType = 'company' | 'pricing' | 'email-import' | 'users' | 'login-history' | 'price-groups' | 'printers' | 'grower-passports' | 'tags' | 'profiles';
+type TabType = 'company' | 'pricing' | 'email-import' | 'users' | 'login-history' | 'price-groups' | 'printers' | 'grower-passports' | 'tags' | 'profiles' | 'website';
 
 export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('company');
@@ -401,6 +402,7 @@ export function SettingsPage() {
     { id: 'grower-passports' as TabType, label: 'Ogrodnicy i paszporty' },
     { id: 'tags' as TabType, label: 'Tagi' },
     { id: 'profiles' as TabType, label: 'Profile uprawnień' },
+    { id: 'website' as TabType, label: 'Strona internetowa' },
   ];
 
   return (
@@ -1159,6 +1161,10 @@ export function SettingsPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <PermissionProfilesTab />
         </div>
+      )}
+
+      {activeTab === 'website' && (
+        <WebsiteSettingsTab />
       )}
 
       {viewingCustomers && (

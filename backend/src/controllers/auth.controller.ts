@@ -2,7 +2,8 @@ import { Request, Response } from 'express';
 import { UserModel } from '../models/User';
 import { CustomerModel } from '../models/Customer';
 import { LoginHistoryModel } from '../models/LoginHistory';
-import { generateToken } from '../middleware/auth';
+import { SessionModel } from '../models/Session';
+import { generateToken, AuthRequest } from '../middleware/auth';
 import { LoginRequest, RegisterRequest, UserRole } from '../types';
 import { PermissionProfileModel } from '../models/PermissionProfile';
 
@@ -15,6 +16,8 @@ const getClientIp = (req: Request): string => {
   }
   return req.socket.remoteAddress || req.ip || 'unknown';
 };
+
+const MAX_SESSIONS_PER_USER = 2;
 
 export class AuthController {
   static async login(req: Request, res: Response) {
@@ -73,6 +76,33 @@ export class AuthController {
         return res.status(401).json({ error: 'Nieprawidłowy email/login lub hasło' });
       }
 
+      // === Session limit enforcement ===
+      const activeCount = await SessionModel.getActiveCount(user.id);
+      if (activeCount >= MAX_SESSIONS_PER_USER) {
+        const kickedSessionId = await SessionModel.invalidateOldest(user.id);
+        if (kickedSessionId) {
+          console.log(`[Session] Invalidated oldest session ${kickedSessionId} for user ${user.id} (limit: ${MAX_SESSIONS_PER_USER})`);
+        }
+      }
+
+      // Kontrahenci mają krótszą sesję (5h), pozostali 7 dni
+      const tokenExpiration = user.role === UserRole.CUSTOMER ? '5h' : '7d';
+      const expiresAt = new Date();
+      if (user.role === UserRole.CUSTOMER) {
+        expiresAt.setHours(expiresAt.getHours() + 5);
+      } else {
+        expiresAt.setDate(expiresAt.getDate() + 7);
+      }
+
+      // Create session record
+      const sessionId = await SessionModel.create({
+        userId: user.id,
+        ipAddress: ipAddress,
+        userAgent: userAgent || undefined,
+        source,
+        expiresAt,
+      });
+
       // Log successful login
       await LoginHistoryModel.log({
         userId: user.id,
@@ -85,15 +115,14 @@ export class AuthController {
       // Pobierz uprawnienia użytkownika z profilu
       const permissions = await PermissionProfileModel.getUserPermissions(user.id);
 
-      // Kontrahenci mają krótszą sesję (5h), pozostali 7 dni
-      const tokenExpiration = user.role === UserRole.CUSTOMER ? '5h' : '7d';
-      
       const token = generateToken({
         firstName: user.firstName,
+        login: user.login,
         userId: user.id,
         email: user.email,
         role: user.role,
         permissions: permissions,
+        sessionId: sessionId,
       }, tokenExpiration);
 
       const userWithoutPassword = UserModel.stripPassword(user);
@@ -105,6 +134,34 @@ export class AuthController {
       });
     } catch (error) {
       console.error('Login error:', error);
+      return res.status(500).json({ error: 'Błąd serwera' });
+    }
+  }
+
+  static async logout(req: AuthRequest, res: Response) {
+    try {
+      const sessionId = req.user?.sessionId;
+      if (sessionId) {
+        await SessionModel.invalidate(sessionId);
+        console.log(`[Session] User ${req.user?.email} logged out, session ${sessionId} invalidated`);
+      }
+      return res.json({ message: 'Wylogowano pomyślnie' });
+    } catch (error) {
+      console.error('Logout error:', error);
+      return res.status(500).json({ error: 'Błąd serwera' });
+    }
+  }
+
+  static async getActiveSessions(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Brak autoryzacji' });
+      }
+      const sessions = await SessionModel.getActiveSessions(userId);
+      return res.json({ sessions });
+    } catch (error) {
+      console.error('Get sessions error:', error);
       return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
