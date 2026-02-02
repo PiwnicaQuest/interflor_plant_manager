@@ -40,6 +40,10 @@ export function ScannerPage() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
+  const [zoomSupported, setZoomSupported] = useState(false);
+  const [zoomRange, setZoomRange] = useState({ min: 1, max: 1, step: 0.1 });
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const videoTrackRef = useRef<MediaStreamTrack | null>(null);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isStartingRef = useRef(false);
@@ -59,6 +63,9 @@ export function ScannerPage() {
     setScanning(false);
     setTorchOn(false);
     setTorchSupported(false);
+    setZoomSupported(false);
+    setZoomLevel(1);
+    videoTrackRef.current = null;
   }, []);
 
   useEffect(() => {
@@ -132,20 +139,48 @@ export function ScannerPage() {
 
       setScanning(true);
 
-      // Check torch support
+      // Get video track for advanced camera controls (autofocus, zoom, torch)
       try {
-        const track = scannerRef.current.getRunningTrackSettings();
-        if (track && 'torch' in track) {
-          setTorchSupported(true);
+        const videoEl = document.querySelector('#scanner-container video') as HTMLVideoElement;
+        const stream = videoEl?.srcObject as MediaStream;
+        const track = stream?.getVideoTracks()[0];
+
+        if (track) {
+          videoTrackRef.current = track;
+          const caps = track.getCapabilities() as any;
+
+          // Force continuous autofocus if supported
+          if (caps.focusMode && caps.focusMode.includes('continuous')) {
+            await track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as any] });
+          }
+
+          // Check zoom support
+          if (caps.zoom) {
+            setZoomSupported(true);
+            setZoomRange({
+              min: caps.zoom.min || 1,
+              max: caps.zoom.max || 1,
+              step: caps.zoom.step || 0.1,
+            });
+            setZoomLevel(caps.zoom.min || 1);
+          }
+
+          // Check torch support
+          if (caps.torch) {
+            setTorchSupported(true);
+          }
         }
-        // Alternative check via capabilities
+      } catch {
+        // Camera controls not supported on this device
+      }
+
+      // Fallback torch check via html5-qrcode API
+      try {
         const capabilities = scannerRef.current.getRunningTrackCameraCapabilities();
         if (capabilities && capabilities.torchFeature && capabilities.torchFeature().isSupported()) {
           setTorchSupported(true);
         }
-      } catch {
-        // Torch not supported on this device
-      }
+      } catch {}
 
     } catch (err: any) {
       console.error('Camera error:', err);
@@ -172,6 +207,17 @@ export function ScannerPage() {
       }
     } catch (err) {
       console.error('Torch toggle error:', err);
+    }
+  };
+
+  const handleZoomChange = async (newZoom: number) => {
+    setZoomLevel(newZoom);
+    if (videoTrackRef.current) {
+      try {
+        await videoTrackRef.current.applyConstraints({ advanced: [{ zoom: newZoom } as any] });
+      } catch (err) {
+        console.error('Zoom error:', err);
+      }
     }
   };
 
@@ -273,8 +319,28 @@ export function ScannerPage() {
 
           {/* Controls when scanning */}
           {scanning && (
-            <div className="p-3 bg-gray-800 text-center">
-              <p className="text-white text-sm mb-2">Skieruj kamerę na kod kreskowy</p>
+            <div className="p-3 bg-gray-800">
+              <p className="text-white text-sm mb-2 text-center">Skieruj kamerę na kod kreskowy</p>
+
+              {/* Zoom slider */}
+              {zoomSupported && zoomRange.max > 1 && (
+                <div className="flex items-center gap-2 mb-3 px-2">
+                  <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                  </svg>
+                  <input
+                    type="range"
+                    min={zoomRange.min}
+                    max={zoomRange.max}
+                    step={zoomRange.step}
+                    value={zoomLevel}
+                    onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
+                    className="flex-1 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-green-500"
+                  />
+                  <span className="text-white text-xs font-medium w-10 text-right">{zoomLevel.toFixed(1)}x</span>
+                </div>
+              )}
+
               <div className="flex items-center justify-center gap-3">
                 {torchSupported && (
                   <button

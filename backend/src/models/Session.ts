@@ -10,6 +10,7 @@ export interface SessionEntry {
   createdAt: Date;
   expiresAt: Date;
   isActive: boolean;
+  lastActivity: Date;
 }
 
 export class SessionModel {
@@ -126,5 +127,118 @@ export class SessionModel {
       `DELETE FROM user_sessions WHERE expires_at < NOW() OR is_active = false`
     );
     return result.rowCount || 0;
+  }
+
+  /**
+   * Aktualizuje last_activity dla sesji (heartbeat)
+   */
+  static async updateActivity(sessionId: string): Promise<void> {
+    await query(
+      `UPDATE user_sessions SET last_activity = NOW() WHERE session_id = $1 AND is_active = true`,
+      [sessionId]
+    );
+  }
+
+  /**
+   * Aktualizuje last_activity dla wszystkich aktywnych sesji użytkownika
+   */
+  static async updateActivityByUserId(userId: number): Promise<void> {
+    await query(
+      `UPDATE user_sessions SET last_activity = NOW() WHERE user_id = $1 AND is_active = true`,
+      [userId]
+    );
+  }
+
+  /**
+   * Pobiera online użytkowników na podstawie aktywnych sesji w bazie.
+   * Użytkownik jest online jeśli last_activity < thresholdMinutes minut temu.
+   */
+  static async getOnlineUsers(thresholdMinutes: number = 5): Promise<{
+    employees: Array<{
+      userId: number;
+      email: string;
+      role: string;
+      sessions: Array<{
+        sessionId: string;
+        ipAddress: string;
+        userAgent: string;
+        source: string;
+        createdAt: Date;
+        lastActivity: Date;
+      }>;
+    }>;
+    customers: Array<{
+      userId: number;
+      email: string;
+      role: string;
+      sessions: Array<{
+        sessionId: string;
+        ipAddress: string;
+        userAgent: string;
+        source: string;
+        createdAt: Date;
+        lastActivity: Date;
+      }>;
+    }>;
+  }> {
+    const result = await query<{
+      userId: number;
+      email: string;
+      role: string;
+      sessionId: string;
+      ipAddress: string;
+      userAgent: string;
+      source: string;
+      createdAt: Date;
+      lastActivity: Date;
+    }>(
+      `SELECT
+        us.user_id,
+        u.email,
+        u.role,
+        us.session_id,
+        us.ip_address,
+        us.user_agent,
+        us.source,
+        us.created_at,
+        us.last_activity
+      FROM user_sessions us
+      JOIN users u ON u.id = us.user_id
+      WHERE us.is_active = true
+        AND us.expires_at > NOW()
+        AND us.last_activity > NOW() - INTERVAL '${thresholdMinutes} minutes'
+      ORDER BY us.user_id, us.last_activity DESC`,
+      []
+    );
+
+    const employeesMap = new Map<number, any>();
+    const customersMap = new Map<number, any>();
+
+    for (const row of result.rows) {
+      const targetMap = row.role === 'customer' ? customersMap : employeesMap;
+
+      if (!targetMap.has(row.userId)) {
+        targetMap.set(row.userId, {
+          userId: row.userId,
+          email: row.email,
+          role: row.role,
+          sessions: [],
+        });
+      }
+
+      targetMap.get(row.userId)!.sessions.push({
+        sessionId: row.sessionId,
+        ipAddress: row.ipAddress || '',
+        userAgent: row.userAgent || '',
+        source: row.source || 'panel',
+        createdAt: row.createdAt,
+        lastActivity: row.lastActivity,
+      });
+    }
+
+    return {
+      employees: Array.from(employeesMap.values()),
+      customers: Array.from(customersMap.values()),
+    };
   }
 }

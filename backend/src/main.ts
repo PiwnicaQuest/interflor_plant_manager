@@ -734,71 +734,37 @@ const parseUserAgent = (ua: string): { device: string; browser: string; os: stri
   return { device, browser, os };
 };
 
-// Helper function to get online users (deduplicated by userId) with session/device info
+// Helper function to get online users based on DB sessions (last_activity within threshold)
+const ONLINE_THRESHOLD_MINUTES = 10;
+
 const getOnlineUsers = async () => {
-  const employeesMap = new Map<number, { userId: number; email: string; role: string; connectedAt: Date }>();
-  const customersMap = new Map<number, { userId: number; email: string; role: string; connectedAt: Date }>();
+  try {
+    const dbResult = await SessionModel.getOnlineUsers(ONLINE_THRESHOLD_MINUTES);
 
-  wss.clients.forEach((client) => {
-    const wsClient = client as WSClient;
-    if (wsClient.readyState === WebSocket.OPEN && wsClient.userId && wsClient.userEmail) {
-      const userInfo = {
-        userId: wsClient.userId,
-        email: wsClient.userEmail,
-        role: wsClient.userRole || 'unknown',
-        connectedAt: wsClient.connectedAt || new Date()
-      };
-
-      const targetMap = wsClient.userRole === 'customer' ? customersMap : employeesMap;
-
-      // Only add if not already present, or update if this connection is older (first connection)
-      const existing = targetMap.get(wsClient.userId);
-      if (!existing || userInfo.connectedAt < existing.connectedAt) {
-        targetMap.set(wsClient.userId, userInfo);
-      }
-    }
-  });
-
-  // Fetch active sessions for all online users
-  const allUserIds = [...Array.from(employeesMap.keys()), ...Array.from(customersMap.keys())];
-  let sessionsMap = new Map<number, Array<{ sessionId: string; device: string; browser: string; os: string; ipAddress: string; source: string; createdAt: Date }>>();
-
-  if (allUserIds.length > 0) {
-    try {
-      const { query: dbQuery } = await import('./models/database');
-      const result = await dbQuery(
-        "SELECT user_id, session_id, ip_address, user_agent, source, created_at FROM user_sessions WHERE user_id = ANY($1) AND is_active = true AND expires_at > NOW() ORDER BY created_at DESC",
-        [allUserIds]
-      );
-      for (const row of result.rows) {
-        const uid = row.userId;
-        const parsed = parseUserAgent(row.userAgent || '');
-        const session = {
-          sessionId: row.sessionId,
+    // Enrich sessions with parsed user agent info
+    const enrichSessions = (sessions: any[]) =>
+      sessions.map(s => {
+        const parsed = parseUserAgent(s.userAgent || '');
+        return {
+          sessionId: s.sessionId,
           device: parsed.device,
           browser: parsed.browser,
           os: parsed.os,
-          ipAddress: row.ipAddress || '',
-          source: row.source || 'panel',
-          createdAt: row.createdAt,
+          ipAddress: s.ipAddress || '',
+          source: s.source || 'panel',
+          createdAt: s.createdAt,
+          lastActivity: s.lastActivity,
         };
-        if (!sessionsMap.has(uid)) sessionsMap.set(uid, []);
-        sessionsMap.get(uid)!.push(session);
-      }
-    } catch (err) {
-      console.error('[OnlineUsers] Error fetching sessions:', err);
-    }
+      });
+
+    return {
+      employees: dbResult.employees.map(u => ({ ...u, sessions: enrichSessions(u.sessions) })),
+      customers: dbResult.customers.map(u => ({ ...u, sessions: enrichSessions(u.sessions) })),
+    };
+  } catch (err) {
+    console.error('[OnlineUsers] Error fetching from DB:', err);
+    return { employees: [], customers: [] };
   }
-
-  const enrichUser = (user: { userId: number; email: string; role: string; connectedAt: Date }) => ({
-    ...user,
-    sessions: sessionsMap.get(user.userId) || [],
-  });
-
-  return {
-    employees: Array.from(employeesMap.values()).map(enrichUser),
-    customers: Array.from(customersMap.values()).map(enrichUser),
-  };
 };
 
 // Broadcast user status to all admins subscribed to 'online-users' channel
@@ -853,6 +819,9 @@ wss.on('connection', (ws: WSClient) => {
 
             console.log('[WebSocket] User authenticated:', decoded.email, '(userId:', decoded.userId, ', role:', decoded.role, ')');
             ws.send(JSON.stringify({ type: 'auth:success', userId: decoded.userId }));
+
+            // Update activity on WS auth
+            SessionModel.updateActivityByUserId(decoded.userId).catch(() => {});
 
             // Broadcast updated online users list
             broadcastOnlineUsers();
@@ -950,6 +919,32 @@ app.get('/online-users', requireAuth, requirePermission('users:view'), async (_r
   const onlineUsers = await getOnlineUsers();
   res.json(onlineUsers);
 });
+
+// ============================================
+// SESSION HEARTBEAT ENDPOINT
+// ============================================
+
+app.post('/sessions/heartbeat', requireAuth, async (req: any, res: Response) => {
+  try {
+    const sessionId = req.user?.sessionId;
+    if (sessionId) {
+      await SessionModel.updateActivity(sessionId);
+    }
+    res.json({ status: 'ok' });
+  } catch (error) {
+    console.error('Heartbeat error:', error);
+    res.status(500).json({ error: 'Heartbeat failed' });
+  }
+});
+
+// Periodic broadcast of online users list (every 30 seconds)
+setInterval(async () => {
+  try {
+    await broadcastOnlineUsers();
+  } catch (error) {
+    console.error('[OnlineUsers] Periodic broadcast error:', error);
+  }
+}, 30_000);
 
 // ============================================
 // ERROR HANDLING

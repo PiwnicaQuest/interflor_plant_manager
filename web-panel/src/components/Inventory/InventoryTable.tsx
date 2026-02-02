@@ -112,6 +112,7 @@ export interface ColumnFilters {
   colPassport?: string;
   colCreatedAtFrom?: string;
   colCreatedAtTo?: string;
+  colTags?: string;
 }
 
 interface InventoryTableProps {
@@ -192,10 +193,23 @@ export function InventoryTable({
   const [resizing, setResizing] = useState<string | null>(null);
   const [resizePreviewX, setResizePreviewX] = useState<number | null>(null);
   const [editingTags, setEditingTags] = useState<number | null>(null);
+  const [showTagFilterDropdown, setShowTagFilterDropdown] = useState(false);
+  const tagFilterRef = useRef<HTMLDivElement>(null);
   // Use dynamic tags from API
   const { tags: dynamicTags } = useTags();
   const availableTags = dynamicTags.length > 0 ? dynamicTags : FALLBACK_TAGS;
   const rafRef = useRef<number | null>(null);
+
+  // Close tag filter dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (tagFilterRef.current && !tagFilterRef.current.contains(e.target as Node)) {
+        setShowTagFilterDropdown(false);
+      }
+    };
+    if (showTagFilterDropdown) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showTagFilterDropdown]);
   const pendingWidth = useRef<number>(0);
   const startX = useRef(0);
   const startWidth = useRef(0);
@@ -571,10 +585,66 @@ export function InventoryTable({
           </button>
         );
       }
+      case 'tags': {
+        const selectedTags = columnFilters.colTags ? columnFilters.colTags.split(',').filter(Boolean) : [];
+        const hasFilter = selectedTags.length > 0;
+        return (
+          <div className="relative" ref={tagFilterRef}>
+            <button
+              onClick={() => setShowTagFilterDropdown(!showTagFilterDropdown)}
+              className={`w-full px-0 py-px text-xs border rounded text-left truncate ${
+                hasFilter
+                  ? 'border-pink-400 bg-pink-50 text-pink-700 font-medium'
+                  : 'border-gray-300 text-gray-400'
+              }`}
+            >
+              {hasFilter ? `${selectedTags.length} tag${selectedTags.length > 1 ? 'ów' : ''}` : 'Tagi...'}
+            </button>
+            {showTagFilterDropdown && (
+              <div className="absolute z-50 top-full left-0 mt-1 bg-white border border-pink-300 rounded-lg shadow-lg p-2 w-56 max-h-48 overflow-y-auto">
+                <div className="flex flex-wrap gap-1">
+                  {availableTags.map(tag => {
+                    const isSelected = selectedTags.includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        onClick={() => {
+                          const newTags = isSelected
+                            ? selectedTags.filter(t => t !== tag)
+                            : [...selectedTags, tag];
+                          onColumnFilterChange('colTags', newTags.join(','));
+                        }}
+                        className={`px-1.5 py-0.5 rounded text-[10px] border ${
+                          isSelected
+                            ? 'bg-pink-500 text-white border-pink-600'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-pink-50'
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    );
+                  })}
+                </div>
+                {hasFilter && (
+                  <button
+                    onClick={() => {
+                      onColumnFilterChange('colTags', '');
+                      setShowTagFilterDropdown(false);
+                    }}
+                    className="mt-2 w-full text-xs text-gray-500 hover:text-gray-700"
+                  >
+                    Wyczyść filtry
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      }
       default:
         return null;
     }
-  }, [columnFilters, onColumnFilterChange]);
+  }, [columnFilters, onColumnFilterChange, showTagFilterDropdown, availableTags]);
 
   // Click on cell - first click selects, second click (or double click) edits
   // Helper to format date value for date input (YYYY-MM-DD format)
@@ -1123,7 +1193,7 @@ export function InventoryTable({
                       <th
                         key={columnKey}
                         className={`p-px border-b border-gray-300 ${leftBorder} ${!isColumnVisible(columnKey) ? 'hidden' : ''}`}
-                      style={{ overflow: 'hidden' }}
+                      style={{ overflow: columnKey === 'tags' ? 'visible' : 'hidden' }}
                       >
                         {renderFilterCell(columnKey)}
                       </th>

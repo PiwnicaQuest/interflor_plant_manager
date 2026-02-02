@@ -4,6 +4,7 @@ import { NavDropdown } from './NavDropdown';
 import { useState, useCallback, useMemo } from 'react';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useWebSocket } from '../../hooks/useWebSocket';
+import { useHeartbeat } from '../../hooks/useHeartbeat';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { NotificationCenter } from './NotificationCenter';
 import { ToastContainer } from './Toast';
@@ -82,6 +83,9 @@ export function Layout() {
     },
     [showNotification]
   );
+  // Session heartbeat (keeps user visible as online)
+  useHeartbeat();
+
   // WebSocket connection
   useWebSocket({
     url: import.meta.env.VITE_WS_URL || 'ws://localhost:4000/ws',

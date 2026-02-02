@@ -262,6 +262,17 @@ export function InventoryPage() {
       result = result.filter(p => new Date(p.createdAt) <= toDate);
     }
 
+    // Column tag filter
+    if (columnFilters.colTags) {
+      const selectedTags = columnFilters.colTags.split(',').filter(Boolean);
+      if (selectedTags.length > 0) {
+        result = result.filter(p => {
+          const productTags = p.tags || [];
+          return selectedTags.some(tag => productTags.includes(tag));
+        });
+      }
+    }
+
     const sortField = filters.sortBy || 'plant_name';
     const sortOrder = filters.sortOrder || 'ASC';
     const sortMultiplier = sortOrder === 'ASC' ? 1 : -1;

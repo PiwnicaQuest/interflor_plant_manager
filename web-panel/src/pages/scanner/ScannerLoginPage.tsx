@@ -31,7 +31,7 @@ export function ScannerLoginPage() {
     setError(null);
 
     try {
-      const response = await API.login(email, password);
+      const response = await API.login(email, password, 'scanner');
 
       if (response.user.role === 'customer') {
         setError('Brak dostepu do skanera magazynowego. Uzyj sklepu internetowego.');

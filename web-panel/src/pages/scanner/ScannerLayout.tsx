@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useWebSocket } from '../../hooks/useWebSocket';
+import { useHeartbeat } from '../../hooks/useHeartbeat';
 
 export function ScannerLayout() {
   const navigate = useNavigate();
@@ -11,6 +13,14 @@ export function ScannerLayout() {
   const [showMagazynMenu, setShowMagazynMenu] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const magazynMenuRef = useRef<HTMLDivElement>(null);
+
+  // Connect to WebSocket so scanner users appear as online on dashboard
+  useWebSocket({
+    url: import.meta.env.VITE_WS_URL || 'ws://localhost:4000/ws',
+  });
+
+  // Send periodic heartbeat to keep session active even when screen is off
+  useHeartbeat();
 
   useEffect(() => {
     const token = localStorage.getItem('token');

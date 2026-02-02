@@ -5,7 +5,7 @@ export interface LoginHistoryEntry {
   userId: number;
   ipAddress: string | null;
   userAgent: string | null;
-  source: 'panel' | 'shop';
+  source: 'panel' | 'shop' | 'scanner';
   success: boolean;
   errorMessage: string | null;
   loginAt: Date;
@@ -17,7 +17,7 @@ export interface LoginHistoryEntry {
 
 export interface LoginHistoryFilters {
   userId?: number;
-  source?: 'panel' | 'shop';
+  source?: 'panel' | 'shop' | 'scanner';
   success?: boolean;
   startDate?: string;
   endDate?: string;
@@ -34,7 +34,7 @@ export class LoginHistoryModel {
     userId?: number;
     ipAddress?: string;
     userAgent?: string;
-    source: 'panel' | 'shop';
+    source: 'panel' | 'shop' | 'scanner';
     success: boolean;
     errorMessage?: string;
   }): Promise<number> {
@@ -142,7 +142,7 @@ export class LoginHistoryModel {
       userId: number;
       ipAddress: string | null;
       userAgent: string | null;
-      source: 'panel' | 'shop';
+      source: 'panel' | 'shop' | 'scanner';
       success: boolean;
       errorMessage: string | null;
       loginAt: Date;

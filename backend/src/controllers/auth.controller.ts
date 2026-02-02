@@ -24,7 +24,9 @@ export class AuthController {
     const ipAddress = getClientIp(req);
     const userAgent = req.headers['user-agent'] || null;
     // Source can be passed from frontend, defaults to 'panel'
-    const source = (req.body.source === 'shop' ? 'shop' : 'panel') as 'panel' | 'shop';
+    const validSources = ['shop', 'scanner', 'panel'] as const;
+    type Source = typeof validSources[number];
+    const source: Source = validSources.includes(req.body.source) ? req.body.source : 'panel';
 
     try {
       const { email, password }: LoginRequest = req.body;

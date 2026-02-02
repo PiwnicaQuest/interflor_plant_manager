@@ -96,8 +96,8 @@ class ApiClient {
   // AUTH
   // ============================================
 
-  async login(email: string, password: string): Promise<AuthResponse> {
-    const response = await this.client.post<AuthResponse>('/auth/login', { email, password });
+  async login(email: string, password: string, source?: 'panel' | 'shop' | 'scanner'): Promise<AuthResponse> {
+    const response = await this.client.post<AuthResponse>('/auth/login', { email, password, source });
     return response.data;
   }
 
