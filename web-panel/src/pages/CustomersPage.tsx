@@ -154,7 +154,7 @@ export function CustomersPage() {
 
   const getDisplayName = (customer: Customer) => {
     if (customer.companyName) {
-      return customer.companyName;
+      return String(customer.companyName);
     }
     return `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Brak nazwy';
   };
@@ -165,8 +165,8 @@ export function CustomersPage() {
       const searchLower = searchTerm.toLowerCase();
       const name = `${customer.companyName || ''} ${customer.firstName || ''} ${customer.lastName || ''}`.toLowerCase();
       const nip = String(customer.nip || '');
-      const email = (customer.email || '').toLowerCase();
-      const customerCode = (customer.customerCode || '').toLowerCase();
+      const email = String(customer.email || "").toLowerCase();
+      const customerCode = String(customer.customerCode || '').toLowerCase();
 
       return name.includes(searchLower) || nip.includes(searchTerm) || email.includes(searchLower) || customerCode.includes(searchLower);
     });
@@ -186,12 +186,12 @@ export function CustomersPage() {
           bVal = b.nip || '';
           break;
         case 'email':
-          aVal = (a.email || '').toLowerCase();
-          bVal = (b.email || '').toLowerCase();
+          aVal = String(a.email || "").toLowerCase();
+          bVal = String(b.email || "").toLowerCase();
           break;
         case 'city':
-          aVal = (a.city || '').toLowerCase();
-          bVal = (b.city || '').toLowerCase();
+          aVal = String(a.city || "").toLowerCase();
+          bVal = String(b.city || "").toLowerCase();
           break;
         case 'priceGroup':
           aVal = a.priceGroupName || `Grupa #${a.priceGroupId}`;

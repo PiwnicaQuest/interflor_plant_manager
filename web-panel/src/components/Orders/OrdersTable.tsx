@@ -13,6 +13,7 @@ interface OrdersTableProps {
 
 const statusConfig: Record<OrderStatus, { label: string; class: string }> = {
   [OrderStatus.PENDING]: { label: 'Oczekuje', class: 'badge-info' },
+  [OrderStatus.IN_PROGRESS]: { label: 'W realizacji', class: 'badge-warning' },
   [OrderStatus.READY_FOR_PICKUP]: { label: 'Gotowe do odbioru', class: 'badge-success' },
   [OrderStatus.COMPLETED]: { label: 'Zakonczone', class: 'badge-success' },
   [OrderStatus.CANCELLED]: { label: 'Anulowane', class: 'badge-danger' },
