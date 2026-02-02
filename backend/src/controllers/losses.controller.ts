@@ -286,7 +286,7 @@ export class LossesController {
            p.id, p.plant_name, p.pot_size,
            COUNT(l.id) as loss_count,
            SUM(l.quantity) as total_quantity,
-           SUM(l.totalValue) as total_value
+           SUM(l.total_value) as total_value
          FROM losses l
          JOIN products p ON l.product_id = p.id
          WHERE l.is_reversed = false ${dateFilter}

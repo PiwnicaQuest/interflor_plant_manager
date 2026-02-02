@@ -26,7 +26,7 @@
 
 ### Technologie
 
-- **Backend**: Node.js 18+, TypeScript, Express/Fastify, PostgreSQL 14+, pg, bcrypt, jsonwebtoken, ws (WebSockets)
+- **Backend**: Node.js 18+, TypeScript, Express/Fastify, PostgreSQL 16, pg, bcrypt, jsonwebtoken, ws (WebSockets)
 - **Frontend**: React 18+, TypeScript, React Router, Tailwind CSS, Axios
 - **Mobile**: React Native, Expo, React Navigation, expo-barcode-scanner
 - **Narzędzia**: Vite, ESLint, Prettier
@@ -202,7 +202,7 @@ PlantManager/
 - Generowanie faktury na podstawie zamówienia
 - Tworzenie faktury bez zamówienia (sprzedaż od ręki)
 - Snapshot danych nabywcy z momentu wystawienia (niezmienny)
-- Automatyczna numeracja faktur (format: `FV/00001/2025`)
+- Automatyczna numeracja faktur (format: `FV/00001/2026`)
 - Lista faktur z filtrem po dacie i kliencie
 - Eksport do PDF (planowane - obecnie placeholder)
 
@@ -1326,7 +1326,7 @@ const handleBarCodeScanned = ({ type, data }: BarCodeEvent) => {
 ### Wymagania
 
 - Node.js 18+
-- PostgreSQL 14+
+- PostgreSQL 16
 - npm lub yarn
 - Expo CLI (dla aplikacji mobilnej)
 
@@ -1429,41 +1429,42 @@ npx expo build:android
 
 ---
 
+
 ## Struktura tabel - podsumowanie
 
-| Tabela | Opis |
-|--------|------|
-| `users` | Pracownicy i klienci (loginy) |
-| `price_groups` | Grupy cenowe (podstawowa, rabaty) |
-| `customers` | Kontrahenci B2B/B2C |
-| `products` | Katalog roślin (magazyn) |
-| `inventory_movements` | Historia ruchów magazynowych |
-| `orders` | Zamówienia |
-| `order_items` | Pozycje zamówień |
-| `invoices` | Faktury VAT |
-| `invoice_items` | Pozycje faktur |
-| `receipts` | Paragony fiskalne |
-| `document_sequences` | Numeracja dokumentów |
-| `order_status_log` | Historia zmian statusów zamówień |
+| Tabela | Kolumny | Opis |
+|--------|---------|------|
+| `users` | 11 | Pracownicy i klienci (loginy, role, profile) |
+| `permission_profiles` | 8 | Profile uprawnien (RBAC) |
+| `profile_permissions` | 3 | Uprawnienia przypisane do profili |
+| `price_groups` | 5 | Grupy cenowe (podstawowa, rabaty) |
+| `customers` | 20 | Kontrahenci B2B/B2C (NIP, VAT-EU, adresy) |
+| `products` | 33 | Katalog roslin (ceny, stany, merge, archiwum) |
+| `tags` | 4 | Tagi produktow |
+| `product_tags` | 2 | Powiazanie produktow z tagami (M:N) |
+| `grower_passports` | 6 | Paszporty hodowcow |
+| `orders` | 17 | Zamowienia (status, snapshoty, odbiorca) |
+| `order_items` | 10 | Pozycje zamowien (palety, snapshot) |
+| `order_status_log` | 7 | Historia zmian statusow zamowien |
+| `invoices` | 25 | Faktury VAT + proformy (invoice_type) |
+| `invoice_items` | 13 | Pozycje faktur (brutto, netto, paszport) |
+| `invoice_corrections` | 15 | Korekty faktur |
+| `invoice_correction_items` | 10 | Pozycje korekt |
+| `receipts` | 12 | Paragony (platnosci, snapshoty) |
+| `receipt_items` | 8 | Pozycje paragonow |
+| `losses` | 12 | Straty magazynowe (odwracalne) |
+| `inventory_movements` | 11 | Historia ruchow magazynowych |
+| `user_sessions` | 12 | Sesje uzytkownikow (JWT, refresh) |
+| `login_history` | 9 | Historia logowan |
+| `settings` | 6 | Ustawienia systemowe (key-value) |
+| `print_templates` | 9 | Szablony wydrukow (HTML/CSS) |
+| `document_sequences` | 6 | Numeracja dokumentow (auto-reset roczny) |
+| `proformas` | 10 | Proformy (legacy, nowe w invoices) |
+| `proforma_items` | 8 | Pozycje proform (legacy) |
 
----
+**Lacznie: 27 tabel, 9 typow enum**
 
-## Numeracja dokumentów
-
-System automatycznej numeracji wykorzystuje tabelę `document_sequences` i funkcję `get_next_document_number()`.
-
-**Format numerów**:
-- Zamówienia: `ORD/00001/2025`
-- Faktury: `FV/00001/2025`
-- Paragony: `PAR/00001/2025`
-
-Numeracja resetuje się co rok.
-
-**Przykład użycia**:
-```sql
-SELECT get_next_document_number('order', 'ORD');
--- Zwraca: "ORD/00001/2025"
-```
+Pelny schemat SQL: `docs/db_schema.sql`
 
 ---
 
