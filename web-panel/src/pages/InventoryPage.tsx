@@ -106,6 +106,15 @@ export function InventoryPage() {
     }));
   };
 
+  // Handle column header sort click
+  const handleSort = (field: string) => {
+    setFilters(prev => ({
+      ...prev,
+      sortBy: field,
+      sortOrder: prev.sortBy === field && prev.sortOrder === 'ASC' ? 'DESC' : 'ASC',
+    }));
+  };
+
   // Zapisz preferencje sortowania do localStorage
   useEffect(() => {
     localStorage.setItem('inventorySortPreferences', JSON.stringify({
@@ -208,31 +217,55 @@ export function InventoryPage() {
     }
     if (columnFilters.colPotSize) {
       const searchLower = columnFilters.colPotSize.toLowerCase();
-      result = result.filter(p => p.potSize?.toLowerCase().includes(searchLower));
+      result = result.filter(p => String(p.potSize || '').toLowerCase().includes(searchLower));
     }
     if (columnFilters.colPlantHeight) {
-      result = result.filter(p => String(p.plantHeightCm || '').includes(columnFilters.colPlantHeight!));
+      const filterVal = Number(columnFilters.colPlantHeight);
+      if (!isNaN(filterVal)) {
+        result = result.filter(p => Number(p.plantHeightCm ?? 0) === filterVal);
+      }
     }
     if (columnFilters.colPalletCount) {
-      result = result.filter(p => String(p.palletCount || '').includes(columnFilters.colPalletCount!));
+      const filterVal = Number(columnFilters.colPalletCount);
+      if (!isNaN(filterVal)) {
+        result = result.filter(p => Number(p.palletCount ?? 0) === filterVal);
+      }
     }
     if (columnFilters.colUnitsPerPallet) {
-      result = result.filter(p => String(p.unitsPerPallet || '').includes(columnFilters.colUnitsPerPallet!));
+      const filterVal = Number(columnFilters.colUnitsPerPallet);
+      if (!isNaN(filterVal)) {
+        result = result.filter(p => Number(p.unitsPerPallet ?? 0) === filterVal);
+      }
     }
     if (columnFilters.colTotalUnits) {
-      result = result.filter(p => String(p.totalUnits || '').includes(columnFilters.colTotalUnits!));
+      const filterVal = Number(columnFilters.colTotalUnits);
+      if (!isNaN(filterVal)) {
+        result = result.filter(p => Number(p.totalUnits ?? 0) === filterVal);
+      }
     }
     if (columnFilters.colTotalSold) {
-      result = result.filter(p => String(p.totalSold || '').includes(columnFilters.colTotalSold!));
+      const filterVal = Number(columnFilters.colTotalSold);
+      if (!isNaN(filterVal)) {
+        result = result.filter(p => Number(p.totalSold ?? 0) === filterVal);
+      }
     }
     if (columnFilters.colPurchasePrice) {
-      result = result.filter(p => String(p.purchasePricePln || '').includes(columnFilters.colPurchasePrice!));
+      const filterVal = Number(columnFilters.colPurchasePrice);
+      if (!isNaN(filterVal)) {
+        result = result.filter(p => Number(p.purchasePricePln ?? 0) === filterVal);
+      }
     }
     if (columnFilters.colPricePlus) {
-      result = result.filter(p => String(p.pricePlus || '').includes(columnFilters.colPricePlus!));
+      const filterVal = Number(columnFilters.colPricePlus);
+      if (!isNaN(filterVal)) {
+        result = result.filter(p => Number(p.pricePlus ?? 0) === filterVal);
+      }
     }
     if (columnFilters.colBasePrice) {
-      result = result.filter(p => String(p.basePriceGross || '').includes(columnFilters.colBasePrice!));
+      const filterVal = Number(columnFilters.colBasePrice);
+      if (!isNaN(filterVal)) {
+        result = result.filter(p => Number(p.basePriceGross ?? 0) === filterVal);
+      }
     }
     if (columnFilters.colVisible) {
       const isVisible = columnFilters.colVisible === 'true';
@@ -241,13 +274,12 @@ export function InventoryPage() {
     if (columnFilters.colGrower) {
       const searchLower = columnFilters.colGrower.toLowerCase();
       result = result.filter(p => 
-        p.grower?.toLowerCase().includes(searchLower) ||
-        p.grower?.toLowerCase().includes(searchLower)
+        String(p.grower || '').toLowerCase().includes(searchLower)
       );
     }
     if (columnFilters.colPassport) {
       const searchLower = columnFilters.colPassport.toLowerCase();
-      result = result.filter(p => p.growerPassport?.toLowerCase().includes(searchLower));
+      result = result.filter(p => String(p.growerPassport || '').toLowerCase().includes(searchLower));
     }
 
     // Column date range filter
@@ -283,12 +315,12 @@ export function InventoryPage() {
 
       switch (sortField) {
         case 'plant_name':
-          aVal = (a.plantName || '').toLowerCase();
-          bVal = (b.plantName || '').toLowerCase();
+          aVal = String(a.plantName || '').toLowerCase();
+          bVal = String(b.plantName || '').toLowerCase();
           break;
         case 'grower':
-          aVal = (a.grower || '').toLowerCase();
-          bVal = (b.grower || '').toLowerCase();
+          aVal = String(a.grower || '').toLowerCase();
+          bVal = String(b.grower || '').toLowerCase();
           break;
         case 'pot_size':
           aVal = parseInt(a.potSize || '0') || 0;
@@ -305,6 +337,54 @@ export function InventoryPage() {
         case 'total_sold':
           aVal = a.totalSold || 0;
           bVal = b.totalSold || 0;
+          break;
+        case 'pallet_count':
+          aVal = a.palletCount || 0;
+          bVal = b.palletCount || 0;
+          break;
+        case 'units_per_pallet':
+          aVal = a.unitsPerPallet || 0;
+          bVal = b.unitsPerPallet || 0;
+          break;
+        case 'plant_height':
+          aVal = a.plantHeightCm || 0;
+          bVal = b.plantHeightCm || 0;
+          break;
+        case 'purchase_price':
+          aVal = a.purchasePricePln || 0;
+          bVal = b.purchasePricePln || 0;
+          break;
+        case 'price_plus':
+          aVal = a.pricePlus || 0;
+          bVal = b.pricePlus || 0;
+          break;
+        case 'discount_10':
+          aVal = a.priceDiscount10 || 0;
+          bVal = b.priceDiscount10 || 0;
+          break;
+        case 'discount_12':
+          aVal = a.priceDiscount12 || 0;
+          bVal = b.priceDiscount12 || 0;
+          break;
+        case 'discount_15':
+          aVal = a.priceDiscount15 || 0;
+          bVal = b.priceDiscount15 || 0;
+          break;
+        case 'discount_20':
+          aVal = a.priceDiscount20 || 0;
+          bVal = b.priceDiscount20 || 0;
+          break;
+        case 'discount_25':
+          aVal = a.priceDiscount25 || 0;
+          bVal = b.priceDiscount25 || 0;
+          break;
+        case 'auchan_8':
+          aVal = a.priceAuchan8 || 0;
+          bVal = b.priceAuchan8 || 0;
+          break;
+        case 'passport':
+          aVal = String(a.growerPassport || '').toLowerCase();
+          bVal = String(b.growerPassport || '').toLowerCase();
           break;
         case 'created_at':
           aVal = new Date(a.createdAt).getTime();
@@ -1064,6 +1144,9 @@ export function InventoryPage() {
           isArchiveView={activeTab === 'archived'}
           columnFilters={columnFilters}
           onColumnFilterChange={handleColumnFilterChange}
+          sortBy={filters.sortBy}
+          sortOrder={filters.sortOrder as 'ASC' | 'DESC'}
+          onSort={handleSort}
           visibleColumns={filteredVisibleColumns}
           isAdmin={isAdmin}
         />

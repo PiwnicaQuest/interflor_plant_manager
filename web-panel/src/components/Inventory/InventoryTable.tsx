@@ -134,6 +134,10 @@ interface InventoryTableProps {
   isArchiveView?: boolean;
   columnFilters?: ColumnFilters;
   onColumnFilterChange?: (key: keyof ColumnFilters, value: string) => void;
+  // Sorting
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
+  onSort?: (field: string) => void;
   // Column visibility and order configuration
   visibleColumns?: string[];
   columnOrder?: string[];
@@ -168,6 +172,9 @@ export function InventoryTable({
   isArchiveView = false,
   columnFilters = {},
   onColumnFilterChange,
+  sortBy,
+  sortOrder,
+  onSort,
   visibleColumns,
   columnOrder,
   isAdmin = false
@@ -920,6 +927,42 @@ export function InventoryTable({
     return headerConfigs[columnKey]?.label || "";
   };
 
+  // Sort field mapping: columnKey -> sortField used in InventoryPage
+  const columnSortField: Record<string, string> = {
+    plantName: 'plant_name',
+    createdAt: 'created_at',
+    potSize: 'pot_size',
+    plantHeight: 'plant_height',
+    palletCount: 'pallet_count',
+    unitsPerPallet: 'units_per_pallet',
+    totalUnits: 'total_units',
+    totalSold: 'total_sold',
+    purchasePrice: 'purchase_price',
+    pricePlus: 'price_plus',
+    basePrice: 'base_price_gross',
+    discount10: 'discount_10',
+    discount12: 'discount_12',
+    discount15: 'discount_15',
+    discount20: 'discount_20',
+    discount25: 'discount_25',
+    auchan8: 'auchan_8',
+    grower: 'grower',
+    passport: 'passport',
+    tags: 'tags',
+  };
+
+  const handleHeaderClick = (columnKey: string) => {
+    const field = columnSortField[columnKey];
+    if (!field || !onSort) return;
+    onSort(field);
+  };
+
+  const getSortIndicator = (columnKey: string) => {
+    const field = columnSortField[columnKey];
+    if (!field || sortBy !== field) return null;
+    return sortOrder === 'ASC' ? ' ▲' : ' ▼';
+  };
+
   // Cell configurations for dynamic rendering - styles and border classes
   const cellConfigs: Record<string, { styleKey: string; borderClass: string; extraClass?: string }> = {
     checkbox: { styleKey: "checkbox", borderClass: "border-b border-gray-200" },
@@ -1110,7 +1153,7 @@ export function InventoryTable({
 
 
   // Resizable header cell component
-  const ResizableHeader = ({ columnKey, children, className, title }: { columnKey: string; children: React.ReactNode; className: string; title?: string }) => {
+  const ResizableHeader = ({ columnKey, children, className, title, onClick }: { columnKey: string; children: React.ReactNode; className: string; title?: string; onClick?: () => void }) => {
     const isVisible = isColumnVisible(columnKey);
     if (!isVisible) return null;
     return (
@@ -1123,7 +1166,7 @@ export function InventoryTable({
         }}
         title={title}
       >
-        <div className="truncate pr-1 text-center">{children}</div>
+        <div className="truncate pr-1 text-center" onClick={onClick}>{children}</div>
         <div
           className="absolute right-[-6px] top-0 h-full w-4 cursor-col-resize group z-10"
           onMouseDown={(e) => handleMouseDown(e, columnKey)}
@@ -1171,10 +1214,11 @@ export function InventoryTable({
                     <ResizableHeader
                       key={columnKey}
                       columnKey={columnKey}
-                      className={`${config.style} ${config.borderClass || ""}`}
+                      className={`${config.style} ${config.borderClass || ""} ${columnSortField[columnKey] && onSort ? 'cursor-pointer select-none' : ''}`}
                       title={config.title}
+                      onClick={() => handleHeaderClick(columnKey)}
                     >
-                      {renderHeaderContent(columnKey)}
+                      {renderHeaderContent(columnKey)}{getSortIndicator(columnKey)}
                     </ResizableHeader>
                   );
                 })}

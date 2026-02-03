@@ -89,6 +89,7 @@ export class POSController {
               country: customer.country,
               phone: customer.phone,
               email: customer.email,
+              vatEu: customer.vatEu,
             };
           }
         }
@@ -297,11 +298,17 @@ export class POSController {
         let documentNumber = order.orderNumber || '';
         let paymentMethod = '-';
 
+        let paymentSplits: { method: string; amount: number }[] | undefined;
+
         if (order.document) {
           documentType = order.document.type;
           documentNumber = order.document.number || order.orderNumber;
           if (order.document.paymentSplits && Array.isArray(order.document.paymentSplits)) {
             paymentMethod = 'split';
+            paymentSplits = order.document.paymentSplits.map((s: any) => ({
+              method: s.paymentMethod,
+              amount: Number(s.amount) || 0,
+            }));
           } else {
             paymentMethod = order.document.paymentMethod || '-';
           }
@@ -313,6 +320,7 @@ export class POSController {
           documentType,
           customerName: order.customerName || 'Klient detaliczny',
           paymentMethod,
+          paymentSplits,
           amount: Number(order.totalAmount) || 0,
         };
       });
@@ -329,12 +337,14 @@ export class POSController {
         if (tx.documentType === 'proforma') return; // Skip proformas
 
         const amount = tx.amount;
-        if (tx.paymentMethod === 'split') {
-          // For split payments, count as 1 transaction with mixed payment
-          // We'd need to fetch actual splits for accurate breakdown
-          // For now, count entire amount under primary method (cash as fallback)
-          paymentTotals.cash.count += 1;
-          paymentTotals.cash.total += amount;
+        if (tx.paymentMethod === 'split' && tx.paymentSplits) {
+          // Distribute split payment amounts to their respective methods
+          for (const split of tx.paymentSplits) {
+            if (paymentTotals[split.method]) {
+              paymentTotals[split.method].count += 1;
+              paymentTotals[split.method].total += split.amount;
+            }
+          }
         } else if (tx.paymentMethod && paymentTotals[tx.paymentMethod]) {
           paymentTotals[tx.paymentMethod].count += 1;
           paymentTotals[tx.paymentMethod].total += amount;

@@ -207,6 +207,73 @@ export const InvoiceCorrectionModel = {
         );
       }
 
+      // === STOCK RETURN: return goods to inventory when quantity is reduced ===
+      // Get product_id mapping from original invoice items
+      const invoiceItemsResult = await client.query(
+        `SELECT id, product_id FROM invoice_items WHERE invoice_id = $1`,
+        [data.originalInvoiceId]
+      );
+      const itemProductMap = new Map<number, number>();
+      for (const row of invoiceItemsResult.rows) {
+        itemProductMap.set(row.id, row.product_id);
+      }
+
+      // Aggregate return quantities per product
+      const returnsByProduct = new Map<number, number>();
+      for (const item of data.items) {
+        if (item.originalItemId && item.correctedQuantity < item.originalQuantity) {
+          const productId = itemProductMap.get(item.originalItemId);
+          if (productId) {
+            const returnQty = item.originalQuantity - item.correctedQuantity;
+            returnsByProduct.set(productId, (returnsByProduct.get(productId) ?? 0) + returnQty);
+          }
+        }
+      }
+
+      // Process stock returns within the same transaction
+      for (const [productId, returnQty] of returnsByProduct.entries()) {
+        // Lock product row to prevent concurrent modifications
+        const productResult = await client.query(
+          `SELECT id, pallet_count, loose_units, total_units, units_per_pallet, is_archived
+           FROM products WHERE id = $1 FOR UPDATE`,
+          [productId]
+        );
+
+        if (productResult.rows.length === 0) continue;
+
+        const product = productResult.rows[0];
+        const currentTotal = Number(product.total_units);
+        const unitsPerPallet = Number(product.units_per_pallet) || 1;
+        const newTotalUnits = currentTotal + returnQty;
+        const newPalletCount = Math.floor(newTotalUnits / unitsPerPallet);
+        const newLooseUnits = newTotalUnits % unitsPerPallet;
+
+        // Update stock; un-archive if product was archived and now has stock
+        await client.query(
+          `UPDATE products
+           SET pallet_count = $1, loose_units = $2, updated_at = CURRENT_TIMESTAMP,
+               is_archived = CASE WHEN $3::int > 0 THEN false ELSE is_archived END
+           WHERE id = $4`,
+          [newPalletCount, newLooseUnits, newTotalUnits, productId]
+        );
+
+        // Record inventory movement
+        await client.query(
+          `INSERT INTO inventory_movements
+             (product_id, user_id, movement_type, delta_units, delta_pallets, reason, reference_type, reference_id)
+           VALUES ($1, $2, 'return', $3, $4, $5, 'invoice_correction', $6)`,
+          [
+            productId,
+            data.createdByUserId || null,
+            returnQty,
+            newPalletCount - Number(product.pallet_count),
+            `Korekta faktury ${correctionNumber}`,
+            correctionId,
+          ]
+        );
+      }
+      // === END STOCK RETURN ===
+
       return { correctionId, correctionNumber };
     });
   },

@@ -31,6 +31,10 @@ export function GrowerPassportsTab() {
   // Search/filter
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 200;
+
   // File input ref
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -306,6 +310,12 @@ export function GrowerPassportsTab() {
     (p.floricode && p.floricode.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  const totalPages = Math.ceil(filteredPassports.length / ITEMS_PER_PAGE);
+  const paginatedPassports = filteredPassports.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -418,7 +428,7 @@ export function GrowerPassportsTab() {
           className="input pl-10"
           placeholder="Szukaj ogrodnika, paszportu lub Floricode..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
         />
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -446,14 +456,14 @@ export function GrowerPassportsTab() {
                 </tr>
               </thead>
               <tbody>
-                {filteredPassports.length === 0 ? (
+                {paginatedPassports.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="text-center py-8 text-gray-500">
                       {searchTerm ? 'Nie znaleziono paszportów' : 'Brak paszportów w bazie'}
                     </td>
                   </tr>
                 ) : (
-                  filteredPassports.map((passport) => (
+                  paginatedPassports.map((passport) => (
                     <tr key={passport.id}>
                       <td className="font-mono text-sm text-gray-600">
                         {editingId === passport.id ? (
@@ -536,8 +546,31 @@ export function GrowerPassportsTab() {
             </table>
           </div>
           {filteredPassports.length > 0 && (
-            <div className="px-4 py-2 bg-gray-50 border-t text-sm text-gray-500">
-              Łącznie: {filteredPassports.length} {filteredPassports.length === 1 ? 'paszport' : (filteredPassports.length < 5 ? 'paszporty' : 'paszportów')}
+            <div className="px-4 py-3 bg-gray-50 border-t flex items-center justify-between">
+              <span className="text-sm text-gray-500">
+                Wyświetlanie {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, filteredPassports.length)} z {filteredPassports.length}
+              </span>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="btn btn-secondary text-sm px-3 py-1"
+                  >
+                    Poprzednia
+                  </button>
+                  <span className="text-sm text-gray-700">
+                    Strona {currentPage} z {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="btn btn-secondary text-sm px-3 py-1"
+                  >
+                    Następna
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

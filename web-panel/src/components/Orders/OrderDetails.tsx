@@ -536,7 +536,7 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg max-w-[1152px] w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           {/* Header */}
           <div className="flex justify-between items-start mb-6">
@@ -610,6 +610,7 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
                   <tr>
                     <th className="py-2 px-3">Produkt</th>
                     <th className="py-2 px-2 text-center">Data przyj.</th>
+                    <th className="py-2 px-2 text-center text-xs">Nabite przez</th>
                     <th className="py-2 px-2 text-center">Palety</th>
                     <th className="py-2 px-2 text-center">Szt/pal</th>
                     <th className="py-2 px-2 text-center">Łącznie szt.</th>
@@ -626,6 +627,14 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
                           <div className="text-xs text-gray-500">{item.productSnapshot?.potSize || '-'} | Wys: {item.productSnapshot?.plantHeightCm ? `${item.productSnapshot.plantHeightCm}cm` : '-'}</div>
                         </td>
                         <td className="py-2 px-2 text-center text-xs">{item.productSnapshot?.createdAt ? new Date(item.productSnapshot.createdAt).toLocaleDateString("pl-PL") : "-"}</td>
+                        <td className="py-2 px-2 text-center text-xs">
+                          {item.createdByEmail ? (
+                            <div>
+                              <div>{item.createdByEmail.split('@')[0]}</div>
+                              <div className="text-gray-400">{item.createdAt ? new Date(item.createdAt).toLocaleDateString("pl-PL") + ' ' + new Date(item.createdAt).toLocaleTimeString("pl-PL", { hour: '2-digit', minute: '2-digit' }) : ''}</div>
+                            </div>
+                          ) : '-'}
+                        </td>
                         <td className="py-2 px-2 text-center font-semibold">{item.palletCount || 0}</td>
                         <td className="py-2 px-2 text-center text-sm">{item.unitsPerPallet || 1}</td>
                         <td className="py-2 px-2 text-center font-semibold">{item.quantity}</td>
@@ -635,7 +644,7 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={7} className="text-center text-gray-500 py-4">Brak produktów</td>
+                      <td colSpan={8} className="text-center text-gray-500 py-4">Brak produktów</td>
                     </tr>
                   )}
                 </tbody>

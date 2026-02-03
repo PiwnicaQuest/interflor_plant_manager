@@ -171,7 +171,11 @@ export class OrderModel {
     const order = orderResult.rows[0];
 
     const itemsResult = await query<OrderItem>(
-      `SELECT * FROM order_items WHERE order_id = $1 ORDER BY product_snapshot->>'plant_name' ASC NULLS LAST, id ASC`,
+      `SELECT oi.*, u.email as created_by_email
+       FROM order_items oi
+       LEFT JOIN users u ON oi.created_by_user_id = u.id
+       WHERE oi.order_id = $1
+       ORDER BY oi.product_snapshot->>'plant_name' ASC NULLS LAST, oi.id ASC`,
       [id]
     );
 
@@ -351,8 +355,8 @@ export class OrderModel {
 
         const itemResult = await client.query<OrderItem>(
           `INSERT INTO order_items (
-            order_id, product_id, product_snapshot, quantity, unit_price_gross, pallet_count, units_per_pallet
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            order_id, product_id, product_snapshot, quantity, unit_price_gross, pallet_count, units_per_pallet, created_by_user_id
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           RETURNING *`,
           [
             order.id,
@@ -362,6 +366,7 @@ export class OrderModel {
             item.unitPriceGross,
             palletCount,
             unitsPerPallet,
+            createdByUserId || null,
           ]
         );
 
@@ -717,8 +722,8 @@ export class OrderModel {
 
         const itemResult = await client.query<OrderItem>(
           `INSERT INTO order_items (
-            order_id, product_id, product_snapshot, quantity, unit_price_gross, pallet_count, units_per_pallet
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            order_id, product_id, product_snapshot, quantity, unit_price_gross, pallet_count, units_per_pallet, created_by_user_id
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
           RETURNING *`,
           [
             orderId,
@@ -728,6 +733,7 @@ export class OrderModel {
             item.unitPriceGross,
             palletCount,
             unitsPerPallet,
+            userId || null,
           ]
         );
 
@@ -1177,8 +1183,8 @@ export class OrderModel {
             const insertResult = await client.query<OrderItem>(
               `INSERT INTO order_items (
                 order_id, product_id, quantity, unit_price_gross,
-                pallet_count, units_per_pallet, product_snapshot
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+                pallet_count, units_per_pallet, product_snapshot, created_by_user_id
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
               RETURNING *`,
               [
                 masterOrderId,
@@ -1187,7 +1193,8 @@ export class OrderModel {
                 item.unitPriceGross,
                 item.palletCount,
                 item.unitsPerPallet,
-                JSON.stringify(item.productSnapshot)
+                JSON.stringify(item.productSnapshot),
+                userId || null,
               ]
             );
 
