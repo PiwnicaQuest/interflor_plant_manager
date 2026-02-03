@@ -218,7 +218,12 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
     if (customer && items.length > 0) {
       const discountMap: Record<number, keyof Product> = { 1: 'basePriceGross', 2: 'priceDiscount10', 3: 'priceDiscount12', 4: 'priceDiscount15', 5: 'priceDiscount20', 6: 'priceDiscount25' };
       const priceField = discountMap[customer.priceGroupId] || 'basePriceGross';
-      setItems(items.map(item => item.product ? { ...item, price: (item.product[priceField] as number) || item.product.basePriceGross || 0 } : item));
+      setItems(items.map(item => {
+        if (!item.product) return item;
+        const grossPrice = (item.product[priceField] as number) || item.product.basePriceGross || 0;
+        const price = customer.isEuCompany ? Math.round((grossPrice / 1.08) * 100) / 100 : grossPrice;
+        return { ...item, price };
+      }));
     }
   };
 
@@ -232,7 +237,8 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
       const customer = selectedCustomer || customers.find(c => c.id === selectedCustomerId);
       if (customer) {
         const discountMap: Record<number, keyof Product> = { 1: 'basePriceGross', 2: 'priceDiscount10', 3: 'priceDiscount12', 4: 'priceDiscount15', 5: 'priceDiscount20', 6: 'priceDiscount25' };
-        newItems[index].price = (product[discountMap[customer.priceGroupId] || 'basePriceGross'] as number) || product.basePriceGross || 0;
+        const grossPrice = (product[discountMap[customer.priceGroupId] || 'basePriceGross'] as number) || product.basePriceGross || 0;
+        newItems[index].price = customer.isEuCompany ? Math.round((grossPrice / 1.08) * 100) / 100 : grossPrice;
       }
     }
     setItems(newItems);
@@ -275,7 +281,7 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
     setLoading(true); setError('');
     try {
       if (isEditMode && order) {
-        await api.updateOrder(order.id, { items: items.map(item => ({ productId: item.productId!, quantity: item.quantity, palletCount: item.palletCount, unitsPerPallet: item.unitsPerPallet, unitPriceGross: item.price })) });
+        await api.updateOrder(order.id, { items: items.map(item => ({ productId: item.productId!, quantity: item.quantity, palletCount: item.palletCount, unitsPerPallet: item.unitsPerPallet, unitPriceGross: selectedCustomer?.isEuCompany ? Math.round(item.price * 1.08 * 100) / 100 : item.price })) });
       } else {
         await api.createOrder({
           customerId: selectedCustomerId!,
@@ -292,7 +298,7 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg max-w-[1536px] w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">{isEditMode ? 'Edytuj zamówienie ' + order?.orderNumber : 'Nowe zamówienie'}</h2>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -303,7 +309,7 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
                 {!isEditMode && <button type="button" onClick={() => setShowAddCustomer(true)} className="text-sm text-blue-600 hover:text-blue-700">+ Dodaj nowego</button>}
               </div>
               {isEditMode ? <input type="text" className="input bg-gray-100" value={order?.customerName || 'Brak danych'} disabled /> : <CustomerSearchInput customers={customers} selectedCustomerId={selectedCustomerId} onSelect={handleCustomerSelect} />}
-              {selectedCustomer && <div className="mt-1 text-sm text-gray-500">Grupa cenowa: <span className="font-medium">{selectedCustomer.priceGroupName || 'Podstawowa'}</span>{selectedCustomer.nip && <span className="ml-3">NIP: {selectedCustomer.nip}</span>}</div>}
+              {selectedCustomer && <div className="mt-1 text-sm text-gray-500">Grupa cenowa: <span className="font-medium">{selectedCustomer.priceGroupName || 'Podstawowa'}</span>{selectedCustomer.nip && <span className="ml-3">NIP: {selectedCustomer.nip}</span>}{selectedCustomer.isEuCompany && <span className="ml-3 text-green-700 font-medium">VAT-EU: {selectedCustomer.vatEu} (ceny netto)</span>}</div>}
             </div>
 
             <div>
@@ -321,7 +327,7 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
                       <div className="col-span-2"><label className="block text-xs text-gray-600 mb-1">Cena jedn.</label><input type="number" className="input" step="0.01" min="0" value={item.price || 0} onChange={(e) => updateItemPrice(index, parseFloat(e.target.value) || 0)} /></div>
                       <div className="col-span-1"><button type="button" onClick={() => removeItem(index)} className="btn btn-danger w-full">X</button></div>
                     </div>
-                    {item.product && item.quantity > 0 && (<div className="mt-2 text-sm text-gray-600 flex justify-between items-center border-t pt-2"><span><strong>{item.palletCount}</strong> palet x <strong>{item.unitsPerPallet}</strong> szt/paleta = <strong>{item.quantity}</strong> szt.</span><span className="font-semibold text-gray-800">Wartość: {(item.price * item.quantity).toFixed(2)} PLN</span></div>)}
+                    {item.product && (<div className="mt-2 text-xs text-gray-400 border-t pt-2 flex justify-between"><span>Zaimportowano: {item.product.createdAt ? new Date(item.product.createdAt).toLocaleDateString('pl-PL') : '-'} | Kod: {item.product.barcode || '-'}</span>{item.quantity > 0 && <span className="text-sm text-gray-600"><strong>{item.palletCount}</strong> palet x <strong>{item.unitsPerPallet}</strong> szt/paleta = <strong>{item.quantity}</strong> szt. | <span className="font-semibold text-gray-800">Wartość: {(item.price * item.quantity).toFixed(2)} PLN</span></span>}</div>)}
                     {item.product && item.quantity > (item.product.totalUnits + (item.originalQuantity || 0)) && <p className="text-xs text-red-500 mt-1">Przekroczono dostepny stan: max {item.product.totalUnits + (item.originalQuantity || 0)} szt.</p>}
                   </div>
                 ))}

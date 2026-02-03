@@ -50,6 +50,15 @@ export function generateDailyReportPDF(data: DailyReportData): PDFKit.PDFDocumen
     return labels[method] || method;
   };
 
+  const getDocTypeShort = (type: string): string => {
+    const labels: Record<string, string> = {
+      invoice: 'FV',
+      receipt: 'PA',
+      proforma: 'PF',
+    };
+    return labels[type] || type;
+  };
+
   // ============================================
   // HEADER
   // ============================================
@@ -76,8 +85,93 @@ export function generateDailyReportPDF(data: DailyReportData): PDFKit.PDFDocumen
   y += 20;
 
   // ============================================
+  // TRANSACTION LIST (first section)
+  // ============================================
+  if (data.transactions && data.transactions.length > 0) {
+    doc.fontSize(11).font('Bold').fillColor('#1f2937')
+       .text('ZESTAWIENIE TRANSAKCJI', 40, y);
+    y += 20;
+
+    // Transaction table header
+    const drawTransactionHeader = () => {
+      doc.rect(40, y, pageWidth, 18).fill('#f3f4f6');
+      doc.fontSize(8).font('Bold').fillColor('#374151');
+      doc.text('Godz.', 45, y + 5, { width: 40 });
+      doc.text('Nr dokumentu', 88, y + 5, { width: 100 });
+      doc.text('Typ', 190, y + 5, { width: 35 });
+      doc.text('Klient', 228, y + 5, { width: 145 });
+      doc.text('Metoda', 376, y + 5, { width: 70 });
+      doc.text('Kwota', 448, y + 5, { width: 97, align: 'right' });
+      y += 18;
+    };
+
+    drawTransactionHeader();
+
+    // Transaction rows
+    doc.font('Regular').fontSize(8);
+    for (let i = 0; i < data.transactions.length; i++) {
+      const tx = data.transactions[i];
+
+      // Calculate row height based on customer name length
+      doc.font('Regular').fontSize(8);
+      const customerName = tx.customerName || '-';
+      const nameHeight = doc.heightOfString(customerName, { width: 145 });
+      const rowHeight = Math.max(16, nameHeight + 8);
+
+      // Check page break - leave room for this row
+      if (y > 800 - rowHeight) {
+        doc.addPage();
+        y = 40;
+        drawTransactionHeader();
+        doc.font('Regular').fontSize(8);
+      }
+
+      const isEven = i % 2 === 0;
+
+      if (isEven) {
+        doc.rect(40, y, pageWidth, rowHeight).fill('#fafafa');
+      }
+
+      const isProforma = tx.documentType === 'proforma';
+      doc.fillColor(isProforma ? '#9ca3af' : '#374151');
+
+      doc.text(tx.time, 45, y + 4, { width: 40 });
+      doc.text(tx.documentNumber, 88, y + 4, { width: 100 });
+      doc.text(getDocTypeShort(tx.documentType), 190, y + 4, { width: 35 });
+      doc.text(customerName, 228, y + 4, { width: 145 });
+
+      // Display split payment details or single method
+      if (tx.paymentMethod === 'split' && tx.paymentSplits && tx.paymentSplits.length > 0) {
+        const splitText = tx.paymentSplits
+          .map(s => `${getPaymentLabel(s.method)} ${s.amount.toFixed(0)}`)
+          .join(' / ');
+        doc.fontSize(7).text(splitText, 376, y + 4, { width: 70 });
+        doc.fontSize(8);
+      } else {
+        doc.text(getPaymentLabel(tx.paymentMethod), 376, y + 4, { width: 70 });
+      }
+      doc.text(formatCurrency(tx.amount), 448, y + 4, { width: 97, align: 'right' });
+      y += rowHeight;
+    }
+
+    // Transaction count summary
+    y += 5;
+    drawLine(y, '#e5e7eb');
+    y += 8;
+    doc.fontSize(8).font('Regular').fillColor('#6b7280')
+       .text(`Razem transakcji: ${data.transactions.length}`, 45, y);
+    y += 25;
+  }
+
+  // ============================================
   // PAYMENT METHOD SUMMARY
   // ============================================
+  // Check for new page
+  if (y > 620) {
+    doc.addPage();
+    y = 40;
+  }
+
   doc.fontSize(11).font('Bold').fillColor('#1f2937')
      .text('PODSUMOWANIE WG METODY PŁATNOŚCI', 40, y);
   y += 20;
@@ -218,6 +312,12 @@ export function generateDailyReportPDF(data: DailyReportData): PDFKit.PDFDocumen
   // ============================================
   // SIGNATURE SECTION
   // ============================================
+  // Check if we need a new page for signature
+  if (y > 700) {
+    doc.addPage();
+    y = 40;
+  }
+
   y += 20;
 
   doc.fontSize(8).font('Regular').fillColor('#6b7280')

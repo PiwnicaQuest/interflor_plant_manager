@@ -105,6 +105,8 @@ export interface PriceGroup {
   discountPercentage: number;
   description?: string;
   createdAt: Date;
+  createdByUserId?: number;
+  createdByEmail?: string;
 }
 
 // Customer
@@ -270,6 +272,8 @@ export interface OrderItem {
   unitPriceGross: number;
   totalPrice: number; // generated column
   createdAt: Date;
+  createdByUserId?: number;
+  createdByEmail?: string;
 }
 
 export interface OrderWithItems extends Order {
@@ -646,6 +650,7 @@ export interface DailyReportTransaction {
   documentType: 'invoice' | 'receipt' | 'proforma';
   customerName: string;
   paymentMethod: string;
+  paymentSplits?: { method: string; amount: number }[];
   amount: number;
 }
 

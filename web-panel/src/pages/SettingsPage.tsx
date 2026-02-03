@@ -1146,11 +1146,15 @@ export function SettingsPage() {
 
       {/* Customers viewing modal */}
 
-      {/* Grower Passports Tab */}
+      {/* Printers Tab */}
       {activeTab === "printers" && (
         <div className="space-y-6">
           <PrinterSettingsTab />
         </div>
+      )}
+
+      {activeTab === 'grower-passports' && (
+        <GrowerPassportsTab />
       )}
 
       {activeTab === 'tags' && (

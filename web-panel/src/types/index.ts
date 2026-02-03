@@ -236,6 +236,8 @@ export interface OrderItem {
   totalPrice: number;
   palletCount?: number;
   unitsPerPallet?: number;
+  createdAt?: string;
+  createdByEmail?: string;
 }
 
 export interface OrderWithItems extends Order {

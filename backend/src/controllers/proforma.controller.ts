@@ -99,6 +99,7 @@ export class ProformaController {
         country: customer.country,
         phone: customer.phone,
         email: customer.email,
+        vatEu: customer.vatEu,
       };
 
       const proforma = await InvoiceModel.createProforma(
@@ -157,6 +158,7 @@ export class ProformaController {
         country: customer.country,
         phone: customer.phone,
         email: customer.email,
+        vatEu: customer.vatEu,
       };
 
       const proforma = await InvoiceModel.createProformaFromOrder(
@@ -255,6 +257,7 @@ export class ProformaController {
         country: customer.country,
         phone: customer.phone,
         email: customer.email,
+        vatEu: customer.vatEu,
       };
 
       // Prepare items for cloning
