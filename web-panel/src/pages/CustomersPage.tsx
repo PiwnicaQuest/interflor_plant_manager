@@ -227,7 +227,7 @@ export function CustomersPage() {
   }, [customerUsers, accessSearchTerm]);
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 px-3 py-2">
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Kontrahenci</h1>
@@ -252,7 +252,7 @@ export function CustomersPage() {
           onClick={() => setActiveTab('list')}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
             activeTab === 'list'
-              ? 'bg-white text-green-700 shadow-sm'
+              ? 'bg-white text-primary-700 shadow-sm'
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
@@ -270,7 +270,7 @@ export function CustomersPage() {
           onClick={() => setActiveTab('access')}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
             activeTab === 'access'
-              ? 'bg-white text-green-700 shadow-sm'
+              ? 'bg-white text-primary-700 shadow-sm'
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
@@ -394,7 +394,7 @@ export function CustomersPage() {
                 </label>
                 <input
                   type="text"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="Nazwa firmy, email, imie, nazwisko..."
                   value={accessSearchTerm}
                   onChange={(e) => setAccessSearchTerm(e.target.value)}

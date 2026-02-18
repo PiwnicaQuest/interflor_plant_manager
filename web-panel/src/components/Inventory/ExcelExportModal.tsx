@@ -183,7 +183,7 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
 
     try {
       const workbook = new ExcelJS.Workbook();
-      workbook.creator = 'POLFLOR';
+      workbook.creator = 'INTERFLOR';
       workbook.created = new Date();
 
       const worksheet = workbook.addWorksheet('Oferta', {
@@ -384,7 +384,7 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div className="flex-1">
@@ -393,7 +393,7 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
             </div>
@@ -581,7 +581,7 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
                     value={option.value}
                     checked={priceGroup === option.value}
                     onChange={(e) => setPriceGroup(e.target.value as PriceGroup)}
-                    className="w-4 h-4 text-green-600 focus:ring-green-500"
+                    className="w-4 h-4 text-primary-600 focus:ring-primary-500"
                   />
                   <span className="ml-2 text-sm text-gray-700">{option.label}</span>
                 </label>
@@ -593,7 +593,7 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
           <div className="bg-gray-50 rounded-lg p-3">
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Produktów do eksportu:</span>
-              <span className={`text-lg font-bold ${filteredProducts.length > 0 ? 'text-green-600' : 'text-red-500'}`}>
+              <span className={`text-lg font-bold ${filteredProducts.length > 0 ? 'text-primary-600' : 'text-red-500'}`}>
                 {filteredProducts.length}
               </span>
             </div>
@@ -634,7 +634,7 @@ export const ExcelExportModal = ({ isOpen, onClose, products }: ExcelExportModal
           <button
             onClick={exportToExcel}
             disabled={isExporting || filteredProducts.length === 0 || (tagFilterMode === 'selected' && selectedTags.length === 0)}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {isExporting ? (
               <>

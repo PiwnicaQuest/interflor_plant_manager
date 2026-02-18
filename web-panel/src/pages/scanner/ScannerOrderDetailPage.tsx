@@ -771,7 +771,7 @@ export function ScannerOrderDetailPage() {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
       </div>
     );
   }
@@ -782,7 +782,7 @@ export function ScannerOrderDetailPage() {
         <div className="text-red-500 mb-3 text-sm">{error}</div>
         <button
           onClick={() => navigate('/scanner/orders')}
-          className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm"
+          className="px-3 py-2 bg-primary-600 text-white rounded-lg text-sm"
         >
           Wroc do listy
         </button>
@@ -838,7 +838,7 @@ export function ScannerOrderDetailPage() {
       {editMode && (
         <div className="bg-green-50 border-b border-green-200 px-3 py-2">
           <div className="relative">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-green-600">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-primary-600">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
               </svg>
@@ -852,13 +852,13 @@ export function ScannerOrderDetailPage() {
               onBlur={() => setTimeout(() => setShowSearchDropdown(false), 200)}
               onKeyDown={handleScanInput}
               placeholder="Skanuj kod lub wyszukaj produkt..."
-              className="w-full pl-10 pr-10 py-2.5 text-base border border-green-300 rounded-lg bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              className="w-full pl-10 pr-10 py-2.5 text-base border border-green-300 rounded-lg bg-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               autoComplete="off"
               autoFocus
             />
             {scanLoading && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600" />
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600" />
               </div>
             )}
 
@@ -874,7 +874,7 @@ export function ScannerOrderDetailPage() {
                       className={`w-full px-3 py-2 flex items-center gap-3 border-b border-gray-100 last:border-b-0 text-left ${
                         isOutOfStock
                           ? 'bg-gray-50 hover:bg-gray-100'
-                          : 'hover:bg-green-50'
+                          : 'hover:bg-primary-50'
                       }`}
                       onMouseDown={(e) => {
                         e.preventDefault();
@@ -924,7 +924,7 @@ export function ScannerOrderDetailPage() {
                         <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
                           isOutOfStock
                             ? 'bg-red-100 text-red-700'
-                            : 'bg-green-100 text-green-700'
+                            : 'bg-green-100 text-primary-700'
                         }`}>
                           {isOutOfStock ? 'Brak' : `${product.totalUnits} szt.`}
                         </span>
@@ -935,7 +935,7 @@ export function ScannerOrderDetailPage() {
                             </svg>
                           </div>
                         ) : (
-                          <div className="text-green-600">
+                          <div className="text-primary-600">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                             </svg>
@@ -951,7 +951,7 @@ export function ScannerOrderDetailPage() {
 
           {/* Success message - Compact */}
           {lastAddedProduct && (
-            <div className="mt-1.5 flex items-center gap-1.5 text-green-700 bg-green-100 px-2 py-1 rounded text-sm animate-pulse">
+            <div className="mt-1.5 flex items-center gap-1.5 text-primary-700 bg-green-100 px-2 py-1 rounded text-sm animate-pulse">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
@@ -980,7 +980,7 @@ export function ScannerOrderDetailPage() {
                   disabled={changingStatus}
                   className={`flex-shrink-0 px-3 py-1.5 rounded-lg font-medium text-xs flex items-center gap-1.5 ${
                     status === 'ready_for_pickup' ? 'bg-purple-500 text-white hover:bg-purple-600' :
-                    status === 'completed' ? 'bg-green-500 text-white hover:bg-green-600' :
+                    status === 'completed' ? 'bg-primary-500 text-white hover:bg-primary-600' :
                     status === 'pending' ? 'bg-yellow-500 text-white hover:bg-yellow-600' :
                     'bg-gray-500 text-white hover:bg-gray-600'
                   } disabled:opacity-50`}
@@ -1004,7 +1004,7 @@ export function ScannerOrderDetailPage() {
             {isEditable && !editMode && (
               <button
                 onClick={() => setEditMode(true)}
-                className="text-xs text-green-600 font-medium"
+                className="text-xs text-primary-600 font-medium"
               >
                 Edytuj
               </button>
@@ -1052,7 +1052,7 @@ export function ScannerOrderDetailPage() {
                         className={`w-14 h-14 rounded-lg flex items-center justify-center text-white font-bold text-xl transition-colors disabled:opacity-50 ${
                           item.isModified
                             ? 'bg-blue-500 hover:bg-blue-600'
-                            : 'bg-green-500 hover:bg-green-600'
+                            : 'bg-primary-500 hover:bg-primary-600'
                         }`}
                         title={item.isModified ? 'Aktualizuj' : 'Zapisz'}
                       >
@@ -1073,7 +1073,7 @@ export function ScannerOrderDetailPage() {
                     {/* Saved indicator */}
                     {editMode && item.isSaved && !item.isModified && (
                       <div className="w-14 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                        <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                       </div>
@@ -1139,7 +1139,7 @@ export function ScannerOrderDetailPage() {
                               onClick={() => item.quantityMode !== 'pallets' && toggleQuantityMode(index)}
                               className={`px-2 py-1 text-xs font-medium transition-colors ${
                                 item.quantityMode === 'pallets'
-                                  ? 'bg-green-600 text-white'
+                                  ? 'bg-primary-600 text-white'
                                   : 'bg-white text-gray-600 hover:bg-gray-50'
                               }`}
                             >
@@ -1176,16 +1176,16 @@ export function ScannerOrderDetailPage() {
                                 min="0"
                                 value={item.inputValue}
                                 onChange={(e) => handleInputValueChange(index, e.target.value)}
-                                className="w-14 h-8 text-center text-base font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                className="w-14 h-8 text-center text-base font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                               />
                               <span className={`text-xs font-medium ${
-                                item.quantityMode === 'pallets' ? 'text-green-600' : 'text-blue-600'
+                                item.quantityMode === 'pallets' ? 'text-primary-600' : 'text-blue-600'
                               }`}>
                                 {item.quantityMode === 'pallets' ? 'pal.' : 'szt.'}
                               </span>
                               <button
                                 onClick={() => handleQuantityChange(index, 1)}
-                                className="w-8 h-8 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg flex items-center justify-center"
+                                className="w-8 h-8 bg-green-100 hover:bg-primary-200 text-primary-700 rounded-lg flex items-center justify-center"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -1193,7 +1193,7 @@ export function ScannerOrderDetailPage() {
                               </button>
                             </div>
                             <div className="text-right">
-                              <div className="text-base font-bold text-green-600">
+                              <div className="text-base font-bold text-primary-600">
                                 {getItemTotal(item).toFixed(2)} PLN
                               </div>
                               <div className="text-xs text-gray-500">
@@ -1228,7 +1228,7 @@ export function ScannerOrderDetailPage() {
                         <div className="text-xs text-gray-600">
                           <span className="font-semibold">{Math.ceil(getItemPallets(item))}</span> pal. x {item.unitsPerPallet} = <span className="font-semibold">{getItemUnits(item)}</span> szt.
                         </div>
-                        <div className="text-sm font-bold text-green-600">
+                        <div className="text-sm font-bold text-primary-600">
                           {getItemTotal(item).toFixed(2)} PLN
                         </div>
                       </div>
@@ -1256,7 +1256,7 @@ export function ScannerOrderDetailPage() {
                 <span className="font-semibold text-gray-700 text-sm">Razem</span>
                 <span className="text-xs text-gray-500 ml-2">{getTotalUnits()} szt.</span>
               </div>
-              <span className="text-lg font-bold text-green-600">{calculateTotal().toFixed(2)} PLN</span>
+              <span className="text-lg font-bold text-primary-600">{calculateTotal().toFixed(2)} PLN</span>
             </div>
           </div>
         </div>
@@ -1284,7 +1284,7 @@ export function ScannerOrderDetailPage() {
             <button
               onClick={handleSave}
               disabled={saving || editedItems.length === 0}
-              className="flex-1 py-2.5 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center text-sm"
+              className="flex-1 py-2.5 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 disabled:opacity-50 flex items-center justify-center text-sm"
             >
               {saving ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
@@ -1364,7 +1364,7 @@ export function ScannerOrderDetailPage() {
                 >
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                     status === 'ready_for_pickup' ? 'bg-purple-100 text-purple-600' :
-                    status === 'completed' ? 'bg-green-100 text-green-600' :
+                    status === 'completed' ? 'bg-green-100 text-primary-600' :
                     status === 'pending' ? 'bg-yellow-100 text-yellow-600' :
                     status === 'cancelled' ? 'bg-red-100 text-red-600' :
                     'bg-gray-100 text-gray-600'
@@ -1415,7 +1415,7 @@ export function ScannerOrderDetailPage() {
                 Czy na pewno chcesz anulować to zamówienie?
               </p>
               <div className="bg-green-50 border border-green-200 rounded-lg p-2 mb-4">
-                <p className="text-green-700 text-xs flex items-center justify-center gap-1">
+                <p className="text-primary-700 text-xs flex items-center justify-center gap-1">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
@@ -1494,7 +1494,7 @@ export function ScannerOrderDetailPage() {
                         <span className="text-gray-500">
                           {new Date(ord.createdAt).toLocaleDateString('pl-PL')}
                         </span>
-                        <span className="font-medium text-green-600">
+                        <span className="font-medium text-primary-600">
                           {ord.productQuantity} szt.
                         </span>
                       </div>

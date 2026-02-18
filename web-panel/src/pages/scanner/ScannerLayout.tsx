@@ -81,7 +81,7 @@ export function ScannerLayout() {
 
   return (
     <div
-      className="h-screen flex flex-col overflow-hidden bg-gray-100"
+      className="h-screen flex flex-col overflow-hidden bg-surface"
       style={{
         // Support for iOS safe areas (notch, home indicator)
         paddingTop: 'env(safe-area-inset-top)',
@@ -92,7 +92,7 @@ export function ScannerLayout() {
     >
       {/* Header - with safe area background */}
       <header
-        className="bg-green-600 text-white shadow-lg flex-shrink-0"
+        className="bg-brand text-white shadow-lg flex-shrink-0"
         style={{
           // Extend green background into safe area on top
           marginTop: 'calc(-1 * env(safe-area-inset-top))',
@@ -107,11 +107,11 @@ export function ScannerLayout() {
             </div>
             <div className="flex items-center gap-2">
               {userLogin && (
-                <span className="text-xs text-green-100">{userLogin}</span>
+                <span className="text-xs text-gray-300">{userLogin}</span>
               )}
               <button
                 onClick={() => setShowLogoutModal(true)}
-                className="px-2.5 py-1 bg-green-700 hover:bg-green-800 rounded text-xs font-medium transition-colors"
+                className="px-2.5 py-1 bg-brand-light hover:bg-brand-dark rounded text-xs font-medium transition-colors"
               >
                 Wyloguj
               </button>
@@ -139,8 +139,8 @@ export function ScannerLayout() {
             to="/scanner/scan"
             className={`flex-1 flex flex-col items-center py-2 px-1.5 ${
               isActive('/scanner/scan')
-                ? 'text-green-600 bg-green-50'
-                : 'text-gray-600 hover:text-green-600 hover:bg-gray-50'
+                ? 'text-primary-600 bg-primary-50'
+                : 'text-gray-600 hover:text-primary-600 hover:bg-gray-50'
             }`}
           >
             <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -153,8 +153,8 @@ export function ScannerLayout() {
             to="/scanner/orders"
             className={`flex-1 flex flex-col items-center py-2 px-1.5 ${
               isActive('/scanner/orders') && !location.pathname.includes('/new')
-                ? 'text-green-600 bg-green-50'
-                : 'text-gray-600 hover:text-green-600 hover:bg-gray-50'
+                ? 'text-primary-600 bg-primary-50'
+                : 'text-gray-600 hover:text-primary-600 hover:bg-gray-50'
             }`}
           >
             <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -167,8 +167,8 @@ export function ScannerLayout() {
             to="/scanner/orders/new"
             className={`flex-1 flex flex-col items-center py-2 px-1.5 ${
               location.pathname === '/scanner/orders/new'
-                ? 'text-green-600 bg-green-50'
-                : 'text-gray-600 hover:text-green-600 hover:bg-gray-50'
+                ? 'text-primary-600 bg-primary-50'
+                : 'text-gray-600 hover:text-primary-600 hover:bg-gray-50'
             }`}
           >
             <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -177,6 +177,20 @@ export function ScannerLayout() {
             <span className="text-[10px] font-medium">Nowe</span>
           </Link>
 
+
+          <Link
+            to="/scanner/pos"
+            className={`flex-1 flex flex-col items-center py-2 px-1.5 ${
+              isActive('/scanner/pos')
+                ? 'text-primary-600 bg-primary-50'
+                : 'text-gray-600 hover:text-primary-600 hover:bg-gray-50'
+            }`}
+          >
+            <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <span className="text-[10px] font-medium">Kasa</span>
+          </Link>
           {/* Magazyn dropdown - only for admin */}
           {isAdmin && (
             <div className="flex-1 relative" ref={magazynMenuRef}>

@@ -61,7 +61,7 @@ export function NotificationCenter() {
   const getNotificationColor = (type: NotificationType) => {
     switch (type) {
       case 'success':
-        return 'text-green-600';
+        return 'text-primary-600';
       case 'error':
         return 'text-red-600';
       case 'warning':

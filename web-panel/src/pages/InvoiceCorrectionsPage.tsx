@@ -269,7 +269,7 @@ export function InvoiceCorrectionsPage() {
   };
 
   return (
-    <div className="p-6">
+    <div className="px-3 py-2">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Faktury korygujące</h1>
         <button
@@ -435,7 +435,7 @@ export function InvoiceCorrectionsPage() {
                     {formatMoney(correction.correctedTotalGross)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold">
-                    <span className={correction.differenceGross >= 0 ? 'text-green-600' : 'text-red-600'}>
+                    <span className={correction.differenceGross >= 0 ? 'text-primary-600' : 'text-red-600'}>
                       {formatDiff(correction.differenceGross)}
                     </span>
                   </td>

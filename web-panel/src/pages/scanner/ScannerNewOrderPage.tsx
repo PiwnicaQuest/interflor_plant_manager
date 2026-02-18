@@ -40,7 +40,7 @@ export function ScannerNewOrderPage() {
     const firstName = (c.firstName || '').toLowerCase();
     const lastName = (c.lastName || '').toLowerCase();
     const nip = String(c.nip || '');
-    const customerCode = (c.customerCode || '').toLowerCase();
+    const customerCode = String(c.customerCode || '').toLowerCase();
     return companyName.includes(search) ||
            firstName.includes(search) ||
            lastName.includes(search) ||
@@ -104,24 +104,24 @@ export function ScannerNewOrderPage() {
 
       {/* Selected Customer Banner */}
       {selectedCustomer && (
-        <div className="mx-3 mt-3 p-3 bg-green-50 border-2 border-green-500 rounded-lg">
+        <div className="mx-3 mt-3 p-3 bg-green-50 border-2 border-primary-500 rounded-lg">
           <div className="flex justify-between items-start">
             <div>
-              <div className="text-xs text-green-600 font-medium">Wybrany klient:</div>
+              <div className="text-xs text-primary-600 font-medium">Wybrany klient:</div>
               <div className="font-bold text-green-800">
                 {selectedCustomer.customerCode ? `[${selectedCustomer.customerCode}] ` : ''}
                 {selectedCustomer.companyName}
               </div>
               {selectedCustomer.firstName && (
-                <div className="text-sm text-green-700">{selectedCustomer.firstName} {selectedCustomer.lastName || ''}</div>
+                <div className="text-sm text-primary-700">{selectedCustomer.firstName} {selectedCustomer.lastName || ''}</div>
               )}
               {selectedCustomer.nip && (
-                <div className="text-xs text-green-600">NIP: {selectedCustomer.nip}</div>
+                <div className="text-xs text-primary-600">NIP: {selectedCustomer.nip}</div>
               )}
             </div>
             <button
               onClick={() => setSelectedCustomer(null)}
-              className="text-green-600 hover:text-green-800 text-sm font-medium"
+              className="text-primary-600 hover:text-primary-800 text-sm font-medium"
             >
               Zmien
             </button>
@@ -138,12 +138,12 @@ export function ScannerNewOrderPage() {
               value={customerSearch}
               onChange={(e) => setCustomerSearch(e.target.value)}
               placeholder="Szukaj klienta..."
-              className="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              className="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               autoFocus
             />
             <button
               onClick={() => setShowNewCustomerModal(true)}
-              className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-colors whitespace-nowrap"
+              className="px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-lg transition-colors whitespace-nowrap"
             >
               + Nowy
             </button>
@@ -151,14 +151,14 @@ export function ScannerNewOrderPage() {
 
           {customerLoading ? (
             <div className="flex justify-center py-6">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
             </div>
           ) : filteredCustomers.length === 0 ? (
             <div className="text-center py-6 text-gray-500 text-sm">
               {customerSearch ? 'Brak wynikow' : 'Brak klientów w bazie'}
               <button
                 onClick={() => setShowNewCustomerModal(true)}
-                className="block mx-auto mt-3 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
+                className="block mx-auto mt-3 px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors"
               >
                 + Dodaj kontrahenta
               </button>
@@ -197,7 +197,7 @@ export function ScannerNewOrderPage() {
           <button
             onClick={handleCreateOrder}
             disabled={submitting}
-            className="w-full py-4 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white text-lg font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
+            className="w-full py-4 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white text-lg font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
           >
             {submitting ? (
               <>

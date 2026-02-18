@@ -119,17 +119,17 @@ export function KPIDashboard() {
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Revenue Card */}
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200">
+            <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-xl p-6 border border-green-200">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-green-700">Przychód</span>
+                <span className="text-sm font-medium text-primary-700">Przychód</span>
                 <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
                   kpiData.changes.totalGross >= 0 ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
                 }`}>
                   {formatPercentage(kpiData.changes.totalGross)}
                 </span>
               </div>
-              <p className="text-2xl font-bold text-green-900">{formatCurrency(kpiData.current.totalGross)}</p>
-              <p className="text-sm text-green-600 mt-1">
+              <p className="text-2xl font-bold text-primary-900">{formatCurrency(kpiData.current.totalGross)}</p>
+              <p className="text-sm text-primary-600 mt-1">
                 Poprzednio: {formatCurrency(kpiData.previous.totalGross)}
               </p>
             </div>

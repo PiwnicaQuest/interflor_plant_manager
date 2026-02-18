@@ -403,7 +403,7 @@ export function POSPage() {
     return (
       (order.customerName?.toLowerCase().includes(query)) ||
       (order.orderNumber?.toLowerCase().includes(query)) ||
-      ((order as any).customerCode?.toLowerCase().includes(query))
+      String((order as any).customerCode || '').toLowerCase().includes(query)
     );
   });
 
@@ -413,13 +413,13 @@ export function POSPage() {
     return (
       (order.customerName?.toLowerCase().includes(query)) ||
       (order.orderNumber?.toLowerCase().includes(query)) ||
-      (order.customerCode?.toLowerCase().includes(query))
+      String(order.customerCode || '').toLowerCase().includes(query)
     );
   });
 
 
   return (
-    <div className="p-4 bg-gray-50 min-h-[calc(100vh-4rem)]">
+    <div className="px-3 py-2 bg-gray-50 min-h-[calc(100vh-4rem)]">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-4">
@@ -533,7 +533,7 @@ export function POSPage() {
                             <span className="font-medium text-gray-900 text-sm">
                               {order.orderNumber}
                             </span>
-                            <span className="text-green-600 font-semibold text-sm">
+                            <span className="text-primary-600 font-semibold text-sm">
                               {formatPrice(order.totalAmount)} PLN
                             </span>
                           </div>
@@ -568,7 +568,7 @@ export function POSPage() {
                       </div>
                       <div className="text-right">
                         <div className="text-xs text-gray-400">Do zapłaty</div>
-                        <div className="text-xl font-bold text-green-600">
+                        <div className="text-xl font-bold text-primary-600">
                           {formatPrice(selectedOrder.totalAmount)} PLN
                         </div>
                       </div>
@@ -628,7 +628,7 @@ export function POSPage() {
                           onClick={() => setDocumentType(DocumentType.RECEIPT)}
                           className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                             documentType === DocumentType.RECEIPT
-                              ? 'bg-green-100 text-green-700 ring-1 ring-green-300'
+                              ? 'bg-green-100 text-primary-700 ring-1 ring-primary-300'
                               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                           }`}
                         >
@@ -638,7 +638,7 @@ export function POSPage() {
                           onClick={() => setDocumentType(DocumentType.INVOICE)}
                           className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                             documentType === DocumentType.INVOICE
-                              ? 'bg-green-100 text-green-700 ring-1 ring-green-300'
+                              ? 'bg-green-100 text-primary-700 ring-1 ring-primary-300'
                               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                           }`}
                         >
@@ -680,7 +680,7 @@ export function POSPage() {
                         <button
                           onClick={() => setShowCashPaymentModal(true)}
                           disabled={processing}
-                          className="py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+                          className="py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
                         >
                           <span>Gotówka</span>
                         </button>
@@ -762,7 +762,7 @@ export function POSPage() {
 
                           {/* Amount */}
                           <div className="text-right">
-                            <div className="font-semibold text-green-600 text-sm">
+                            <div className="font-semibold text-primary-600 text-sm">
                               {formatPrice(order.totalAmount)} PLN
                             </div>
                           </div>
@@ -792,7 +792,7 @@ export function POSPage() {
                           {/* Payment Method */}
                           <div className="text-center min-w-[70px]">
                             <span className={`text-xs px-2 py-1 rounded ${
-                              order.document?.paymentMethod === 'cash' ? 'bg-green-50 text-green-700' :
+                              order.document?.paymentMethod === 'cash' ? 'bg-green-50 text-primary-700' :
                               order.document?.paymentMethod === 'card' ? 'bg-blue-50 text-blue-700' :
                               order.document?.paymentMethod === 'transfer' ? 'bg-purple-50 text-purple-700' :
                               'bg-orange-50 text-orange-700'
@@ -847,8 +847,8 @@ export function POSPage() {
                     </div>
                   </div>
                   <div className="bg-green-50 rounded-lg p-3 text-center">
-                    <div className="text-xs text-green-600 mb-1">Gotówka</div>
-                    <div className="text-xl font-bold text-green-700">
+                    <div className="text-xs text-primary-600 mb-1">Gotówka</div>
+                    <div className="text-xl font-bold text-primary-700">
                       {formatPrice(todaySummary.cashTotal)}
                     </div>
                   </div>

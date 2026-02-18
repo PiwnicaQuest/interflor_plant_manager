@@ -37,7 +37,7 @@ export function Toast({ id, type, message, duration = 5000, onClose }: ToastProp
   const getIcon = () => {
     switch (type) {
       case 'success':
-        return <IoCheckmarkCircle className="w-6 h-6 text-green-500" />;
+        return <IoCheckmarkCircle className="w-6 h-6 text-primary-500" />;
       case 'error':
         return <IoCloseCircle className="w-6 h-6 text-red-500" />;
       case 'warning':
@@ -50,7 +50,7 @@ export function Toast({ id, type, message, duration = 5000, onClose }: ToastProp
   const getBorderColor = () => {
     switch (type) {
       case 'success':
-        return 'border-green-500';
+        return 'border-primary-500';
       case 'error':
         return 'border-red-500';
       case 'warning':

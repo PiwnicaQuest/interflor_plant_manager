@@ -5,153 +5,203 @@ import { SettingsModel } from '../models/Settings';
 export interface ExcelImportResult {
   success: number;
   failed: number;
-  skipped: number; // Pozycje pominięte (np. bez barcodu - opakowania)
   errors: Array<{ row: number; error: string; data?: any }>;
+  deliveryDate: string | null;
 }
 
 export class ExcelImportService {
   /**
-   * Importuje produkty z pliku Excel (.xls/.xlsx)
-   * Obsługuje format z plików dostawców (np. z 1PS)
+   * Importuje produkty z pliku Excel/ODS w formacie "Szablon dostaw"
    *
-   * Mapowanie kolumn:
-   * - Item → nazwa rośliny
-   * - Identifier code → rozmiar doniczki i wysokość (np. "14.70" = 14, 70cm)
-   * - AVE → liczba palet
-   * - APE → sztuk na paletę
-   * - Price → cena zakupu w EUR (przeliczana na PLN wg kursu z ustawień)
-   * - Photo → URL zdjęcia
-   * - Grower → nazwa ogrodnika
-   * - Barcode (kolumna V, nie Barcode.1) → kod kreskowy
+   * Format szablonu:
+   * - Wiersz 1: "Data dostawy" (merged A1:G1) — wartość daty dostawy
+   * - Wiersz 2: Nagłówki (pomijane)
+   * - Wiersze 3+: Dane produktów
+   *
+   * Kolumny:
+   * A: Zdjęcie (URL) → image_url
+   * B: Nazwa → plant_name (wymagane)
+   * C: doniczka → pot_size
+   * D: wysokość → plant_height_cm
+   * E: Ilość Szt./pal → units_per_pallet
+   * F: Ilość pal. → pallet_count
+   * G: Cena Euro / PLN → purchase_price_pln (przeliczane wg waluty)
    */
-  static async importProducts(fileBuffer: Buffer): Promise<ExcelImportResult> {
+  static async importProducts(
+    fileBuffer: Buffer,
+    currency: 'EUR' | 'PLN'
+  ): Promise<ExcelImportResult> {
     const result: ExcelImportResult = {
       success: 0,
       failed: 0,
-      skipped: 0,
       errors: [],
+      deliveryDate: null,
     };
 
     try {
-      // Pobierz aktualne ustawienia cenowe z bazy danych (w tym kurs EUR/PLN)
+      // Pobierz ustawienia cenowe (kurs EUR/PLN, marże)
       const pricingSettings = await SettingsModel.getPricingSettings();
       const { costPercentage, marginPercentage, eurToPlnRate } = pricingSettings;
 
-      console.log('Import Excel - używany kurs EUR/PLN:', eurToPlnRate);
+      console.log(`Import Excel - waluta: ${currency}, kurs EUR/PLN: ${eurToPlnRate}`);
 
-      // Parsuj plik Excel z opcją raw aby zachować oryginalne wartości tekstowe (np. kody kreskowe z wiodącym zerem)
-      const workbook = XLSX.read(fileBuffer, { type: 'buffer', cellText: true, raw: false });
+      // Parsuj plik (SheetJS obsługuje xlsx, xls i ods natywnie)
+      const workbook = XLSX.read(fileBuffer, {
+        type: 'buffer',
+        cellDates: true,
+        cellText: true,
+        raw: false,
+      });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
 
-      // Konwertuj do JSON z opcją raw:false aby uzyskać sformatowane wartości tekstowe
-      const records = XLSX.utils.sheet_to_json(worksheet, { raw: false });
+      // --- Parsuj datę dostawy z wiersza 1 ---
+      // Sprawdź merged cells — data może być w A1 (merged A1:G1)
+      let deliveryDateStr: string | null = null;
 
-      console.log('Excel import: znaleziono ' + records.length + ' wierszy');
-
-      // Przetwarzaj każdy wiersz
-      for (let i = 0; i < records.length; i++) {
-        const row: any = records[i];
-        const rowNumber = i + 2; // +2 bo pierwszy wiersz to nagłówek
-
-        try {
-          // Kod kreskowy - kolumna "Barcode_1" (kolumna V, indeks 21)
-          // WAŻNE: "Barcode" (kolumna R) zawiera same zera, właściwy kod jest w "Barcode_1"
-          // XLSX dodaje "_1" do duplikatów nagłówków (nie ".1" jak pandas)
-          // Używamy raw:false więc wartości są już stringami z zachowanym formatowaniem (np. wiodące zera)
-          let barcode: string | null = null;
-          const barcodeValue = row['Barcode_1'];
-
-          if (barcodeValue) {
-            const barcodeStr = barcodeValue.toString().trim();
-            // Jeśli kod to pusty lub składa się z samych zer, ignoruj
-            if (barcodeStr !== '' && barcodeStr.replace(/0/g, '') !== '') {
-              barcode = barcodeStr;
+      // Spróbuj odczytać z A1, B1 itd. (merged cell zwykle ma wartość w pierwszej komórce)
+      for (const cellAddr of ['A1', 'B1', 'C1', 'D1']) {
+        const cell = worksheet[cellAddr];
+        if (cell && cell.v !== undefined && cell.v !== null && cell.v !== '') {
+          const val = cell.v;
+          if (val instanceof Date) {
+            deliveryDateStr = val.toISOString().split('T')[0];
+          } else {
+            const strVal = val.toString().trim();
+            // Pomiń nagłówek "Data dostawy" — szukamy wartości daty
+            if (strVal.toLowerCase().includes('data dostawy')) {
+              continue;
+            }
+            // Spróbuj sparsować datę
+            const parsed = new Date(strVal);
+            if (!isNaN(parsed.getTime())) {
+              deliveryDateStr = parsed.toISOString().split('T')[0];
+            } else {
+              // Spróbuj format DD.MM.YYYY lub DD/MM/YYYY
+              const match = strVal.match(/(\d{1,2})[./](\d{1,2})[./](\d{4})/);
+              if (match) {
+                const [, day, month, year] = match;
+                deliveryDateStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+              }
             }
           }
+          if (deliveryDateStr) break;
+        }
+      }
 
-          // FILTR: Pomijaj pozycje bez prawidłowego kodu kreskowego (np. opakowania Normtray)
-          if (!barcode) {
-            console.log('[Row ' + rowNumber + '] Pominięto (brak barcodu): ' + (row['Item'] || 'BRAK NAZWY'));
-            result.skipped++;
-            continue; // Nie liczymy jako błąd, po prostu pomijamy
+      // Jeśli nie znaleziono w osobnych komórkach, sprawdź czy data jest w tej samej komórce po "Data dostawy"
+      if (!deliveryDateStr) {
+        const cellA1 = worksheet['A1'];
+        if (cellA1) {
+          const fullStr = (cellA1.w || cellA1.v || '').toString().trim();
+          // "Data dostawy 15.03.2026" lub "Data dostawy: 2026-03-15"
+          const match = fullStr.match(/(\d{1,2})[./](\d{1,2})[./](\d{4})/);
+          if (match) {
+            const [, day, month, year] = match;
+            deliveryDateStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+          } else {
+            const isoMatch = fullStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+            if (isoMatch) {
+              deliveryDateStr = isoMatch[0];
+            }
           }
+        }
+      }
 
-          // Pobierz nazwę rośliny - kolumna "Item"
-          const plantName = row['Item']?.toString().trim();
+      result.deliveryDate = deliveryDateStr;
+      console.log('Import Excel - data dostawy:', deliveryDateStr || 'nie znaleziono');
 
+      // --- Parsuj dane od wiersza 3 (indeks 2) ---
+      // Używamy sheet_to_json z header:1 aby uzyskać tablice (nie obiekty)
+      // Pomijamy wiersz 1 (data) i wiersz 2 (nagłówki)
+      const allRows: any[][] = XLSX.utils.sheet_to_json(worksheet, {
+        header: 1,
+        raw: false,
+        blankrows: false,
+      });
+
+      // Dane zaczynają się od wiersza 3 (indeks 2 w tablicy)
+      const dataRows = allRows.slice(2);
+
+      console.log(`Excel import: znaleziono ${dataRows.length} wierszy danych`);
+
+      for (let i = 0; i < dataRows.length; i++) {
+        const row = dataRows[i];
+        const rowNumber = i + 3; // Wiersz w pliku (1-indexed, dane od wiersza 3)
+
+        try {
+          // Kolumna B (indeks 1): Nazwa — wymagane
+          const plantName = (row[1] || '').toString().trim();
           if (!plantName) {
-            result.errors.push({
-              row: rowNumber,
-              error: 'Brak nazwy rośliny (kolumna Item)',
-              data: row,
-            });
-            result.failed++;
+            // Pusty wiersz — pomiń cicho
             continue;
           }
 
-          // Parsuj "Identifier code" dla doniczki i wysokości (np. "14.70" = 14, 70cm)
-          const identifierCode = row['Identifier code ']?.toString() || row['Identifier code']?.toString() || '';
-          let potSize: string | null = null;
-          let plantHeightCm: number | null = null;
+          // Kolumna A (indeks 0): Zdjęcie (URL)
+          const imageUrl = (row[0] || '').toString().trim() || null;
 
-          if (identifierCode) {
-            // Format: "14.70" lub "12.40" lub "8,5.20" lub "27.200.5"
-            const parts = identifierCode.replace(',', '.').split('.');
-            if (parts.length >= 2) {
-              // Pierwsza część to rozmiar doniczki (bez "C")
-              const potNumber = parseFloat(parts[0]);
-              if (!isNaN(potNumber)) {
-                potSize = Math.round(potNumber).toString();
-              }
-              // Druga część to wysokość
-              const height = parseInt(parts[1]);
-              if (!isNaN(height) && height > 0) {
-                plantHeightCm = height;
-              }
+          // Kolumna C (indeks 2): doniczka
+          const potSize = (row[2] || '').toString().trim() || null;
+
+          // Kolumna D (indeks 3): wysokość (cm)
+          let plantHeightCm: number | null = null;
+          const heightStr = (row[3] || '').toString().replace(',', '.').trim();
+          if (heightStr) {
+            const h = parseInt(heightStr, 10);
+            if (!isNaN(h) && h > 0) {
+              plantHeightCm = h;
             }
           }
 
-          // Cena zakupu w EUR - kolumna "Price" (może być w formacie "1,65" z przecinkiem)
-          let purchasePriceEur = 0;
-          const priceStr = row['Price']?.toString();
-          if (priceStr) {
-            purchasePriceEur = parseFloat(priceStr.replace(',', '.')) || 0;
+          // Kolumna E (indeks 4): Ilość Szt./pal
+          let unitsPerPallet = 0;
+          const unitsStr = (row[4] || '').toString().trim();
+          if (unitsStr) {
+            unitsPerPallet = parseInt(unitsStr, 10) || 0;
           }
 
-          // Przelicz cenę EUR na PLN
-          const purchasePricePln = purchasePriceEur * eurToPlnRate;
+          // Kolumna F (indeks 5): Ilość pal.
+          let palletCount = 0;
+          const palletsStr = (row[5] || '').toString().trim();
+          if (palletsStr) {
+            palletCount = parseInt(palletsStr, 10) || 0;
+          }
 
-          // Liczba palet - kolumna "AVE"
-          const palletCount = parseInt(row['AVE']) || 0;
+          // Kolumna G (indeks 6): Cena
+          let price = 0;
+          const priceStr = (row[6] || '').toString().replace(',', '.').replace(/[^\d.]/g, '').trim();
+          if (priceStr) {
+            price = parseFloat(priceStr) || 0;
+          }
 
-          // Sztuki na paletę - kolumna "APE"
-          const unitsPerPallet = parseInt(row['APE']) || 0;
+          // Przelicz cenę wg waluty
+          let purchasePricePln: number;
+          if (currency === 'EUR') {
+            purchasePricePln = price * eurToPlnRate;
+          } else {
+            purchasePricePln = price;
+          }
 
-          // Zdjęcie - kolumna "Photo"
-          const imageUrl = row['Photo']?.toString().trim() || null;
-
-          // Ogrodnik - kolumna "Grower"
-          const grower = row['Grower']?.toString().trim() || null;
-
-          // Oblicz wszystkie ceny na podstawie ustawień z bazy danych
-          const prices = purchasePricePln > 0
-            ? SettingsModel.calculatePrices(purchasePricePln, costPercentage, marginPercentage)
-            : {
-                pricePlus: null,
-                basePriceGross: null,
-                priceDiscount10: null,
-                priceDiscount12: null,
-                priceDiscount15: null,
-                priceDiscount20: null,
-                priceDiscount25: null,
-              };
+          // Oblicz ceny rabatowe
+          const vatRate = 8.0;
+          const prices =
+            purchasePricePln > 0
+              ? SettingsModel.calculatePrices(purchasePricePln, costPercentage, marginPercentage, vatRate)
+              : {
+                  pricePlus: null,
+                  basePriceGross: null,
+                  priceDiscount10: null,
+                  priceDiscount12: null,
+                  priceDiscount15: null,
+                  priceDiscount20: null,
+                  priceDiscount25: null,
+                };
 
           const productData: any = {
             plantName,
             potSize,
             plantHeightCm,
-            barcode,
+            barcode: null,
             purchasePricePln: parseFloat(purchasePricePln.toFixed(2)),
             pricePlus: prices.pricePlus,
             basePriceGross: prices.basePriceGross,
@@ -162,36 +212,31 @@ export class ExcelImportService {
             priceDiscount25: prices.priceDiscount25,
             palletCount,
             unitsPerPallet,
-            vatRate: 8.0, // Domyślna stawka VAT 8%
+            vatRate,
             imageUrl,
-            grower,
-            visibleInShop: false, // Domyślnie ukryte
+            grower: null,
+            visibleInShop: false,
+            deliveryDate: deliveryDateStr || undefined,
           };
 
-
-          // Sprawdź czy produkt z takim kodem kreskowym już istnieje
-          if (productData.barcode && productData.barcode.length > 3) {
-            const existing = await ProductModel.getByBarcode(productData.barcode);
-            if (existing) {
-              // Aktualizuj istniejący produkt - dodaj palety
-              const newPalletCount = (existing.palletCount || 0) + (productData.palletCount || 0);
-              await ProductModel.update(existing.id, { palletCount: newPalletCount });
-              result.success++;
-              console.log('[Row ' + rowNumber + '] Zaktualizowano: ' + plantName + ' (+' + palletCount + ' palet, razem: ' + newPalletCount + ')');
-              continue;
-            }
-          }
-
-          // Utwórz nowy produkt
+          // Utwórz nowy produkt (bez barcodu — zawsze nowy)
           await ProductModel.create(productData);
           result.success++;
 
-          console.log('[Row ' + rowNumber + '] Zaimportowano: ' + plantName + ' (' + potSize + ', ' + plantHeightCm + 'cm, ' + palletCount + ' palet x ' + unitsPerPallet + ' szt, ' + purchasePriceEur.toFixed(2) + ' EUR = ' + purchasePricePln.toFixed(2) + ' PLN, ogrodnik: ' + grower + ')');
+          const priceInfo =
+            currency === 'EUR'
+              ? `${price.toFixed(2)} EUR = ${purchasePricePln.toFixed(2)} PLN`
+              : `${purchasePricePln.toFixed(2)} PLN`;
+
+          console.log(
+            `[Row ${rowNumber}] Zaimportowano: ${plantName} (doniczka: ${potSize}, ` +
+              `${plantHeightCm || '-'}cm, ${palletCount} pal x ${unitsPerPallet} szt, ${priceInfo})`
+          );
         } catch (error: any) {
           result.errors.push({
             row: rowNumber,
             error: error.message || 'Nieznany błąd podczas dodawania produktu',
-            data: row,
+            data: { col_A: row[0], col_B: row[1], col_C: row[2], col_D: row[3], col_E: row[4], col_F: row[5], col_G: row[6] },
           });
           result.failed++;
         }
@@ -199,7 +244,7 @@ export class ExcelImportService {
 
       return result;
     } catch (error: any) {
-      throw new Error('Błąd podczas parsowania pliku Excel: ' + error.message);
+      throw new Error('Błąd podczas parsowania pliku: ' + error.message);
     }
   }
 }

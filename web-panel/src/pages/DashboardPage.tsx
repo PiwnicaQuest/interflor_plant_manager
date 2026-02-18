@@ -52,11 +52,11 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="h-full space-y-6 p-6">
+    <div className="h-full space-y-6 px-3 py-2">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">Przegląd systemu POLFLOR</p>
+        <p className="text-gray-600 mt-1">Przegląd systemu INTERFLOR</p>
       </div>
 
       {/* Stats Grid */}
@@ -85,7 +85,7 @@ export function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Gotowe do odbioru</p>
-              <p className="text-3xl font-bold text-green-600">{stats.readyForPickupCount}</p>
+              <p className="text-3xl font-bold text-primary-600">{stats.readyForPickupCount}</p>
             </div>
             <div className="text-4xl">✅</div>
           </div>

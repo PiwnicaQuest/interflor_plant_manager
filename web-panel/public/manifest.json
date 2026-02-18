@@ -1,35 +1,35 @@
 {
-  "name": "Skaner Magazynowy - POLFLOR",
-  "short_name": "POLFLOR",
+  "name": "Skaner Magazynowy - INTERFLOR",
+  "short_name": "INTERFLOR",
   "description": "Aplikacja do skanowania kodów i zarządzania zamówieniami magazynowymi",
   "start_url": "/scanner/scan",
   "scope": "/scanner/",
   "display": "standalone",
   "orientation": "portrait",
-  "theme_color": "#16a34a",
+  "theme_color": "#e91e63",
   "background_color": "#f3f4f6",
   "categories": ["business", "productivity"],
   "icons": [
     {
-      "src": "/polflor-icon-192.png",
+      "src": "/interflor-icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/polflor-icon-512.png",
+      "src": "/interflor-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/polflor-icon-512.png",
+      "src": "/interflor-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/polflor-icon-180.png",
+      "src": "/interflor-icon-180.png",
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"

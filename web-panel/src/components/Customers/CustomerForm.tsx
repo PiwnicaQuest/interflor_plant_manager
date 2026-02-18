@@ -650,7 +650,7 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
                 )}
 
                 {shopAccountSuccess && (
-                  <div className="bg-green-50 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                  <div className="bg-green-50 border border-green-400 text-primary-700 px-4 py-3 rounded mb-4">
                     {shopAccountSuccess}
                   </div>
                 )}

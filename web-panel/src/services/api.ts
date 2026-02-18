@@ -567,14 +567,17 @@ class ApiClient {
     paymentSplits?: Array<{ paymentMethod: string; amount: number }>;
     documentType: string;
     paymentDeadlineDays?: number;
+    discountPercentage?: number;
     items?: Array<{ productId: number; quantity: number }>;
   }): Promise<{
     message: string;
     documentType: string;
     paymentDeadlineDays?: number;
+    discountPercentage?: number;
     documentNumber: string;
     documentId: number;
     totalAmount: number;
+    orderId?: number;
   }> {
     const response = await this.client.post('/pos/checkout', data);
     return response.data;
@@ -1092,6 +1095,7 @@ class ApiClient {
   async createPrintJob(job: {
     documentType: string;
     paymentDeadlineDays?: number;
+    discountPercentage?: number;
     contentType: string;
     content: string;
     title?: string;
@@ -1117,9 +1121,10 @@ class ApiClient {
   // ADDITIONAL INVENTORY METHODS
   // ============================================
 
-  async importExcel(file: File): Promise<any> {
+  async importExcel(file: File, currency: "EUR" | "PLN" = "EUR"): Promise<any> {
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("currency", currency);
     // Use axios directly to avoid default Content-Type header from this.client
     const token = localStorage.getItem("token");
     const response = await axios.post(`${import.meta.env.VITE_API_URL || "http://localhost:4000"}/inventory/import-excel`, formData, {
@@ -1144,6 +1149,11 @@ class ApiClient {
     return response.data;
   }
 
+  async setProductImageUrl(id: number, imageUrl: string): Promise<{ imageUrl: string; product: any }> {
+    const response = await this.client.put(`/inventory/${id}/image-url`, { imageUrl });
+    return response.data;
+  }
+
   async archiveProduct(id: number): Promise<{ message: string }> {
     const response = await this.client.patch(`/inventory/${id}/archive`);
     return response.data;
@@ -1165,6 +1175,11 @@ class ApiClient {
 
   async getReceiptHtml(id: number): Promise<string> {
     const response = await this.client.get(`/receipts/${id}/html`, { responseType: "text" });
+    return response.data;
+  }
+
+  async getOrderConfirmationHtml(orderId: number): Promise<string> {
+    const response = await this.client.get(`/orders/${orderId}/confirmation-html`, { responseType: "text" });
     return response.data;
   }
 

@@ -177,8 +177,8 @@ export function PaymentReport() {
           </p>
         </div>
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <p className="text-sm text-green-700">Opłacone</p>
-          <p className="text-2xl font-bold text-green-900">
+          <p className="text-sm text-primary-700">Opłacone</p>
+          <p className="text-2xl font-bold text-primary-900">
             {formatCurrency(paymentStats.find(p => p.status === 'paid')?.totalAmount || 0)}
           </p>
         </div>

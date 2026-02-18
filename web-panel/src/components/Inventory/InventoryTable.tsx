@@ -1,3 +1,4 @@
+import { ImageModal } from './ImageModal';
 import { useTags, FALLBACK_TAGS } from "../../hooks/useTags";
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Product } from '../../types';
@@ -46,12 +47,6 @@ const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   purchasePrice: 50,
   pricePlus: 50,
   basePrice: 50,
-  discount10: 42,
-  discount12: 42,
-  discount15: 42,
-  discount20: 42,
-  discount25: 42,
-  auchan8: 42,
   visible: 36,
   grower: 80,
   passport: 60,
@@ -92,7 +87,7 @@ const EDITABLE_COLUMNS: (keyof Product)[] = [
   'priceDiscount15',
   'priceDiscount20',
   'priceDiscount25',
-  'priceAuchan8',
+  
 ];
 
 // Column filter values interface
@@ -182,8 +177,8 @@ export function InventoryTable({
   // Fields restricted to admin only
   const adminOnlyFields: (keyof Product)[] = [
     'purchasePricePln', 'pricePlus', 'basePriceGross',
-    'priceDiscount10', 'priceDiscount12', 'priceDiscount15', 'priceDiscount20', 'priceDiscount25',
-    'priceAuchan8', 'vatRate',
+    
+     'vatRate',
     'palletCount', 'unitsPerPallet', 'totalUnits'
   ];
 
@@ -192,6 +187,7 @@ export function InventoryTable({
   const [focusedRowId, setFocusedRowId] = useState<number | null>(null);
   const [editValue, setEditValue] = useState<string>('');
   const [hoveredImage, setHoveredImage] = useState<{ url: string; name: string } | null>(null);
+  const [imageModalProduct, setImageModalProduct] = useState<Product | null>(null);
   const [showDateRangeModal, setShowDateRangeModal] = useState(false);
   const [dateFrom, setDateFrom] = useState(columnFilters.colCreatedAtFrom || '');
   const [dateTo, setDateTo] = useState(columnFilters.colCreatedAtTo || '');
@@ -405,7 +401,7 @@ export function InventoryTable({
     "checkbox", "createdAt", "visible", "image", "plantName", "tags",
     "palletCount", "unitsPerPallet", "totalUnits", "potSize", "plantHeight",
     "purchasePrice", "pricePlus", "basePrice",
-    "discount10", "discount12", "discount15", "discount20", "discount25", "auchan8",
+    
     "totalSold", "grower", "passport", "actions"
   ];
 
@@ -711,7 +707,7 @@ export function InventoryTable({
         const numericFields = ['palletCount', 'unitsPerPallet', 'plantHeightCm', 'purchasePricePln',
           'pricePlus', 'basePriceGross', 'priceDiscount10', 'priceDiscount12', 'priceDiscount15', 'priceDiscount20',
           'priceDiscount25',
-  'priceAuchan8', 'vatRate', 'totalUnits'];
+   'vatRate', 'totalUnits'];
         // Handle date field - convert YYYY-MM-DD to ISO date string
         if (editingCell.field === 'createdAt') {
           if (editValue) {
@@ -895,13 +891,7 @@ export function InventoryTable({
     totalSold: { label: "📦", style: headerStyles.inventory, title: "Sprzedane", borderClass: "border-b-2 border-amber-400" },
     purchasePrice: { label: "Zak", style: headerStyles.purchase, title: "Cena zakupu", borderClass: "border-b-2 border-blue-400 border-l border-blue-300" },
     pricePlus: { label: "C+", style: headerStyles.pricePlus, title: "Cena+ (zakup + marża)", borderClass: "border-b-2 border-yellow-500 border-l border-yellow-400 font-bold" },
-    basePrice: { label: "Baz", style: headerStyles.basePrice, title: "Cena podstawowa (edytowalne)", borderClass: "border-b-2 border-green-500 border-l border-green-400 font-bold" },
-    discount10: { label: "10", style: headerStyles.discounts, title: "Rabat -10%", borderClass: "border-b-2 border-purple-400 border-l border-purple-300" },
-    discount12: { label: "12", style: headerStyles.discounts, title: "Rabat -12%", borderClass: "border-b-2 border-purple-400" },
-    discount15: { label: "15", style: headerStyles.discounts, title: "Rabat -15%", borderClass: "border-b-2 border-purple-400" },
-    discount20: { label: "20", style: headerStyles.discounts, title: "Rabat -20%", borderClass: "border-b-2 border-purple-400" },
-    discount25: { label: "25", style: headerStyles.discounts, title: "Rabat -25%", borderClass: "border-b-2 border-purple-400" },
-    auchan8: { label: "A8", style: headerStyles.discounts, title: "Auchan (cena podstawowa)", borderClass: "border-b-2 border-purple-400" },
+    basePrice: { label: "Baz", style: headerStyles.basePrice, title: "Cena podstawowa (edytowalne)", borderClass: "border-b-2 border-primary-500 border-l border-green-400 font-bold" },
     visible: { label: "👁", style: headerStyles.status, title: "Widoczność w sklepie", borderClass: "border-b-2 border-orange-400" },
     grower: { label: "🌱", style: headerStyles.grower, title: "Ogrodnik/Producent", borderClass: "border-b-2 border-teal-400 border-l border-teal-300" },
     passport: { label: "ID", style: headerStyles.grower, title: "Paszport ogrodnika", borderClass: "border-b-2 border-teal-400" },
@@ -940,12 +930,6 @@ export function InventoryTable({
     purchasePrice: 'purchase_price',
     pricePlus: 'price_plus',
     basePrice: 'base_price_gross',
-    discount10: 'discount_10',
-    discount12: 'discount_12',
-    discount15: 'discount_15',
-    discount20: 'discount_20',
-    discount25: 'discount_25',
-    auchan8: 'auchan_8',
     grower: 'grower',
     passport: 'passport',
     tags: 'tags',
@@ -978,12 +962,6 @@ export function InventoryTable({
     purchasePrice: { styleKey: "purchase", borderClass: "border-b border-blue-200 border-l border-blue-200", extraClass: "text-center text-xs" },
     pricePlus: { styleKey: "pricePlus", borderClass: "border-b border-yellow-300 border-l border-yellow-300", extraClass: "text-center font-bold text-yellow-900 text-xs" },
     basePrice: { styleKey: "basePrice", borderClass: "border-b border-green-400 border-l border-green-400", extraClass: "text-center font-bold text-green-800 text-xs" },
-    discount10: { styleKey: "discounts", borderClass: "border-b border-purple-200 border-l border-purple-200", extraClass: "text-center text-xs" },
-    discount12: { styleKey: "discounts", borderClass: "border-b border-purple-200", extraClass: "text-center text-xs" },
-    discount15: { styleKey: "discounts", borderClass: "border-b border-purple-200", extraClass: "text-center text-xs" },
-    discount20: { styleKey: "discounts", borderClass: "border-b border-purple-200", extraClass: "text-center text-xs" },
-    discount25: { styleKey: "discounts", borderClass: "border-b border-purple-200", extraClass: "text-center text-xs" },
-    auchan8: { styleKey: "discounts", borderClass: "border-b border-purple-200", extraClass: "text-center text-xs font-medium text-purple-700" },
     visible: { styleKey: "status", borderClass: "border-b border-orange-200", extraClass: "text-center" },
     grower: { styleKey: "grower", borderClass: "border-b border-teal-200 border-l border-teal-200", extraClass: "text-center text-xs text-gray-700 truncate" },
     passport: { styleKey: "grower", borderClass: "border-b border-teal-200", extraClass: "text-center text-xs text-teal-700 font-medium truncate" },
@@ -1018,11 +996,17 @@ export function InventoryTable({
         const thumbUrl = product.barcode ? getOptimizedImageUrl(product.barcode, "thumb") : imageUrl;
         const mediumUrl = product.barcode ? getOptimizedImageUrl(product.barcode, "medium") : imageUrl;
         return product.imageUrl ? (
-          <div className="relative cursor-zoom-in inline-block w-6 h-6" onMouseEnter={() => mediumUrl && setHoveredImage({ url: mediumUrl, name: product.plantName })} onMouseLeave={() => setHoveredImage(null)}>
+          <div className="relative cursor-pointer inline-block w-6 h-6"
+            onClick={(e) => { e.stopPropagation(); setImageModalProduct(product); }}
+            onMouseEnter={() => mediumUrl && setHoveredImage({ url: mediumUrl, name: product.plantName })}
+            onMouseLeave={() => setHoveredImage(null)}>
             <img src={thumbUrl || ""} alt={product.plantName} className="w-6 h-6 object-cover rounded transition-transform hover:scale-110" />
           </div>
         ) : (
-          <div className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center text-sm">🌿</div>
+          <div className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center text-sm cursor-pointer hover:bg-gray-200 transition-colors"
+            onClick={(e) => { e.stopPropagation(); setImageModalProduct(product); }}>
+            🌿
+          </div>
         );
       }
       case "plantName":
@@ -1047,22 +1031,6 @@ export function InventoryTable({
         return renderEditableCell(product, "pricePlus", product.pricePlus ? `${product.pricePlus.toFixed(2)} zł` : "-", "font-bold");
       case "basePrice":
         return renderEditableCell(product, "basePriceGross", product.basePriceGross ? `${product.basePriceGross.toFixed(2)} zł` : "-");
-      case "discount10":
-        return renderEditableCell(product, "priceDiscount10", product.priceDiscount10 ? `${product.priceDiscount10.toFixed(2)} zł` : "-");
-      case "discount12":
-        return renderEditableCell(product, "priceDiscount12", product.priceDiscount12 ? `${product.priceDiscount12.toFixed(2)} zł` : "-");
-      case "discount15":
-        return renderEditableCell(product, "priceDiscount15", product.priceDiscount15 ? `${product.priceDiscount15.toFixed(2)} zł` : "-");
-      case "discount20":
-        return renderEditableCell(product, "priceDiscount20", product.priceDiscount20 ? `${product.priceDiscount20.toFixed(2)} zł` : "-");
-      case "discount25":
-        return renderEditableCell(product, "priceDiscount25", product.priceDiscount25 ? `${product.priceDiscount25.toFixed(2)} zł` : "-");
-      case "auchan8":
-        // Auchan - edytowalna cena, domyslnie cena podstawowa
-        const auchan8Value = product.priceAuchan8 
-          ? `${parseFloat(String(product.priceAuchan8)).toFixed(2)} zł` 
-          : (product.basePriceGross ? `${product.basePriceGross.toFixed(2)} zł` : "-");
-        return renderEditableCell(product, "priceAuchan8", auchan8Value);
       case "visible":
         return (
           <button onClick={() => onToggleVisibility(product.id)} className={`px-1.5 py-0.5 rounded text-xs font-medium ${product.visibleInShop ? "bg-green-200 text-green-800" : "bg-red-200 text-red-800"}`}>
@@ -1136,7 +1104,7 @@ export function InventoryTable({
               <button onClick={() => onArchiveProduct(product)} className="text-yellow-600 hover:text-yellow-800 text-xs px-0.5 hover:bg-yellow-50 rounded" title="Archiwizuj">📦</button>
             )}
             {product.isArchived && onRestoreProduct && (
-              <button onClick={() => onRestoreProduct(product)} className="text-green-600 hover:text-green-800 text-xs px-0.5 hover:bg-green-50 rounded" title="Przywroc">↩️</button>
+              <button onClick={() => onRestoreProduct(product)} className="text-primary-600 hover:text-primary-800 text-xs px-0.5 hover:bg-primary-50 rounded" title="Przywroc">↩️</button>
             )}
             {onDeleteProduct && (
               <button onClick={() => onDeleteProduct(product)} className="text-red-600 hover:text-red-800 text-xs px-0.5 hover:bg-red-50 rounded" title="Usuń">🗑️</button>
@@ -1354,6 +1322,18 @@ export function InventoryTable({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Image Modal */}
+      {imageModalProduct && (
+        <ImageModal
+          product={imageModalProduct}
+          onClose={() => setImageModalProduct(null)}
+          onImageUpdated={(updated: Product) => {
+            setImageModalProduct(null);
+            onUpdateProduct(updated.id, 'imageUrl' as keyof Product, updated.imageUrl);
+          }}
+        />
       )}
     </div>
   );

@@ -50,7 +50,7 @@ export function CashPaymentModal({ totalAmount, onConfirm, onCancel }: CashPayme
           {/* Total Amount */}
           <div className="bg-gray-50 rounded-lg p-3 text-center">
             <div className="text-xs text-gray-500 mb-1">Do zapłaty</div>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl font-bold text-primary-600">
               {formatPrice(totalAmount)} PLN
             </div>
           </div>
@@ -66,7 +66,7 @@ export function CashPaymentModal({ totalAmount, onConfirm, onCancel }: CashPayme
               value={receivedAmount}
               onChange={(e) => setReceivedAmount(e.target.value)}
               placeholder="0.00"
-              className="w-full border border-gray-300 rounded-lg px-3 py-3 text-xl text-gray-900 text-center focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-3 text-xl text-gray-900 text-center focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             />
           </div>
 
@@ -88,7 +88,7 @@ export function CashPaymentModal({ totalAmount, onConfirm, onCancel }: CashPayme
             <div className="text-xs text-gray-500 mb-1">
               {change >= 0 ? 'Reszta dla klienta' : 'Brakuje'}
             </div>
-            <div className={`text-xl font-bold ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`text-xl font-bold ${change >= 0 ? 'text-primary-600' : 'text-red-600'}`}>
               {change >= 0
                 ? formatPrice(change) + ' PLN'
                 : formatPrice(Math.abs(change)) + ' PLN'
@@ -107,7 +107,7 @@ export function CashPaymentModal({ totalAmount, onConfirm, onCancel }: CashPayme
           <button
             onClick={handleSubmit}
             disabled={received < (totalAmount ?? 0)}
-            className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
+            className="flex-1 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
           >
             Potwierdź
           </button>

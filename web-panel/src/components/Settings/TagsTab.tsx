@@ -185,7 +185,7 @@ export function TagsTab() {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -210,7 +210,7 @@ export function TagsTab() {
       )}
 
       {success && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2 text-green-700 mb-4">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2 text-primary-700 mb-4">
           <IoCheckmark className="h-4 w-4" />
           <span className="text-sm">{success}</span>
         </div>
@@ -226,12 +226,12 @@ export function TagsTab() {
             onChange={(e) => setNewTagName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
             placeholder="Nazwa tagu..."
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           />
           <button
             onClick={handleAddTag}
             disabled={saving || !newTagName.trim()}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             <IoAdd className="h-4 w-4" />
             Dodaj
@@ -247,7 +247,7 @@ export function TagsTab() {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="Szukaj tagów..."
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
         />
       </div>
 
@@ -287,7 +287,7 @@ export function TagsTab() {
                           if (e.key === 'Enter') handleSaveEdit();
                           if (e.key === 'Escape') handleCancelEdit();
                         }}
-                        className="px-2 py-1 border border-green-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500 w-full max-w-xs"
+                        className="px-2 py-1 border border-green-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-primary-500 w-full max-w-xs"
                         autoFocus
                       />
                     ) : (
@@ -309,7 +309,7 @@ export function TagsTab() {
                         <button
                           onClick={handleSaveEdit}
                           disabled={saving}
-                          className="p-1.5 text-green-600 hover:bg-green-100 rounded"
+                          className="p-1.5 text-primary-600 hover:bg-green-100 rounded"
                           title="Zapisz"
                         >
                           <IoCheckmark className="h-4 w-4" />

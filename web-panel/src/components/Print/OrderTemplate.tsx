@@ -206,8 +206,8 @@ export function OrderTemplate({ data, companyInfo = defaultCompanyInfo, showPric
 
       {/* Printer status indicator - no-print */}
       <div className="no-print mb-4 flex items-center gap-2 text-sm">
-        <div className={'w-2 h-2 rounded-full ' + (hasPrinterConfigured ? 'bg-green-500' : 'bg-gray-400')}></div>
-        <span className={hasPrinterConfigured ? 'text-green-700' : 'text-gray-600'}>
+        <div className={'w-2 h-2 rounded-full ' + (hasPrinterConfigured ? 'bg-primary-500' : 'bg-gray-400')}></div>
+        <span className={hasPrinterConfigured ? 'text-primary-700' : 'text-gray-600'}>
           {hasPrinterConfigured
             ? 'Drukarka zamówień skonfigurowana - automatyczny wydruk'
             : 'Brak skonfigurowanej drukarki - wydruk przez przeglądarkę'}

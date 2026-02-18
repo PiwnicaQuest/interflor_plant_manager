@@ -408,7 +408,7 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                   showNewOrderForm
                     ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    : 'bg-green-600 text-white hover:bg-green-700'
+                    : 'bg-primary-600 text-white hover:bg-primary-700'
                 }`}
               >
                 {showNewOrderForm ? 'Anuluj' : '+ Nowe'}
@@ -501,7 +501,7 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
                     type="button"
                     onClick={handleCreateNewOrder}
                     disabled={creatingOrder || !selectedCustomerId}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                   >
                     {creatingOrder ? 'Tworzenie...' : 'Utworz'}
                   </button>
@@ -512,7 +512,7 @@ export function TransferProductsModal({ sourceOrder, onClose, onSuccess }: Trans
                   </p>
                 )}
                 {selectedCustomerId === sourceCustomerId && (
-                  <p className="text-xs text-green-700 mt-2">
+                  <p className="text-xs text-primary-700 mt-2">
                     Ten sam kontrahent co zamówienie źródłowe - ceny zostana zachowane.
                   </p>
                 )}

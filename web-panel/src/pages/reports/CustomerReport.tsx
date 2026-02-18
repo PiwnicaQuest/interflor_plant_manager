@@ -148,9 +148,9 @@ export function CustomerReport() {
               <p className="text-sm text-purple-700">Aktywni klienci</p>
               <p className="text-2xl font-bold text-purple-900">{customerStats.totalCustomers}</p>
             </div>
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
-              <p className="text-sm text-green-700">Nowi klienci</p>
-              <p className="text-2xl font-bold text-green-900">{customerStats.newCustomers}</p>
+            <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-lg p-4 border border-green-200">
+              <p className="text-sm text-primary-700">Nowi klienci</p>
+              <p className="text-2xl font-bold text-primary-900">{customerStats.newCustomers}</p>
             </div>
             <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
               <p className="text-sm text-blue-700">Powracający klienci</p>

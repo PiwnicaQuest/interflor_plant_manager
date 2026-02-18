@@ -171,9 +171,9 @@ export function SalesReport() {
             <p className="text-sm text-blue-600">{formatCurrency(statusStats.summary.open.totalGross)}</p>
           </div>
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <p className="text-sm text-green-700">Zamknięte zamówienia</p>
-            <p className="text-2xl font-bold text-green-900">{statusStats.summary.closed.ordersCount}</p>
-            <p className="text-sm text-green-600">{formatCurrency(statusStats.summary.closed.totalGross)}</p>
+            <p className="text-sm text-primary-700">Zamknięte zamówienia</p>
+            <p className="text-2xl font-bold text-primary-900">{statusStats.summary.closed.ordersCount}</p>
+            <p className="text-sm text-primary-600">{formatCurrency(statusStats.summary.closed.totalGross)}</p>
           </div>
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
             <p className="text-sm text-gray-700">Wszystkie zamówienia</p>

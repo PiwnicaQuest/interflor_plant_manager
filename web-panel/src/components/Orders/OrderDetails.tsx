@@ -325,7 +325,7 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
     };
 
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'POLFLOR';
+    workbook.creator = 'INTERFLOR';
     workbook.created = new Date();
     
     const worksheet = workbook.addWorksheet(order.orderNumber.replace(/\//g, '-'), {
@@ -560,7 +560,7 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
               <div className="flex items-start gap-3">
                 <svg
-                  className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0"
+                  className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -703,7 +703,7 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
                   {statusHistory.map((item, index) => (
                     <div key={item.id} className="relative pl-10">
                       <div className={`absolute left-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                        statusConfig[item.statusTo]?.class === 'badge-success' ? 'bg-green-500' :
+                        statusConfig[item.statusTo]?.class === 'badge-success' ? 'bg-primary-500' :
                         statusConfig[item.statusTo]?.class === 'badge-warning' ? 'bg-yellow-500' :
                         statusConfig[item.statusTo]?.class === 'badge-danger' ? 'bg-red-500' :
                         statusConfig[item.statusTo]?.class === 'badge-info' ? 'bg-blue-500' :
@@ -722,7 +722,7 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
 
                       <div className={`bg-white border rounded-lg p-3 shadow-sm ${
                         index === 0 ? 'border-l-4 ' + (
-                          statusConfig[item.statusTo]?.class === 'badge-success' ? 'border-l-green-500' :
+                          statusConfig[item.statusTo]?.class === 'badge-success' ? 'border-l-primary-500' :
                           statusConfig[item.statusTo]?.class === 'badge-warning' ? 'border-l-yellow-500' :
                           statusConfig[item.statusTo]?.class === 'badge-danger' ? 'border-l-red-500' :
                           statusConfig[item.statusTo]?.class === 'badge-info' ? 'border-l-blue-500' :
@@ -788,7 +788,7 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
             {canCreateDocument() && (
               <button
                 onClick={() => setShowDocumentModal(true)}
-                className="btn flex-1 min-w-[120px] bg-green-600 hover:bg-green-700 text-white border-green-600"
+                className="btn flex-1 min-w-[120px] bg-primary-600 hover:bg-primary-700 text-white border-primary-600"
               >
                 Wystaw dokument
               </button>
@@ -966,7 +966,7 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
                     onClick={() => setDocumentType('receipt')}
                     className={`p-4 border-2 rounded-lg text-center transition-all ${
                       documentType === 'receipt'
-                        ? 'border-green-500 bg-green-50 text-green-700'
+                        ? 'border-primary-500 bg-green-50 text-primary-700'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
@@ -1034,7 +1034,7 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
                 onClick={handleCreateDocument}
                 className={`btn flex-1 text-white ${
                   documentType === 'receipt'
-                    ? 'bg-green-600 hover:bg-green-700 border-green-600'
+                    ? 'bg-primary-600 hover:bg-primary-700 border-primary-600'
                     : 'bg-blue-600 hover:bg-blue-700 border-blue-600'
                 }`}
                 disabled={isCreatingDocument}

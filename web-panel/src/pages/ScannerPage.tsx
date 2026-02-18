@@ -117,7 +117,7 @@ export function ScannerPage() {
   };
 
   const getMovementColor = (deltaUnits: number) => {
-    if (deltaUnits > 0) return 'text-green-600';
+    if (deltaUnits > 0) return 'text-primary-600';
     if (deltaUnits < 0) return 'text-red-600';
     return 'text-gray-600';
   };
@@ -137,12 +137,12 @@ export function ScannerPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Zeskanuj kod kreskowy lub wpisz nazwę rośliny..."
-              className="w-full px-4 py-3 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 pr-10"
+              className="w-full px-4 py-3 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 pr-10"
               autoComplete="off"
             />
             {searchLoading && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
               </div>
             )}
           </div>
@@ -187,7 +187,7 @@ export function ScannerPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-semibold text-green-600">{product.totalUnits} szt.</div>
+                    <div className="font-semibold text-primary-600">{product.totalUnits} szt.</div>
                     <div className="text-sm text-gray-600">{product.basePriceGross?.toFixed(2)} PLN</div>
                   </div>
                 </button>
@@ -206,7 +206,7 @@ export function ScannerPage() {
         {/* Product Details */}
         {productLoading && (
           <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
           </div>
         )}
 
@@ -239,7 +239,7 @@ export function ScannerPage() {
                 )}
                 <div>
                   <div className="text-sm text-gray-500">Stan magazynowy</div>
-                  <div className="font-bold text-xl text-green-600">{selectedProduct.totalUnits} szt.</div>
+                  <div className="font-bold text-xl text-primary-600">{selectedProduct.totalUnits} szt.</div>
                 </div>
                 <div>
                   <div className="text-sm text-gray-500">Cena brutto</div>

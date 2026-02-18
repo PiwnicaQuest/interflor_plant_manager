@@ -197,6 +197,8 @@ export interface Order {
   customerPriceGroupName?: string;
   status: OrderStatus;
   totalAmount: number;
+  discountPercentage?: number;
+  totalAmountAfterDiscount?: number;
   itemCount?: number;
   notes?: string;
   // Recipient (delivery address)

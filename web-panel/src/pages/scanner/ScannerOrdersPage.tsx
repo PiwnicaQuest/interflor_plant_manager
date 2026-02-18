@@ -28,7 +28,7 @@ export function ScannerOrdersPage() {
   const filteredOrders = orders.filter(order =>
     !searchQuery ||
     order.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    order.customerCode?.toLowerCase().includes(searchQuery.toLowerCase())
+    String(order.customerCode || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   useEffect(() => {
@@ -76,7 +76,7 @@ export function ScannerOrdersPage() {
               onClick={() => setStatusFilter(tab.value)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
                 statusFilter === tab.value
-                  ? 'bg-green-600 text-white'
+                  ? 'bg-primary-600 text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
@@ -95,7 +95,7 @@ export function ScannerOrdersPage() {
             placeholder="Szukaj po nazwie lub kodzie kontrahenta..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           />
           {searchQuery && (
             <button
@@ -114,14 +114,14 @@ export function ScannerOrdersPage() {
       <div className="flex-1 overflow-auto px-2 py-2">
         {loading ? (
           <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600" />
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
           </div>
         ) : error ? (
           <div className="text-center py-6">
             <div className="text-red-500 mb-3 text-sm">{error}</div>
             <button
               onClick={loadOrders}
-              className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+              className="px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm"
             >
               Sprobuj ponownie
             </button>
@@ -141,7 +141,7 @@ export function ScannerOrdersPage() {
             </p>
             <Link
               to="/scanner/orders/new"
-              className="inline-flex items-center px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+              className="inline-flex items-center px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm"
             >
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -180,7 +180,7 @@ export function ScannerOrdersPage() {
                   <span className="text-xs text-gray-500">
                     {order.itemCount || 0} poz.
                   </span>
-                  <span className="font-bold text-sm text-green-600">
+                  <span className="font-bold text-sm text-primary-600">
                     {order.totalAmount?.toFixed(2) || '0.00'} PLN
                   </span>
                 </div>

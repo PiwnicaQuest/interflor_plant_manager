@@ -50,6 +50,8 @@ import { TagsController } from "./controllers/tags.controller";
 import { PermissionProfileController } from "./controllers/permissionProfile.controller";
 import { LoginHistoryController } from "./controllers/loginHistory.controller";
 import { ImageService, ImageSize } from './services/imageService';
+import { OrderModel } from './models/Order';
+import { SettingsModel } from './models/Settings';
 
 // Initialize Express
 const app = express();
@@ -128,6 +130,7 @@ app.post("/inventory/bulk-tags", requireAuth, requirePermission('inventory:edit'
 // Product image upload
 app.post('/inventory/:id/image', requireAuth, requirePermission('inventory:edit'), productImageUpload.single('image'), UploadController.uploadProductImage);
 app.delete('/inventory/:id/image', requireAuth, requirePermission('inventory:edit'), UploadController.deleteProductImage);
+app.put('/inventory/:id/image-url', requireAuth, requirePermission('inventory:edit'), UploadController.setProductImageUrl);
 
 // Recalculate all prices based on current settings
 app.post("/inventory/recalculate-prices", requireAuth, requirePermission('settings:edit'), InventoryController.recalculateAllPrices);
@@ -236,6 +239,79 @@ app.get('/receipts', requireAuth, ReceiptController.getAll);
 app.get('/receipts/number/:receiptNumber', requireAuth, ReceiptController.getByReceiptNumber);
 app.delete('/receipts/bulk', requireAuth, requirePermission('receipts:create'), ReceiptController.deleteBulk);
 app.get("/receipts/:id/html", requireAuth, ReceiptController.getHTML);
+
+// Confirmation receipt from order (for printing confirmation after invoice)
+app.get("/orders/:id/confirmation-html", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    if (isNaN(orderId)) return res.status(400).json({ error: "Nieprawidlowe ID" });
+
+    const order = await OrderModel.getById(orderId);
+    if (!order) return res.status(404).json({ error: "Zamowienie nie znalezione" });
+
+    const invoiceResult = await (await import('./models/database')).query(
+      `SELECT i.invoice_number, i.payment_method, i.payment_splits
+       FROM invoices i
+       WHERE i.order_id = $1 AND (i.invoice_type = 'invoice' OR i.invoice_type IS NULL)
+       LIMIT 1`,
+      [orderId]
+    );
+
+    const settings = await SettingsModel.getCompanySettings();
+    const invoice = invoiceResult.rows[0];
+    const items = order.items || [];
+    const totalAmount = Number(order.totalAmountAfterDiscount || order.totalAmount);
+    const paymentMethod = invoice?.paymentMethod || 'cash';
+    const paymentSplits = invoice?.paymentSplits;
+    const documentNumber = invoice?.invoiceNumber || order.orderNumber;
+
+    const formatDateFn = (date: Date | string) => {
+      const d = typeof date === 'string' ? new Date(date) : date;
+      return d.toLocaleString('pl-PL', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    };
+    const pmLabel = (m: string) => ({ card: 'Karta', cash: 'Gotowka', transfer: 'Przelew' }[m] || m);
+
+    const discountPct = Number(order.discountPercentage || 0);
+
+    const itemsHtml = items.map((item: any) => {
+      const name = item.productSnapshot?.plantName || item.productName || 'Produkt';
+      const qty = item.quantity || 1;
+      const originalPrice = Number(item.unitPriceGross || 0);
+      const discountedPrice = discountPct > 0
+        ? Math.round(originalPrice * (1 - discountPct / 100) * 100) / 100
+        : originalPrice;
+      const discountedTotal = Math.round(discountedPrice * qty * 100) / 100;
+
+      let row = '<tr style="border-bottom:' + (discountPct > 0 ? 'none' : '1px dotted #ddd') + '"><td style="padding:4px 2px">' + name + '</td><td style="text-align:center;font-weight:600">' + qty + '</td><td style="text-align:right">' + discountedPrice.toFixed(2) + '</td><td style="text-align:right;font-weight:600">' + discountedTotal.toFixed(2) + '</td></tr>';
+
+      if (discountPct > 0) {
+        const discountAmount = Math.round((originalPrice - discountedPrice) * qty * 100) / 100;
+        row += '<tr style="border-bottom:1px dotted #ddd"><td colspan="4" style="padding:1px 2px 4px;font-size:9px;color:#666">  rabat -' + discountPct + '%: ' + originalPrice.toFixed(2) + ' -> ' + discountedPrice.toFixed(2) + ' (-' + discountAmount.toFixed(2) + ')</td></tr>';
+      }
+
+      return row;
+    }).join('');
+
+    let paymentHtml = '';
+    if (paymentSplits && paymentSplits.length > 1) {
+      paymentHtml = '<p style="font-size:13px;font-weight:600;margin-bottom:4px">Platnosc podzielona:</p>' +
+        paymentSplits.map((s: any) => '<div style="display:flex;justify-content:space-between;font-size:13px"><span>' + pmLabel(s.paymentMethod) + ':</span><span>' + Number(s.amount).toFixed(2) + ' PLN</span></div>').join('');
+    } else {
+      paymentHtml = '<div style="display:flex;justify-content:space-between;font-size:13px"><span>Forma platnosci:</span><span style="font-weight:600">' + pmLabel(paymentMethod) + '</span></div>';
+    }
+
+    const addr = [settings.street, (settings.postalCode || '') + ' ' + (settings.city || '')].filter(Boolean).join(', ');
+    const now = formatDateFn(new Date());
+
+    const html = '<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Potwierdzenie ' + documentNumber + '</title><style>*{margin:0;padding:0;box-sizing:border-box}html,body{width:77mm;margin:0;padding:0;font-family:"Courier New",Courier,monospace;font-weight:bold;font-size:13px;line-height:1.3;background:white;color:black}@media print{@page{size:77mm auto;margin:0}html,body{width:77mm;margin:0;padding:0}.receipt{width:77mm;max-width:77mm;padding:2mm;margin:0}}.receipt{width:77mm;max-width:77mm;margin:0;padding:8px;background:white}.header{text-align:center;border-bottom:2px dashed black;padding-bottom:8px;margin-bottom:8px}.header h1{font-size:15px;font-weight:bold;margin-bottom:2px}.header p{font-size:11px}.title{text-align:center;margin-bottom:8px}.title h2{font-size:13px;font-weight:bold}.date-section{border-bottom:1px dashed #999;padding-bottom:6px;margin-bottom:6px;font-size:11px}.items-section{border-bottom:1px dashed #999;padding-bottom:6px;margin-bottom:6px}table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed}th{text-align:left;padding:2px 1px;border-bottom:1px solid #999;font-size:10px;white-space:nowrap;overflow:hidden}td{padding:2px 1px;font-size:11px;overflow:hidden;text-overflow:ellipsis}th:nth-child(1){width:45%}th:nth-child(2){text-align:center;width:15%}th:nth-child(3),th:nth-child(4){text-align:right;width:20%}.total-section{border-bottom:2px dashed black;padding-bottom:8px;margin-bottom:8px}.total{display:flex;justify-content:space-between;align-items:center;font-size:15px;font-weight:bold}.payment-section{border-bottom:1px dashed #999;padding-bottom:6px;margin-bottom:6px}.footer{text-align:center;font-size:11px;margin-top:8px}.footer p{margin-bottom:2px}.footer .timestamp{font-size:10px;color:#666;margin-top:6px;padding-top:6px;border-top:1px dotted #999}</style></head><body><div class="receipt"><div class="header"><h1>' + (settings.companyName || 'Firma') + '</h1><p>' + addr + '</p><p>NIP: ' + (settings.nip || '') + '</p>' + (settings.phone ? '<p>Tel: ' + settings.phone + '</p>' : '') + '</div><div class="title"><h2>POTWIERDZENIE SPRZEDAZY</h2><p style="font-weight:bold;font-size:12px">do ' + documentNumber + '</p><p style="font-size:11px">Zamowienie: ' + order.orderNumber + '</p></div><div class="date-section"><p>Data: ' + now + '</p></div><div class="items-section"><table><thead><tr><th>Nazwa</th><th>Szt</th><th>Cena</th><th>Wart</th></tr></thead><tbody>' + itemsHtml + '</tbody></table></div><div class="total-section"><div class="total"><span>SUMA:</span><span>' + totalAmount.toFixed(2) + ' PLN</span></div></div><div class="payment-section">' + paymentHtml + '</div><div class="footer"><p style="font-weight:600">Dziekujemy za zakupy!</p><p style="color:#666">Zapraszamy ponownie</p><div class="timestamp"><p>' + now + '</p></div></div></div></body></html>';
+
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(html);
+  } catch (error) {
+    console.error("Confirmation HTML error:", error);
+    res.status(500).json({ error: "Blad generowania potwierdzenia" });
+  }
+});
 app.get("/receipts/:id/pdf", requireAuth, ReceiptController.getPdf);
 app.get('/receipts/:id', requireAuth, ReceiptController.getById);
 app.put('/receipts/:id', requireAuth, requirePermission('receipts:create'), ReceiptController.update);

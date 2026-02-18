@@ -69,7 +69,7 @@ export function InvoicesTable({
     const colors: Record<PaymentStatus, string> = {
       [PaymentStatus.UNPAID]: 'text-red-700 bg-red-100',
       [PaymentStatus.PARTIALLY_PAID]: 'text-yellow-700 bg-yellow-100',
-      [PaymentStatus.PAID]: 'text-green-700 bg-green-100',
+      [PaymentStatus.PAID]: 'text-primary-700 bg-green-100',
       [PaymentStatus.OVERDUE]: 'text-red-900 bg-red-200',
     };
     return colors[status];
@@ -227,7 +227,7 @@ export function InvoicesTable({
                     )}
                     <button
                       onClick={() => onUpdatePayment(invoice)}
-                      className="text-green-600 hover:text-green-700 text-sm font-medium"
+                      className="text-primary-600 hover:text-primary-700 text-sm font-medium"
                       title="Aktualizuj płatność"
                     >
                       Płatność

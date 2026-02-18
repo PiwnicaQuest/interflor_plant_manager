@@ -441,7 +441,7 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
                               <button onClick={() => { setPreviewGroupIndex(groupIndex); setShowPreview(true); }} disabled={!canMerge} className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-100 rounded disabled:opacity-50">
                                 Podgląd
                               </button>
-                              <button onClick={() => handleMergeGroup(groupIndex)} disabled={!canMerge || merging} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+                              <button onClick={() => handleMergeGroup(groupIndex)} disabled={!canMerge || merging} className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50">
                                 Połącz ({selection.size})
                               </button>
                             </div>
@@ -452,7 +452,7 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
                               <div className="bg-green-100 px-3 py-2 rounded-lg text-sm">
                                 <span className="text-green-800 font-medium">Master: </span>
                                 <span className="font-bold">#{masterInfo.master.id}</span>
-                                <span className="text-green-600 ml-2">({masterInfo.reason})</span>
+                                <span className="text-primary-600 ml-2">({masterInfo.reason})</span>
                               </div>
                               
                               <div className="flex items-center gap-2 text-sm">
@@ -582,8 +582,8 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
                       </div>
                       <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div><span className="text-gray-500">Połączono produktów:</span><span className="ml-2 font-semibold">{entry.mergedProductIds?.length || 0}</span></div>
-                        <div><span className="text-gray-500">Dodano palet:</span><span className="ml-2 font-semibold text-green-600">+{entry.totalPalletsAdded}</span></div>
-                        <div><span className="text-gray-500">Dodano sztuk:</span><span className="ml-2 font-semibold text-green-600">+{entry.totalUnitsAdded}</span></div>
+                        <div><span className="text-gray-500">Dodano palet:</span><span className="ml-2 font-semibold text-primary-600">+{entry.totalPalletsAdded}</span></div>
+                        <div><span className="text-gray-500">Dodano sztuk:</span><span className="ml-2 font-semibold text-primary-600">+{entry.totalUnitsAdded}</span></div>
                         <div><span className="text-gray-500">Cena:</span><span className="ml-2">{formatPrice(entry.priceBefore)} - {formatPrice(entry.priceAfter)}</span></div>
                       </div>
                       {entry.mergedBarcodes && entry.mergedBarcodes.length > 0 && (
@@ -659,7 +659,7 @@ export function SimilarProductsModal({ isOpen, onClose, onMergeComplete }: Simil
 
                     <div className="flex justify-end gap-3 pt-4">
                       <button onClick={() => setShowPreview(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Anuluj</button>
-                      <button onClick={() => handleMergeGroup(previewGroupIndex)} disabled={merging} className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+                      <button onClick={() => handleMergeGroup(previewGroupIndex)} disabled={merging} className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50">
                         {merging ? "Łączenie..." : "Potwierdz polaczenie"}
                       </button>
                     </div>

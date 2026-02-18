@@ -229,18 +229,18 @@ export function MergeOrdersModal({ masterOrder, onClose, onSuccess }: MergeOrder
           {/* Merge Preview */}
           {mergePreview && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-              <h3 className="font-semibold text-green-900 mb-2">Podsumowanie po polaczeniu</h3>
+              <h3 className="font-semibold text-primary-900 mb-2">Podsumowanie po polaczeniu</h3>
               <div className="grid grid-cols-3 gap-4 text-sm">
                 <div>
-                  <span className="text-green-700">Zamowienia do połączenia:</span>{' '}
+                  <span className="text-primary-700">Zamowienia do połączenia:</span>{' '}
                   <strong>{mergePreview.ordersToMerge}</strong>
                 </div>
                 <div>
-                  <span className="text-green-700">Łączna liczba pozycji:</span>{' '}
+                  <span className="text-primary-700">Łączna liczba pozycji:</span>{' '}
                   <strong>{mergePreview.totalItems}</strong>
                 </div>
                 <div>
-                  <span className="text-green-700">Łączna wartość:</span>{' '}
+                  <span className="text-primary-700">Łączna wartość:</span>{' '}
                   <strong>{mergePreview.totalAmount.toFixed(2)} PLN</strong>
                 </div>
               </div>

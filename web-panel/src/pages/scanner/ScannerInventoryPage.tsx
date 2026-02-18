@@ -314,7 +314,7 @@ export function ScannerInventoryPage() {
         </div>
       )}
       {success && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-primary-700 text-sm">
           {success}
         </div>
       )}
@@ -458,7 +458,7 @@ export function ScannerInventoryPage() {
           {hasDifference && (
             <div className={`p-4 ${diff.units > 0 ? 'bg-green-50' : 'bg-red-50'}`}>
               <div className="text-xs font-medium text-gray-500 mb-1">RÓŻNICA</div>
-              <div className={`text-2xl font-bold ${diff.units > 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <div className={`text-2xl font-bold ${diff.units > 0 ? 'text-primary-600' : 'text-red-600'}`}>
                 {diff.units > 0 ? '+' : ''}{diff.units} szt.
               </div>
               {diff.pallets !== 0 && (
@@ -515,7 +515,7 @@ export function ScannerInventoryPage() {
                     {new Date(adj.createdAt).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
-                <div className={`text-sm font-bold ${adj.deltaUnits >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <div className={`text-sm font-bold ${adj.deltaUnits >= 0 ? 'text-primary-600' : 'text-red-600'}`}>
                   {adj.deltaUnits >= 0 ? '+' : ''}{adj.deltaUnits} szt.
                 </div>
               </div>

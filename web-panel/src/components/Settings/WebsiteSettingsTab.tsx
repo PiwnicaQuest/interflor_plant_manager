@@ -193,7 +193,7 @@ export function WebsiteSettingsTab() {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -201,7 +201,7 @@ export function WebsiteSettingsTab() {
   return (
     <div className="bg-white rounded-lg shadow p-6 max-w-3xl">
       <div className="flex items-center gap-3 mb-6">
-        <IoGlobeOutline className="text-2xl text-green-600" />
+        <IoGlobeOutline className="text-2xl text-primary-600" />
         <div>
           <h2 className="text-lg font-semibold">Ustawienia strony internetowej</h2>
           <p className="text-sm text-gray-500">Konfiguracja dodatkowych zakładek w katalogu sklepu</p>
@@ -216,7 +216,7 @@ export function WebsiteSettingsTab() {
       )}
 
       {success && (
-        <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded-md">
+        <div className="mb-4 p-3 bg-green-100 border border-green-400 text-primary-700 rounded-md">
           {success}
         </div>
       )}
@@ -243,7 +243,7 @@ export function WebsiteSettingsTab() {
                 onChange={(e) => setTab1({ ...tab1, enabled: e.target.checked })}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
               <span className="ml-2 text-sm text-gray-600">{tab1.enabled ? 'Włączona' : 'Wyłączona'}</span>
             </label>
           </div>
@@ -259,7 +259,7 @@ export function WebsiteSettingsTab() {
                 onChange={(e) => setTab1({ ...tab1, name: e.target.value })}
                 placeholder="np. Walentynki"
                 disabled={!tab1.enabled}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100 disabled:text-gray-500"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-100 disabled:text-gray-500"
               />
             </div>
             <div>
@@ -271,7 +271,7 @@ export function WebsiteSettingsTab() {
                 value={tab1.tag}
                 onChange={(e) => setTab1({ ...tab1, tag: e.target.value })}
                 disabled={!tab1.enabled}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100 disabled:text-gray-500"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-100 disabled:text-gray-500"
               >
                 <option value="">-- Wybierz tag --</option>
                 {availableTags.map(tag => (
@@ -297,7 +297,7 @@ export function WebsiteSettingsTab() {
                 onChange={(e) => setTab2({ ...tab2, enabled: e.target.checked })}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
               <span className="ml-2 text-sm text-gray-600">{tab2.enabled ? 'Włączona' : 'Wyłączona'}</span>
             </label>
           </div>
@@ -313,7 +313,7 @@ export function WebsiteSettingsTab() {
                 onChange={(e) => setTab2({ ...tab2, name: e.target.value })}
                 placeholder="np. Na zamówienie"
                 disabled={!tab2.enabled}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100 disabled:text-gray-500"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-100 disabled:text-gray-500"
               />
             </div>
             <div>
@@ -325,7 +325,7 @@ export function WebsiteSettingsTab() {
                 value={tab2.tag}
                 onChange={(e) => setTab2({ ...tab2, tag: e.target.value })}
                 disabled={!tab2.enabled}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100 disabled:text-gray-500"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-100 disabled:text-gray-500"
               >
                 <option value="">-- Wybierz tag --</option>
                 {availableTags.map(tag => (
@@ -345,7 +345,7 @@ export function WebsiteSettingsTab() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-medium px-6 py-2 rounded-md transition-colors"
+            className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white font-medium px-6 py-2 rounded-md transition-colors"
           >
             <IoSave />
             {saving ? 'Zapisywanie...' : 'Zapisz ustawienia'}

@@ -510,7 +510,7 @@ export function GrowerPassportsTab() {
                             <button
                               onClick={handleSaveEdit}
                               disabled={saving}
-                              className="text-green-600 hover:text-green-800 text-sm font-medium"
+                              className="text-primary-600 hover:text-primary-800 text-sm font-medium"
                             >
                               Zapisz
                             </button>

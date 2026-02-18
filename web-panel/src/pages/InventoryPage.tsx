@@ -872,7 +872,7 @@ export function InventoryPage() {
   return (
     <div className={`h-full flex flex-col ${focusedProduct && distributionPanelEnabled ? 'pb-80' : ''}`}>
       {/* Sticky Header, Tabs and Filters */}
-      <div className="flex-shrink-0 z-30 bg-white px-6 pt-2 pb-2 shadow-sm border-b border-gray-100">
+      <div className="flex-shrink-0 z-30 bg-white px-3 pt-2 pb-2 shadow-sm border-b border-gray-100">
         {/* Header */}
         <div className="flex justify-between items-center">
         <div>
@@ -955,7 +955,7 @@ export function InventoryPage() {
                 </button>
                 <hr className="my-1 border-gray-200" />
                 <button
-                  className="w-full px-4 py-2 text-left text-sm hover:bg-green-50 text-green-700 flex items-center gap-2 font-medium"
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-primary-50 text-primary-700 flex items-center gap-2 font-medium"
                   onClick={() => { setShowExcelExportModal(true); setShowMoreMenu(false); }}
                 >
                   📥 Eksport oferty (Excel)
@@ -982,13 +982,13 @@ export function InventoryPage() {
             onClick={() => setActiveTab('active')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'active'
-                ? 'border-green-500 text-green-600'
+                ? 'border-primary-500 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
             Aktywne produkty
             <span className={`ml-2 py-0.5 px-2.5 rounded-full text-xs ${
-              activeTab === 'active' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-900'
+              activeTab === 'active' ? 'bg-green-100 text-primary-600' : 'bg-gray-100 text-gray-900'
             }`}>
               {counts.active}
             </span>
@@ -1062,7 +1062,7 @@ export function InventoryPage() {
             <button
               onClick={() => handleBulkVisibilityChange(true)}
               disabled={bulkActionInProgress}
-              className="btn btn-secondary text-sm py-1 px-3 flex items-center gap-1 bg-green-100 hover:bg-green-200 text-green-800 border-green-300"
+              className="btn btn-secondary text-sm py-1 px-3 flex items-center gap-1 bg-green-100 hover:bg-primary-200 text-green-800 border-green-300"
             >
               👁️ Pokaż w sklepie
             </button>
@@ -1088,7 +1088,7 @@ export function InventoryPage() {
               <button
                 onClick={handleBulkRestore}
                 disabled={bulkActionInProgress}
-                className="btn text-sm py-1 px-3 flex items-center gap-1 bg-green-100 hover:bg-green-200 text-green-800 border border-green-300"
+                className="btn text-sm py-1 px-3 flex items-center gap-1 bg-green-100 hover:bg-primary-200 text-green-800 border border-green-300"
               >
                 ♻️ Przywróć zaznaczone
               </button>
@@ -1120,7 +1120,7 @@ export function InventoryPage() {
       )}
 
       {/* Products Table - Scrollable Area */}
-      <div className="flex-1 overflow-auto min-h-0 px-6">
+      <div className="flex-1 overflow-auto min-h-0 px-3 py-2">
       {loading ? (
         <div className="text-center py-12">
           <p className="text-gray-500">Ładowanie...</p>

@@ -156,6 +156,6 @@ export const roleDescriptions: Record<UserRole, string> = {
 export const roleColors: Record<UserRole, { bg: string; text: string }> = {
   [UserRole.ADMIN]: { bg: 'bg-purple-100', text: 'text-purple-700' },
   [UserRole.WAREHOUSE]: { bg: 'bg-blue-100', text: 'text-blue-700' },
-  [UserRole.POS]: { bg: 'bg-green-100', text: 'text-green-700' },
+  [UserRole.POS]: { bg: 'bg-green-100', text: 'text-primary-700' },
   [UserRole.CUSTOMER]: { bg: 'bg-gray-100', text: 'text-gray-700' },
 };

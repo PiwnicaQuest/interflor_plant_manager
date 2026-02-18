@@ -186,7 +186,7 @@ export default function PermissionProfilesTab() {
   if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -210,7 +210,7 @@ export default function PermissionProfilesTab() {
         </div>
         <button
           onClick={openCreateModal}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
         >
           <FiPlus className="w-4 h-4" />
           Nowy profil
@@ -298,7 +298,7 @@ export default function PermissionProfilesTab() {
                     value={formData.name}
                     onChange={e => setFormData({ ...formData, name: e.target.value })}
                     disabled={editingProfile?.isSystem}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-100"
                     placeholder="np. Kierownik magazynu"
                   />
                 </div>
@@ -314,7 +314,7 @@ export default function PermissionProfilesTab() {
                         onClick={() => setFormData({ ...formData, color: color.value })}
                         className={`w-8 h-8 rounded-full ${color.bg} ${
                           formData.color === color.value
-                            ? 'ring-2 ring-offset-2 ring-green-500'
+                            ? 'ring-2 ring-offset-2 ring-primary-500'
                             : ''
                         }`}
                         title={color.label}
@@ -331,7 +331,7 @@ export default function PermissionProfilesTab() {
                 <textarea
                   value={formData.description}
                   onChange={e => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   rows={2}
                   placeholder="Krótki opis profilu..."
                 />
@@ -347,7 +347,7 @@ export default function PermissionProfilesTab() {
                     <button
                       type="button"
                       onClick={selectAllPermissions}
-                      className="text-xs text-green-600 hover:text-green-700"
+                      className="text-xs text-primary-600 hover:text-primary-700"
                     >
                       Zaznacz wszystkie
                     </button>
@@ -377,7 +377,7 @@ export default function PermissionProfilesTab() {
                               type="checkbox"
                               checked={allSelected}
                               onChange={() => toggleCategoryPermissions(categoryKey)}
-                              className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                              className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                             />
                             <span className="font-medium text-gray-900">{cat.label}</span>
                           </label>
@@ -395,7 +395,7 @@ export default function PermissionProfilesTab() {
                                 type="checkbox"
                                 checked={formData.permissions.includes(permission.key)}
                                 onChange={() => togglePermission(permission.key)}
-                                className="w-3.5 h-3.5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                                className="w-3.5 h-3.5 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                               />
                               <span className="text-gray-700">{permission.label}</span>
                             </label>
@@ -418,7 +418,7 @@ export default function PermissionProfilesTab() {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50"
               >
                 {saving ? 'Zapisywanie...' : editingProfile ? 'Zapisz zmiany' : 'Utwórz profil'}
               </button>

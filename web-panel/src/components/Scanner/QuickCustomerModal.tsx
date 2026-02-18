@@ -194,7 +194,7 @@ export function QuickCustomerModal({ onClose, onCustomerCreated }: QuickCustomer
                 onChange={(e) => handleChange('nip', e.target.value.replace(/\D/g, ''))}
                 placeholder="0000000000"
                 maxLength={10}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
               <button
                 type="button"
@@ -217,7 +217,7 @@ export function QuickCustomerModal({ onClose, onCustomerCreated }: QuickCustomer
               value={formData.companyName}
               onChange={(e) => handleChange('companyName', e.target.value)}
               placeholder="Nazwa firmy"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               required
             />
           </div>
@@ -231,7 +231,7 @@ export function QuickCustomerModal({ onClose, onCustomerCreated }: QuickCustomer
                 value={formData.firstName}
                 onChange={(e) => handleChange('firstName', e.target.value)}
                 placeholder="Jan"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
             <div>
@@ -241,7 +241,7 @@ export function QuickCustomerModal({ onClose, onCustomerCreated }: QuickCustomer
                 value={formData.lastName}
                 onChange={(e) => handleChange('lastName', e.target.value)}
                 placeholder="Kowalski"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
           </div>
@@ -255,7 +255,7 @@ export function QuickCustomerModal({ onClose, onCustomerCreated }: QuickCustomer
                 value={formData.email}
                 onChange={(e) => handleChange('email', e.target.value)}
                 placeholder="email@firma.pl"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
             <div>
@@ -265,7 +265,7 @@ export function QuickCustomerModal({ onClose, onCustomerCreated }: QuickCustomer
                 value={formData.phone}
                 onChange={(e) => handleChange('phone', e.target.value)}
                 placeholder="+48 000 000 000"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
           </div>
@@ -280,7 +280,7 @@ export function QuickCustomerModal({ onClose, onCustomerCreated }: QuickCustomer
               value={formData.street}
               onChange={(e) => handleChange('street', e.target.value)}
               placeholder="ul. Przykladowa 1"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               required
             />
           </div>
@@ -295,7 +295,7 @@ export function QuickCustomerModal({ onClose, onCustomerCreated }: QuickCustomer
                 value={formData.postalCode}
                 onChange={(e) => handleChange('postalCode', e.target.value)}
                 placeholder="00-000"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 required
               />
             </div>
@@ -308,7 +308,7 @@ export function QuickCustomerModal({ onClose, onCustomerCreated }: QuickCustomer
                 value={formData.city}
                 onChange={(e) => handleChange('city', e.target.value)}
                 placeholder="Warszawa"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 required
               />
             </div>
@@ -320,7 +320,7 @@ export function QuickCustomerModal({ onClose, onCustomerCreated }: QuickCustomer
             <select
               value={formData.priceGroupId}
               onChange={(e) => handleChange('priceGroupId', Number(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             >
               {priceGroups.map(pg => (
                 <option key={pg.id} value={pg.id}>{pg.name}</option>
@@ -340,7 +340,7 @@ export function QuickCustomerModal({ onClose, onCustomerCreated }: QuickCustomer
             <button
               type="submit"
               disabled={submitting}
-              className="flex-1 py-3 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-semibold rounded-xl transition-colors flex items-center justify-center"
+              className="flex-1 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white font-semibold rounded-xl transition-colors flex items-center justify-center"
             >
               {submitting ? (
                 <>

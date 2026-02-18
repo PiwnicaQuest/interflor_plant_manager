@@ -198,7 +198,7 @@ export function PrinterSettingsTab() {
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${brokerOnline ? "bg-green-500" : "bg-red-500"}`}></div>
+              <div className={`w-3 h-3 rounded-full ${brokerOnline ? "bg-primary-500" : "bg-red-500"}`}></div>
               <span className="text-sm text-gray-600">
                 Print Broker {brokerOnline ? "online" : "offline"}
               </span>
@@ -228,7 +228,7 @@ export function PrinterSettingsTab() {
               Aplikacja do drukowania bezpośrednio z przeglądarki. Działa lokalnie na Twoim komputerze.
             </p>
             <div className="flex items-center gap-2 mb-3">
-              <div className={`w-3 h-3 rounded-full ${brokerOnline ? "bg-green-500" : "bg-gray-400"}`}></div>
+              <div className={`w-3 h-3 rounded-full ${brokerOnline ? "bg-primary-500" : "bg-gray-400"}`}></div>
               <span className="text-sm">
                 {brokerOnline ? "Połączono z Print Broker" : "Print Broker nie jest uruchomiony"}
               </span>
@@ -283,7 +283,7 @@ export function PrinterSettingsTab() {
       )}
 
       {success && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+        <div className="bg-green-100 border border-green-400 text-primary-700 px-4 py-3 rounded">
           {success}
         </div>
       )}
@@ -322,7 +322,7 @@ export function PrinterSettingsTab() {
                   <button
                     onClick={() => handleSaveConfig(docType.type)}
                     disabled={saving === docType.type || !brokerOnline}
-                    className="px-3 py-1 text-sm bg-green-600 hover:bg-green-700 text-white rounded-md disabled:opacity-50"
+                    className="px-3 py-1 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-md disabled:opacity-50"
                   >
                     {saving === docType.type ? "Zapisywanie..." : "Zapisz"}
                   </button>
@@ -337,7 +337,7 @@ export function PrinterSettingsTab() {
                     <select
                       value={selectedPrinter}
                       onChange={(e) => handlePrinterChange(docType.type, e.target.value)}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                       disabled={!brokerOnline}
                     >
                       <option value="">-- Domyślna systemowa --</option>
@@ -366,8 +366,8 @@ export function PrinterSettingsTab() {
                 {/* Status indicator */}
                 {selectedPrinter && brokerOnline && (
                   <div className="mt-3 flex items-center gap-2 text-sm">
-                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                    <span className="text-green-700">
+                    <div className="w-2 h-2 rounded-full bg-primary-500"></div>
+                    <span className="text-primary-700">
                       Przypisano: {brokerPrinters.find(p => p.name === selectedPrinter)?.displayName || selectedPrinter}
                     </span>
                   </div>

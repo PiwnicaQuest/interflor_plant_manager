@@ -406,7 +406,7 @@ export function SettingsPage() {
   ];
 
   return (
-    <div className="p-6">
+    <div className="px-3 py-2">
       <h1 className="text-2xl font-bold mb-6">Ustawienia</h1>
 
       {error && (
@@ -417,7 +417,7 @@ export function SettingsPage() {
       )}
 
       {success && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+        <div className="bg-green-100 border border-green-400 text-primary-700 px-4 py-3 rounded mb-4">
           {success}
         </div>
       )}
@@ -431,7 +431,7 @@ export function SettingsPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === tab.id
-                  ? 'border-green-500 text-green-600'
+                  ? 'border-primary-500 text-primary-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
@@ -462,7 +462,7 @@ export function SettingsPage() {
                     type="text"
                     value={companySettings.companyName}
                     onChange={(e) => setCompanySettings({ ...companySettings, companyName: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
@@ -473,7 +473,7 @@ export function SettingsPage() {
                     type="text"
                     value={companySettings.nip}
                     onChange={(e) => setCompanySettings({ ...companySettings, nip: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="0000000000"
                   />
                 </div>
@@ -487,7 +487,7 @@ export function SettingsPage() {
                   type="text"
                   value={companySettings.regon}
                   onChange={(e) => setCompanySettings({ ...companySettings, regon: e.target.value })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
 
@@ -502,7 +502,7 @@ export function SettingsPage() {
                       type="text"
                       value={companySettings.street}
                       onChange={(e) => setCompanySettings({ ...companySettings, street: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
                   <div>
@@ -513,7 +513,7 @@ export function SettingsPage() {
                       type="text"
                       value={companySettings.postalCode}
                       onChange={(e) => setCompanySettings({ ...companySettings, postalCode: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="00-000"
                     />
                   </div>
@@ -525,7 +525,7 @@ export function SettingsPage() {
                       type="text"
                       value={companySettings.city}
                       onChange={(e) => setCompanySettings({ ...companySettings, city: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
                   <div>
@@ -536,7 +536,7 @@ export function SettingsPage() {
                       type="text"
                       value={companySettings.country}
                       onChange={(e) => setCompanySettings({ ...companySettings, country: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
                 </div>
@@ -553,7 +553,7 @@ export function SettingsPage() {
                       type="text"
                       value={companySettings.phone}
                       onChange={(e) => setCompanySettings({ ...companySettings, phone: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
                   <div>
@@ -564,7 +564,7 @@ export function SettingsPage() {
                       type="email"
                       value={companySettings.email}
                       onChange={(e) => setCompanySettings({ ...companySettings, email: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
                   <div className="md:col-span-2">
@@ -575,7 +575,7 @@ export function SettingsPage() {
                       type="text"
                       value={companySettings.website}
                       onChange={(e) => setCompanySettings({ ...companySettings, website: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="https://"
                     />
                   </div>
@@ -593,7 +593,7 @@ export function SettingsPage() {
                       type="text"
                       value={companySettings.bankName}
                       onChange={(e) => setCompanySettings({ ...companySettings, bankName: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
                   <div className="md:col-span-2">
@@ -604,7 +604,7 @@ export function SettingsPage() {
                       type="text"
                       value={companySettings.bankAccount}
                       onChange={(e) => setCompanySettings({ ...companySettings, bankAccount: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 font-mono"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono"
                       placeholder="00 0000 0000 0000 0000 0000 0000"
                     />
                   </div>
@@ -616,7 +616,7 @@ export function SettingsPage() {
                       type="text"
                       value={companySettings.bankSwift}
                       onChange={(e) => setCompanySettings({ ...companySettings, bankSwift: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
                 </div>
@@ -631,7 +631,7 @@ export function SettingsPage() {
                     value={companySettings.invoiceComment}
                     onChange={(e) => setCompanySettings({ ...companySettings, invoiceComment: e.target.value })}
                     rows={3}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="Np. Dziękujemy za zakupy! Towar pozostaje własnością sprzedawcy do momentu zapłaty."
                   />
                   <p className="mt-1 text-sm text-gray-500">Ten tekst pojawi się na dole każdej faktury.</p>
@@ -642,7 +642,7 @@ export function SettingsPage() {
                 <button
                   onClick={handleSaveCompany}
                   disabled={companySaving}
-                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-medium px-6 py-2 rounded-md transition-colors"
+                  className="bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white font-medium px-6 py-2 rounded-md transition-colors"
                 >
                   {companySaving ? 'Zapisywanie...' : 'Zapisz dane firmy'}
                 </button>
@@ -677,7 +677,7 @@ export function SettingsPage() {
                   onChange={(e) =>
                     setPricingSettings({ ...pricingSettings, costPercentage: parseFloat(e.target.value) || 0 })
                   }
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <p className="text-xs text-gray-400 mt-1">
                   Procent doliczany do ceny zakupu jako koszty operacyjne
@@ -697,7 +697,7 @@ export function SettingsPage() {
                   onChange={(e) =>
                     setPricingSettings({ ...pricingSettings, marginPercentage: parseFloat(e.target.value) || 0 })
                   }
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <p className="text-xs text-gray-400 mt-1">
                   Procent marży doliczany do ceny zakupu + kosztów
@@ -717,7 +717,7 @@ export function SettingsPage() {
                   onChange={(e) =>
                     setPricingSettings({ ...pricingSettings, eurToPlnRate: parseFloat(e.target.value) || 4.30 })
                   }
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <p className="text-xs text-gray-400 mt-1">
                   Kurs używany do przeliczania cen EUR na PLN podczas importu z plików Excel.
@@ -741,7 +741,7 @@ export function SettingsPage() {
                 <button
                   onClick={handleSavePricing}
                   disabled={pricingSaving}
-                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-medium px-6 py-2 rounded-md transition-colors"
+                  className="bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white font-medium px-6 py-2 rounded-md transition-colors"
                 >
                   {pricingSaving ? 'Zapisywanie...' : 'Zapisz ustawienia cenowe'}
                 </button>
@@ -775,7 +775,7 @@ export function SettingsPage() {
                     onChange={(e) => setEmailSettings({ ...emailSettings, enabled: e.target.checked })}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
                 </label>
               </div>
 
@@ -790,7 +790,7 @@ export function SettingsPage() {
                       type="email"
                       value={emailSettings.emailAddress}
                       onChange={(e) => setEmailSettings({ ...emailSettings, emailAddress: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="import@firma.pl"
                     />
                   </div>
@@ -802,7 +802,7 @@ export function SettingsPage() {
                       type="password"
                       value={emailSettings.emailPassword}
                       onChange={(e) => setEmailSettings({ ...emailSettings, emailPassword: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="••••••••"
                     />
                     <p className="text-xs text-gray-400 mt-1">
@@ -823,7 +823,7 @@ export function SettingsPage() {
                       type="text"
                       value={emailSettings.imapServer}
                       onChange={(e) => setEmailSettings({ ...emailSettings, imapServer: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="imap.firma.pl"
                     />
                   </div>
@@ -835,7 +835,7 @@ export function SettingsPage() {
                       type="number"
                       value={emailSettings.imapPort}
                       onChange={(e) => setEmailSettings({ ...emailSettings, imapPort: parseInt(e.target.value) || 993 })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
                 </div>
@@ -852,7 +852,7 @@ export function SettingsPage() {
                       type="text"
                       value={emailSettings.smtpServer}
                       onChange={(e) => setEmailSettings({ ...emailSettings, smtpServer: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="smtp.firma.pl"
                     />
                   </div>
@@ -864,7 +864,7 @@ export function SettingsPage() {
                       type="number"
                       value={emailSettings.smtpPort}
                       onChange={(e) => setEmailSettings({ ...emailSettings, smtpPort: parseInt(e.target.value) || 587 })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
                 </div>
@@ -875,7 +875,7 @@ export function SettingsPage() {
                   <select
                     value={emailSettings.smtpSecurity}
                     onChange={(e) => setEmailSettings({ ...emailSettings, smtpSecurity: e.target.value as 'none' | 'ssl' | 'starttls' })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="none">Brak</option>
                     <option value="ssl">SSL/TLS</option>
@@ -899,7 +899,7 @@ export function SettingsPage() {
                 <button
                   onClick={handleSaveEmail}
                   disabled={emailSaving}
-                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-medium px-6 py-2 rounded-md transition-colors"
+                  className="bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white font-medium px-6 py-2 rounded-md transition-colors"
                 >
                   {emailSaving ? 'Zapisywanie...' : 'Zapisz ustawienia email'}
                 </button>
@@ -933,7 +933,7 @@ export function SettingsPage() {
                   <ul className="text-sm space-y-1">
                     <li>Znalezionych emaili: <span className="font-medium">{syncResult.emailsFound}</span></li>
                     <li>Przetworzonych emaili: <span className="font-medium">{syncResult.emailsProcessed}</span></li>
-                    <li>Zaimportowanych produktów: <span className="font-medium text-green-600">{syncResult.productsImported}</span></li>
+                    <li>Zaimportowanych produktów: <span className="font-medium text-primary-600">{syncResult.productsImported}</span></li>
                     <li>Zaktualizowanych produktów: <span className="font-medium text-blue-600">{syncResult.productsUpdated}</span></li>
                     {syncResult.productsFailed > 0 && (
                       <li>Nieudanych: <span className="font-medium text-red-600">{syncResult.productsFailed}</span></li>

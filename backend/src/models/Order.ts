@@ -446,6 +446,8 @@ export class OrderModel {
     });
   }
 
+
+  static async applyDiscount(orderId: number, discountPercentage: number): Promise<void> {    if (discountPercentage < 0 || discountPercentage > 100) {      throw new Error("Procent rabatu musi byc miedzy 0 a 100");    }    const order = await query("SELECT total_amount FROM orders WHERE id = $1", [orderId]);    if (order.rows.length === 0) throw new Error("Zamowienie nie znalezione");    const totalAmount = Number(order.rows[0].totalAmount);    const totalAmountAfterDiscount = Math.round(totalAmount * (1 - discountPercentage / 100) * 100) / 100;    await query(      "UPDATE orders SET discount_percentage = $1, total_amount_after_discount = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3",      [discountPercentage, totalAmountAfterDiscount, orderId]    );  }
   static async updateStatus(
     id: number,
     status: OrderStatus,
@@ -1063,7 +1065,8 @@ export class OrderModel {
         orderNumber: row.orderNumber,
         customerId: row.customerId,
         customerName: row.customerName,
-        totalAmount: row.totalAmount,
+        totalAmount: row.totalAmountAfterDiscount || row.totalAmount,
+        discountPercentage: row.discountPercentage || 0,
         status: row.status,
         completedAt: row.completedAt,
         createdAt: row.createdAt,
@@ -1396,7 +1399,8 @@ export class OrderModel {
         customerId: row.customerId,
         customerName: row.customerName,
         customerCode: row.customerCode,
-        totalAmount: row.totalAmount,
+        totalAmount: row.totalAmountAfterDiscount || row.totalAmount,
+        discountPercentage: row.discountPercentage || 0,
         status: row.status,
         completedAt: row.completedAt,
         createdAt: row.createdAt,
@@ -1470,7 +1474,8 @@ export class OrderModel {
       id: row.id,
       orderNumber: row.orderNumber,
       status: row.status,
-      totalAmount: row.totalAmount,
+      totalAmount: row.totalAmountAfterDiscount || row.totalAmount,
+        discountPercentage: row.discountPercentage || 0,
       createdAt: row.createdAt,
       completedAt: row.completedAt,
       customerName: row.customerName || (row.firstName ? `${row.firstName} ${row.lastName}` : null),

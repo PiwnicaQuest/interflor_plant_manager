@@ -336,7 +336,6 @@ export class InvoiceModel {
          WHERE oi.order_id = $1`,
         [orderId]
       );
-
       const orderItems = orderItemsResult.rows;
 
       // Check if WDT (EU company with VAT-EU number, not Poland)
@@ -592,7 +591,8 @@ export class InvoiceModel {
     paymentDeadline: Date | null,
     createdByUserId?: number,
     paymentSplits?: PaymentSplit[],
-    recipientSnapshot?: CustomerSnapshot
+    recipientSnapshot?: CustomerSnapshot,
+    overrideItems?: Array<{ productId?: number; description: string; quantity: number; unitPriceGross: number; vatRate: number }>
   ): Promise<InvoiceWithItems> {
     return transaction(async (client) => {
       // Generate invoice number
@@ -601,16 +601,35 @@ export class InvoiceModel {
       );
       const invoiceNumber = invoiceNumberResult.rows[0].getNextDocumentNumber || invoiceNumberResult.rows[0].get_next_document_number;
 
-      // Get order items
-      const orderItemsResult = await client.query(
-        `SELECT oi.*, p.vat_rate
-         FROM order_items oi
-         LEFT JOIN products p ON oi.product_id = p.id
-         WHERE oi.order_id = $1`,
-        [orderId]
-      );
-
-      const orderItems = orderItemsResult.rows;
+      // Get order items (use override items if provided, e.g. for discounts)
+      let orderItems: any[];
+      if (overrideItems && overrideItems.length > 0) {
+        // Use provided items with discounted prices
+        const orderItemsResult = await client.query(
+          `SELECT oi.*, p.vat_rate
+           FROM order_items oi
+           LEFT JOIN products p ON oi.product_id = p.id
+           WHERE oi.order_id = $1`,
+          [orderId]
+        );
+        // Merge: use overrideItems prices but keep original snapshots
+        orderItems = orderItemsResult.rows.map((dbItem: any, idx: number) => {
+          const override = overrideItems.find(oi => oi.productId === dbItem.productId) || overrideItems[idx];
+          if (override) {
+            return { ...dbItem, unitPriceGross: override.unitPriceGross };
+          }
+          return dbItem;
+        });
+      } else {
+        const orderItemsResult = await client.query(
+          `SELECT oi.*, p.vat_rate
+           FROM order_items oi
+           LEFT JOIN products p ON oi.product_id = p.id
+           WHERE oi.order_id = $1`,
+          [orderId]
+        );
+        orderItems = orderItemsResult.rows;
+      }
 
       // Calculate totals
       let subtotalNet = 0;

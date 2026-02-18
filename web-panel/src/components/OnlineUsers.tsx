@@ -173,7 +173,7 @@ export function OnlineUsers() {
                   {user.email.charAt(0).toUpperCase()}
                 </span>
               </div>
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-primary-500 border-2 border-white rounded-full"></span>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
@@ -184,7 +184,7 @@ export function OnlineUsers() {
                 {lastActivity && (
                   <>
                     <span className="text-gray-300">•</span>
-                    <span className="text-green-600 font-medium" title="Ostatnia aktywność">
+                    <span className="text-primary-600 font-medium" title="Ostatnia aktywność">
                       {formatActivityAgo(lastActivity)}
                     </span>
                   </>
@@ -212,7 +212,7 @@ export function OnlineUsers() {
                     ? 'bg-blue-50 text-blue-600'
                     : session.source === 'scanner'
                     ? 'bg-orange-50 text-orange-600'
-                    : 'bg-green-50 text-green-600'
+                    : 'bg-green-50 text-primary-600'
                 }`}>
                   {sourceLabel(session.source)}
                 </span>
@@ -242,7 +242,7 @@ export function OnlineUsers() {
             <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
               isConnected ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
             }`}>
-              <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></span>
+              <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-primary-500 animate-pulse' : 'bg-gray-400'}`}></span>
               {isConnected ? 'Live' : 'Łączenie...'}
             </span>
           </div>
@@ -275,7 +275,7 @@ export function OnlineUsers() {
             <div className="space-y-2">
               {scannerUsers.map((user) => {
                 const scannerOnly = { ...user, sessions: user.sessions.filter(s => s.source === 'scanner') };
-                return renderUserCard(scannerOnly, 'bg-green-50', 'bg-green-100', 'text-green-700');
+                return renderUserCard(scannerOnly, 'bg-green-50', 'bg-green-100', 'text-primary-700');
               })}
             </div>
           ) : (

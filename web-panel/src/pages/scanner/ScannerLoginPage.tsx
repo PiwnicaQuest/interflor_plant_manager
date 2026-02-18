@@ -51,7 +51,7 @@ export function ScannerLoginPage() {
 
   return (
     <div 
-      className="min-h-screen bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center p-3"
+      className="min-h-screen bg-brand flex items-center justify-center p-3"
       style={{
         paddingTop: 'max(12px, env(safe-area-inset-top))',
         paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
@@ -63,12 +63,12 @@ export function ScannerLoginPage() {
         {/* Logo - COMPACT */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-full shadow-lg mb-3">
-            <img src="/polflor-icon-192.png" alt="POLFLOR" className="w-12 h-12" />
+            <img src="/interflor-icon-192.png" alt="INTERFLOR" className="w-12 h-12" />
           </div>
           <h1 className="text-2xl font-bold text-white">Skaner Magazynowy</h1>
-          <p className="text-green-100 mt-1 text-sm">POLFLOR</p>
+          <p className="text-pink-100 mt-1 text-sm">INTERFLOR</p>
           {isStandalone && (
-            <span className="inline-block mt-2 px-2 py-0.5 bg-green-800 text-green-100 text-xs rounded-full">
+            <span className="inline-block mt-2 px-2 py-0.5 bg-brand-light text-gray-300 text-xs rounded-full">
               📱 Tryb aplikacji
             </span>
           )}
@@ -97,7 +97,7 @@ export function ScannerLoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="email lub login"
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
                 required
                 autoComplete="username"
                 autoFocus
@@ -113,7 +113,7 @@ export function ScannerLoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="********"
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
                 required
                 autoComplete="current-password"
               />
@@ -122,7 +122,7 @@ export function ScannerLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-semibold rounded-lg transition-colors"
+              className="w-full py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white font-semibold rounded-lg transition-colors"
             >
               {loading ? (
                 <span className="flex items-center justify-center">
@@ -142,7 +142,7 @@ export function ScannerLoginPage() {
         {/* Install hint for non-standalone mode */}
         {!isStandalone && (
           <div className="mt-4 text-center">
-            <p className="text-green-100 text-xs">
+            <p className="text-pink-100 text-xs">
               💡 Dodaj do ekranu głównego, aby korzystać bez przeglądarki
             </p>
           </div>

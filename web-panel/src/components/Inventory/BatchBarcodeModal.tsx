@@ -247,8 +247,8 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
 
           {/* Printer status indicator */}
           <div className="mt-3 flex items-center gap-2 text-sm">
-            <div className={'w-2 h-2 rounded-full ' + (hasPrinterConfigured ? 'bg-green-500' : 'bg-gray-400')}></div>
-            <span className={hasPrinterConfigured ? 'text-green-700' : 'text-gray-600'}>
+            <div className={'w-2 h-2 rounded-full ' + (hasPrinterConfigured ? 'bg-primary-500' : 'bg-gray-400')}></div>
+            <span className={hasPrinterConfigured ? 'text-primary-700' : 'text-gray-600'}>
               {hasPrinterConfigured
                 ? 'Drukarka etykiet skonfigurowana - automatyczny wydruk'
                 : 'Brak skonfigurowanej drukarki - wydruk przez przegladarke'}
@@ -372,7 +372,7 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
               <button
                 onClick={handlePrint}
                 disabled={getTotalLabels() === 0 || isPrinting}
-                className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 <span>🖨️</span>
                 Drukuj ({getTotalLabels()})

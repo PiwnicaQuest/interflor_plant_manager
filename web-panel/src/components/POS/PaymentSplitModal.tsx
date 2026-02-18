@@ -20,7 +20,7 @@ interface PaymentInput {
 
 const paymentMethodLabels: Record<PaymentMethod, { label: string; color: string }> = {
   [PaymentMethod.CARD]: { label: 'Karta', color: 'bg-blue-600' },
-  [PaymentMethod.CASH]: { label: 'Gotówka', color: 'bg-green-600' },
+  [PaymentMethod.CASH]: { label: 'Gotówka', color: 'bg-primary-600' },
   [PaymentMethod.TRANSFER]: { label: 'Przelew', color: 'bg-purple-600' },
 };
 
@@ -128,10 +128,10 @@ export function PaymentSplitModal({ totalAmount, onConfirm, onCancel }: PaymentS
           <h2 className="text-lg font-semibold text-gray-900">Podział płatności</h2>
           <div className="flex justify-between items-center mt-1 text-sm">
             <span className="text-gray-500">
-              Do zapłaty: <span className="text-green-600 font-semibold">{formatPrice(totalAmount)} PLN</span>
+              Do zapłaty: <span className="text-primary-600 font-semibold">{formatPrice(totalAmount)} PLN</span>
             </span>
             <span className="text-gray-500">
-              Pozostało: <span className={`font-semibold ${remainingAmount < 0 ? 'text-red-600' : remainingAmount === 0 ? 'text-green-600' : 'text-yellow-600'}`}>
+              Pozostało: <span className={`font-semibold ${remainingAmount < 0 ? 'text-red-600' : remainingAmount === 0 ? 'text-primary-600' : 'text-yellow-600'}`}>
                 {formatPrice(remainingAmount)} PLN
               </span>
             </span>
@@ -216,12 +216,12 @@ export function PaymentSplitModal({ totalAmount, onConfirm, onCancel }: PaymentS
             </div>
             <div className="flex justify-between items-center mt-1">
               <span className="text-gray-500">Do zapłaty:</span>
-              <span className="text-green-600 font-semibold">{formatPrice(totalAmount)} PLN</span>
+              <span className="text-primary-600 font-semibold">{formatPrice(totalAmount)} PLN</span>
             </div>
             <div className="border-t border-gray-200 my-2"></div>
             <div className="flex justify-between items-center">
               <span className="text-gray-500">Pozostało:</span>
-              <span className={`font-bold ${remainingAmount < 0 ? 'text-red-600' : remainingAmount === 0 ? 'text-green-600' : 'text-yellow-600'}`}>
+              <span className={`font-bold ${remainingAmount < 0 ? 'text-red-600' : remainingAmount === 0 ? 'text-primary-600' : 'text-yellow-600'}`}>
                 {formatPrice(remainingAmount)} PLN
               </span>
             </div>
@@ -238,7 +238,7 @@ export function PaymentSplitModal({ totalAmount, onConfirm, onCancel }: PaymentS
           <button
             onClick={handleConfirm}
             disabled={Math.abs(remainingAmount) > 0.01}
-            className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
+            className="flex-1 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
           >
             Potwierdź płatność
           </button>

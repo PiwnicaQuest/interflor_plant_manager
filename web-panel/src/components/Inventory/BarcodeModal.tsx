@@ -270,8 +270,8 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
 
           {/* Printer status indicator */}
           <div className="mb-4 flex items-center gap-2 text-sm">
-            <div className={'w-2 h-2 rounded-full ' + (hasPrinterConfigured ? 'bg-green-500' : 'bg-gray-400')}></div>
-            <span className={hasPrinterConfigured ? 'text-green-700' : 'text-gray-600'}>
+            <div className={'w-2 h-2 rounded-full ' + (hasPrinterConfigured ? 'bg-primary-500' : 'bg-gray-400')}></div>
+            <span className={hasPrinterConfigured ? 'text-primary-700' : 'text-gray-600'}>
               {hasPrinterConfigured
                 ? 'Drukarka etykiet skonfigurowana - automatyczny wydruk'
                 : 'Brak skonfigurowanej drukarki - wydruk przez przegladarke'}
@@ -370,7 +370,7 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
             <button
               onClick={handlePrint}
               disabled={!barcode}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+              className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 flex items-center gap-2"
             >
               <span>🖨️</span>
               Drukuj ({labelCount})

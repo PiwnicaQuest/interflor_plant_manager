@@ -156,4 +156,60 @@ export class UploadController {
       return res.status(500).json({ error: 'Błąd podczas usuwania zdjęcia' });
     }
   }
+
+  static async setProductImageUrl(req: AuthRequest, res: Response) {
+    try {
+      const productId = parseInt(req.params.id);
+      const { imageUrl } = req.body;
+
+      if (!imageUrl || typeof imageUrl !== 'string') {
+        return res.status(400).json({ error: 'Brak URL zdjęcia' });
+      }
+
+      if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+        return res.status(400).json({ error: 'URL musi zaczynac sie od http:// lub https://' });
+      }
+
+      const product = await ProductModel.getById(productId);
+      if (!product) {
+        return res.status(404).json({ error: 'Produkt nie znaleziony' });
+      }
+
+      // Delete old local image if exists
+      if (product.imageUrl && product.imageUrl.startsWith('/uploads/')) {
+        const oldPath = path.join(__dirname, '../../', product.imageUrl.replace(/^\//, ''));
+        if (fs.existsSync(oldPath)) {
+          try {
+            fs.unlinkSync(oldPath);
+          } catch (err) {
+            console.error('Error deleting old image:', err);
+          }
+        }
+      }
+
+      // Update product with new image URL
+      const updatedProduct = await ProductModel.update(productId, { imageUrl });
+
+      // Clear old cache and pre-generate from URL if barcode exists
+      if (product.barcode) {
+        try {
+          ImageService.clearCache(product.barcode);
+          await ImageService.processAndCache(product.barcode, imageUrl);
+          console.log(`[IMAGE-URL] Generated cache for barcode: ${product.barcode}`);
+        } catch (cacheErr) {
+          console.error('[IMAGE-URL] Cache generation failed:', cacheErr);
+        }
+      }
+
+      return res.json({
+        message: 'URL zdjecia zostal zapisany',
+        imageUrl,
+        product: updatedProduct,
+      });
+    } catch (error) {
+      console.error('Set image URL error:', error);
+      return res.status(500).json({ error: 'Blad podczas zapisywania URL zdjecia' });
+    }
+  }
+
 }

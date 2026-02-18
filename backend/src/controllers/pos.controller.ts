@@ -61,6 +61,12 @@ export class POSController {
         return res.status(400).json({ error: 'Zamówienie już rozliczone' });
       }
 
+      // Apply discount if provided
+      const discountPercentage = Number(data.discountPercentage) || 0;
+      if (discountPercentage > 0 && discountPercentage <= 100) {
+        await OrderModel.applyDiscount(order.id, discountPercentage);
+      }
+
       // Use transaction for checkout
       const result = await transaction(async (client) => {
         // NOTE: Inventory is already deducted when the order is created.
@@ -94,14 +100,35 @@ export class POSController {
           }
         }
 
-        // Prepare items for document
-        const documentItems = (order.items || []).map(item => ({
-          productId: item.productId,
-          description: item.productSnapshot?.plantName || 'Produkt',
-          quantity: item.quantity,
-          unitPriceGross: Number(item.unitPriceGross),
-          vatRate: 8.0, // Default VAT rate
-        }));
+        // Prepare items for document (apply discount to each item)
+        const documentItems = (order.items || []).map(item => {
+          const originalPrice = Number(item.unitPriceGross);
+          const discountedPrice = discountPercentage > 0
+            ? Math.round(originalPrice * (1 - discountPercentage / 100) * 100) / 100
+            : originalPrice;
+          return {
+            productId: item.productId,
+            description: item.productSnapshot?.plantName || 'Produkt',
+            quantity: item.quantity,
+            unitPriceGross: discountedPrice,
+            vatRate: 8.0,
+          };
+        });
+
+        // Calculate discounted total
+        const discountedTotal = discountPercentage > 0
+          ? Math.round(Number(order.totalAmount) * (1 - discountPercentage / 100) * 100) / 100
+          : Number(order.totalAmount);
+
+        // Penny correction for rounding
+        if (discountPercentage > 0 && documentItems.length > 0) {
+          const itemsSum = documentItems.reduce((sum, it) => sum + Math.round(it.quantity * it.unitPriceGross * 100) / 100, 0);
+          const diff = Math.round((discountedTotal - itemsSum) * 100) / 100;
+          if (Math.abs(diff) > 0 && Math.abs(diff) <= 0.05) {
+            const last = documentItems[documentItems.length - 1];
+            last.unitPriceGross = Math.round((last.unitPriceGross + diff / last.quantity) * 100) / 100;
+          }
+        }
 
         if (data.documentType === DocumentType.PROFORMA) {
           // PROFORMA - create proforma, do NOT close order
@@ -154,6 +181,7 @@ export class POSController {
             req.user?.userId,
             paymentSplits,
             order.recipientSnapshot,
+            discountPercentage > 0 ? documentItems : undefined,
           );
 
           documentNumber = invoice.invoiceNumber;
@@ -166,7 +194,7 @@ export class POSController {
           const receipt = await ReceiptModel.create(
             order.id,
             paymentMethod!,
-            order.totalAmount || documentItems.reduce((sum, item) => sum + (item.quantity * item.unitPriceGross), 0),
+            discountedTotal,
             req.user?.userId,
             undefined, // notes
             paymentSplits,
@@ -188,7 +216,8 @@ export class POSController {
           documentType: data.documentType,
           documentNumber,
           documentId,
-          totalAmount: order.totalAmount || documentItems.reduce((sum, item) => sum + (item.quantity * item.unitPriceGross), 0),
+          totalAmount: discountedTotal,
+          orderId: order.id,
         };
       });
 

@@ -1,27 +1,31 @@
 import { useState, useEffect, useCallback } from 'react';
-import { 
-  ALL_COLUMNS, 
-  DEFAULT_COLUMN_ORDER, 
+import {
+  ALL_COLUMNS,
+  DEFAULT_COLUMN_ORDER,
   DEFAULT_VISIBLE_COLUMNS,
   getDefaultWidths,
-  ColumnDefinition 
+  ColumnDefinition
 } from '../components/Inventory/columnDefinitions';
 
 const STORAGE_KEY = 'inventory-column-preferences';
-const VERSION = 1;
+const VERSION = 2;
 
 export interface ColumnPreferences {
   version: number;
   columnOrder: string[];
   visibleColumns: string[];
   columnWidths: Record<string, number>;
+  knownColumns: string[];
 }
+
+const getAllColumnKeys = () => ALL_COLUMNS.map(col => col.key);
 
 const getDefaultPreferences = (): ColumnPreferences => ({
   version: VERSION,
   columnOrder: [...DEFAULT_COLUMN_ORDER],
   visibleColumns: [...DEFAULT_VISIBLE_COLUMNS],
   columnWidths: getDefaultWidths(),
+  knownColumns: getAllColumnKeys(),
 });
 
 const loadPreferences = (): ColumnPreferences => {
@@ -29,38 +33,34 @@ const loadPreferences = (): ColumnPreferences => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved) as ColumnPreferences;
-      // Migrate if needed
-      if (parsed.version !== VERSION) {
-        return getDefaultPreferences();
-      }
-      // Merge with defaults to handle new columns
       const defaults = getDefaultPreferences();
+      const allKeys = getAllColumnKeys();
+
+      // If old version without knownColumns, treat all current columns as known
+      const savedKnownColumns: string[] = parsed.knownColumns || allKeys;
+
+      // Find genuinely new columns (exist now but weren't known at save time)
+      const newColumns = allKeys.filter(key => !savedKnownColumns.includes(key));
+
       return {
-        ...defaults,
-        ...parsed,
-        // Ensure all columns exist in order
+        version: VERSION,
+        // Keep saved order, append only genuinely new columns
         columnOrder: [
-          ...parsed.columnOrder.filter(key =>
-            ALL_COLUMNS.some(col => col.key === key)
-          ),
-          ...defaults.columnOrder.filter(key =>
-            !parsed.columnOrder.includes(key)
-          ),
+          ...parsed.columnOrder.filter(key => allKeys.includes(key)),
+          ...newColumns,
         ],
-        // Ensure new columns are visible by default (add missing default-visible columns)
+        // Keep saved visibility, only auto-show genuinely new default-visible columns
         visibleColumns: [
-          ...parsed.visibleColumns.filter(key =>
-            ALL_COLUMNS.some(col => col.key === key)
-          ),
-          ...defaults.visibleColumns.filter(key =>
-            !parsed.visibleColumns.includes(key)
-          ),
+          ...parsed.visibleColumns.filter(key => allKeys.includes(key)),
+          ...newColumns.filter(key => DEFAULT_VISIBLE_COLUMNS.includes(key)),
         ],
         // Merge widths
         columnWidths: {
           ...defaults.columnWidths,
           ...parsed.columnWidths,
         },
+        // Update known columns to current set
+        knownColumns: allKeys,
       };
     }
   } catch (e) {
@@ -110,8 +110,8 @@ export function useColumnPreferences() {
     setPreferences(prev => ({
       ...prev,
       visibleColumns: visible
-        ? prev.visibleColumns.includes(columnKey) 
-          ? prev.visibleColumns 
+        ? prev.visibleColumns.includes(columnKey)
+          ? prev.visibleColumns
           : [...prev.visibleColumns, columnKey]
         : prev.visibleColumns.filter(key => key !== columnKey),
     }));
@@ -165,8 +165,8 @@ export function useColumnPreferences() {
 
   // Get width for a column
   const getColumnWidth = useCallback((columnKey: string): number => {
-    return preferences.columnWidths[columnKey] || 
-           ALL_COLUMNS.find(col => col.key === columnKey)?.defaultWidth || 
+    return preferences.columnWidths[columnKey] ||
+           ALL_COLUMNS.find(col => col.key === columnKey)?.defaultWidth ||
            100;
   }, [preferences.columnWidths]);
 
@@ -176,9 +176,9 @@ export function useColumnPreferences() {
     const fixedColumns = ALL_COLUMNS
       .filter(col => col.fixed)
       .map(col => col.key);
-    
+
     const newVisible = [...new Set([...fixedColumns, ...columns])];
-    
+
     setPreferences(prev => ({
       ...prev,
       visibleColumns: newVisible,

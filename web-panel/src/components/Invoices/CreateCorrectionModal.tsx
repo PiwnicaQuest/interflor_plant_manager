@@ -324,7 +324,7 @@ export function CreateCorrectionModal({ onClose, onSuccess, preselectedInvoiceId
                             <td className="px-3 py-2 text-center">{item.correctedVatRate}%</td>
                             <td className="px-3 py-2 text-right text-gray-500">{item.originalTotalGross.toFixed(2)}</td>
                             <td className="px-3 py-2 text-right font-medium">{corrected.gross.toFixed(2)}</td>
-                            <td className={`px-3 py-2 text-right font-bold ${diff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            <td className={`px-3 py-2 text-right font-bold ${diff >= 0 ? 'text-primary-600' : 'text-red-600'}`}>
                               {formatDiff(diff)}
                             </td>
                           </tr>
@@ -346,14 +346,14 @@ export function CreateCorrectionModal({ onClose, onSuccess, preselectedInvoiceId
                 </div>
                 <div className="bg-green-100 rounded-lg p-4 text-center">
                   <div className="text-sm text-gray-500 mb-1">PO KOREKCIE</div>
-                  <div className="text-xl font-bold text-green-700">{formatMoney(totals.correctedGross)}</div>
+                  <div className="text-xl font-bold text-primary-700">{formatMoney(totals.correctedGross)}</div>
                   <div className="text-xs text-gray-500">
                     Netto: {formatMoney(totals.correctedNet)} | VAT: {formatMoney(totals.correctedVat)}
                   </div>
                 </div>
                 <div className="bg-red-100 rounded-lg p-4 text-center">
                   <div className="text-sm text-gray-500 mb-1">RÓŻNICA</div>
-                  <div className={`text-xl font-bold ${totals.diffGross >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                  <div className={`text-xl font-bold ${totals.diffGross >= 0 ? 'text-primary-700' : 'text-red-700'}`}>
                     {formatDiff(totals.diffGross)}
                   </div>
                   <div className="text-xs text-gray-500">

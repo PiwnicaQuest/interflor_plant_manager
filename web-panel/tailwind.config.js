@@ -7,17 +7,27 @@ export default {
   theme: {
     extend: {
       colors: {
+        brand: {
+          DEFAULT: '#211f20',
+          dark: '#191718',
+          light: '#3a3738',
+        },
+        surface: {
+          DEFAULT: '#DFE3E5',
+          dark: '#c8ccce',
+          light: '#ebedef',
+        },
         primary: {
-          50: '#f0fdf4',
-          100: '#dcfce7',
-          200: '#bbf7d0',
-          300: '#86efac',
-          400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d',
-          800: '#166534',
-          900: '#14532d',
+          50: '#fce4ec',
+          100: '#f8bbd0',
+          200: '#f48fb1',
+          300: '#f06292',
+          400: '#ec407a',
+          500: '#e91e63',
+          600: '#d81b60',
+          700: '#c2185b',
+          800: '#ad1457',
+          900: '#880e4f',
         },
       },
     },

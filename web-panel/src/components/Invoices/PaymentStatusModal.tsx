@@ -60,7 +60,7 @@ export function PaymentStatusModal({ invoice, onClose, onSuccess }: PaymentStatu
     const colors: Record<PaymentStatus, string> = {
       [PaymentStatus.UNPAID]: 'text-red-700 bg-red-100',
       [PaymentStatus.PARTIALLY_PAID]: 'text-yellow-700 bg-yellow-100',
-      [PaymentStatus.PAID]: 'text-green-700 bg-green-100',
+      [PaymentStatus.PAID]: 'text-primary-700 bg-green-100',
       [PaymentStatus.OVERDUE]: 'text-red-900 bg-red-200',
     };
     return colors[status];

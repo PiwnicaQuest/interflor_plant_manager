@@ -241,7 +241,7 @@ export function InventoryMovementsPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 px-3 py-2">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -260,7 +260,7 @@ export function InventoryMovementsPage() {
           )}
           <button
             onClick={handleExportCSV}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
           >
             Eksportuj do CSV
           </button>
@@ -276,7 +276,7 @@ export function InventoryMovementsPage() {
           </div>
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-sm text-gray-600">Jednostki: przyjęte</p>
-            <p className="text-2xl font-bold text-green-600">+{statistics.totalUnitsIn}</p>
+            <p className="text-2xl font-bold text-primary-600">+{statistics.totalUnitsIn}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-sm text-gray-600">Jednostki: wydane</p>
@@ -284,7 +284,7 @@ export function InventoryMovementsPage() {
           </div>
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-sm text-gray-600">Palety: przyjęte</p>
-            <p className="text-2xl font-bold text-green-600">+{statistics.totalPalletsIn}</p>
+            <p className="text-2xl font-bold text-primary-600">+{statistics.totalPalletsIn}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-sm text-gray-600">Palety: wydane</p>
@@ -494,12 +494,12 @@ export function InventoryMovementsPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`text-sm font-medium ${movement.deltaUnits >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <span className={`text-sm font-medium ${movement.deltaUnits >= 0 ? 'text-primary-600' : 'text-red-600'}`}>
                         {movement.deltaUnits >= 0 ? '+' : ''}{movement.deltaUnits}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`text-sm font-medium ${movement.deltaPallets >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <span className={`text-sm font-medium ${movement.deltaPallets >= 0 ? 'text-primary-600' : 'text-red-600'}`}>
                         {movement.deltaPallets >= 0 ? '+' : ''}{movement.deltaPallets}
                       </span>
                     </td>

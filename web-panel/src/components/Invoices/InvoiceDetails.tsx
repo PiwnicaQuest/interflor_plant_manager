@@ -181,7 +181,7 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment, onRefresh }:
     const colors: Record<PaymentStatus, string> = {
       [PaymentStatus.UNPAID]: "text-red-700 bg-red-100",
       [PaymentStatus.PARTIALLY_PAID]: "text-yellow-700 bg-yellow-100",
-      [PaymentStatus.PAID]: "text-green-700 bg-green-100",
+      [PaymentStatus.PAID]: "text-primary-700 bg-green-100",
       [PaymentStatus.OVERDUE]: "text-red-900 bg-red-200",
     };
     return colors[status];
@@ -279,8 +279,8 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment, onRefresh }:
 
           {/* Printer status indicator */}
           <div className="mb-4 flex items-center gap-2 text-sm">
-            <div className={"w-2 h-2 rounded-full " + (brokerAvailable ? "bg-green-500" : "bg-gray-400")}></div>
-            <span className={brokerAvailable ? "text-green-700" : "text-gray-600"}>
+            <div className={"w-2 h-2 rounded-full " + (brokerAvailable ? "bg-primary-500" : "bg-gray-400")}></div>
+            <span className={brokerAvailable ? "text-primary-700" : "text-gray-600"}>
               {brokerAvailable === null ? "Sprawdzanie Print Broker..." :
                brokerAvailable ? "Print Broker dostępny - automatyczny wydruk PDF" :
                "Print Broker niedostępny - wydruk przez przeglądarkę"}
@@ -321,7 +321,7 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment, onRefresh }:
                       <button
                         onClick={handleUpdatePaymentMethod}
                         disabled={isUpdatingPaymentMethod}
-                        className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                        className="px-2 py-1 text-xs bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50"
                       >
                         {isUpdatingPaymentMethod ? "..." : "Zapisz"}
                       </button>

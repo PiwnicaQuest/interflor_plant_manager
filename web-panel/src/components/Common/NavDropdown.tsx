@@ -42,8 +42,8 @@ export function NavDropdown({ label, items }: NavDropdownProps) {
         onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
           isAnyActive
-            ? 'bg-primary-100 text-primary-700'
-            : 'text-gray-700 hover:bg-gray-100'
+            ? 'bg-white/20 text-white font-semibold'
+            : 'text-white hover:bg-brand-dark'
         }`}
       >
         {label}

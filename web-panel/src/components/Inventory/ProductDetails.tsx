@@ -190,14 +190,14 @@ export function ProductDetails({ product, movements, onClose, onUpdateProduct, o
   const getMovementTypeLabel = (type: MovementType) => {
     const labels: Record<MovementType, { label: string; color: string }> = {
       [MovementType.PURCHASE]: { label: 'Zakup', color: 'text-blue-600' },
-      [MovementType.SALE]: { label: 'Sprzedaż', color: 'text-green-600' },
+      [MovementType.SALE]: { label: 'Sprzedaż', color: 'text-primary-600' },
       [MovementType.CORRECTION]: { label: 'Korekta', color: 'text-yellow-600' },
       [MovementType.RETURN]: { label: 'Zwrot', color: 'text-purple-600' },
       [MovementType.ADJUSTMENT]: { label: 'Korekta stanu', color: 'text-orange-600' },
       [MovementType.ORDER]: { label: 'Zamówienie', color: 'text-indigo-600' },
       [MovementType.DAMAGE]: { label: 'Uszkodzenie', color: 'text-red-600' },
       [MovementType.LOSS]: { label: 'Strata', color: 'text-red-700' },
-      [MovementType.LOSS_REVERSAL]: { label: 'Cofnięcie straty', color: 'text-green-700' },
+      [MovementType.LOSS_REVERSAL]: { label: 'Cofnięcie straty', color: 'text-primary-700' },
       [MovementType.MERGE]: { label: 'Połączenie', color: 'text-cyan-600' },
       [MovementType.OTHER]: { label: 'Inne', color: 'text-gray-600' },
     };
@@ -710,7 +710,7 @@ export function ProductDetails({ product, movements, onClose, onUpdateProduct, o
 
                   {loadingSlaveDetails ? (
                     <div className="flex items-center justify-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
                     </div>
                   ) : slaveDetails ? (
                     <div className="space-y-4">

@@ -12,7 +12,7 @@ export async function exportOrderToExcel(order: OrderWithItems): Promise<void> {
   };
 
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'POLFLOR';
+  workbook.creator = 'INTERFLOR';
   workbook.created = new Date();
   
   const worksheet = workbook.addWorksheet(order.orderNumber.replace(/\//g, '-'), {

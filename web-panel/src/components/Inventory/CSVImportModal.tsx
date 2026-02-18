@@ -149,7 +149,7 @@ export function CSVImportModal({ onClose, onSuccess }: CSVImportModalProps) {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="bg-green-100 p-3 rounded">
                     <p className="text-green-800 font-medium">Sukces</p>
-                    <p className="text-2xl font-bold text-green-900">{result.success}</p>
+                    <p className="text-2xl font-bold text-primary-900">{result.success}</p>
                   </div>
                   <div className="bg-red-100 p-3 rounded">
                     <p className="text-red-800 font-medium">Błędy</p>

@@ -8,11 +8,12 @@ interface ExcelImportModalProps {
 
 export function ExcelImportModal({ onClose, onSuccess }: ExcelImportModalProps) {
   const [file, setFile] = useState<File | null>(null);
+  const [currency, setCurrency] = useState<'EUR' | 'PLN'>('EUR');
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<{
     success: number;
     failed: number;
-    skipped?: number;
+    deliveryDate?: string | null;
     errors: Array<{ row: number; error: string; data?: any }>;
   } | null>(null);
   const [error, setError] = useState('');
@@ -21,13 +22,13 @@ export function ExcelImportModal({ onClose, onSuccess }: ExcelImportModalProps) 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      const validExtensions = ['.xls', '.xlsx'];
+      const validExtensions = ['.xls', '.xlsx', '.ods'];
       const hasValidExtension = validExtensions.some(ext =>
         selectedFile.name.toLowerCase().endsWith(ext)
       );
 
       if (!hasValidExtension) {
-        setError('Proszę wybrać plik Excel (.xls lub .xlsx)');
+        setError('Proszę wybrać plik Excel (.xls, .xlsx) lub LibreOffice (.ods)');
         return;
       }
       setFile(selectedFile);
@@ -38,7 +39,7 @@ export function ExcelImportModal({ onClose, onSuccess }: ExcelImportModalProps) 
 
   const handleImport = async () => {
     if (!file) {
-      setError('Proszę wybrać plik Excel');
+      setError('Proszę wybrać plik');
       return;
     }
 
@@ -47,14 +48,14 @@ export function ExcelImportModal({ onClose, onSuccess }: ExcelImportModalProps) 
     setResult(null);
 
     try {
-      const response = await api.importExcel(file);
+      const response = await api.importExcel(file, currency);
       setResult(response.result);
 
       if (response.result.success > 0) {
         onSuccess();
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Błąd podczas importu Excel');
+      setError(err.response?.data?.error || 'Błąd podczas importu');
       console.error(err);
     } finally {
       setImporting(false);
@@ -73,52 +74,88 @@ export function ExcelImportModal({ onClose, onSuccess }: ExcelImportModalProps) 
       <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            Import produktów z Excel
+            Import produktów z pliku
           </h2>
 
           {/* Instructions */}
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded">
-            <h3 className="font-semibold text-blue-900 mb-2">Instrukcje:</h3>
-            <ol className="list-decimal list-inside space-y-1 text-sm text-blue-800">
-              <li>Przygotuj plik Excel (.xls lub .xlsx) z danymi produktów</li>
-              <li>Plik powinien być w formacie dostawcy (np. 1PS)</li>
-              <li>Importowane będą tylko pozycje z kodem kreskowym (rośliny)</li>
-              <li>Ceny EUR zostaną przeliczone na PLN wg kursu z ustawień</li>
-            </ol>
+            <h3 className="font-semibold text-blue-900 mb-2">Format pliku — Szablon dostaw:</h3>
+            <div className="text-sm text-blue-800 space-y-1">
+              <p><strong>Wiersz 1:</strong> Data dostawy (scalona komórka A1:G1)</p>
+              <p><strong>Wiersz 2:</strong> Nagłówki (pomijane)</p>
+              <p><strong>Wiersze 3+:</strong> Dane produktów</p>
+            </div>
             <div className="mt-3 p-2 bg-blue-100 rounded text-xs">
-              <strong>Mapowanie kolumn z pliku dostawcy:</strong>
+              <strong>Kolumny:</strong>
               <ul className="mt-1 space-y-0.5">
-                <li><strong>Item</strong> → Nazwa rośliny</li>
-                <li><strong>Identifier code</strong> → Rozmiar doniczki i wysokość (np. "14.70" = 14, 70cm)</li>
-                <li><strong>Price</strong> → Cena zakupu w EUR (przeliczana na PLN)</li>
-                <li><strong>AVE</strong> → Liczba palet</li>
-                <li><strong>APE</strong> → Sztuk na paletę</li>
-                <li><strong>Barcode.1</strong> → Kod kreskowy (kolumna V)</li>
-                <li><strong>Grower</strong> → Ogrodnik</li>
-                <li><strong>Photo</strong> → URL zdjęcia (opcjonalne)</li>
+                <li><strong>A:</strong> Zdjęcie (URL)</li>
+                <li><strong>B:</strong> Nazwa rośliny (wymagane)</li>
+                <li><strong>C:</strong> Doniczka</li>
+                <li><strong>D:</strong> Wysokość (cm)</li>
+                <li><strong>E:</strong> Ilość szt./paletę</li>
+                <li><strong>F:</strong> Ilość palet</li>
+                <li><strong>G:</strong> Cena (EUR lub PLN — wybierz poniżej)</li>
               </ul>
-              <p className="mt-2 text-amber-700">
-                <strong>Uwaga:</strong> Pozycje bez kodu kreskowego (opakowania, tacki) są automatycznie pomijane.
-              </p>
+            </div>
+            <p className="mt-2 text-xs text-blue-700">
+              Obsługiwane formaty: .xlsx, .xls, .ods
+            </p>
+          </div>
+
+          {/* Currency Selector */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Waluta cen w pliku
+            </label>
+            <div className="flex gap-4">
+              <label className={`flex items-center gap-2 px-4 py-2 rounded border cursor-pointer transition-colors ${
+                currency === 'EUR' ? 'bg-primary-50 border-primary-400 text-primary-800' : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+              }`}>
+                <input
+                  type="radio"
+                  name="currency"
+                  value="EUR"
+                  checked={currency === 'EUR'}
+                  onChange={() => setCurrency('EUR')}
+                  className="sr-only"
+                />
+                <span className="text-lg">€</span>
+                <span className="font-medium">EUR</span>
+                <span className="text-xs">(przeliczone na PLN wg kursu)</span>
+              </label>
+              <label className={`flex items-center gap-2 px-4 py-2 rounded border cursor-pointer transition-colors ${
+                currency === 'PLN' ? 'bg-primary-50 border-primary-400 text-primary-800' : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+              }`}>
+                <input
+                  type="radio"
+                  name="currency"
+                  value="PLN"
+                  checked={currency === 'PLN'}
+                  onChange={() => setCurrency('PLN')}
+                  className="sr-only"
+                />
+                <span className="text-lg">zł</span>
+                <span className="font-medium">PLN</span>
+              </label>
             </div>
           </div>
 
           {/* File Upload */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Wybierz plik Excel
+              Wybierz plik
             </label>
             <input
               ref={fileInputRef}
               type="file"
-              accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              accept=".xls,.xlsx,.ods,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.oasis.opendocument.spreadsheet"
               onChange={handleFileChange}
               className="block w-full text-sm text-gray-500
                 file:mr-4 file:py-2 file:px-4
                 file:rounded file:border-0
                 file:text-sm file:font-semibold
-                file:bg-green-50 file:text-green-700
-                hover:file:bg-green-100
+                file:bg-primary-50 file:text-primary-700
+                hover:file:bg-primary-100
                 cursor-pointer"
             />
             {file && (
@@ -143,15 +180,15 @@ export function ExcelImportModal({ onClose, onSuccess }: ExcelImportModalProps) 
             <div className="mb-6 space-y-4">
               <div className="p-4 bg-gray-50 border border-gray-200 rounded">
                 <h3 className="font-semibold text-gray-900 mb-2">Wyniki importu:</h3>
-                <div className="grid grid-cols-3 gap-4 text-sm">
+                {result.deliveryDate && (
+                  <p className="text-sm text-gray-600 mb-3">
+                    Data dostawy: <span className="font-medium">{result.deliveryDate}</span>
+                  </p>
+                )}
+                <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="bg-green-100 p-3 rounded">
                     <p className="text-green-800 font-medium">Zaimportowano</p>
-                    <p className="text-2xl font-bold text-green-900">{result.success}</p>
-                  </div>
-                  <div className="bg-amber-100 p-3 rounded">
-                    <p className="text-amber-800 font-medium">Pominięto</p>
-                    <p className="text-2xl font-bold text-amber-900">{result.skipped || 0}</p>
-                    <p className="text-xs text-amber-600 mt-1">bez barcodu</p>
+                    <p className="text-2xl font-bold text-primary-900">{result.success}</p>
                   </div>
                   <div className="bg-red-100 p-3 rounded">
                     <p className="text-red-800 font-medium">Błędy</p>

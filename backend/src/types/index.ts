@@ -253,6 +253,8 @@ export interface Order {
   vatEu?: string;
   isEuCompany?: boolean;
   totalAmount: number;
+  discountPercentage?: number;
+  totalAmountAfterDiscount?: number;
   createdAt: Date;
   updatedAt: Date;
   completedAt?: Date;
@@ -346,6 +348,8 @@ export interface Receipt {
   paymentMethod: PaymentMethod;
   paymentSplits?: PaymentSplit[];
   totalAmount: number;
+  discountPercentage?: number;
+  totalAmountAfterDiscount?: number;
   notes?: string;
   createdByUserId?: number;
   createdAt: Date;
@@ -539,6 +543,7 @@ export interface CheckoutRequest {
   paymentMethod?: PaymentMethod; // Single payment (legacy)
   paymentSplits?: PaymentSplit[]; // Split payment (new)
   documentType: DocumentType;
+  discountPercentage?: number;
   items?: Array<{
     productId: number;
     unitPriceGross?: number;
@@ -549,9 +554,11 @@ export interface CheckoutRequest {
 export interface CheckoutResponse {
   message: string;
   documentType: DocumentType;
+  discountPercentage?: number;
   documentNumber: string;
   documentId: number;
   totalAmount: number;
+  totalAmountAfterDiscount?: number;
 }
 
 export interface LookupNIPRequest {
@@ -605,6 +612,8 @@ export interface WSOrderCreatedMessage extends WSMessage {
   vatEu?: string;
     itemCount: number;
     totalAmount: number;
+  discountPercentage?: number;
+  totalAmountAfterDiscount?: number;
     timestamp: Date;
   };
 }

@@ -370,7 +370,7 @@ export function ProformaPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 px-3 py-2">
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Faktury Pro Forma</h1>
@@ -496,16 +496,16 @@ export function ProformaPage() {
                 </div>
 
                 {/* Conversion Rate */}
-                <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-xl border border-green-200">
+                <div className="bg-gradient-to-br from-primary-50 to-primary-100 p-4 rounded-xl border border-green-200">
                   <div className="flex items-center gap-3">
-                    <div className="bg-green-500 p-2 rounded-lg">
+                    <div className="bg-primary-500 p-2 rounded-lg">
                       <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                       </svg>
                     </div>
                     <div>
-                      <p className="text-sm text-green-600 font-medium">Wspolczynnik konwersji</p>
-                      <p className="text-2xl font-bold text-green-900">{stats.conversionRate.toFixed(1)}%</p>
+                      <p className="text-sm text-primary-600 font-medium">Wspolczynnik konwersji</p>
+                      <p className="text-2xl font-bold text-primary-900">{stats.conversionRate.toFixed(1)}%</p>
                     </div>
                   </div>
                 </div>
@@ -767,7 +767,7 @@ export function ProformaPage() {
                       </button>
                       <button
                         onClick={() => handleConvertClick(proforma)}
-                        className="text-green-600 hover:text-green-800 mr-3"
+                        className="text-primary-600 hover:text-primary-800 mr-3"
                         title="Konwertuj na fakturę VAT"
                       >
                         Faktura

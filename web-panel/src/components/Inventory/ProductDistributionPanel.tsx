@@ -96,7 +96,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
     return customers.filter(c => {
       const companyName = (c.companyName || '').toLowerCase();
       const fullName = `${c.firstName || ''} ${c.lastName || ''}`.toLowerCase();
-      const code = (c.customerCode || '').toLowerCase();
+      const code = String(c.customerCode || '').toLowerCase();
       return companyName.includes(searchLower) || fullName.includes(searchLower) || code.includes(searchLower);
     }).slice(0, 15); // Limit results
   }, [customers, customerSearch]);
@@ -120,7 +120,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
     return editableOrders.filter(o => {
       const orderNumber = (o.orderNumber || '').toLowerCase();
       const customerName = (o.customerName || '').toLowerCase();
-      const customerCode = (o.customerCode || '').toLowerCase();
+      const customerCode = String(o.customerCode || '').toLowerCase();
       return orderNumber.includes(searchLower) || customerName.includes(searchLower) || customerCode.includes(searchLower);
     });
   }, [editableOrders, orderSearch]);
@@ -498,7 +498,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
               Zamowienia z tym produktem ({productOrders.length})
             </button>
             <div className="ml-auto px-4 py-2 text-xs text-gray-500">
-              Lacznie sprzedano: <strong className="text-green-700">{totalSold}</strong> szt. w <strong>{uniqueOrders}</strong> zamowieniach
+              Lacznie sprzedano: <strong className="text-primary-700">{totalSold}</strong> szt. w <strong>{uniqueOrders}</strong> zamowieniach
             </div>
           </div>
 
@@ -556,7 +556,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                           <td className="px-2 py-1 text-gray-700 truncate max-w-[120px]" title={m.orderCustomerName || ''}>
                             {m.orderCustomerCode ? `[${m.orderCustomerCode}] ` : ''}{m.orderCustomerName || '-'}
                           </td>
-                          <td className={`px-2 py-1 text-right font-medium ${m.deltaUnits >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          <td className={`px-2 py-1 text-right font-medium ${m.deltaUnits >= 0 ? 'text-primary-600' : 'text-red-600'}`}>
                             {m.deltaUnits >= 0 ? '+' : ''}{m.deltaUnits}
                           </td>
                           <td className="px-2 py-1 text-gray-700 truncate max-w-[150px]" title={m.reason || ''}>
@@ -610,7 +610,7 @@ export function ProductDistributionPanel({ product, onClose, onAddToOrder, onAdd
                           <td className="px-2 py-1 text-right text-gray-600">
                             {Number(o.productUnitPrice).toFixed(2)} zl
                           </td>
-                          <td className="px-2 py-1 text-right font-medium text-green-700">
+                          <td className="px-2 py-1 text-right font-medium text-primary-700">
                             {Number(o.productTotalPrice).toFixed(2)} zl
                           </td>
                           <td className="px-2 py-1">

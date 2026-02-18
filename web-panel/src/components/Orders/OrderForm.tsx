@@ -41,7 +41,7 @@ function CustomerSearchInput({
     : customers.filter(c => {
         const searchLower = searchTerm.toLowerCase();
         const companyName = (c.companyName || '').toLowerCase();
-        const customerCode = (c.customerCode || '').toLowerCase();
+        const customerCode = String(c.customerCode || '').toLowerCase();
         const firstName = (c.firstName || '').toLowerCase();
         const lastName = (c.lastName || '').toLowerCase();
         const nip = String(c.nip || '').replace(/[^0-9]/g, '');
@@ -143,7 +143,7 @@ function ProductSearchInput({ products, selectedProductId, onSelect, disabled, o
               onClick={() => handleSelect(product)} onMouseEnter={() => setHighlightedIndex(index)}>
               <div><div className="font-medium">{product.plantName}</div>
                 <div className="text-sm text-gray-500">{product.potSize || '-'} | {product.plantHeightCm || '-'} cm | {product.unitsPerPallet || 1} szt/paleta | {product.createdAt ? new Date(product.createdAt).toLocaleDateString('pl-PL') : '-'}</div></div>
-              <div className="text-right"><div className={'text-sm font-semibold ' + (product.totalUnits < 10 ? 'text-orange-600' : 'text-green-600')}>{product.palletCount || 0} pal. ({product.totalUnits} szt.)</div>
+              <div className="text-right"><div className={'text-sm font-semibold ' + (product.totalUnits < 10 ? 'text-orange-600' : 'text-primary-600')}>{product.palletCount || 0} pal. ({product.totalUnits} szt.)</div>
                 <div className="text-xs text-gray-500">{product.basePriceGross?.toFixed(2)} PLN</div></div>
             </div>
           ))}
@@ -309,7 +309,7 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
                 {!isEditMode && <button type="button" onClick={() => setShowAddCustomer(true)} className="text-sm text-blue-600 hover:text-blue-700">+ Dodaj nowego</button>}
               </div>
               {isEditMode ? <input type="text" className="input bg-gray-100" value={order?.customerName || 'Brak danych'} disabled /> : <CustomerSearchInput customers={customers} selectedCustomerId={selectedCustomerId} onSelect={handleCustomerSelect} />}
-              {selectedCustomer && <div className="mt-1 text-sm text-gray-500">Grupa cenowa: <span className="font-medium">{selectedCustomer.priceGroupName || 'Podstawowa'}</span>{selectedCustomer.nip && <span className="ml-3">NIP: {selectedCustomer.nip}</span>}{selectedCustomer.isEuCompany && <span className="ml-3 text-green-700 font-medium">VAT-EU: {selectedCustomer.vatEu} (ceny netto)</span>}</div>}
+              {selectedCustomer && <div className="mt-1 text-sm text-gray-500">Grupa cenowa: <span className="font-medium">{selectedCustomer.priceGroupName || 'Podstawowa'}</span>{selectedCustomer.nip && <span className="ml-3">NIP: {selectedCustomer.nip}</span>}{selectedCustomer.isEuCompany && <span className="ml-3 text-primary-700 font-medium">VAT-EU: {selectedCustomer.vatEu} (ceny netto)</span>}</div>}
             </div>
 
             <div>

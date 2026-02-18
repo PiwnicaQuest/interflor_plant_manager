@@ -35,6 +35,7 @@ import {
   ScannerNewOrderPage,
   ScannerLossPage,
   ScannerInventoryPage,
+  ScannerPOSPage,
 } from "./pages/scanner";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -124,6 +125,7 @@ function App() {
             <Route path="orders/:id" element={<ScannerOrderDetailPage />} />
             <Route path="losses" element={<ScannerLossPage />} />
             <Route path="inventory" element={<ScannerInventoryPage />} />
+            <Route path="pos" element={<ScannerPOSPage />} />
           </Route>
 
           {/* Print routes - outside Layout for clean printing */}

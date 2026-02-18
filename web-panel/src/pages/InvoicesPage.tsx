@@ -64,7 +64,7 @@ export function InvoicesPage() {
       result = result.filter(invoice =>
         (invoice.customerName || '').toLowerCase().includes(query) ||
         (invoice.invoiceNumber || '').toLowerCase().includes(query) ||
-        (invoice.buyerSnapshot?.customerCode || '').toLowerCase().includes(query)
+        String(invoice.buyerSnapshot?.customerCode || '').toLowerCase().includes(query)
       );
     }
 
@@ -403,7 +403,7 @@ export function InvoicesPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 px-3 py-2">
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Faktury</h1>
