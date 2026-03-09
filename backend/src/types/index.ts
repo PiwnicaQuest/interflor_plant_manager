@@ -474,6 +474,8 @@ export interface CreateProductRequest {
   createdAt?: Date;
   deliveryDate?: Date;
   vatRate?: number;
+  grower?: string;
+  tags?: string[];
 }
 
 export interface UpdateProductRequest {
@@ -500,6 +502,8 @@ export interface UpdateProductRequest {
   createdAt?: Date;
   deliveryDate?: Date;
   vatRate?: number;
+  grower?: string;
+  tags?: string[];
 }
 
 export interface CreateOrderRequest {

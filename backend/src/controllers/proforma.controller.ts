@@ -7,6 +7,15 @@ import { PaymentMethod } from '../types';
 import { emailService } from '../services/emailService';
 import { generateProformaPdfDirect } from "../utils/proformaPdfGenerator";
 
+async function pdfToBuffer(pdfDoc: PDFKit.PDFDocument): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    pdfDoc.on('data', (chunk: Buffer) => chunks.push(chunk));
+    pdfDoc.on('end', () => resolve(Buffer.concat(chunks)));
+    pdfDoc.on('error', reject);
+  });
+}
+
 export class ProformaController {
   /**
    * GET /proforma
@@ -301,11 +310,7 @@ export class ProformaController {
   static async sendEmail(req: AuthRequest, res: Response) {
     try {
       const proformaId = parseInt(req.params.id);
-      const { email, subject, message } = req.body;
-
-      if (!email) {
-        return res.status(400).json({ error: 'Brak adresu email' });
-      }
+      const { email: customEmail, subject, message } = req.body;
 
       // Get proforma
       const proforma = await InvoiceModel.getById(proformaId);
@@ -318,16 +323,16 @@ export class ProformaController {
         return res.status(400).json({ error: 'To nie jest faktura pro forma' });
       }
 
-      // Check if email service is configured
-      if (!emailService.isConfigured()) {
-        return res.status(500).json({
-          error: 'Usluga email nie jest skonfigurowana. Skontaktuj się z administratorem.'
-        });
+      // Get email - custom or from buyer snapshot
+      const email = customEmail || proforma.buyerSnapshot?.email;
+
+      if (!email) {
+        return res.status(400).json({ error: 'Brak adresu email klienta' });
       }
 
-      // Build print URL
-      const baseUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173';
-      const printUrl = baseUrl + '/print/proforma/' + proformaId;
+      // Generate PDF
+      const pdfDoc = await generateProformaPdfDirect(proforma);
+      const pdfBuffer = await pdfToBuffer(pdfDoc);
 
       // Get customer name from buyer snapshot
       const customerName = proforma.buyerSnapshot?.companyName ||
@@ -335,15 +340,15 @@ export class ProformaController {
           ? proforma.buyerSnapshot.firstName + ' ' + proforma.buyerSnapshot.lastName
           : undefined);
 
-      // Send email
-      const sent = await emailService.sendProformaEmail(
+      // Send email with PDF attachment
+      const sent = await emailService.sendProformaEmailWithPdf(
         email,
         proforma.invoiceNumber,
-        printUrl,
-        subject,
-        message,
+        pdfBuffer,
         customerName,
-        proforma.totalGross
+        proforma.totalGross,
+        subject,
+        message
       );
 
       if (!sent) {

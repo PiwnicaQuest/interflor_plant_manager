@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scanner Debug</title>
+<style>
+  body { font-family: monospace; padding: 16px; font-size: 14px; background: #111; color: #0f0; }
+  h2 { color: #fff; }
+  #log { white-space: pre-wrap; max-height: 80vh; overflow-y: auto; }
+  .event-keydown { color: #0f0; }
+  .event-keyup { color: #0a0; }
+  .event-keypress { color: #ff0; }
+  .event-input { color: #0ff; }
+  .event-beforeinput { color: #f0f; }
+  .event-compositionstart { color: #f80; }
+  .event-compositionend { color: #f80; }
+  .event-compositionupdate { color: #f80; }
+  button { padding: 8px 16px; margin: 4px; font-size: 14px; }
+  input { font-size: 16px; padding: 8px; width: 100%; margin: 8px 0; background: #222; color: #fff; border: 1px solid #555; }
+  .info { color: #888; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<h2>Scanner Event Debug</h2>
+<p class="info">Zeskanuj kod kreskowy. Wszystkie eventy klawiatury zostaną wyświetlone poniżej.</p>
+<input id="testInput" placeholder="Focus tutaj i skanuj..." autofocus />
+<div>
+  <button onclick="clearLog()">Wyczyść log</button>
+  <button onclick="copyLog()">Kopiuj log</button>
+</div>
+<hr>
+<div id="log"></div>
+
+<script>
+const log = document.getElementById('log');
+const input = document.getElementById('testInput');
+let eventCount = 0;
+
+function addLog(text, className) {
+  eventCount++;
+  const line = document.createElement('div');
+  line.className = className || '';
+  line.textContent = '[' + eventCount + '] ' + text;
+  log.insertBefore(line, log.firstChild);
+}
+
+function clearLog() { log.innerHTML = ''; eventCount = 0; }
+function copyLog() { navigator.clipboard.writeText(log.innerText); alert('Skopiowano!'); }
+
+function formatKeyEvent(e, type) {
+  return type + ': key= + e.key +  code= + e.code +  keyCode=' + e.keyCode + 
+    ' charCode=' + e.charCode + ' which=' + e.which + 
+    ' altKey=' + e.altKey + ' ctrlKey=' + e.ctrlKey + ' metaKey=' + e.metaKey + ' shiftKey=' + e.shiftKey +
+    ' repeat=' + e.repeat + ' isComposing=' + e.isComposing;
+}
+
+// Capture phase (global)
+['keydown', 'keyup', 'keypress'].forEach(function(type) {
+  document.addEventListener(type, function(e) {
+    addLog('[CAPTURE] ' + formatKeyEvent(e, type), 'event-' + type);
+  }, { capture: true });
+});
+
+// Bubble phase on input
+['keydown', 'keyup', 'keypress'].forEach(function(type) {
+  input.addEventListener(type, function(e) {
+    addLog('[BUBBLE]  ' + formatKeyEvent(e, type), 'event-' + type);
+  });
+});
+
+// Input events
+input.addEventListener('input', function(e) {
+  addLog('input: data= + e.data +  inputType= + e.inputType +  isComposing=' + e.isComposing + ' value= + input.value + ', 'event-input');
+});
+
+input.addEventListener('beforeinput', function(e) {
+  addLog('beforeinput: data= + e.data +  inputType= + e.inputType + ', 'event-beforeinput');
+});
+
+// Composition events
+['compositionstart', 'compositionupdate', 'compositionend'].forEach(function(type) {
+  input.addEventListener(type, function(e) {
+    addLog(type + ': data= + e.data + ', 'event-' + type);
+  });
+});
+
+// Paste events
+input.addEventListener('paste', function(e) {
+  var text = (e.clipboardData || window.clipboardData).getData('text');
+  addLog('PASTE:  + text + ', 'event-input');
+});
+
+addLog('=== Gotowe. Zeskanuj kod kreskowy. ===', '');
+</script>
+</body>
+</html>

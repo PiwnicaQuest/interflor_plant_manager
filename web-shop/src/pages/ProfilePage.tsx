@@ -76,7 +76,7 @@ export function ProfilePage() {
   if (authLoading) {
     return (
       <div className="text-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600 mx-auto"></div>
       </div>
     );
   }
@@ -99,7 +99,7 @@ export function ProfilePage() {
 
           {loading ? (
             <div className="text-center py-6 sm:py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-600 mx-auto"></div>
               <p className="mt-2 text-gray-600 text-sm">Ładowanie danych...</p>
             </div>
           ) : error ? (
@@ -174,7 +174,7 @@ export function ProfilePage() {
                 id="currentPassword"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full px-3 sm:px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                className="w-full px-3 sm:px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                 placeholder="Wpisz obecne hasło"
               />
             </div>
@@ -189,7 +189,7 @@ export function ProfilePage() {
                 id="newPassword"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full px-3 sm:px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                className="w-full px-3 sm:px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                 placeholder="Minimum 6 znaków"
               />
             </div>
@@ -204,7 +204,7 @@ export function ProfilePage() {
                 id="confirmPassword"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-3 sm:px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                className="w-full px-3 sm:px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                 placeholder="Powtórz nowe hasło"
               />
             </div>
@@ -218,8 +218,8 @@ export function ProfilePage() {
 
             {/* Success message */}
             {passwordSuccess && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-2 sm:p-3">
-                <p className="text-green-700 text-xs sm:text-sm">{passwordSuccess}</p>
+              <div className="bg-pink-50 border border-pink-200 rounded-lg p-2 sm:p-3">
+                <p className="text-pink-700 text-xs sm:text-sm">{passwordSuccess}</p>
               </div>
             )}
 

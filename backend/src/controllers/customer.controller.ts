@@ -306,7 +306,7 @@ export class CustomerController {
       }
 
       // Check if email service is configured
-      if (!emailService.isConfigured()) {
+      if (!(await emailService.isConfiguredAsync())) {
         return res.status(503).json({ error: 'Usługa email nie jest skonfigurowana. Skontaktuj się z administratorem.' });
       }
 

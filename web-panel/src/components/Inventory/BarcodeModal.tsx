@@ -22,7 +22,7 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
   const [printStatus, setPrintStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
   // Use print hook
-  const { printBarcodes, isBrokerAvailable } = usePrint({
+  const { print, printBarcodes, isBrokerAvailable } = usePrint({
     onBrowserPrint: () => {
       setPrintStatus({
         type: 'info',
@@ -241,6 +241,34 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
     setShowPrintPreview(false);
   };
 
+  const handleBrowserPrint = async () => {
+    setPrintStatus(null);
+    const htmlContent = generatePrintHtml();
+
+    // Open new window with print content - bypasses broker entirely
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) {
+      setPrintStatus({ type: 'error', message: 'Popup zablokowany - zezwol na wyskakujace okna' });
+      return;
+    }
+
+    const title = 'Etykiety - ' + (product?.plantName || '');
+    printWindow.document.write(
+      '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + title + '</title>' +
+      '<style>@page { size: 50mm 30mm; margin: 0; } body { margin: 0; padding: 0; }</style>' +
+      '</head><body>' + htmlContent +
+      '<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>' +
+      '<script>' +
+      'document.querySelectorAll(".template-barcode").forEach(function(svg){var v=svg.getAttribute("data-barcode");var w=parseFloat(svg.getAttribute("data-width"))||1.5;var h=parseFloat(svg.getAttribute("data-height"))||50;if(v){JsBarcode(svg,v,{format:"CODE128",width:w,height:h,displayValue:true,fontSize:Math.max(8,Math.min(14,h*0.2)),margin:0,textMargin:1});}});' +
+      'setTimeout(function(){window.print();},800);' +
+      '<\/script></body></html>'
+    );
+    printWindow.document.close();
+
+    setPrintStatus({ type: 'info', message: 'Okno drukowania otwarte' });
+    setTimeout(() => setPrintStatus(null), 3000);
+  };
+
   if (!product) return null;
 
   return (
@@ -368,11 +396,18 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
               </button>
             )}
             <button
+              onClick={handleBrowserPrint}
+              disabled={!barcode}
+              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2"
+              title="Drukuj przez okno systemowe przegladarki"
+            >
+              Drukuj (przegladarka)
+            </button>
+            <button
               onClick={handlePrint}
               disabled={!barcode}
               className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 flex items-center gap-2"
             >
-              <span>🖨️</span>
               Drukuj ({labelCount})
             </button>
           </div>

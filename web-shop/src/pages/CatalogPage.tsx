@@ -162,10 +162,10 @@ export function CatalogPage() {
           {selectedCategories.map(cat => (
             <span
               key={cat}
-              className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
+              className="inline-flex items-center gap-1 px-2 py-1 bg-pink-100 text-pink-800 text-xs rounded-full"
             >
               {cat}
-              <button onClick={() => handleCategoryToggle(cat)} className="hover:text-green-600">
+              <button onClick={() => handleCategoryToggle(cat)} className="hover:text-pink-600">
                 x
               </button>
             </span>
@@ -192,7 +192,7 @@ export function CatalogPage() {
                       onClick={() => handleCategoryToggle(category)}
                       className={`w-full text-left px-3 py-1.5 text-sm rounded-lg transition-colors ${
                         isSelected
-                          ? 'bg-green-100 text-green-800 font-medium'
+                          ? 'bg-pink-100 text-pink-800 font-medium'
                           : 'text-gray-600 hover:bg-gray-100'
                       }`}
                     >
@@ -219,7 +219,7 @@ export function CatalogPage() {
                   onClick={() => handleCategoryToggle(tag)}
                   className={`px-2 py-1 text-xs rounded-full transition-colors ${
                     isSelected
-                      ? 'bg-green-600 text-white'
+                      ? 'bg-pink-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
@@ -263,7 +263,7 @@ export function CatalogPage() {
                 onClick={() => setActiveTab('all')}
                 className={`px-3 sm:px-4 py-2 rounded-lg font-medium text-sm sm:text-base whitespace-nowrap transition-colors ${
                   activeTab === 'all'
-                    ? 'bg-green-600 text-white shadow-md'
+                    ? 'bg-pink-600 text-white shadow-md'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -300,7 +300,7 @@ export function CatalogPage() {
             </svg>
             Filtry i kategorie
             {selectedCategories.length > 0 && (
-              <span className="bg-green-600 text-white text-xs px-2 py-0.5 rounded-full">
+              <span className="bg-pink-600 text-white text-xs px-2 py-0.5 rounded-full">
                 {selectedCategories.length}
               </span>
             )}
@@ -394,7 +394,7 @@ export function CatalogPage() {
               {selectedCategories.map(cat => (
                 <span
                   key={cat}
-                  className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
+                  className="inline-flex items-center gap-1 px-2 py-1 bg-pink-100 text-pink-800 text-xs rounded-full"
                 >
                   {cat}
                   <button onClick={() => handleCategoryToggle(cat)}>x</button>
@@ -420,7 +420,7 @@ export function CatalogPage() {
         {/* Products grid */}
         {loading ? (
           <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600 mx-auto"></div>
             <p className="mt-4 text-gray-600">Ładowanie produktów...</p>
           </div>
         ) : error ? (
@@ -484,7 +484,7 @@ export function CatalogPage() {
                         {product.tags.slice(0, 1).map(tag => (
                           <span
                             key={tag}
-                            className="px-1.5 sm:px-2 py-0.5 bg-green-600 bg-opacity-90 text-white text-[10px] sm:text-xs rounded-full truncate max-w-full"
+                            className="px-1.5 sm:px-2 py-0.5 bg-pink-600 bg-opacity-90 text-white text-[10px] sm:text-xs rounded-full truncate max-w-full"
                           >
                             {tag}
                           </span>
@@ -518,7 +518,7 @@ export function CatalogPage() {
                         {/* Unit price as main price */}
                         <div className="border-t pt-1 sm:pt-2 mt-1 sm:mt-2">
                           <div className="text-center mb-2">
-                            <span className="text-lg sm:text-2xl font-bold text-green-600">
+                            <span className="text-lg sm:text-2xl font-bold text-pink-600">
                               {formatPrice(product.price)}
                             </span>
                             <span className="text-xs sm:text-sm text-gray-500 ml-1">/ szt.</span>

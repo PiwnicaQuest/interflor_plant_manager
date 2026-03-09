@@ -124,6 +124,7 @@ export class ImageService {
     const config = SIZE_CONFIGS[size];
     
     return sharp(buffer)
+      .rotate()
       .resize(config.width, config.height, {
         fit: 'contain',
         background: { r: 255, g: 255, b: 255, alpha: 1 }

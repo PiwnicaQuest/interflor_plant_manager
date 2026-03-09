@@ -444,3 +444,109 @@ export class OrderController {
     }
   }
 }
+
+
+// ============ SEND ORDER TO POLFLOR VIA EMAIL ============
+export async function sendOrderToPolflor(req: Request, res: Response) {
+  try {
+    const orderId = parseInt(req.params.id);
+
+    // Get order
+    const orderResult = await query('SELECT * FROM orders WHERE id = $1', [orderId]);
+    if (orderResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Zamowienie nie znalezione' });
+    }
+    const order = orderResult.rows[0];
+
+    // Get order items with grower from products
+    const itemsResult = await query(
+      'SELECT oi.*, p.grower, p.barcode as product_barcode FROM order_items oi LEFT JOIN products p ON oi.product_id = p.id WHERE oi.order_id = $1 ORDER BY oi.id',
+      [orderId]
+    );
+    const items = itemsResult.rows;
+
+    if (items.length === 0) {
+      return res.status(400).json({ error: 'Zamowienie nie ma pozycji' });
+    }
+
+    // Generate Excel in Polflor template format
+    const ExcelJS = require('exceljs');
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Zamowienie');
+
+    // Row 1: delivery date
+    ws.mergeCells('A1:I1');
+    const dateCell = ws.getCell('A1');
+    dateCell.value = 'DATA DOSTAWY';
+    dateCell.font = { bold: true, size: 14 };
+    dateCell.alignment = { horizontal: 'center' };
+
+    // Row 2: headers
+    const headers = ['Zdjecie', 'Nazwa', 'doniczka', 'wysokosc', 'Ilosc Szt./pal', 'Ilosc pal.', 'Cena Euro / PLN', 'Ogrodnik', 'Kod kreskowy'];
+    const headerRow = ws.getRow(2);
+    headers.forEach((h: string, i: number) => {
+      const cell = headerRow.getCell(i + 1);
+      cell.value = h;
+      cell.font = { bold: true };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
+      cell.border = {
+        top: { style: 'thin' }, bottom: { style: 'thin' },
+        left: { style: 'thin' }, right: { style: 'thin' },
+      };
+    });
+
+    // Data rows
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const snap = typeof item.productSnapshot === 'string' ? JSON.parse(item.productSnapshot) : (item.productSnapshot || {});
+      const row = ws.getRow(i + 3);
+      row.getCell(1).value = snap.imageUrl || snap.image_url || '';
+      row.getCell(2).value = snap.plantName || snap.plant_name || '';
+      row.getCell(3).value = snap.potSize || snap.pot_size || '';
+      const height = snap.plantHeightCm || snap.plant_height_cm;
+      row.getCell(4).value = height ? height + ' cm' : '';
+      row.getCell(5).value = snap.unitsPerPallet || snap.units_per_pallet || '';
+      row.getCell(6).value = item.palletCount || item.pallet_count || '';
+      row.getCell(7).value = Number(item.unitPriceGross || item.unit_price_gross || 0);
+      row.getCell(8).value = item.grower || '';
+      row.getCell(9).value = snap.barcode || item.productBarcode || item.product_barcode || '';
+    }
+
+    // Column widths
+    [15, 40, 12, 12, 14, 12, 16, 25, 25].forEach((w: number, i: number) => { ws.getColumn(i + 1).width = w; });
+
+    // Generate buffer
+    const buffer = await wb.xlsx.writeBuffer();
+
+    // Send email
+    const today = new Date().toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const orderNum = order.orderNumber || order.order_number || order.id;
+    const fileName = 'zamowienie_polflor_' + String(orderNum).replace(/\//g, '_') + '.xlsx';
+
+    const targetEmail = req.body.email || 'damian@polflor.wroclaw.pl';
+
+    const sent = await emailService.sendEmail({
+      to: targetEmail,
+      subject: 'Zamowienie ' + orderNum + ' ' + today,
+      text: 'Dzien dobry,\n\nW zalaczniku przesylam zamowienie.\n\nPozdrawiam',
+      html: '<p>Dzien dobry,</p><p>W zalaczniku przesylam zamowienie <strong>' + orderNum + '</strong>.</p><p>Pozdrawiam</p>',
+      attachments: [
+        {
+          filename: fileName,
+          content: Buffer.from(buffer),
+          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        },
+      ],
+    });
+
+    if (sent) {
+      console.log('[API] Polflor order email sent to ' + targetEmail + ' for order ' + orderNum);
+      res.json({ message: 'Email wyslany do ' + targetEmail });
+    } else {
+      res.status(500).json({ error: 'Nie udalo sie wyslac emaila. Sprawdz konfiguracje SMTP w ustawieniach.' });
+    }
+  } catch (error: any) {
+    console.error('[API] sendOrderToPolflor error:', error);
+    res.status(500).json({ error: error.message || 'Blad wysylki' });
+  }
+}

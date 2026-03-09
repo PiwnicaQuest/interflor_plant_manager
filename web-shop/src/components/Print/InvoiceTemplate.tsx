@@ -88,7 +88,7 @@ const defaultSellerInfo = {
   postalCode: "00-001",
   nip: "123-456-78-90",
   phone: "+48 123 456 789",
-  email: "biuro@polflor.pl",
+  email: "biuro@interflor.pl",
   bankAccount: "PL12 1234 5678 9012 3456 7890 1234",
   bankName: "Bank Przykładowy S.A.",
 };
@@ -211,7 +211,7 @@ export function InvoiceTemplate({ data, sellerInfo = defaultSellerInfo }: Invoic
 
         {/* Odbiorca */}
         {hasRecipient && (
-          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+          <div className="bg-pink-50 p-4 rounded-lg border border-pink-200">
             <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Odbiorca</h3>
             <p className="font-bold text-base">{getRecipientName()}</p>
             {data.recipientInfo?.address && <p className="text-sm">{data.recipientInfo.address}</p>}

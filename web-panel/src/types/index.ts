@@ -336,6 +336,12 @@ export interface Invoice {
     phone?: string;
   };
   transactionType?: 'domestic' | 'wdt' | 'export';
+  // KSeF fields
+  ksefStatus?: 'none' | 'pending' | 'sent' | 'accepted' | 'rejected' | 'error';
+  ksefReferenceNumber?: string;
+  ksefSentAt?: string;
+  ksefErrorMessage?: string;
+  ksefUpo?: string;
 }
 
 // Proforma (same structure as Invoice but with invoiceType = 'proforma')

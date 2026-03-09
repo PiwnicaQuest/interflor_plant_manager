@@ -8,7 +8,7 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   pending: { label: 'Oczekuje', color: 'bg-yellow-100 text-yellow-800' },
   in_progress: { label: 'W realizacji', color: 'bg-blue-100 text-blue-800' },
   ready_for_pickup: { label: 'Gotowe do odbióru', color: 'bg-purple-100 text-purple-800' },
-  completed: { label: 'Zrealizowane', color: 'bg-green-100 text-green-800' },
+  completed: { label: 'Zrealizowane', color: 'bg-pink-100 text-pink-800' },
   cancelled: { label: 'Anulowane', color: 'bg-red-100 text-red-800' },
 };
 
@@ -69,7 +69,7 @@ export function OrdersPage() {
   if (authLoading) {
     return (
       <div className="text-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600 mx-auto"></div>
       </div>
     );
   }
@@ -84,8 +84,8 @@ export function OrdersPage() {
 
       {/* Success message */}
       {successState?.success && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
-          <p className="text-sm sm:text-base text-green-800">
+        <div className="bg-pink-50 border border-pink-200 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
+          <p className="text-sm sm:text-base text-pink-800">
             Zamówienie <span className="font-semibold">{successState.orderNumber}</span> zostało złożone!
             <span className="hidden sm:inline"> Wartość: {formatPrice(successState.totalAmount || 0)}</span>
           </p>
@@ -94,7 +94,7 @@ export function OrdersPage() {
 
       {loading ? (
         <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600 mx-auto"></div>
           <p className="mt-4 text-gray-600 text-sm sm:text-base">Ładowanie zamówień...</p>
         </div>
       ) : error ? (
@@ -131,7 +131,7 @@ export function OrdersPage() {
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-gray-500">{formatDateShort(order.createdAt)}</p>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-green-600">
+                        <span className="text-sm font-bold text-pink-600">
                           {formatPrice(order.totalAmount)}
                         </span>
                         <span className="text-gray-400 text-xs">
@@ -153,7 +153,7 @@ export function OrdersPage() {
                       </span>
                     </div>
                     <div className="flex items-center gap-4">
-                      <span className="text-xl font-bold text-green-600">
+                      <span className="text-xl font-bold text-pink-600">
                         {formatPrice(order.totalAmount)}
                       </span>
                       <span className="text-gray-400">

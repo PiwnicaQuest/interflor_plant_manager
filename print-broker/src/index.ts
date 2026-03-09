@@ -3,6 +3,135 @@
  */
 
 import { PrintBrokerServer } from "./server";
+import * as https from "https";
+import * as http from "http";
+import * as fs from "fs";
+import * as path from "path";
+
+const UPDATE_SERVER = "https://pm.interflor.pl";
+const LOCAL_VERSION_FILE = path.join(process.cwd(), "version.txt");
+const UPDATE_FILES = [
+  "printerDetector.js",
+  "labelPrinter.js",
+  "receiptPrinter.js",
+  "tsplGenerator.js"
+];
+
+function fetchText(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const mod = url.startsWith("https") ? https : http;
+    const req = (mod as any).get(url, { timeout: 8000 }, (res: any) => {
+      // Follow redirects
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        return fetchText(res.headers.location).then(resolve).catch(reject);
+      }
+      if (res.statusCode !== 200) {
+        return reject(new Error("HTTP " + res.statusCode));
+      }
+      let data = "";
+      res.on("data", (chunk: string) => data += chunk);
+      res.on("end", () => resolve(data));
+    });
+    req.on("error", reject);
+    req.on("timeout", () => { req.destroy(); reject(new Error("timeout")); });
+  });
+}
+
+function fetchBuffer(url: string): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const mod = url.startsWith("https") ? https : http;
+    const req = (mod as any).get(url, { timeout: 15000 }, (res: any) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        return fetchBuffer(res.headers.location).then(resolve).catch(reject);
+      }
+      if (res.statusCode !== 200) {
+        return reject(new Error("HTTP " + res.statusCode));
+      }
+      const chunks: Buffer[] = [];
+      res.on("data", (chunk: Buffer) => chunks.push(chunk));
+      res.on("end", () => resolve(Buffer.concat(chunks)));
+    });
+    req.on("error", reject);
+    req.on("timeout", () => { req.destroy(); reject(new Error("timeout")); });
+  });
+}
+
+async function checkForUpdates(): Promise<boolean> {
+  try {
+    console.log("[AutoUpdate] Sprawdzanie aktualizacji...");
+
+    // Get remote version
+    const remoteVersionStr = await fetchText(UPDATE_SERVER + "/downloads/version.txt");
+    const remoteVersion = parseInt(remoteVersionStr.trim(), 10);
+
+    // Get local version
+    let localVersion = 0;
+    try {
+      if (fs.existsSync(LOCAL_VERSION_FILE)) {
+        localVersion = parseInt(fs.readFileSync(LOCAL_VERSION_FILE, "utf-8").trim(), 10);
+      }
+    } catch {}
+
+    console.log("[AutoUpdate] Wersja lokalna: " + localVersion + ", zdalna: " + remoteVersion);
+
+    if (isNaN(remoteVersion) || remoteVersion <= localVersion) {
+      console.log("[AutoUpdate] Brak aktualizacji.");
+      return false;
+    }
+
+    // Skip auto-update if local version >= 10 (manual updates only)
+    if (localVersion >= 10) {
+      console.log("[AutoUpdate] Wersja >= 10, pomijanie auto-update (reczne aktualizacje).");
+      return false;
+    }
+
+    // Download updated files
+    console.log("[AutoUpdate] Pobieranie aktualizacji v" + remoteVersion + "...");
+    const servicesDir = path.join(process.cwd(), "dist", "services");
+
+    let updated = 0;
+    for (const file of UPDATE_FILES) {
+      try {
+        const url = UPDATE_SERVER + "/downloads/" + file;
+        const data = await fetchBuffer(url);
+        const localPath = path.join(servicesDir, file);
+        
+        // Compare with existing
+        let needsUpdate = true;
+        if (fs.existsSync(localPath)) {
+          const existing = fs.readFileSync(localPath);
+          if (existing.equals(data)) {
+            needsUpdate = false;
+          }
+        }
+
+        if (needsUpdate) {
+          fs.writeFileSync(localPath, data);
+          updated++;
+          console.log("[AutoUpdate]   Zaktualizowano: " + file);
+        } else {
+          console.log("[AutoUpdate]   Bez zmian: " + file);
+        }
+      } catch (e: any) {
+        console.warn("[AutoUpdate]   Blad pobierania " + file + ": " + e.message);
+      }
+    }
+
+    // Save new version
+    fs.writeFileSync(LOCAL_VERSION_FILE, String(remoteVersion));
+
+    if (updated > 0) {
+      console.log("[AutoUpdate] Zaktualizowano " + updated + " plikow. Restartowanie...");
+      return true;
+    }
+    
+    console.log("[AutoUpdate] Wersja zaktualizowana, pliki bez zmian.");
+    return false;
+  } catch (e: any) {
+    console.log("[AutoUpdate] Nie mozna sprawdzic aktualizacji: " + e.message);
+    return false;
+  }
+}
 import { printerDetector } from "./services/printerDetector";
 
 // System tray icon (base64 encoded 16x16 PNG - printer icon)
@@ -98,6 +227,23 @@ async function main() {
   console.log("===========================================\n");
 
   // Detect printers
+  // Auto-update check
+  const needsRestart = await checkForUpdates();
+  if (needsRestart) {
+    console.log("[PrintBroker] Pliki zaktualizowane - restartowanie za 2s...");
+    setTimeout(() => {
+      const { spawn } = require("child_process");
+      const child = spawn(process.argv[0], process.argv.slice(1), {
+        cwd: process.cwd(),
+        detached: true,
+        stdio: "ignore"
+      });
+      child.unref();
+      process.exit(0);
+    }, 2000);
+    return;
+  }
+
   console.log("[PrintBroker] Wykrywanie drukarek...");
   const printers = await printerDetector.getPrinters(true);
   

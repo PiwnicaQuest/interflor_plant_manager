@@ -386,9 +386,19 @@ class ApiClient {
   }
 
   async createInvoice(data: {
-    orderId: number;
+    orderId?: number;
+    customerId?: number;
     paymentMethod: string;
-    paymentDeadline: string;
+    paymentDeadline?: string;
+    items?: Array<{
+      productId?: number;
+      description: string;
+      quantity: number;
+      unitPriceNet: number;
+      unitPriceGross?: number;
+      vatRate: number;
+      growerPassport?: string;
+    }>;
   }): Promise<{ message: string; invoiceNumber: string; invoiceId: number }> {
     const response = await this.client.post('/invoices', data);
     return response.data;
@@ -396,6 +406,11 @@ class ApiClient {
 
   async sendInvoiceEmail(id: number, options?: { email?: string; subject?: string; message?: string }): Promise<{ success: boolean; message: string }> {
     const response = await this.client.post(`/invoices/${id}/send-email`, options || {});
+    return response.data;
+  }
+
+  async sendProformaEmail(id: number, options?: { email?: string; subject?: string; message?: string }): Promise<{ success: boolean; message: string }> {
+    const response = await this.client.post(`/proforma/${id}/send-email`, options || {});
     return response.data;
   }
 
@@ -1057,6 +1072,49 @@ class ApiClient {
   }
 
   // ============================================
+  // SMTP SEND SETTINGS
+  // ============================================
+
+  async getSmtpSendSettings(): Promise<{
+    smtpHost: string;
+    smtpPort: number;
+    smtpUser: string;
+    smtpPassword: string;
+    smtpFrom: string;
+    smtpSecurity: 'none' | 'ssl' | 'starttls';
+  }> {
+    const response = await this.client.get('/settings/smtp-send');
+    return response.data;
+  }
+
+  async updateSmtpSendSettings(data: {
+    smtpHost: string;
+    smtpPort: number;
+    smtpUser: string;
+    smtpPassword?: string;
+    smtpFrom: string;
+    smtpSecurity: 'none' | 'ssl' | 'starttls';
+  }): Promise<{ message: string }> {
+    const response = await this.client.put('/settings/smtp-send', data);
+    return response.data;
+  }
+
+  async testSmtpSend(testEmail: string): Promise<{ message?: string; error?: string }> {
+    const response = await this.client.post('/settings/smtp-send/test', { testEmail });
+    return response.data;
+  }
+
+  async getGrowerPassports(): Promise<{ passports: Array<{ id: number; growerName: string; floricode: string }> }> {
+    const response = await this.client.get('/grower-passports?limit=10000');
+    return response.data;
+  }
+
+    async sendOrderToPolflor(orderId: number, email?: string): Promise<{ message?: string; error?: string }> {
+    const response = await this.client.post(`/orders/${orderId}/send-polflor`, { email: email || 'damian@polflor.wroclaw.pl' });
+    return response.data;
+  }
+
+  // ============================================
   // PRINT SYSTEM
   // ============================================
 
@@ -1121,10 +1179,11 @@ class ApiClient {
   // ADDITIONAL INVENTORY METHODS
   // ============================================
 
-  async importExcel(file: File, currency: "EUR" | "PLN" = "EUR"): Promise<any> {
+  async importExcel(file: File, currency: "EUR" | "PLN" = "EUR", format: "standard" | "polflor" = "standard"): Promise<any> {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("currency", currency);
+    formData.append("format", format);
     // Use axios directly to avoid default Content-Type header from this.client
     const token = localStorage.getItem("token");
     const response = await axios.post(`${import.meta.env.VITE_API_URL || "http://localhost:4000"}/inventory/import-excel`, formData, {
@@ -1383,6 +1442,48 @@ class ApiClient {
     const response = await this.client.get(`/login-history/export?${params.toString()}`, {
       responseType: 'blob'
     });
+    return response.data;
+  }
+
+  // ========== KSeF ==========
+
+  async getKsefSettings(): Promise<any> {
+    const response = await this.client.get("/ksef/settings");
+    return response.data;
+  }
+
+  async updateKsefSettings(settings: any): Promise<any> {
+    const response = await this.client.put("/ksef/settings", settings);
+    return response.data;
+  }
+
+  async testKsefConnection(): Promise<any> {
+    const response = await this.client.post("/ksef/test-connection");
+    return response.data;
+  }
+
+  async sendInvoiceToKsef(invoiceId: number): Promise<any> {
+    const response = await this.client.post(`/ksef/invoices/${invoiceId}/send`);
+    return response.data;
+  }
+
+  async getKsefStatus(invoiceId: number): Promise<any> {
+    const response = await this.client.get(`/ksef/invoices/${invoiceId}/status`);
+    return response.data;
+  }
+
+  async getKsefXml(invoiceId: number): Promise<any> {
+    const response = await this.client.get(`/ksef/invoices/${invoiceId}/xml`);
+    return response.data;
+  }
+
+  async retryKsefSend(invoiceId: number): Promise<any> {
+    const response = await this.client.post(`/ksef/invoices/${invoiceId}/retry`);
+    return response.data;
+  }
+
+  async sendBulkToKsef(invoiceIds: number[]): Promise<any> {
+    const response = await this.client.post("/ksef/send-bulk", { invoiceIds });
     return response.data;
   }
 }

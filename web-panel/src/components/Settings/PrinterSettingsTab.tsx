@@ -241,7 +241,7 @@ export function PrinterSettingsTab() {
             )}
           </div>
           <a
-            href="https://pm.polflor.wroclaw.pl/print-broker-full.zip"
+            href="/downloads/POLFLOR-PrintBroker-Installer.bat"
             download
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2"
           >
@@ -375,6 +375,42 @@ export function PrinterSettingsTab() {
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* Android App Download */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex justify-between items-start">
+          <div>
+            <h2 className="text-lg font-semibold mb-2">Aplikacja mobilna - Interflor</h2>
+            <p className="text-sm text-gray-600 mb-3">
+              Aplikacja Android do drukowania etykiet bezpośrednio z telefonu na drukarkę termiczną przez Wi-Fi.
+            </p>
+            <ul className="text-sm text-gray-600 space-y-1">
+              <li>• Drukowanie kodów kreskowych na drukarce Xprinter</li>
+              <li>• Połączenie przez sieć Wi-Fi (TCP/IP)</li>
+              <li>• Automatyczne wykrywanie stron do druku</li>
+            </ul>
+          </div>
+          <a
+            href="/downloads/interflor.apk"
+            download
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2 whitespace-nowrap"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Pobierz APK (Android)
+          </a>
+        </div>
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <h4 className="text-sm font-medium text-gray-700 mb-2">Instrukcja instalacji:</h4>
+          <ol className="list-decimal list-inside text-sm text-gray-600 space-y-1">
+            <li>Pobierz plik APK na telefon z Androidem</li>
+            <li>Otwórz plik — zezwól na instalację z nieznanych źródeł</li>
+            <li>Po uruchomieniu ustaw IP drukarki i adres strony</li>
+            <li>Zaloguj się i drukuj</li>
+          </ol>
         </div>
       </div>
 

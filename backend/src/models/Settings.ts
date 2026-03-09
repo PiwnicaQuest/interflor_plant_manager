@@ -229,6 +229,55 @@ export class SettingsModel {
   }
 
   /**
+   * Get SMTP settings for sending emails
+   */
+  static async getSmtpSendSettings(): Promise<{
+    smtpHost: string;
+    smtpPort: number;
+    smtpUser: string;
+    smtpPassword: string;
+    smtpFrom: string;
+    smtpSecurity: 'none' | 'ssl' | 'starttls';
+  }> {
+    const smtpHost = await this.getSetting('smtp_send_host');
+    const smtpPort = await this.getSetting('smtp_send_port');
+    const smtpUser = await this.getSetting('smtp_send_user');
+    const smtpPassword = await this.getSetting('smtp_send_password');
+    const smtpFrom = await this.getSetting('smtp_send_from');
+    const smtpSecurity = await this.getSetting('smtp_send_security');
+
+    return {
+      smtpHost: smtpHost || '',
+      smtpPort: parseInt(smtpPort || '587'),
+      smtpUser: smtpUser || '',
+      smtpPassword: smtpPassword || '',
+      smtpFrom: smtpFrom || '',
+      smtpSecurity: (smtpSecurity as 'none' | 'ssl' | 'starttls') || 'starttls',
+    };
+  }
+
+  /**
+   * Update SMTP settings for sending emails
+   */
+  static async updateSmtpSendSettings(settings: {
+    smtpHost: string;
+    smtpPort: number;
+    smtpUser: string;
+    smtpPassword?: string;
+    smtpFrom: string;
+    smtpSecurity: 'none' | 'ssl' | 'starttls';
+  }): Promise<void> {
+    await this.upsertSetting('smtp_send_host', settings.smtpHost, 'SMTP host do wysyłki');
+    await this.upsertSetting('smtp_send_port', settings.smtpPort.toString(), 'SMTP port do wysyłki');
+    await this.upsertSetting('smtp_send_user', settings.smtpUser, 'SMTP użytkownik do wysyłki');
+    if (settings.smtpPassword) {
+      await this.upsertSetting('smtp_send_password', settings.smtpPassword, 'SMTP hasło do wysyłki');
+    }
+    await this.upsertSetting('smtp_send_from', settings.smtpFrom, 'SMTP nadawca do wysyłki');
+    await this.upsertSetting('smtp_send_security', settings.smtpSecurity, 'SMTP zabezpieczenie do wysyłki');
+  }
+
+  /**
    * Calculate prices based on purchase price and current settings
    * This is used during import and when creating new products
    */

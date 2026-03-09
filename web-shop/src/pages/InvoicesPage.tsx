@@ -61,7 +61,7 @@ export function InvoicesPage() {
   if (authLoading) {
     return (
       <div className="text-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600 mx-auto"></div>
       </div>
     );
   }
@@ -76,7 +76,7 @@ export function InvoicesPage() {
 
       {loading ? (
         <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600 mx-auto"></div>
           <p className="mt-4 text-gray-600 text-sm sm:text-base">Ładowanie faktur...</p>
         </div>
       ) : error ? (
@@ -113,7 +113,7 @@ export function InvoicesPage() {
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-bold text-green-600">{formatPrice(invoice.totalGross)}</p>
+                      <p className="text-sm font-bold text-pink-600">{formatPrice(invoice.totalGross)}</p>
                       {remainingAmount > 0 && invoice.paymentStatus !== 'paid' && (
                         <p className="text-xs text-orange-600">
                           Do zaplaty: {formatPrice(remainingAmount)}
@@ -147,7 +147,7 @@ export function InvoicesPage() {
                     </div>
                     <div className="flex items-center gap-6">
                       <div className="text-right">
-                        <p className="text-xl font-bold text-green-600">{formatPrice(invoice.totalGross)}</p>
+                        <p className="text-xl font-bold text-pink-600">{formatPrice(invoice.totalGross)}</p>
                         {remainingAmount > 0 && invoice.paymentStatus !== 'paid' && (
                           <p className="text-sm text-orange-600">
                             Do zaplaty: {formatPrice(remainingAmount)}

@@ -277,7 +277,7 @@ export class ScannerController {
         // Update order total
         await client.query(
           'UPDATE orders SET total_amount = total_amount - $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-          [item.total_price, orderId]
+          [item.totalPrice, orderId]
         );
 
         // Restore inventory
@@ -301,7 +301,7 @@ export class ScannerController {
         // Create inventory movement (restore)
         await client.query(
           `INSERT INTO inventory_movements (product_id, user_id, movement_type, delta_units, reason, reference_type, reference_id)
-           VALUES ($1, $2, 'adjustment', $3, $4, 'order', $5)`,
+           VALUES ($1, $2, 'correction', $3, $4, 'order', $5)`,
           [item.productId, req.user?.userId, item.quantity, `Usunięto z zamówienia #${orderId}`, orderId]
         );
       });

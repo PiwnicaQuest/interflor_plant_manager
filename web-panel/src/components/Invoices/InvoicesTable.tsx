@@ -75,6 +75,23 @@ export function InvoicesTable({
     return colors[status];
   };
 
+  const getKsefStatusBadge = (status?: string) => {
+    switch (status) {
+      case 'pending':
+        return <span className="px-2 py-1 rounded-full text-xs font-semibold text-yellow-700 bg-yellow-100">Wysylanie...</span>;
+      case 'sent':
+        return <span className="px-2 py-1 rounded-full text-xs font-semibold text-blue-700 bg-blue-100">Wyslana</span>;
+      case 'accepted':
+        return <span className="px-2 py-1 rounded-full text-xs font-semibold text-green-700 bg-green-100">✓ KSeF</span>;
+      case 'rejected':
+        return <span className="px-2 py-1 rounded-full text-xs font-semibold text-red-700 bg-red-100">Odrzucona</span>;
+      case 'error':
+        return <span className="px-2 py-1 rounded-full text-xs font-semibold text-red-700 bg-red-100">Blad</span>;
+      default:
+        return <span className="px-2 py-1 rounded-full text-xs font-semibold text-gray-500 bg-gray-100">—</span>;
+    }
+  };
+
   const allSelected = invoices.length > 0 && selectedInvoices.length === invoices.length;
 
   // Sortable header component
@@ -143,6 +160,7 @@ export function InvoicesTable({
                   <SortableHeader field="paymentDeadline">Termin płatnośći</SortableHeader>
                   <th>Metoda płatnośći</th>
                   <SortableHeader field="paymentStatus">Status płatnośći</SortableHeader>
+                  <th>KSeF</th>
                   <th>Zaplacono</th>
                   <SortableHeader field="totalGross">Kwota brutto</SortableHeader>
                   <th>Akcje</th>
@@ -156,6 +174,7 @@ export function InvoicesTable({
                   <th>Termin płatnośći</th>
                   <th>Metoda płatnośći</th>
                   <th>Status płatnośći</th>
+                  <th>KSeF</th>
                   <th>Zaplacono</th>
                   <th>Kwota brutto</th>
                   <th>Akcje</th>
@@ -192,6 +211,9 @@ export function InvoicesTable({
                   <span className={'px-2 py-1 rounded-full text-xs font-semibold ' + getPaymentStatusColor(invoice.paymentStatus)}>
                     {getPaymentStatusLabel(invoice.paymentStatus)}
                   </span>
+                </td>
+                <td>
+                  {getKsefStatusBadge(invoice.ksefStatus)}
                 </td>
                 <td className="text-sm">
                   <span className="font-medium">{(Number(invoice.paidAmount) || 0).toFixed(2)} PLN</span>

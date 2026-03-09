@@ -40,29 +40,29 @@ export function Layout() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-40">
+      <header className="bg-[#211f20] shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-14 sm:h-16">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-1.5 sm:gap-2" onClick={closeMobileMenu}>
-              <img src="/polflor-logo.png" alt="POLFLOR" className="h-10 sm:h-12" />
+              <img src="/interflor-logo.png" alt="INTERFLOR" className="h-10 sm:h-12" />
             </Link>
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-4">
-              <Link to="/" className="text-gray-600 hover:text-green-600 font-medium">
+              <Link to="/" className="text-gray-600 hover:text-pink-600 font-medium">
                 Katalog
               </Link>
 
               {isAuthenticated && (
                 <>
-                  <Link to="/orders" className="text-gray-600 hover:text-green-600 font-medium">
+                  <Link to="/orders" className="text-gray-600 hover:text-pink-600 font-medium">
                     Zamówienia
                   </Link>
-                  <Link to="/invoices" className="text-gray-600 hover:text-green-600 font-medium">
+                  <Link to="/invoices" className="text-gray-600 hover:text-pink-600 font-medium">
                     Faktury
                   </Link>
-                  <Link to="/profile" className="text-gray-600 hover:text-green-600 font-medium">
+                  <Link to="/profile" className="text-gray-600 hover:text-pink-600 font-medium">
                     Profil
                   </Link>
                   <Link to="/scan" className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
@@ -73,7 +73,7 @@ export function Layout() {
                     <span>Skanuj</span>
                   </Link>
                   <a
-                    href="https://polflor.orderyourflowers.nl/"
+                    href="https://sklep.interflor.pl/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors"
@@ -86,12 +86,12 @@ export function Layout() {
                   </a>
 
                   {/* Cart - Desktop */}
-                  <button onClick={() => setIsCartDrawerOpen(true)} className="relative p-2 text-gray-600 hover:text-green-600">
+                  <button onClick={() => setIsCartDrawerOpen(true)} className="relative p-2 text-gray-600 hover:text-pink-600">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                     {totalItems > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-green-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      <span className="absolute -top-1 -right-1 bg-pink-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                         {totalItems}
                       </span>
                     )}
@@ -128,12 +128,12 @@ export function Layout() {
             <div className="flex md:hidden items-center gap-2">
               {/* Cart - Mobile (always visible when authenticated) */}
               {isAuthenticated && (
-                <button onClick={() => { setIsCartDrawerOpen(true); closeMobileMenu(); }} className="relative p-2 text-gray-600 hover:text-green-600">
+                <button onClick={() => { setIsCartDrawerOpen(true); closeMobileMenu(); }} className="relative p-2 text-gray-600 hover:text-pink-600">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                   {totalItems > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-green-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    <span className="absolute -top-1 -right-1 bg-pink-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                       {totalItems}
                     </span>
                   )}
@@ -143,7 +143,7 @@ export function Layout() {
               {/* Hamburger Button */}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="p-2 text-gray-600 hover:text-green-600 focus:outline-none"
+                className="p-2 text-gray-600 hover:text-pink-600 focus:outline-none"
                 aria-label="Menu"
               >
                 {isMobileMenuOpen ? (
@@ -166,7 +166,7 @@ export function Layout() {
             <div className="px-4 py-3 space-y-1">
               <Link
                 to="/"
-                className="block px-3 py-2 text-gray-700 hover:bg-green-50 hover:text-green-600 rounded-lg font-medium"
+                className="block px-3 py-2 text-gray-700 hover:bg-pink-50 hover:text-pink-600 rounded-lg font-medium"
                 onClick={closeMobileMenu}
               >
                 Katalog
@@ -176,21 +176,21 @@ export function Layout() {
                 <>
                   <Link
                     to="/orders"
-                    className="block px-3 py-2 text-gray-700 hover:bg-green-50 hover:text-green-600 rounded-lg font-medium"
+                    className="block px-3 py-2 text-gray-700 hover:bg-pink-50 hover:text-pink-600 rounded-lg font-medium"
                     onClick={closeMobileMenu}
                   >
                     Zamówienia
                   </Link>
                   <Link
                     to="/invoices"
-                    className="block px-3 py-2 text-gray-700 hover:bg-green-50 hover:text-green-600 rounded-lg font-medium"
+                    className="block px-3 py-2 text-gray-700 hover:bg-pink-50 hover:text-pink-600 rounded-lg font-medium"
                     onClick={closeMobileMenu}
                   >
                     Faktury
                   </Link>
                   <Link
                     to="/profile"
-                    className="block px-3 py-2 text-gray-700 hover:bg-green-50 hover:text-green-600 rounded-lg font-medium"
+                    className="block px-3 py-2 text-gray-700 hover:bg-pink-50 hover:text-pink-600 rounded-lg font-medium"
                     onClick={closeMobileMenu}
                   >
                     Profil
@@ -207,13 +207,13 @@ export function Layout() {
                     <span>Skanuj produkty</span>
                   </Link>
                   <button
-                    className="block px-3 py-2 text-gray-700 hover:bg-green-50 hover:text-green-600 rounded-lg font-medium"
+                    className="block px-3 py-2 text-gray-700 hover:bg-pink-50 hover:text-pink-600 rounded-lg font-medium"
                     onClick={() => { setIsCartDrawerOpen(true); closeMobileMenu(); }}
                   >
                     Koszyk {totalItems > 0 && `(${totalItems})`}
                   </button>
                   <a
-                    href="https://polflor.orderyourflowers.nl/"
+                    href="https://sklep.interflor.pl/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 px-3 py-2 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg font-medium"
@@ -250,7 +250,7 @@ export function Layout() {
                 ) : (
                   <Link
                     to="/login"
-                    className="block px-3 py-2 text-center bg-green-600 text-white hover:bg-green-700 rounded-lg font-medium"
+                    className="block px-3 py-2 text-center bg-pink-600 text-white hover:bg-pink-700 rounded-lg font-medium"
                     onClick={closeMobileMenu}
                   >
                     Zaloguj się
@@ -279,7 +279,7 @@ export function Layout() {
       <footer className="bg-white border-t mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           <p className="text-center text-gray-500 text-xs sm:text-sm">
-            &copy; 2024 POLFLOR. Wszystkie prawa zastrzeżone.
+            &copy; 2025 INTERFLOR. Wszystkie prawa zastrzeżone.
           </p>
         </div>
       </footer>

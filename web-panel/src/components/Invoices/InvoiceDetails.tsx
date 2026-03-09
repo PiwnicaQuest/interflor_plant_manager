@@ -253,6 +253,56 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment, onRefresh }:
     }
   };
 
+  // KSeF handlers
+  const handleSendToKsef = async () => {
+    if (!confirm("Czy na pewno chcesz wyslac fakture do KSeF?")) return;
+    try {
+      await API.sendInvoiceToKsef(invoice.id);
+      setPrintStatus({ type: "success", message: "Faktura wyslana do KSeF" });
+      setTimeout(() => setPrintStatus(null), 5000);
+      if (onRefresh) onRefresh();
+    } catch (error: any) {
+      setPrintStatus({ type: "error", message: error.response?.data?.error || "Blad wysylania do KSeF" });
+    }
+  };
+
+  const handleRetryKsef = async () => {
+    try {
+      await API.retryKsefSend(invoice.id);
+      setPrintStatus({ type: "success", message: "Ponowna wysylka do KSeF zlecona" });
+      setTimeout(() => setPrintStatus(null), 5000);
+      if (onRefresh) onRefresh();
+    } catch (error: any) {
+      setPrintStatus({ type: "error", message: error.response?.data?.error || "Blad ponownej wysylki" });
+    }
+  };
+
+  const handlePreviewXml = async () => {
+    try {
+      const data = await API.getKsefXml(invoice.id);
+      const blob = new Blob([data.xml || JSON.stringify(data, null, 2)], { type: "application/xml" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    } catch (error: any) {
+      setPrintStatus({ type: "error", message: error.response?.data?.error || "Blad pobierania XML" });
+    }
+  };
+
+  const getKsefStatusBadge = (status?: string) => {
+    switch (status) {
+      case "accepted":
+      case "sent":
+        return <span className="px-2 py-1 rounded-full text-xs font-semibold text-green-700 bg-green-100">Wyslano do KSeF</span>;
+      case "sending":
+        return <span className="px-2 py-1 rounded-full text-xs font-semibold text-yellow-700 bg-yellow-100 animate-pulse">Wysylanie...</span>;
+      case "error":
+        return <span className="px-2 py-1 rounded-full text-xs font-semibold text-red-700 bg-red-100">Blad</span>;
+      case "not_sent":
+      default:
+        return <span className="px-2 py-1 rounded-full text-xs font-semibold text-gray-500 bg-gray-100">Nie wyslano</span>;
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -439,6 +489,46 @@ export function InvoiceDetails({ invoice, onClose, onUpdatePayment, onRefresh }:
               <p className="text-sm text-gray-700">{invoice.notes}</p>
             </div>
           )}
+
+          {/* KSeF Section */}
+          <div className="border-t pt-4 mt-4 mb-6">
+            <h3 className="text-lg font-semibold mb-3">KSeF - Krajowy System e-Faktur</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="text-gray-500 text-sm">Status:</span>
+                <div className="mt-1">{getKsefStatusBadge((invoice as any).ksefStatus)}</div>
+              </div>
+              {(invoice as any).ksefReferenceNumber && (
+                <div>
+                  <span className="text-gray-500 text-sm">Numer KSeF:</span>
+                  <div className="font-mono text-sm mt-1">{(invoice as any).ksefReferenceNumber}</div>
+                </div>
+              )}
+              {(invoice as any).ksefStatus === "error" && (invoice as any).ksefErrorMessage && (
+                <div className="col-span-2">
+                  <span className="text-gray-500 text-sm">Blad:</span>
+                  <div className="text-red-600 text-sm mt-1">{(invoice as any).ksefErrorMessage}</div>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2 mt-3">
+              {(invoice as any).ksefStatus !== "accepted" && (invoice as any).ksefStatus !== "sent" && (
+                <button onClick={handleSendToKsef} className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
+                  Wyslij do KSeF
+                </button>
+              )}
+              {(invoice as any).ksefStatus === "error" && (
+                <button onClick={handleRetryKsef} className="px-3 py-1.5 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700">
+                  Ponow
+                </button>
+              )}
+              {((invoice as any).ksefStatus === "accepted" || (invoice as any).ksefStatus === "sent") && (
+                <button onClick={handlePreviewXml} className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300">
+                  XML KSeF
+                </button>
+              )}
+            </div>
+          </div>
 
           {/* Actions */}
           <div className="flex gap-3 flex-wrap">

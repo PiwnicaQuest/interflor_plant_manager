@@ -261,7 +261,7 @@ export function ScannerPage() {
           <h1 className="text-lg font-bold text-gray-900">Skaner produktów</h1>
           <Link
             to="/cart"
-            className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
+            className="flex items-center gap-2 px-3 py-1.5 bg-pink-600 text-white rounded-lg text-sm font-medium hover:bg-pink-700"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -274,7 +274,7 @@ export function ScannerPage() {
       <div className="max-w-lg mx-auto px-4 py-4">
         {/* Success message */}
         {success && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm flex items-center gap-2">
+          <div className="mb-4 p-3 bg-pink-50 border border-pink-200 rounded-lg text-pink-700 text-sm flex items-center gap-2">
             <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
@@ -305,7 +305,7 @@ export function ScannerPage() {
                   onClick={startScanner}
                   className="flex flex-col items-center gap-3 text-white"
                 >
-                  <div className="w-20 h-20 rounded-full bg-green-600 flex items-center justify-center">
+                  <div className="w-20 h-20 rounded-full bg-pink-600 flex items-center justify-center">
                     <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -335,7 +335,7 @@ export function ScannerPage() {
                     step={zoomRange.step}
                     value={zoomLevel}
                     onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
-                    className="flex-1 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-green-500"
+                    className="flex-1 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-pink-500"
                   />
                   <span className="text-white text-xs font-medium w-10 text-right">{zoomLevel.toFixed(1)}x</span>
                 </div>
@@ -371,7 +371,7 @@ export function ScannerPage() {
         {/* Loading */}
         {loading && (
           <div className="bg-white rounded-xl shadow-sm p-8 text-center mb-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600 mx-auto mb-4"></div>
             <p className="text-gray-600">Szukanie produktu...</p>
           </div>
         )}
@@ -387,7 +387,7 @@ export function ScannerPage() {
             <p className="text-red-600 font-medium mb-4">{error}</p>
             <button
               onClick={handleScanAgain}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700"
+              className="px-6 py-2 bg-pink-600 text-white rounded-lg font-medium hover:bg-pink-700"
             >
               Skanuj ponownie
             </button>
@@ -427,7 +427,7 @@ export function ScannerPage() {
               </div>
 
               <div className="flex items-baseline gap-2 mb-4">
-                <span className="text-2xl font-bold text-green-600">
+                <span className="text-2xl font-bold text-pink-600">
                   {Number(scannedProduct.price || 0).toFixed(2)} PLN
                 </span>
                 <span className="text-sm text-gray-500">/ szt.</span>
@@ -436,7 +436,7 @@ export function ScannerPage() {
               <div className="flex items-center gap-2 mb-4">
                 <span className={`px-2 py-1 rounded text-sm font-medium ${
                   scannedProduct.palletCount > 0
-                    ? 'bg-green-100 text-green-700'
+                    ? 'bg-pink-100 text-pink-700'
                     : 'bg-red-100 text-red-700'
                 }`}>
                   {scannedProduct.palletCount > 0
@@ -483,7 +483,7 @@ export function ScannerPage() {
                       <span className="text-gray-600">
                         {quantity} pal. x {scannedProduct.unitsPerPallet} szt. = {quantity * scannedProduct.unitsPerPallet} szt.
                       </span>
-                      <span className="font-bold text-lg text-green-600">
+                      <span className="font-bold text-lg text-pink-600">
                         {(Number(scannedProduct.price || 0) * quantity * (scannedProduct.unitsPerPallet || 1)).toFixed(2)} PLN
                       </span>
                     </div>
@@ -491,7 +491,7 @@ export function ScannerPage() {
 
                   <button
                     onClick={handleAddToCart}
-                    className="w-full py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-pink-600 text-white font-bold rounded-lg hover:bg-pink-700 flex items-center justify-center gap-2"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />

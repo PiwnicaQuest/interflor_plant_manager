@@ -47,7 +47,8 @@ export function InventoryPage() {
   const [movements, setMovements] = useState<InventoryMovement[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [showExcelImportModal, setShowExcelImportModal] = useState(false);
+  const [showExcelImportModal, setShowExcelImportModal] = useState<false | 'PLN' | 'EUR'>(false);
+  const [showPolflorImportModal, setShowPolflorImportModal] = useState(false);
   const [showExcelExportModal, setShowExcelExportModal] = useState(false);
   const [barcodeProduct, setBarcodeProduct] = useState<Product | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
@@ -67,6 +68,14 @@ export function InventoryPage() {
   });
   const [showSimilarProductsModal, setShowSimilarProductsModal] = useState(false);
   const [showBulkTagsModal, setShowBulkTagsModal] = useState(false);
+  const [showBulkGrowerModal, setShowBulkGrowerModal] = useState(false);
+  const [showBulkPassportModal, setShowBulkPassportModal] = useState(false);
+  const [bulkPassportValue, setBulkPassportValue] = useState('');
+  const [growerPassports, setGrowerPassports] = useState<Array<{id: number; growerName: string; floricode: string}>>([]);
+  const [growerSearch, setGrowerSearch] = useState('');
+  const [showBulkDeliveryDateModal, setShowBulkDeliveryDateModal] = useState(false);
+  const [bulkGrowerValue, setBulkGrowerValue] = useState('');
+  const [bulkDeliveryDateValue, setBulkDeliveryDateValue] = useState('');
   const [lossProduct, setLossProduct] = useState<Product | null>(null);
   const [lossQuantity, setLossQuantity] = useState<string>("");
   const [lossNotes, setLossNotes] = useState<string>("");
@@ -97,6 +106,20 @@ export function InventoryPage() {
   useEffect(() => {
     localStorage.setItem('distributionPanelEnabled', String(distributionPanelEnabled));
   }, [distributionPanelEnabled]);
+
+  // Fetch grower passports for bulk grower modal
+  useEffect(() => {
+    fetch('/api/grower-passports', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }}).then(r => r.json()).then(res => {
+      const passports = (res.passports || res || []).map((p: any) => ({
+        id: p.id,
+        growerName: p.grower_name || p.growerName,
+        floricode: p.floricode || '',
+      }));
+      // Deduplicate by growerName
+      const unique = Array.from(new Map(passports.map((p: any) => [p.growerName, p])).values());
+      setGrowerPassports(unique as any);
+    }).catch(() => {});
+  }, []);
 
   // Handle column filter change
   const handleColumnFilterChange = (key: keyof ColumnFilters, value: string) => {
@@ -620,6 +643,7 @@ export function InventoryPage() {
   };
 
 
+
   const handleDeleteProduct = (product: Product) => {
     setProductToDelete(product);
   };
@@ -758,6 +782,85 @@ export function InventoryPage() {
       alert(error.response?.data?.error || 'Błąd podczas rejestrowania straty');
     } finally {
       setSubmittingLoss(false);
+    }
+  };
+
+  const handleBulkSetGrower = async () => {
+    if (selectedProducts.length === 0 || !bulkGrowerValue.trim()) return;
+    try {
+      setBulkActionInProgress(true);
+      let successCount = 0;
+      for (const productId of selectedProducts) {
+        try {
+          await api.updateProduct(productId, { grower: bulkGrowerValue.trim() } as any);
+          successCount++;
+        } catch (err) {
+          console.error(`Failed to update product ${productId}:`, err);
+        }
+      }
+      if (successCount > 0) {
+        await fetchProducts();
+        setSelectedProducts([]);
+      }
+      setShowBulkGrowerModal(false);
+      setBulkGrowerValue('');
+      setGrowerSearch('');
+    } catch (error) {
+      console.error('Error during bulk grower set:', error);
+    } finally {
+      setBulkActionInProgress(false);
+    }
+  };
+
+  const handleBulkSetPassport = async () => {
+    if (selectedProducts.length === 0 || !bulkPassportValue.trim()) return;
+    try {
+      setBulkActionInProgress(true);
+      let successCount = 0;
+      for (const productId of selectedProducts) {
+        try {
+          await api.updateProduct(productId, { growerPassport: bulkPassportValue.trim() } as any);
+          successCount++;
+        } catch (err) {
+          console.error(`Failed to update passport for product ${productId}:`, err);
+        }
+      }
+      if (successCount > 0) {
+        await fetchProducts();
+        setSelectedProducts([]);
+      }
+      setShowBulkPassportModal(false);
+      setBulkPassportValue('');
+    } catch (error) {
+      console.error('Error during bulk passport set:', error);
+    } finally {
+      setBulkActionInProgress(false);
+    }
+  };
+
+  const handleBulkSetDeliveryDate = async () => {
+    if (selectedProducts.length === 0 || !bulkDeliveryDateValue) return;
+    try {
+      setBulkActionInProgress(true);
+      let successCount = 0;
+      for (const productId of selectedProducts) {
+        try {
+          await api.updateProduct(productId, { createdAt: bulkDeliveryDateValue } as any);
+          successCount++;
+        } catch (err) {
+          console.error(`Failed to update product ${productId}:`, err);
+        }
+      }
+      if (successCount > 0) {
+        await fetchProducts();
+        setSelectedProducts([]);
+      }
+      setShowBulkDeliveryDateModal(false);
+      setBulkDeliveryDateValue('');
+    } catch (error) {
+      console.error('Error during bulk delivery date set:', error);
+    } finally {
+      setBulkActionInProgress(false);
     }
   };
 
@@ -943,15 +1046,21 @@ export function InventoryPage() {
                 </button>
                 <button
                   className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
-                  onClick={() => { setShowImportModal(true); setShowMoreMenu(false); }}
+                  onClick={() => { setShowExcelImportModal('PLN'); setShowMoreMenu(false); }}
                 >
-                  Import CSV
+                  Import Excel PLN
                 </button>
                 <button
                   className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
-                  onClick={() => { setShowExcelImportModal(true); setShowMoreMenu(false); }}
+                  onClick={() => { setShowExcelImportModal('EUR'); setShowMoreMenu(false); }}
                 >
-                  Import Excel
+                  Import Excel EUR
+                </button>
+                <button
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 text-green-700 font-medium"
+                  onClick={() => { setShowPolflorImportModal(true); setShowMoreMenu(false); }}
+                >
+                  Import Polflor
                 </button>
                 <hr className="my-1 border-gray-200" />
                 <button
@@ -1095,6 +1204,27 @@ export function InventoryPage() {
             )}
 
 
+            <button
+              onClick={() => { setBulkGrowerValue(''); setShowBulkGrowerModal(true); }}
+              disabled={bulkActionInProgress}
+              className="btn text-sm py-1 px-3 flex items-center gap-1 bg-blue-100 hover:bg-blue-200 text-blue-800 border border-blue-300"
+            >
+              Ustaw dostawcę
+            </button>
+            <button
+              onClick={() => { setBulkPassportValue(''); setShowBulkPassportModal(true); }}
+              disabled={bulkActionInProgress}
+              className="btn text-sm py-1 px-3 flex items-center gap-1 bg-teal-100 hover:bg-teal-200 text-teal-800 border border-teal-300"
+            >
+              Ustaw paszport
+            </button>
+            <button
+              onClick={() => { setBulkDeliveryDateValue(''); setShowBulkDeliveryDateModal(true); }}
+              disabled={bulkActionInProgress}
+              className="btn text-sm py-1 px-3 flex items-center gap-1 bg-blue-100 hover:bg-blue-200 text-blue-800 border border-blue-300"
+            >
+              Ustaw datę dodania
+            </button>
             <button
               onClick={() => setShowBulkTagsModal(true)}
               disabled={bulkActionInProgress}
@@ -1286,9 +1416,23 @@ export function InventoryPage() {
         />
       )}
 
+      {/* Polflor Import Modal */}
+      {showPolflorImportModal && (
+        <ExcelImportModal
+          forceCurrency="PLN"
+          format="polflor"
+          onClose={() => setShowPolflorImportModal(false)}
+          onSuccess={() => {
+            setShowPolflorImportModal(false);
+            fetchProducts();
+          }}
+        />
+      )}
+
       {/* Excel Import Modal */}
       {showExcelImportModal && (
         <ExcelImportModal
+          forceCurrency={showExcelImportModal as 'PLN' | 'EUR'}
           onClose={() => setShowExcelImportModal(false)}
           onSuccess={() => {
             fetchProducts();
@@ -1398,6 +1542,128 @@ export function InventoryPage() {
       />
 
       {/* Bulk Tags Modal */}
+      {/* Bulk Grower Modal */}
+      {showBulkGrowerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Ustaw dostawcę dla {selectedProducts.length} produktów</h3>
+            
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Szukaj ogrodnika</label>
+              <input
+                type="text"
+                value={growerSearch}
+                onChange={(e) => setGrowerSearch(e.target.value)}
+                placeholder="Wpisz nazwę..."
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                autoFocus
+              />
+            </div>
+
+            <div className="mb-3 max-h-48 overflow-y-auto border border-gray-200 rounded-md">
+              {growerPassports
+                .filter((g: any) => !growerSearch || g.growerName.toLowerCase().includes(growerSearch.toLowerCase()))
+                .slice(0, 50)
+                .map((g: any) => (
+                  <button
+                    key={g.id}
+                    onClick={() => { setBulkGrowerValue(g.growerName); setGrowerSearch(g.growerName); }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-primary-50 border-b border-gray-100 flex justify-between ${
+                      bulkGrowerValue === g.growerName ? 'bg-primary-100 font-medium' : ''
+                    }`}
+                  >
+                    <span>{g.growerName}</span>
+                    {g.floricode && <span className="text-gray-400 text-xs">{g.floricode}</span>}
+                  </button>
+                ))}
+              {growerPassports.filter((g: any) => !growerSearch || g.growerName.toLowerCase().includes(growerSearch.toLowerCase())).length === 0 && (
+                <p className="text-sm text-gray-400 p-3">Brak wyników</p>
+              )}
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Lub wpisz ręcznie</label>
+              <input
+                type="text"
+                value={bulkGrowerValue}
+                onChange={(e) => setBulkGrowerValue(e.target.value)}
+                placeholder="Nazwa dostawcy"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleBulkSetGrower}
+                disabled={!bulkGrowerValue.trim() || bulkActionInProgress}
+                className="btn btn-primary flex-1"
+              >
+                {bulkActionInProgress ? 'Zapisywanie...' : 'Zapisz'}
+              </button>
+              <button onClick={() => { setShowBulkGrowerModal(false); setGrowerSearch(''); }} className="btn btn-secondary flex-1">Anuluj</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Passport Modal */}
+      {showBulkPassportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Ustaw paszport dla {selectedProducts.length} produktów</h3>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Numer paszportu</label>
+              <input
+                type="text"
+                value={bulkPassportValue}
+                onChange={(e) => setBulkPassportValue(e.target.value)}
+                placeholder="Wpisz numer paszportu..."
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleBulkSetPassport}
+                disabled={!bulkPassportValue.trim() || bulkActionInProgress}
+                className="btn btn-primary flex-1"
+              >
+                {bulkActionInProgress ? 'Zapisywanie...' : 'Zapisz'}
+              </button>
+              <button onClick={() => { setShowBulkPassportModal(false); setBulkPassportValue(''); }} className="btn btn-secondary flex-1">Anuluj</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delivery Date Modal */}
+      {showBulkDeliveryDateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Ustaw datę dodania dla {selectedProducts.length} produktów</h3>
+            <input
+              type="date"
+              value={bulkDeliveryDateValue}
+              onChange={(e) => setBulkDeliveryDateValue(e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              autoFocus
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={handleBulkSetDeliveryDate}
+                disabled={!bulkDeliveryDateValue || bulkActionInProgress}
+                className="btn btn-primary flex-1"
+              >
+                {bulkActionInProgress ? 'Zapisywanie...' : 'Zapisz'}
+              </button>
+              <button onClick={() => setShowBulkDeliveryDateModal(false)} className="btn btn-secondary flex-1">Anuluj</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showBulkTagsModal && (
         <BulkTagsModal
           selectedCount={selectedProducts.length}

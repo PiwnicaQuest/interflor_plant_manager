@@ -434,6 +434,7 @@ export function usePrint(options: UsePrintOptions = {}) {
               window.onload = function() {
                 setTimeout(function() {
                   window.print();
+                  setTimeout(function() { try { window.close(); } catch(e) {} }, 1000);
                 }, 500);
               };
             </script>
@@ -617,7 +618,7 @@ export function usePrint(options: UsePrintOptions = {}) {
         const url = URL.createObjectURL(blob);
         const printWindow = window.open(url, "_blank");
         if (printWindow) {
-          printWindow.onload = () => setTimeout(() => printWindow.print(), 500);
+          printWindow.onload = () => setTimeout(() => { printWindow.print(); setTimeout(() => { try { printWindow.close(); } catch(e) {} }, 1000); }, 500);
         }
 
         const result: PrintResult = { success: true, method: "browser" };
@@ -689,7 +690,7 @@ export function usePrint(options: UsePrintOptions = {}) {
         const url = URL.createObjectURL(blob);
         const printWindow = window.open(url, "_blank");
         if (printWindow) {
-          printWindow.onload = () => setTimeout(() => printWindow.print(), 500);
+          printWindow.onload = () => setTimeout(() => { printWindow.print(); setTimeout(() => { try { printWindow.close(); } catch(e) {} }, 1000); }, 500);
         }
 
         const result: PrintResult = { success: true, method: "browser" };
@@ -761,7 +762,7 @@ export function usePrint(options: UsePrintOptions = {}) {
         const url = URL.createObjectURL(blob);
         const printWindow = window.open(url, "_blank");
         if (printWindow) {
-          printWindow.onload = () => setTimeout(() => printWindow.print(), 500);
+          printWindow.onload = () => setTimeout(() => { printWindow.print(); setTimeout(() => { try { printWindow.close(); } catch(e) {} }, 1000); }, 500);
         }
 
         const result: PrintResult = { success: true, method: "browser" };
@@ -833,7 +834,7 @@ export function usePrint(options: UsePrintOptions = {}) {
         const url = URL.createObjectURL(blob);
         const printWindow = window.open(url, "_blank");
         if (printWindow) {
-          printWindow.onload = () => setTimeout(() => printWindow.print(), 500);
+          printWindow.onload = () => setTimeout(() => { printWindow.print(); setTimeout(() => { try { printWindow.close(); } catch(e) {} }, 1000); }, 500);
         }
 
         const result: PrintResult = { success: true, method: "browser" };

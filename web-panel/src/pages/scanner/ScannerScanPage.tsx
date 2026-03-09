@@ -12,7 +12,9 @@ export function ScannerScanPage() {
   const [productLoading, setProductLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imageError, setImageError] = useState(false);
-  const [showFullImage, setShowFullImage] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Obsługa skanera kodów kreskowych z prefiksem [barcode]
@@ -36,12 +38,12 @@ export function ScannerScanPage() {
   useBarcodeScanner({ onScan: handleBarcodeScan });
 
   useEffect(() => {
-    inputRef.current?.focus();
   }, []);
 
   useEffect(() => {
     setImageError(false);
-    setShowFullImage(false);
+    setShowImageModal(false);
+    setUploadError(null);
   }, [selectedProduct?.id]);
 
   useEffect(() => {
@@ -111,8 +113,8 @@ export function ScannerScanPage() {
     setSearchResults([]);
     setError(null);
     setImageError(false);
-    setShowFullImage(false);
-    inputRef.current?.focus();
+    setShowImageModal(false);
+    setUploadError(null);
   };
 
   const formatDate = (dateString: string) => {
@@ -144,6 +146,42 @@ export function ScannerScanPage() {
     if (deltaUnits > 0) return 'text-primary-600';
     if (deltaUnits < 0) return 'text-red-600';
     return 'text-gray-600';
+  };
+
+  // Listen for native Android upload completion
+  useEffect(() => {
+    const handler = (e: any) => {
+      const { productId, imageUrl } = e.detail || {};
+      if (selectedProduct && String(selectedProduct.id) === String(productId) && imageUrl) {
+        setSelectedProduct({ ...selectedProduct, imageUrl });
+        setImageError(false);
+        setShowImageModal(false);
+      }
+    };
+    window.addEventListener('xprint-image-uploaded', handler);
+    return () => window.removeEventListener('xprint-image-uploaded', handler);
+  }, [selectedProduct]);
+
+  const handleImageUpload = async (file: File) => {
+    if (!selectedProduct) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const result = await API.uploadProductImage(selectedProduct.id, file);
+      setSelectedProduct({ ...selectedProduct, imageUrl: result.imageUrl });
+      setImageError(false);
+      setShowImageModal(false);
+    } catch (err: any) {
+      setUploadError(err?.response?.data?.message || 'Blad podczas uploadu zdjecia');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const onFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleImageUpload(file);
+    e.target.value = '';
   };
 
   const PlaceholderImage = ({ className }: { className?: string }) => (
@@ -280,11 +318,11 @@ export function ScannerScanPage() {
           <div className="space-y-3">
             {/* Product Card - COMPACT */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-              {/* Product Image - COMPACT h-48 → h-32 */}
+              {/* Product Image - clickable to open upload modal */}
               {selectedProduct.imageUrl && !imageError ? (
                 <div
                   className="relative w-full h-32 bg-gray-100 cursor-pointer"
-                  onClick={() => setShowFullImage(true)}
+                  onClick={() => setShowImageModal(true)}
                 >
                   <img
                     src={selectedProduct.imageUrl}
@@ -294,12 +332,24 @@ export function ScannerScanPage() {
                   />
                   <div className="absolute bottom-1.5 right-1.5 bg-black/50 text-white p-1.5 rounded">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                   </div>
                 </div>
               ) : (
-                <PlaceholderImage className="w-full h-24" />
+                <div
+                  className="w-full h-24 bg-gray-100 flex items-center justify-center cursor-pointer"
+                  onClick={() => setShowImageModal(true)}
+                >
+                  <div className="text-center">
+                    <svg className="w-8 h-8 text-gray-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span className="text-xs text-gray-400 mt-1">Dodaj zdjecie</span>
+                  </div>
+                </div>
               )}
 
               {/* Header with name - COMPACT */}
@@ -461,30 +511,87 @@ export function ScannerScanPage() {
         )}
       </div>
 
-      {/* Full Image Modal */}
-      {showFullImage && selectedProduct?.imageUrl && (
+      {/* Image Modal with upload options */}
+      {showImageModal && selectedProduct && (
         <div
-          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
-          onClick={() => setShowFullImage(false)}
+          className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center"
+          onClick={() => !uploading && setShowImageModal(false)}
         >
-          <button
-            onClick={() => setShowFullImage(false)}
-            className="absolute top-4 right-4 text-white p-2 hover:bg-white/20 rounded-lg transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          <img
-            src={selectedProduct.imageUrl}
-            alt={selectedProduct.plantName}
-            className="max-w-full max-h-full object-contain rounded-lg"
+          <div
+            className="bg-white w-full max-w-lg rounded-t-2xl p-4 pb-8"
+            data-product-id={selectedProduct.id}
             onClick={(e) => e.stopPropagation()}
-          />
-          <div className="absolute bottom-4 left-4 right-4 text-center">
-            <div className="bg-black/50 text-white py-2 px-4 rounded-lg inline-block text-sm">
-              {selectedProduct.plantName}
+          >
+            {/* Header */}
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-base font-bold text-gray-900">Zdjecie produktu</h3>
+              <button
+                onClick={() => !uploading && setShowImageModal(false)}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
+
+            {/* Current image preview */}
+            {selectedProduct.imageUrl && !imageError && (
+              <div className="mb-4 rounded-lg overflow-hidden bg-gray-100">
+                <img
+                  src={selectedProduct.imageUrl}
+                  alt={selectedProduct.plantName}
+                  className="w-full h-48 object-contain"
+                />
+              </div>
+            )}
+
+            {/* Upload error */}
+            {uploadError && (
+              <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm text-center">
+                {uploadError}
+              </div>
+            )}
+
+            {/* Upload spinner */}
+            {uploading ? (
+              <div className="flex flex-col items-center py-6">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600 mb-3" />
+                <span className="text-sm text-gray-600">Wysylanie zdjecia...</span>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {/* Camera - label wrapping native input for mobile compatibility */}
+                <label className="w-full flex items-center gap-3 p-3 bg-primary-600 active:bg-primary-700 text-white rounded-lg transition-colors cursor-pointer">
+                  <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span className="font-semibold">Zrob zdjecie</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="sr-only"
+                    onChange={onFileSelected}
+                  />
+                </label>
+
+                {/* Gallery - label wrapping native input */}
+                <label className="w-full flex items-center gap-3 p-3 bg-gray-100 active:bg-gray-200 text-gray-800 rounded-lg transition-colors cursor-pointer">
+                  <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="font-semibold">Wybierz z galerii</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={onFileSelected}
+                  />
+                </label>
+              </div>
+            )}
           </div>
         </div>
       )}

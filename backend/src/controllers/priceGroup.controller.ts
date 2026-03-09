@@ -51,8 +51,8 @@ export class PriceGroupController {
         return res.status(400).json({ error: 'Rabat musi być liczbą' });
       }
 
-      if (discountPercentage < 0 || discountPercentage > 100) {
-        return res.status(400).json({ error: 'Rabat musi być między 0 a 100%' });
+      if (discountPercentage < -100 || discountPercentage > 100) {
+        return res.status(400).json({ error: 'Wartość musi być między -100 a 100%' });
       }
 
       const priceGroup = await PriceGroupModel.create({
@@ -94,8 +94,8 @@ export class PriceGroupController {
           return res.status(400).json({ error: 'Rabat musi być liczbą' });
         }
 
-        if (discountPercentage < 0 || discountPercentage > 100) {
-          return res.status(400).json({ error: 'Rabat musi być między 0 a 100%' });
+        if (discountPercentage < -100 || discountPercentage > 100) {
+          return res.status(400).json({ error: 'Wartość musi być między -100 a 100%' });
         }
       }
 

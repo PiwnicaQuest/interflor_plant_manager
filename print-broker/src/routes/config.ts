@@ -12,6 +12,7 @@ const CONFIG_FILE = path.join(CONFIG_DIR, "print-broker.json");
 const DEFAULT_CONFIG: BrokerConfig = {
   port: 19432,
   allowedOrigins: [
+    "https://pm.interflor.pl",
     "https://pm.polflor.wroclaw.pl",
     "http://localhost:5173",
     "http://localhost:3000"
@@ -24,7 +25,13 @@ export function loadConfig(): BrokerConfig {
   try {
     if (fs.existsSync(CONFIG_FILE)) {
       const data = fs.readFileSync(CONFIG_FILE, "utf-8");
-      return { ...DEFAULT_CONFIG, ...JSON.parse(data) };
+      const saved = JSON.parse(data);
+      // Merge allowedOrigins: combine defaults + saved, deduplicate
+      const mergedOrigins = [...new Set([
+        ...DEFAULT_CONFIG.allowedOrigins,
+        ...(saved.allowedOrigins || [])
+      ])];
+      return { ...DEFAULT_CONFIG, ...saved, allowedOrigins: mergedOrigins };
     }
   } catch (error) {
     console.error("[Config] Error loading config:", error);
@@ -63,14 +70,20 @@ router.post("/", (req: Request, res: Response) => {
 router.post("/printer", (req: Request, res: Response) => {
   try {
     const { type, printer } = req.body;
-    if (!type || !printer) {
-      res.status(400).json({ success: false, error: "Missing type or printer" });
+    if (!type) {
+      res.status(400).json({ success: false, error: "Missing type" });
       return;
     }
     const config = loadConfig();
-    (config.defaultPrinters as any)[type] = printer;
+    if (printer) {
+      (config.defaultPrinters as any)[type] = printer;
+    } else {
+      // Empty printer = remove assignment (use auto-detect)
+      delete (config.defaultPrinters as any)[type];
+    }
     saveConfig(config);
-    res.json({ success: true, message: "Default printer set" });
+    console.log("[Config] Printer for " + type + ": " + (printer || "(auto-detect)"));
+    res.json({ success: true, message: printer ? "Default printer set" : "Printer assignment cleared" });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }

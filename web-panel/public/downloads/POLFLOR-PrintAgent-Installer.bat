@@ -10,7 +10,7 @@ echo ========================================
 echo.
 
 set "INSTALL_DIR=%LOCALAPPDATA%\POLFLOR-PrintAgent"
-set "SERVER=https://pm.polflor.wroclaw.pl"
+set "SERVER=https://pm.interflor.pl"
 
 :: Sprawdz Node.js
 echo [1/5] Sprawdzanie Node.js...

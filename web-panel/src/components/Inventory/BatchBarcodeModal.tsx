@@ -229,6 +229,18 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
     setIsPrinting(false);
   };
 
+  const handleBrowserPrint = () => {
+    const htmlContent = generatePrintHtml();
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) {
+      alert('Popup zablokowany - zezwol na wyskakujace okna');
+      return;
+    }
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    setTimeout(() => printWindow.print(), 800);
+  };
+
   const productsWithoutBarcodes = getProductsWithoutBarcodes();
 
   return (
@@ -370,11 +382,18 @@ export function BatchBarcodeModal({ products, onClose }: BatchBarcodeModalProps)
                 Anuluj
               </button>
               <button
+                onClick={handleBrowserPrint}
+                disabled={getTotalLabels() === 0}
+                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2"
+                title="Drukuj przez okno systemowe przegladarki"
+              >
+                Drukuj (przegladarka)
+              </button>
+              <button
                 onClick={handlePrint}
                 disabled={getTotalLabels() === 0 || isPrinting}
                 className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                <span>🖨️</span>
                 Drukuj ({getTotalLabels()})
               </button>
             </div>

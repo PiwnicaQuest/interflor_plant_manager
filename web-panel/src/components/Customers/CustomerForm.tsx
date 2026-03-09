@@ -14,6 +14,7 @@ interface ShopAccountInfo {
 }
 
 export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) {
+  const [priceGroups, setPriceGroups] = useState<Array<{id: number; name: string; discountPercentage: number}>>([]);
   const [formData, setFormData] = useState({
     companyName: '',
     customerCode: '',
@@ -52,6 +53,12 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
   const [shopAccountSuccess, setShopAccountSuccess] = useState('');
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
   const [sendingEmail, setSendingEmail] = useState(false);
+
+  useEffect(() => {
+    api.getPriceGroups().then(res => {
+      setPriceGroups((res.priceGroups || []).sort((a: any, b: any) => a.id - b.id));
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (customer) {
@@ -489,12 +496,19 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
                 onChange={(e) => setFormData({ ...formData, priceGroupId: parseInt(e.target.value) })}
                 required
               >
-                <option value={1}>Podstawowa (bez rabatu)</option>
-                <option value={2}>Rabat 10%</option>
-                <option value={3}>Rabat 12%</option>
-                <option value={4}>Rabat 15%</option>
-                <option value={5}>Rabat 20%</option>
-                <option value={6}>Rabat 25%</option>
+                {priceGroups.length > 0 ? priceGroups.map(g => (
+                  <option key={g.id} value={g.id}>
+                    {g.discountPercentage === 0 ? g.name + ' (bez rabatu)' : g.discountPercentage < 0 ? g.name + ' (+' + Math.abs(g.discountPercentage) + '%)' : g.name + ' (-' + g.discountPercentage + '%)'}
+                  </option>
+                )) : (
+                  <>
+                    <option value={1}>Podstawowa (bez rabatu)</option>
+                    <option value={2}>Rabat 10%</option>
+                    <option value={3}>Rabat 12%</option>
+                    <option value={4}>Rabat 15%</option>
+                    <option value={5}>Rabat 20%</option>
+                  </>
+                )}
               </select>
             </div>
 

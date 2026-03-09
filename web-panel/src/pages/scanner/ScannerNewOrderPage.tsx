@@ -13,6 +13,7 @@ export function ScannerNewOrderPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerLoading, setCustomerLoading] = useState(false);
   const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
+  const [showEditCustomerModal, setShowEditCustomerModal] = useState(false);
 
   // Submission
   const [submitting, setSubmitting] = useState(false);
@@ -57,6 +58,12 @@ export function ScannerNewOrderPage() {
     setCustomers(prev => [customer, ...prev]);
     setShowNewCustomerModal(false);
     selectCustomer(customer);
+  };
+
+  const handleCustomerUpdated = (customer: Customer) => {
+    setCustomers(prev => prev.map(c => c.id === customer.id ? customer : c));
+    setSelectedCustomer(customer);
+    setShowEditCustomerModal(false);
   };
 
   const handleCreateOrder = async () => {
@@ -119,12 +126,20 @@ export function ScannerNewOrderPage() {
                 <div className="text-xs text-primary-600">NIP: {selectedCustomer.nip}</div>
               )}
             </div>
-            <button
-              onClick={() => setSelectedCustomer(null)}
-              className="text-primary-600 hover:text-primary-800 text-sm font-medium"
-            >
-              Zmien
-            </button>
+            <div className="flex flex-col items-end gap-1">
+              <button
+                onClick={() => setSelectedCustomer(null)}
+                className="text-primary-600 hover:text-primary-800 text-sm font-medium"
+              >
+                Zmien
+              </button>
+              <button
+                onClick={() => setShowEditCustomerModal(true)}
+                className="text-gray-500 hover:text-gray-700 text-xs"
+              >
+                Edytuj
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -227,6 +242,14 @@ export function ScannerNewOrderPage() {
         <QuickCustomerModal
           onClose={() => setShowNewCustomerModal(false)}
           onCustomerCreated={handleNewCustomerCreated}
+        />
+      )}
+
+      {showEditCustomerModal && selectedCustomer && (
+        <QuickCustomerModal
+          onClose={() => setShowEditCustomerModal(false)}
+          onCustomerCreated={handleCustomerUpdated}
+          editCustomer={selectedCustomer}
         />
       )}
     </div>

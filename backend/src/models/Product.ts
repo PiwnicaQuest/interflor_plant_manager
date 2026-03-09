@@ -17,7 +17,7 @@ export class ProductModel {
       SELECT p.*,
              COALESCE(SUM(oi.quantity), 0)::integer as total_sold,
              COALESCE(gp_sub.grower, p.grower) as grower,
-             gp_sub.passport_number as grower_passport
+             COALESCE(p.grower_passport, gp_sub.passport_number) as grower_passport
       FROM products p
       LEFT JOIN order_items oi ON p.id = oi.product_id
       LEFT JOIN LATERAL (
@@ -91,7 +91,7 @@ export class ProductModel {
   static async getById(id: number): Promise<Product | null> {
     const result = await query<Product>(
       `SELECT p.*, COALESCE(gp_sub.grower, p.grower) as grower,
-             gp_sub.passport_number as grower_passport
+             COALESCE(p.grower_passport, gp_sub.passport_number) as grower_passport
        FROM products p
        LEFT JOIN LATERAL (
          SELECT gp.grower_name as grower, gp.passport_number
@@ -208,6 +208,7 @@ export class ProductModel {
       'deliveryDate',
       'vatRate',
       'grower',
+      'growerPassport',
       'tags',
       'createdAt',
     ];
@@ -234,6 +235,7 @@ export class ProductModel {
       deliveryDate: 'delivery_date',
       vatRate: 'vat_rate',
       grower: 'grower',
+      growerPassport: 'grower_passport',
       tags: 'tags',
       createdAt: 'created_at',
     };
@@ -418,7 +420,7 @@ static async getMovements(productId: number, limit = 50, movementTypes?: string[
     const sql = `
       SELECT p.*,
              COALESCE(gp_sub.grower, p.grower) as grower,
-             gp_sub.passport_number as grower_passport
+             COALESCE(p.grower_passport, gp_sub.passport_number) as grower_passport
       FROM products p
       LEFT JOIN LATERAL (
           SELECT gp.grower_name as grower, gp.passport_number
@@ -511,7 +513,7 @@ static async getMovements(productId: number, limit = 50, movementTypes?: string[
     const sql = `
       SELECT p.*,
              COALESCE(gp_sub.grower, p.grower) as grower,
-             gp_sub.passport_number as grower_passport
+             COALESCE(p.grower_passport, gp_sub.passport_number) as grower_passport
       FROM products p
       LEFT JOIN LATERAL (
           SELECT gp.grower_name as grower, gp.passport_number
@@ -813,7 +815,7 @@ static async getMovements(productId: number, limit = 50, movementTypes?: string[
     const result = await query<Product>(
       `SELECT p.*,
               COALESCE(gp_sub.grower, p.grower) as grower,
-              gp_sub.passport_number as grower_passport
+              COALESCE(p.grower_passport, gp_sub.passport_number) as grower_passport
        FROM products p
        LEFT JOIN LATERAL (
            SELECT gp.grower_name as grower, gp.passport_number

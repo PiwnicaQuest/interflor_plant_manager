@@ -1,9 +1,10 @@
-import { ImageModal } from './ImageModal';
 import { useTags, FALLBACK_TAGS } from "../../hooks/useTags";
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Product } from '../../types';
 import { parsePrice } from '../../utils/priceUtils';
 import { api } from '../../services/api';
+import type { PriceGroup } from '../../types';
+import { ImageModal } from './ImageModal';
 
 // Available tags for product categorization
 export const AVAILABLE_TAGS = [
@@ -28,7 +29,7 @@ const getFullImageUrl = (imageUrl: string | null | undefined) => {
 // Get optimized image URL from new image API
 const getOptimizedImageUrl = (barcode: string | null | undefined, size: "thumb" | "medium" | "full"): string | null => {
   if (!barcode) return null;
-  return `${API_URL}/images/${encodeURIComponent(barcode)}/${size}`;
+  return `${API_URL}/images/${encodeURIComponent(barcode)}/${size}?v=${Math.floor(Date.now() / 60000)}`;
 };
 // Column widths management
 type ColumnWidths = { [key: string]: number };
@@ -44,9 +45,16 @@ const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   unitsPerPallet: 45,
   totalUnits: 45,
   totalSold: 45,
+  lastMovement: 110,
   purchasePrice: 50,
   pricePlus: 50,
   basePrice: 50,
+  discount10: 42,
+  discount12: 42,
+  discount15: 42,
+  discount20: 42,
+  discount25: 42,
+  auchan8: 42,
   visible: 36,
   grower: 80,
   passport: 60,
@@ -87,7 +95,7 @@ const EDITABLE_COLUMNS: (keyof Product)[] = [
   'priceDiscount15',
   'priceDiscount20',
   'priceDiscount25',
-  
+  'priceAuchan8',
 ];
 
 // Column filter values interface
@@ -107,6 +115,8 @@ export interface ColumnFilters {
   colPassport?: string;
   colCreatedAtFrom?: string;
   colCreatedAtTo?: string;
+  colLastMovementFrom?: string;
+  colLastMovementTo?: string;
   colTags?: string;
 }
 
@@ -126,6 +136,7 @@ interface InventoryTableProps {
   onRestoreProduct?: (product: Product) => void;
   onReportLoss?: (product: Product) => void;
   onProductFocused?: (product: Product | null) => void;
+  onImageUpdated?: (productId: number, imageUrl: string | null) => void;
   isArchiveView?: boolean;
   columnFilters?: ColumnFilters;
   onColumnFilterChange?: (key: keyof ColumnFilters, value: string) => void;
@@ -164,6 +175,7 @@ export function InventoryTable({
   onRestoreProduct,
   onReportLoss,
   onProductFocused,
+  onImageUpdated,
   isArchiveView = false,
   columnFilters = {},
   onColumnFilterChange,
@@ -177,8 +189,8 @@ export function InventoryTable({
   // Fields restricted to admin only
   const adminOnlyFields: (keyof Product)[] = [
     'purchasePricePln', 'pricePlus', 'basePriceGross',
-    
-     'vatRate',
+    'priceDiscount10', 'priceDiscount12', 'priceDiscount15', 'priceDiscount20', 'priceDiscount25',
+    'priceAuchan8', 'vatRate',
     'palletCount', 'unitsPerPallet', 'totalUnits'
   ];
 
@@ -187,15 +199,19 @@ export function InventoryTable({
   const [focusedRowId, setFocusedRowId] = useState<number | null>(null);
   const [editValue, setEditValue] = useState<string>('');
   const [hoveredImage, setHoveredImage] = useState<{ url: string; name: string } | null>(null);
-  const [imageModalProduct, setImageModalProduct] = useState<Product | null>(null);
   const [showDateRangeModal, setShowDateRangeModal] = useState(false);
   const [dateFrom, setDateFrom] = useState(columnFilters.colCreatedAtFrom || '');
   const [dateTo, setDateTo] = useState(columnFilters.colCreatedAtTo || '');
   const [dateModalPos, setDateModalPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [showLastMovementDateModal, setShowLastMovementDateModal] = useState(false);
+  const [lastMovementFrom, setLastMovementFrom] = useState(columnFilters.colLastMovementFrom || '');
+  const [lastMovementTo, setLastMovementTo] = useState(columnFilters.colLastMovementTo || '');
+  const [lastMovementModalPos, setLastMovementModalPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>(loadColumnWidths);
   const [resizing, setResizing] = useState<string | null>(null);
   const [resizePreviewX, setResizePreviewX] = useState<number | null>(null);
   const [editingTags, setEditingTags] = useState<number | null>(null);
+  const [imageModalProduct, setImageModalProduct] = useState<Product | null>(null);
   const [showTagFilterDropdown, setShowTagFilterDropdown] = useState(false);
   const tagFilterRef = useRef<HTMLDivElement>(null);
   // Use dynamic tags from API
@@ -398,10 +414,10 @@ export function InventoryTable({
 
   // Default column order (moved before early return to respect React hooks rules)
   const DEFAULT_COLUMN_ORDER = [
-    "checkbox", "createdAt", "visible", "image", "plantName", "tags",
+    "checkbox", "lastMovement", "createdAt", "visible", "image", "plantName", "tags",
     "palletCount", "unitsPerPallet", "totalUnits", "potSize", "plantHeight",
-    "purchasePrice", "pricePlus", "basePrice",
-    
+    "purchasePrice", "pricePlus", "basePrice", "detal1",
+    "discount10", "discount12", "discount15", "discount20", "discount25", "auchan8",
     "totalSold", "grower", "passport", "actions"
   ];
 
@@ -569,6 +585,25 @@ export function InventoryTable({
             className={inputClass}
           />
         );
+      case 'lastMovement': {
+        const hasLMFilter = columnFilters.colLastMovementFrom || columnFilters.colLastMovementTo;
+        return (
+          <button
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              setLastMovementModalPos({ top: rect.bottom + 4, left: rect.left });
+              setLastMovementFrom(columnFilters.colLastMovementFrom || '');
+              setLastMovementTo(columnFilters.colLastMovementTo || '');
+              setShowLastMovementDateModal(true);
+            }}
+            className={`w-full px-0 py-px text-xs border rounded text-left truncate ${hasLMFilter ? 'border-amber-400 bg-amber-50 text-amber-700 font-medium' : 'border-gray-300 text-gray-400'}`}
+          >
+            {hasLMFilter
+              ? `${columnFilters.colLastMovementFrom || '...'} - ${columnFilters.colLastMovementTo || '...'}`
+              : 'Daty...'}
+          </button>
+        );
+      }
       case 'createdAt': {
         const hasDateFilter = columnFilters.colCreatedAtFrom || columnFilters.colCreatedAtTo;
         return (
@@ -675,6 +710,10 @@ export function InventoryTable({
     // Format date for date input
     if (field === 'createdAt') {
       setEditValue(formatDateForInput(value));
+    } else if (field === 'customId') {
+      // For customId, pre-fill with growerPassport if customId is empty
+      const idValue = product.customId || product.growerPassport || '';
+      setEditValue(idValue);
     } else {
       setEditValue(value !== null && value !== undefined ? String(value) : '');
     }
@@ -694,6 +733,10 @@ export function InventoryTable({
     // Format date for date input
     if (field === 'createdAt') {
       setEditValue(formatDateForInput(value));
+    } else if (field === 'customId') {
+      // For customId, pre-fill with growerPassport if customId is empty
+      const idValue = product.customId || product.growerPassport || '';
+      setEditValue(idValue);
     } else {
       setEditValue(value !== null && value !== undefined ? String(value) : '');
     }
@@ -702,12 +745,17 @@ export function InventoryTable({
   const handleCellBlur = async () => {
     if (editingCell) {
       const product = products.find(p => p.id === editingCell.productId);
-      if (product && String(product[editingCell.field]) !== editValue) {
+      const lockableFields = ['priceDiscount10', 'priceDiscount12', 'priceDiscount15', 'priceDiscount20', 'priceDiscount25', 'priceAuchan8'];
+      const isLockableField = lockableFields.includes(editingCell.field as string);
+      const originalValue = editingCell.field === 'customId'
+        ? (product?.customId || product?.growerPassport || '')
+        : String(product?.[editingCell.field] ?? '');
+      if (product && originalValue !== editValue) {
         let finalValue: any = editValue;
         const numericFields = ['palletCount', 'unitsPerPallet', 'plantHeightCm', 'purchasePricePln',
           'pricePlus', 'basePriceGross', 'priceDiscount10', 'priceDiscount12', 'priceDiscount15', 'priceDiscount20',
           'priceDiscount25',
-   'vatRate', 'totalUnits'];
+  'priceAuchan8', 'vatRate', 'totalUnits'];
         // Handle date field - convert YYYY-MM-DD to ISO date string
         if (editingCell.field === 'createdAt') {
           if (editValue) {
@@ -744,6 +792,20 @@ export function InventoryTable({
       }
     } else if (e.key === 'Escape') {
       setEditingCell(null);
+    } else if (e.key === ' ') {
+      // Space on locked price field = unlock
+      if (editingCell) {
+        const lockableFields = ['priceDiscount10', 'priceDiscount12', 'priceDiscount15', 'priceDiscount20', 'priceDiscount25', 'priceAuchan8'];
+        if (lockableFields.includes(editingCell.field as string)) {
+          const product = products.find(p => p.id === editingCell.productId);
+          if ((product as any)?.priceLocks?.[editingCell.field as string]) {
+            e.preventDefault();
+            setEditingCell(null);
+            await handleUnlockPrice(editingCell.productId, editingCell.field as string);
+            return;
+          }
+        }
+      }
     } else if (e.key === 'Tab') {
       e.preventDefault();
       await handleCellBlur();
@@ -823,6 +885,91 @@ export function InventoryTable({
     );
   };
 
+  const [unlockMenu, setUnlockMenu] = useState<{productId: number; field: string; x: number; y: number} | null>(null);
+
+  // Detal 1 price multiplier from price group settings
+  const [detal1Multiplier, setDetal1Multiplier] = useState<number>(1.30);
+
+  useEffect(() => {
+    const loadDetal1Group = async () => {
+      try {
+        const result = await api.getPriceGroups();
+        const detal1Group = result.priceGroups?.find((pg: PriceGroup) => pg.name.toUpperCase().includes('DETAL 1') || pg.name.toUpperCase() === 'DETAL1');
+        if (detal1Group) {
+          setDetal1Multiplier(1 - (Number(detal1Group.discountPercentage) / 100));
+        }
+      } catch (err) {
+        console.error('Error loading detal1 price group:', err);
+      }
+    };
+    loadDetal1Group();
+  }, []);
+
+  const handleUnlockPrice = async (productId: number, field: string) => {
+    setUnlockMenu(null);
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    const locks = { ...(product.priceLocks || {}) };
+    delete locks[field];
+    // Calculate auto price from basePriceGross
+    const base = product.basePriceGross || 0;
+    const multipliers: Record<string, number> = {
+      priceDiscount10: 0.90, priceDiscount12: 0.88, priceDiscount15: 0.85,
+      priceDiscount20: 0.80, priceDiscount25: 0.75, priceAuchan8: 1.00,
+    };
+    const autoPrice = Math.round(base * (multipliers[field] || 1) * 100) / 100;
+    try {
+      await onUpdateProduct(productId, field as any, autoPrice);
+      // Also update locks
+      await onUpdateProduct(productId, 'priceLocks' as any, locks);
+    } catch (err) {
+      console.error('Unlock price error:', err);
+    }
+  };
+
+  const renderLockedPriceCell = (product: Product, field: keyof Product, displayValue: string | number) => {
+    const isLocked = product.priceLocks?.[field as string];
+    const cellSelected = isSelected(product.id, field);
+    const cellEditing = isEditing(product.id, field);
+
+    if (cellEditing) {
+      return (
+        <input
+          type="text"
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onBlur={handleCellBlur}
+          onKeyDown={handleInputKeyDown}
+          onFocus={(e) => e.target.select()}
+          className="w-full px-0 py-px border border-primary-500 rounded text-xs focus:outline-none focus:ring-1 focus:ring-primary-500"
+          autoFocus
+        />
+      );
+    }
+    return (
+      <span
+        onClick={() => handleCellClick(product, field)}
+        onDoubleClick={(e) => handleCellDoubleClick(product, field, e)}
+        onContextMenu={(e) => {
+          if (isLocked) {
+            e.preventDefault();
+            setUnlockMenu({ productId: product.id, field: field as string, x: e.clientX, y: e.clientY });
+          }
+        }}
+        className={`cursor-pointer px-0 py-px rounded inline-block w-full truncate transition-colors ${
+          isLocked
+            ? 'bg-orange-400 text-white font-semibold'
+            : cellSelected
+            ? 'bg-blue-200 ring-2 ring-blue-400'
+            : 'hover:bg-white/50'
+        }`}
+        title={isLocked ? `Cena zablokowana (PPM aby odblokować)` : String(displayValue)}
+      >
+        {displayValue}
+      </span>
+    );
+  };
+
   const allSelected = products.length > 0 && selectedProducts.length === products.length;
   const someSelected = selectedProducts.length > 0 && selectedProducts.length < products.length;
 
@@ -853,6 +1000,7 @@ export function InventoryTable({
     inventory: 'bg-amber-50',
     purchase: 'bg-blue-50',
     pricePlus: 'bg-yellow-100',
+    detal1: 'bg-rose-100',
     basePrice: 'bg-green-200',
     discounts: 'bg-purple-50',
     status: 'bg-orange-50',
@@ -869,6 +1017,7 @@ export function InventoryTable({
     inventory: 'bg-amber-200',
     purchase: 'bg-blue-200',
     pricePlus: 'bg-yellow-300',
+    detal1: 'bg-rose-300',
     basePrice: 'bg-green-400',
     discounts: 'bg-purple-200',
     status: 'bg-orange-200',
@@ -891,7 +1040,15 @@ export function InventoryTable({
     totalSold: { label: "📦", style: headerStyles.inventory, title: "Sprzedane", borderClass: "border-b-2 border-amber-400" },
     purchasePrice: { label: "Zak", style: headerStyles.purchase, title: "Cena zakupu", borderClass: "border-b-2 border-blue-400 border-l border-blue-300" },
     pricePlus: { label: "C+", style: headerStyles.pricePlus, title: "Cena+ (zakup + marża)", borderClass: "border-b-2 border-yellow-500 border-l border-yellow-400 font-bold" },
-    basePrice: { label: "Baz", style: headerStyles.basePrice, title: "Cena podstawowa (edytowalne)", borderClass: "border-b-2 border-primary-500 border-l border-green-400 font-bold" },
+    basePrice: { label: "Baz", style: headerStyles.basePrice, title: "Cena podstawowa (edytowalne)", borderClass: "border-b-2 border-green-500 border-l border-green-400 font-bold" },
+    detal1: { label: "Det.1", style: headerStyles.detal1, title: "Cena Detal 1 (narzut z grupy cenowej)", borderClass: "border-b-2 border-rose-400 border-l border-rose-300 font-bold" },
+    discount10: { label: "10", style: headerStyles.discounts, title: "Rabat -10%", borderClass: "border-b-2 border-purple-400 border-l border-purple-300" },
+    discount12: { label: "12", style: headerStyles.discounts, title: "Rabat -12%", borderClass: "border-b-2 border-purple-400" },
+    discount15: { label: "15", style: headerStyles.discounts, title: "Rabat -15%", borderClass: "border-b-2 border-purple-400" },
+    discount20: { label: "20", style: headerStyles.discounts, title: "Rabat -20%", borderClass: "border-b-2 border-purple-400" },
+    discount25: { label: "25", style: headerStyles.discounts, title: "Rabat -25%", borderClass: "border-b-2 border-purple-400" },
+    auchan8: { label: "A8", style: headerStyles.discounts, title: "Auchan (cena podstawowa)", borderClass: "border-b-2 border-purple-400" },
+    lastMovement: { label: "Ost.ruch", style: headerStyles.inventory, title: "Ostatni ruch magazynowy", borderClass: "border-b-2 border-amber-400" },
     visible: { label: "👁", style: headerStyles.status, title: "Widoczność w sklepie", borderClass: "border-b-2 border-orange-400" },
     grower: { label: "🌱", style: headerStyles.grower, title: "Ogrodnik/Producent", borderClass: "border-b-2 border-teal-400 border-l border-teal-300" },
     passport: { label: "ID", style: headerStyles.grower, title: "Paszport ogrodnika", borderClass: "border-b-2 border-teal-400" },
@@ -930,9 +1087,17 @@ export function InventoryTable({
     purchasePrice: 'purchase_price',
     pricePlus: 'price_plus',
     basePrice: 'base_price_gross',
+    detal1: 'base_price_gross',
+    discount10: 'discount_10',
+    discount12: 'discount_12',
+    discount15: 'discount_15',
+    discount20: 'discount_20',
+    discount25: 'discount_25',
+    auchan8: 'auchan_8',
     grower: 'grower',
     passport: 'passport',
     tags: 'tags',
+    lastMovement: 'last_movement_at',
   };
 
   const handleHeaderClick = (columnKey: string) => {
@@ -962,6 +1127,14 @@ export function InventoryTable({
     purchasePrice: { styleKey: "purchase", borderClass: "border-b border-blue-200 border-l border-blue-200", extraClass: "text-center text-xs" },
     pricePlus: { styleKey: "pricePlus", borderClass: "border-b border-yellow-300 border-l border-yellow-300", extraClass: "text-center font-bold text-yellow-900 text-xs" },
     basePrice: { styleKey: "basePrice", borderClass: "border-b border-green-400 border-l border-green-400", extraClass: "text-center font-bold text-green-800 text-xs" },
+    detal1: { styleKey: "detal1", borderClass: "border-b border-rose-300 border-l border-rose-300", extraClass: "text-center font-bold text-rose-800 text-xs" },
+    discount10: { styleKey: "discounts", borderClass: "border-b border-purple-200 border-l border-purple-200", extraClass: "text-center text-xs" },
+    discount12: { styleKey: "discounts", borderClass: "border-b border-purple-200", extraClass: "text-center text-xs" },
+    discount15: { styleKey: "discounts", borderClass: "border-b border-purple-200", extraClass: "text-center text-xs" },
+    discount20: { styleKey: "discounts", borderClass: "border-b border-purple-200", extraClass: "text-center text-xs" },
+    discount25: { styleKey: "discounts", borderClass: "border-b border-purple-200", extraClass: "text-center text-xs" },
+    auchan8: { styleKey: "discounts", borderClass: "border-b border-purple-200", extraClass: "text-center text-xs font-medium text-purple-700" },
+    lastMovement: { styleKey: "inventory", borderClass: "border-b border-amber-200", extraClass: "text-center text-xs text-gray-600" },
     visible: { styleKey: "status", borderClass: "border-b border-orange-200", extraClass: "text-center" },
     grower: { styleKey: "grower", borderClass: "border-b border-teal-200 border-l border-teal-200", extraClass: "text-center text-xs text-gray-700 truncate" },
     passport: { styleKey: "grower", borderClass: "border-b border-teal-200", extraClass: "text-center text-xs text-teal-700 font-medium truncate" },
@@ -975,10 +1148,12 @@ export function InventoryTable({
 
       case "createdAt":
         return product.createdAt ? new Date(product.createdAt).toLocaleString("pl-PL") : "";
+      case "lastMovement":
+        return product.lastMovementAt ? new Date(product.lastMovementAt).toLocaleString("pl-PL") : "";
       case "grower":
         return product.grower || product.grower || "";
       case "passport":
-        return product.growerPassport || "";
+        return product.growerPassport || product.customId || "";
       default:
         return undefined;
     }
@@ -994,19 +1169,23 @@ export function InventoryTable({
       case "image": {
         // Use optimized image URLs if barcode is available, otherwise fallback to original
         const thumbUrl = product.barcode ? getOptimizedImageUrl(product.barcode, "thumb") : imageUrl;
-        const mediumUrl = product.barcode ? getOptimizedImageUrl(product.barcode, "medium") : imageUrl;
         return product.imageUrl ? (
-          <div className="relative cursor-pointer inline-block w-6 h-6"
-            onClick={(e) => { e.stopPropagation(); setImageModalProduct(product); }}
-            onMouseEnter={() => mediumUrl && setHoveredImage({ url: mediumUrl, name: product.plantName })}
-            onMouseLeave={() => setHoveredImage(null)}>
+          <div
+            className="relative cursor-pointer inline-block w-6 h-6"
+            onClick={(e) => { e.stopPropagation(); setImageModalProduct(product); setHoveredImage(null); }}
+            onMouseEnter={() => {
+              const mediumUrl = product.barcode ? getOptimizedImageUrl(product.barcode, "full") : imageUrl;
+              mediumUrl && setHoveredImage({ url: mediumUrl, name: product.plantName });
+            }}
+            onMouseLeave={() => setHoveredImage(null)}
+          >
             <img src={thumbUrl || ""} alt={product.plantName} className="w-6 h-6 object-cover rounded transition-transform hover:scale-110" />
           </div>
         ) : (
-          <div className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center text-sm cursor-pointer hover:bg-gray-200 transition-colors"
-            onClick={(e) => { e.stopPropagation(); setImageModalProduct(product); }}>
-            🌿
-          </div>
+          <div
+            className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center text-sm cursor-pointer hover:bg-gray-200 transition-colors"
+            onClick={(e) => { e.stopPropagation(); setImageModalProduct(product); }}
+          >🌿</div>
         );
       }
       case "plantName":
@@ -1025,12 +1204,37 @@ export function InventoryTable({
         return renderEditableCell(product, "totalUnits", product.totalUnits, "text-center font-bold");
       case "totalSold":
         return product.totalSold || 0;
+      case "lastMovement": {
+        if (!product.lastMovementAt) return '-';
+        const d = new Date(product.lastMovementAt);
+        return d.toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      }
       case "purchasePrice":
         return renderEditableCell(product, "purchasePricePln", product.purchasePricePln ? `${product.purchasePricePln.toFixed(2)} zł` : "-");
       case "pricePlus":
         return renderEditableCell(product, "pricePlus", product.pricePlus ? `${product.pricePlus.toFixed(2)} zł` : "-", "font-bold");
       case "basePrice":
         return renderEditableCell(product, "basePriceGross", product.basePriceGross ? `${product.basePriceGross.toFixed(2)} zł` : "-");
+      case "detal1": {
+        const detal1Price = product.basePriceGross ? Math.ceil(product.basePriceGross * detal1Multiplier) : 0;
+        return detal1Price ? `${detal1Price} zł` : "-";
+      }
+      case "discount10":
+        return renderLockedPriceCell(product, "priceDiscount10", product.priceDiscount10 ? `${product.priceDiscount10.toFixed(2)} zł` : "-");
+      case "discount12":
+        return renderLockedPriceCell(product, "priceDiscount12", product.priceDiscount12 ? `${product.priceDiscount12.toFixed(2)} zł` : "-");
+      case "discount15":
+        return renderLockedPriceCell(product, "priceDiscount15", product.priceDiscount15 ? `${product.priceDiscount15.toFixed(2)} zł` : "-");
+      case "discount20":
+        return renderLockedPriceCell(product, "priceDiscount20", product.priceDiscount20 ? `${product.priceDiscount20.toFixed(2)} zł` : "-");
+      case "discount25":
+        return renderLockedPriceCell(product, "priceDiscount25", product.priceDiscount25 ? `${product.priceDiscount25.toFixed(2)} zł` : "-");
+      case "auchan8":
+        // Auchan - edytowalna cena, domyslnie cena podstawowa
+        const auchan8Value = product.priceAuchan8 
+          ? `${parseFloat(String(product.priceAuchan8)).toFixed(2)} zł` 
+          : (product.basePriceGross ? `${product.basePriceGross.toFixed(2)} zł` : "-");
+        return renderLockedPriceCell(product, "priceAuchan8", auchan8Value);
       case "visible":
         return (
           <button onClick={() => onToggleVisibility(product.id)} className={`px-1.5 py-0.5 rounded text-xs font-medium ${product.visibleInShop ? "bg-green-200 text-green-800" : "bg-red-200 text-red-800"}`}>
@@ -1040,7 +1244,7 @@ export function InventoryTable({
       case "grower":
         return product.grower || product.grower || "-";
       case "passport":
-        return product.growerPassport || "-";
+        return renderEditableCell(product, "customId" as keyof Product, product.growerPassport || product.customId || "-", "text-center");
       case "tags":
         return (
           <>
@@ -1104,7 +1308,7 @@ export function InventoryTable({
               <button onClick={() => onArchiveProduct(product)} className="text-yellow-600 hover:text-yellow-800 text-xs px-0.5 hover:bg-yellow-50 rounded" title="Archiwizuj">📦</button>
             )}
             {product.isArchived && onRestoreProduct && (
-              <button onClick={() => onRestoreProduct(product)} className="text-primary-600 hover:text-primary-800 text-xs px-0.5 hover:bg-primary-50 rounded" title="Przywroc">↩️</button>
+              <button onClick={() => onRestoreProduct(product)} className="text-green-600 hover:text-green-800 text-xs px-0.5 hover:bg-green-50 rounded" title="Przywroc">↩️</button>
             )}
             {onDeleteProduct && (
               <button onClick={() => onDeleteProduct(product)} className="text-red-600 hover:text-red-800 text-xs px-0.5 hover:bg-red-50 rounded" title="Usuń">🗑️</button>
@@ -1158,7 +1362,7 @@ export function InventoryTable({
       {hoveredImage && (
         <div className="fixed z-50 pointer-events-none" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}>
           <div className="bg-white rounded-lg shadow-2xl p-2 border border-gray-200">
-            <img src={hoveredImage.url} alt={hoveredImage.name} className="max-w-[400px] max-h-[400px] object-contain rounded" />
+            <img src={hoveredImage.url} alt={hoveredImage.name} className="max-w-[512px] max-h-[512px] object-contain rounded" />
             <p className="text-center text-sm text-gray-600 mt-2 font-medium">{hoveredImage.name}</p>
           </div>
         </div>
@@ -1324,16 +1528,96 @@ export function InventoryTable({
         </div>
       )}
 
-      {/* Image Modal */}
+      {/* Last movement date range modal */}
+      {showLastMovementDateModal && (
+        <div className="fixed inset-0 z-50" onClick={() => setShowLastMovementDateModal(false)}>
+          <div className="absolute bg-white rounded-lg shadow-xl border border-gray-200 p-4 w-72"
+            style={{ top: lastMovementModalPos.top, left: lastMovementModalPos.left }}
+            onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-gray-800 mb-4">Zakres dat ostatniego ruchu</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Od</label>
+                <input
+                  type="date"
+                  value={lastMovementFrom}
+                  onChange={(e) => setLastMovementFrom(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Do</label>
+                <input
+                  type="date"
+                  value={lastMovementTo}
+                  onChange={(e) => setLastMovementTo(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => {
+                  if (onColumnFilterChange) {
+                    onColumnFilterChange('colLastMovementFrom', lastMovementFrom);
+                    onColumnFilterChange('colLastMovementTo', lastMovementTo);
+                  }
+                  setShowLastMovementDateModal(false);
+                }}
+                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium py-2 rounded transition-colors"
+              >
+                Zastosuj
+              </button>
+              <button
+                onClick={() => {
+                  setLastMovementFrom('');
+                  setLastMovementTo('');
+                  if (onColumnFilterChange) {
+                    onColumnFilterChange('colLastMovementFrom', '');
+                    onColumnFilterChange('colLastMovementTo', '');
+                  }
+                  setShowLastMovementDateModal(false);
+                }}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium py-2 rounded transition-colors"
+              >
+                Wyczysc
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image modal */}
       {imageModalProduct && (
         <ImageModal
           product={imageModalProduct}
           onClose={() => setImageModalProduct(null)}
-          onImageUpdated={(updated: Product) => {
+          onImageUpdated={(productId, newImageUrl) => {
+            if (onImageUpdated) onImageUpdated(productId, newImageUrl);
             setImageModalProduct(null);
-            onUpdateProduct(updated.id, 'imageUrl' as keyof Product, updated.imageUrl);
           }}
         />
+      )}
+
+      {/* Unlock price context menu */}
+      {unlockMenu && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setUnlockMenu(null)} />
+          <div
+            className="fixed z-50 bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[180px]"
+            style={{ left: unlockMenu.x, top: unlockMenu.y }}
+          >
+            <button
+              onClick={() => handleUnlockPrice(unlockMenu.productId, unlockMenu.field)}
+              className="w-full text-left px-4 py-2 text-sm text-orange-700 hover:bg-orange-50 flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+              </svg>
+              Odblokuj cenę (przywróć auto)
+            </button>
+          </div>
+        </>
       )}
     </div>
   );

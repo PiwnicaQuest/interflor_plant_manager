@@ -39,8 +39,8 @@ export class PriceGroupModel {
 
   static async create(data: { name: string; discountPercentage: number; description?: string }): Promise<PriceGroup> {
     // Validate discount percentage
-    if (data.discountPercentage < 0 || data.discountPercentage > 100) {
-      throw new Error('Rabat musi być między 0 a 100%');
+    if (data.discountPercentage < -100 || data.discountPercentage > 100) {
+      throw new Error('Wartość musi być między -100 a 100%');
     }
 
     const result = await query<PriceGroup>(
@@ -68,8 +68,8 @@ export class PriceGroupModel {
 
     // Validate discount percentage if provided
     if (data.discountPercentage !== undefined) {
-      if (data.discountPercentage < 0 || data.discountPercentage > 100) {
-        throw new Error('Rabat musi być między 0 a 100%');
+      if (data.discountPercentage < -100 || data.discountPercentage > 100) {
+        throw new Error('Wartość musi być między -100 a 100%');
       }
     }
 
@@ -111,19 +111,11 @@ export class PriceGroupModel {
   }
 
   static async delete(id: number): Promise<boolean> {
-    // Check if any customers are assigned to this price group
-    const checkResult = await query<{ count: number }>(
-      'SELECT COUNT(*) as count FROM customers WHERE price_group_id = $1',
+    // Move customers from this price group to default (id=1)
+    await query(
+      'UPDATE customers SET price_group_id = 1 WHERE price_group_id = $1',
       [id]
     );
-
-    const customerCount = parseInt(checkResult.rows[0]?.count?.toString() || '0');
-
-    if (customerCount > 0) {
-      throw new Error(
-        `Nie można usunąć grupy cenowej. ${customerCount} klient(ów) jest przypisanych do tej grupy.`
-      );
-    }
 
     const result = await query('DELETE FROM price_groups WHERE id = $1', [id]);
     return (result.rowCount || 0) > 0;

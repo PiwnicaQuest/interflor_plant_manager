@@ -1,12 +1,13 @@
 {
   "port": 19432,
   "allowedOrigins": [
+    "https://pm.interflor.pl",
     "https://pm.polflor.wroclaw.pl",
     "http://localhost:5173",
     "http://localhost:3000"
   ],
   "defaultPrinters": {
-    "label": "TSC MX340P",
+    "label": "Citizen CL-S631",
     "receipt": null,
     "document": null
   },

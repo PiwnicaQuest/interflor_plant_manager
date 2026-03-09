@@ -54,7 +54,7 @@ export class UserModel {
       `SELECT id, email, login, first_name as "firstName", last_name as "lastName",
        password_hash as "passwordHash", role, is_active as "isActive",
        profile_id as "profileId",
-       created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE login = $1`,
+       created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE LOWER(login) = LOWER($1)`,
       [login]
     );
     return result.rows[0] || null;
@@ -295,7 +295,7 @@ export class UserModel {
   }
 
   static async loginExists(login: string, excludeUserId?: number): Promise<boolean> {
-    let sql = 'SELECT id FROM users WHERE login = $1';
+    let sql = 'SELECT id FROM users WHERE LOWER(login) = LOWER($1)';
     const params: any[] = [login];
 
     if (excludeUserId) {

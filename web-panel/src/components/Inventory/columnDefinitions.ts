@@ -9,6 +9,7 @@ export type ColumnGroup =
   | 'purchase'  // purchasePrice
   | 'pricePlus' // pricePlus
   | 'basePrice' // basePrice
+  | 'detal1'    // detal1
   | 'discounts' // discount10-25
   | 'status'    // inventoryStatus, visibleInShop
   | 'grower'    // grower, growerPassport
@@ -189,6 +190,20 @@ export const ALL_COLUMNS: ColumnDefinition[] = [
     description: 'Stawka VAT (%)',
   },
   
+
+  // Detal 1 price column (calculated from base price + price group markup)
+  {
+    key: 'detal1',
+    label: 'Detal 1',
+    shortLabel: 'Det.1',
+    group: 'detal1',
+    defaultWidth: 60,
+    minWidth: 50,
+    editable: false,
+    filterable: false,
+    description: 'Cena Detal 1 (cena podstawowa + narzut z grupy cenowej)',
+  },
+
   // Status columns
   {
     key: 'status',
@@ -285,6 +300,7 @@ export const COLUMN_GROUP_HEADER_COLORS: Record<ColumnGroup, string> = {
   purchase: 'bg-blue-200',
   pricePlus: 'bg-green-300',
   basePrice: 'bg-emerald-200',
+  detal1: 'bg-rose-200',
   discounts: 'bg-purple-200',
   status: 'bg-orange-200',
   grower: 'bg-teal-200',
@@ -301,6 +317,7 @@ export const COLUMN_GROUP_CELL_COLORS: Record<ColumnGroup, string> = {
   purchase: 'bg-blue-50',
   pricePlus: 'bg-green-100',
   basePrice: 'bg-emerald-50',
+  detal1: 'bg-rose-50',
   discounts: 'bg-purple-50',
   status: 'bg-orange-50',
   grower: 'bg-teal-50',

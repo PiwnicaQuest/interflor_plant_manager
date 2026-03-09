@@ -39,7 +39,7 @@ export function PrintInvoicePage() {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600"></div>
       </div>
     );
   }
@@ -52,7 +52,7 @@ export function PrintInvoicePage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Ładowanie faktury...</p>
         </div>
       </div>
@@ -66,7 +66,7 @@ export function PrintInvoicePage() {
           <p className="text-red-600 mb-4">{error}</p>
           <button
             onClick={() => navigate('/invoices')}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+            className="px-4 py-2 bg-pink-600 text-white rounded hover:bg-pink-700"
           >
             Powrot do faktur
           </button>
@@ -82,7 +82,7 @@ export function PrintInvoicePage() {
           <p className="text-gray-600 mb-4">Faktura nie znaleziona</p>
           <button
             onClick={() => navigate('/invoices')}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+            className="px-4 py-2 bg-pink-600 text-white rounded hover:bg-pink-700"
           >
             Powrot do faktur
           </button>

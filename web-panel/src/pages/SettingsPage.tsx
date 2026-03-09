@@ -12,6 +12,7 @@ import { PrinterSettingsTab } from '../components/Settings/PrinterSettingsTab';
 import PermissionProfilesTab from '../components/settings/PermissionProfilesTab';
 import { LoginHistoryTab } from '../components/Settings/LoginHistoryTab';
 import { WebsiteSettingsTab } from '../components/Settings/WebsiteSettingsTab';
+import { KsefSettingsTab } from '../components/Settings/KsefSettingsTab';
 
 interface PricingSettings {
   costPercentage: number;
@@ -47,7 +48,16 @@ interface EmailImportSettings {
   enabled: boolean;
 }
 
-type TabType = 'company' | 'pricing' | 'email-import' | 'users' | 'login-history' | 'price-groups' | 'printers' | 'grower-passports' | 'tags' | 'profiles' | 'website';
+interface SmtpSendSettings {
+  smtpHost: string;
+  smtpPort: number;
+  smtpUser: string;
+  smtpPassword: string;
+  smtpFrom: string;
+  smtpSecurity: 'none' | 'ssl' | 'starttls';
+}
+
+type TabType = 'company' | 'pricing' | 'email-import' | 'smtp-send' | 'users' | 'login-history' | 'price-groups' | 'printers' | 'grower-passports' | 'tags' | 'profiles' | 'website' | 'ksef';
 
 export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('company');
@@ -96,6 +106,20 @@ export function SettingsPage() {
   const [emailLoading, setEmailLoading] = useState(true);
   const [emailSaving, setEmailSaving] = useState(false);
 
+  // SMTP send settings state
+  const [smtpSendSettings, setSmtpSendSettings] = useState<SmtpSendSettings>({
+    smtpHost: '',
+    smtpPort: 587,
+    smtpUser: '',
+    smtpPassword: '',
+    smtpFrom: '',
+    smtpSecurity: 'starttls',
+  });
+  const [smtpSendLoading, setSmtpSendLoading] = useState(true);
+  const [smtpSendSaving, setSmtpSendSaving] = useState(false);
+  const [smtpTestEmail, setSmtpTestEmail] = useState('');
+  const [smtpTesting, setSmtpTesting] = useState(false);
+
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncResult, setSyncResult] = useState<{
     emailsFound: number;
@@ -131,6 +155,8 @@ export function SettingsPage() {
       fetchCompanySettings();
     } else if (activeTab === 'email-import') {
       fetchEmailSettings();
+    } else if (activeTab === 'smtp-send') {
+      fetchSmtpSendSettings();
     } else if (activeTab === 'users') {
       fetchUsers();
     } else if (activeTab === 'price-groups') {
@@ -178,6 +204,19 @@ export function SettingsPage() {
       console.error('Error fetching email settings:', err);
     } finally {
       setEmailLoading(false);
+    }
+  };
+
+
+  const fetchSmtpSendSettings = async () => {
+    try {
+      setSmtpSendLoading(true);
+      const data = await api.getSmtpSendSettings();
+      setSmtpSendSettings(data);
+    } catch (err) {
+      console.error('Error fetching SMTP send settings:', err);
+    } finally {
+      setSmtpSendLoading(false);
     }
   };
 
@@ -253,6 +292,47 @@ export function SettingsPage() {
       setEmailSaving(false);
     }
   };
+
+  const handleSaveSmtpSend = async () => {
+    try {
+      setSmtpSendSaving(true);
+      setError('');
+      setSuccess('');
+      await api.updateSmtpSendSettings(smtpSendSettings);
+      setSuccess('Ustawienia SMTP wysyłki zostały zapisane');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      console.error('Error saving SMTP send settings:', err);
+      setError(err.response?.data?.error || 'Błąd podczas zapisywania ustawień SMTP');
+    } finally {
+      setSmtpSendSaving(false);
+    }
+  };
+
+  const handleTestSmtpSend = async () => {
+    if (!smtpTestEmail) {
+      setError('Podaj adres email do testu');
+      return;
+    }
+    try {
+      setSmtpTesting(true);
+      setError('');
+      setSuccess('');
+      const result = await api.testSmtpSend(smtpTestEmail);
+      if (result.error) {
+        setError(result.error);
+      } else {
+        setSuccess(result.message || 'Email testowy wysłany pomyślnie');
+        setTimeout(() => setSuccess(''), 5000);
+      }
+    } catch (err: any) {
+      console.error('SMTP test error:', err);
+      setError(err.response?.data?.error || 'Błąd wysyłki testowej');
+    } finally {
+      setSmtpTesting(false);
+    }
+  };
+
 
   const handleSync = async () => {
     try {
@@ -395,6 +475,7 @@ export function SettingsPage() {
     { id: 'company' as TabType, label: 'Dane firmy' },
     { id: 'pricing' as TabType, label: 'Ustawienia cenowe' },
     { id: 'email-import' as TabType, label: 'Import z email' },
+    { id: 'smtp-send' as TabType, label: 'Wysyłka email' },
     { id: 'users' as TabType, label: 'Użytkownicy' },
     { id: 'login-history' as TabType, label: 'Historia logowań' },
     { id: 'price-groups' as TabType, label: 'Grupy cenowe' },
@@ -402,6 +483,7 @@ export function SettingsPage() {
     { id: 'grower-passports' as TabType, label: 'Ogrodnicy i paszporty' },
     { id: 'tags' as TabType, label: 'Tagi' },
     { id: 'profiles' as TabType, label: 'Profile uprawnień' },
+    { id: 'ksef' as TabType, label: 'KSeF' },
     { id: 'website' as TabType, label: 'Strona internetowa' },
   ];
 
@@ -956,6 +1038,148 @@ export function SettingsPage() {
         </div>
       )}
 
+      {/* SMTP Send Settings Tab */}
+      {activeTab === 'smtp-send' && (
+        <div className="bg-white rounded-lg shadow p-6 max-w-xl">
+          <h2 className="text-lg font-semibold mb-4">Wysyłka email (SMTP)</h2>
+          <p className="text-sm text-gray-500 mb-6">
+            Konfiguracja serwera SMTP do wysyłania wiadomości email z systemu.
+          </p>
+
+          {smtpSendLoading ? (
+            <div className="text-gray-500">Ładowanie...</div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Serwer SMTP
+                  </label>
+                  <input
+                    type="text"
+                    value={smtpSendSettings.smtpHost}
+                    onChange={(e) => setSmtpSendSettings({ ...smtpSendSettings, smtpHost: e.target.value })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="smtp.firma.pl"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Port
+                  </label>
+                  <input
+                    type="number"
+                    value={smtpSendSettings.smtpPort}
+                    onChange={(e) => setSmtpSendSettings({ ...smtpSendSettings, smtpPort: parseInt(e.target.value) || 587 })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Zabezpieczenie
+                </label>
+                <select
+                  value={smtpSendSettings.smtpSecurity}
+                  onChange={(e) => setSmtpSendSettings({ ...smtpSendSettings, smtpSecurity: e.target.value as 'none' | 'ssl' | 'starttls' })}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="none">Brak</option>
+                  <option value="ssl">SSL/TLS</option>
+                  <option value="starttls">STARTTLS</option>
+                </select>
+              </div>
+
+              <div className="border-t pt-4 mt-4">
+                <h3 className="text-md font-medium text-gray-700 mb-3">Dane logowania</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Użytkownik (login)
+                    </label>
+                    <input
+                      type="text"
+                      value={smtpSendSettings.smtpUser}
+                      onChange={(e) => setSmtpSendSettings({ ...smtpSendSettings, smtpUser: e.target.value })}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="user@firma.pl"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Hasło
+                    </label>
+                    <input
+                      type="password"
+                      value={smtpSendSettings.smtpPassword}
+                      onChange={(e) => setSmtpSendSettings({ ...smtpSendSettings, smtpPassword: e.target.value })}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="••••••••"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Pozostaw bez zmian jeśli nie chcesz zmieniać hasła
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-4 mt-4">
+                <h3 className="text-md font-medium text-gray-700 mb-3">Nadawca</h3>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Adres nadawcy (From)
+                  </label>
+                  <input
+                    type="email"
+                    value={smtpSendSettings.smtpFrom}
+                    onChange={(e) => setSmtpSendSettings({ ...smtpSendSettings, smtpFrom: e.target.value })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="noreply@firma.pl"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Adres email widoczny jako nadawca wiadomości
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <button
+                  onClick={handleSaveSmtpSend}
+                  disabled={smtpSendSaving}
+                  className="bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white font-medium px-6 py-2 rounded-md transition-colors"
+                >
+                  {smtpSendSaving ? 'Zapisywanie...' : 'Zapisz ustawienia SMTP'}
+                </button>
+              </div>
+
+              <div className="border-t pt-4 mt-4">
+                <h3 className="text-md font-medium text-gray-700 mb-3">Test wysyłki</h3>
+                <p className="text-sm text-gray-500 mb-3">
+                  Wyślij testowy email aby sprawdzić poprawność konfiguracji. Najpierw zapisz ustawienia powyżej.
+                </p>
+                <div className="flex gap-3">
+                  <input
+                    type="email"
+                    value={smtpTestEmail}
+                    onChange={(e) => setSmtpTestEmail(e.target.value)}
+                    className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="test@example.com"
+                  />
+                  <button
+                    onClick={handleTestSmtpSend}
+                    disabled={smtpTesting || !smtpTestEmail}
+                    className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium px-4 py-2 rounded-md transition-colors whitespace-nowrap"
+                  >
+                    {smtpTesting ? 'Wysyłanie...' : 'Wyślij test'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Users Tab */}
       {activeTab === 'users' && (
         <div>
@@ -1166,6 +1390,9 @@ export function SettingsPage() {
           <PermissionProfilesTab />
         </div>
       )}
+
+      {/* KSeF Tab */}
+      {activeTab === 'ksef' && <KsefSettingsTab />}
 
       {activeTab === 'website' && (
         <WebsiteSettingsTab />

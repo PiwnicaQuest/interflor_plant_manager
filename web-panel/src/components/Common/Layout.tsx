@@ -25,7 +25,7 @@ export function Layout() {
     const token = localStorage.getItem('token');
     if (!token) return null;
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      const payload = JSON.parse(decodeURIComponent(atob(token.split(".")[1]).split("").map(c => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)).join("")));
       return {
         role: payload.role,
         email: payload.email,
@@ -206,7 +206,7 @@ export function Layout() {
                 </svg>
               </button>
               <div className="flex items-center gap-2">
-                <img src="/interflor-logo.png" alt="INTERFLOR" className="h-12" />
+                <img src="/interflor-logo.png" alt="INTERFLOR" className="h-20" />
               </div>
               <nav className="hidden md:flex items-center">
                 {navGroups.map((group, groupIndex) => (
@@ -265,7 +265,7 @@ export function Layout() {
           <div className="fixed inset-y-0 left-0 w-72 bg-brand shadow-xl overflow-y-auto">
             {/* Drawer header */}
             <div className="flex items-center justify-between px-4 h-14 border-b border-brand-dark">
-              <img src="/interflor-logo.png" alt="INTERFLOR" className="h-12" />
+              <img src="/interflor-logo.png" alt="INTERFLOR" className="h-20" />
               <button
                 className="p-2 rounded-md text-gray-200 hover:bg-brand-dark"
                 onClick={() => setMobileMenuOpen(false)}

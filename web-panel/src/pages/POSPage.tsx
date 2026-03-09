@@ -620,40 +620,43 @@ export function POSPage() {
 
                   {/* Document Type & Payment - Compact Layout */}
                   <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
-                    {/* Document Type Selection - Inline */}
-                    <div className="flex items-center gap-4 mb-4 pb-3 border-b border-gray-100">
-                      <span className="text-sm font-medium text-gray-600">Dokument:</span>
-                      <div className="flex gap-2">
+                    {/* Document Type Selection - Tiles */}
+                    <div className="mb-4 pb-4 border-b border-gray-100">
+                      <span className="text-sm font-medium text-gray-600 mb-3 block">Typ dokumentu:</span>
+                      <div className={`grid gap-3 ${selectedOrder.customerId ? 'grid-cols-3' : 'grid-cols-2'}`}>
                         <button
                           onClick={() => setDocumentType(DocumentType.RECEIPT)}
-                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                          className={`flex flex-col items-center justify-center py-5 px-3 rounded-xl text-center font-semibold transition-all border-2 ${
                             documentType === DocumentType.RECEIPT
-                              ? 'bg-green-100 text-primary-700 ring-1 ring-primary-300'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              ? 'bg-green-50 text-green-700 border-green-400 shadow-md'
+                              : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100 hover:border-gray-300'
                           }`}
                         >
-                          Paragon
+                          <span className="text-2xl mb-1">🧾</span>
+                          <span className="text-sm">Paragon</span>
                         </button>
                         <button
                           onClick={() => setDocumentType(DocumentType.INVOICE)}
-                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                          className={`flex flex-col items-center justify-center py-5 px-3 rounded-xl text-center font-semibold transition-all border-2 ${
                             documentType === DocumentType.INVOICE
-                              ? 'bg-green-100 text-primary-700 ring-1 ring-primary-300'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              ? 'bg-blue-50 text-blue-700 border-blue-400 shadow-md'
+                              : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100 hover:border-gray-300'
                           }`}
                         >
-                          Faktura
+                          <span className="text-2xl mb-1">📄</span>
+                          <span className="text-sm">Faktura</span>
                         </button>
                         {selectedOrder.customerId && (
                           <button
                             onClick={() => setDocumentType(DocumentType.PROFORMA)}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                            className={`flex flex-col items-center justify-center py-5 px-3 rounded-xl text-center font-semibold transition-all border-2 ${
                               documentType === DocumentType.PROFORMA
-                                ? 'bg-violet-100 text-violet-700 ring-1 ring-violet-300'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                ? 'bg-violet-50 text-violet-700 border-violet-400 shadow-md'
+                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100 hover:border-gray-300'
                             }`}
                           >
-                            Pro Forma
+                            <span className="text-2xl mb-1">📋</span>
+                            <span className="text-sm">Pro Forma</span>
                           </button>
                         )}
                       </div>

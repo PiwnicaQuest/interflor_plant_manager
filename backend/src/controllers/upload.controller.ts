@@ -74,6 +74,7 @@ export class UploadController {
       const outputPath = path.join(uploadsDir, filename);
 
       await sharp(req.file.buffer)
+        .rotate()
         .resize(800, 800, {
           fit: 'contain',
           background: { r: 255, g: 255, b: 255, alpha: 1 }

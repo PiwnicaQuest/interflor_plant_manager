@@ -63,13 +63,70 @@ class PrinterDetector {
   }
 
   /**
-   * Windows printer detection
+   * Windows printer detection (PowerShell - works on Windows 10/11)
    */
   private async detectWindowsPrinters(): Promise<void> {
     try {
+      // Primary method: PowerShell Get-Printer (works on all modern Windows)
+      const psCommand = `powershell -NoProfile -Command "Get-Printer | Select-Object Name,DriverName,PrinterStatus,Type | ConvertTo-Json -Compress"`;
+      const { stdout } = await execAsync(psCommand, { encoding: "utf-8", timeout: 10000 });
+
+      let printerList: any[] = [];
+      try {
+        const parsed = JSON.parse(stdout.trim());
+        printerList = Array.isArray(parsed) ? parsed : [parsed];
+      } catch {
+        console.warn("[PrinterDetector] Could not parse PowerShell output, trying fallback...");
+        await this.detectWindowsPrintersFallback();
+        return;
+      }
+
+      // Get default printer
+      let defaultPrinter = "";
+      try {
+        const { stdout: defOut } = await execAsync(
+          `powershell -NoProfile -Command "(Get-CimInstance -ClassName Win32_Printer | Where-Object {$_.Default -eq $true}).Name"`,
+          { encoding: "utf-8", timeout: 5000 }
+        );
+        defaultPrinter = defOut.trim();
+      } catch {}
+
+      this.printers = printerList
+        .filter((p: any) => p.Name && p.Name.trim())
+        .map((p: any) => {
+          const name = p.Name.trim();
+          const driver = p.DriverName || "";
+          const isDefault = name === defaultPrinter;
+          // PrinterStatus: 0=Normal, 1=Paused, 2=Error, 3=Deleting, 4=PaperJam, 5=PaperOut, 6=ManualFeed, 7=PaperProblem
+          const isOnline = p.PrinterStatus === 0 || p.PrinterStatus === undefined;
+          const category = this.categorizePrinter(name, driver);
+
+          return {
+            name,
+            displayName: name,
+            category,
+            isDefault,
+            isOnline,
+            driver
+          };
+        });
+
+      console.log(`[PrinterDetector] PowerShell found ${this.printers.length} printer(s):`, this.printers.map(p => p.name));
+
+    } catch (error) {
+      console.warn("[PrinterDetector] PowerShell detection failed, trying fallback...", error);
+      await this.detectWindowsPrintersFallback();
+    }
+  }
+
+  /**
+   * Fallback: wmic (for older Windows versions)
+   */
+  private async detectWindowsPrintersFallback(): Promise<void> {
+    try {
       const { stdout } = await execAsync(
         "wmic printer get name,default,drivername,status /format:csv",
-        { encoding: "utf-8" }
+        { encoding: "utf-8", timeout: 10000 }
       );
 
       const lines = stdout.split(/\r?\n/).filter(line => line.trim());
@@ -101,7 +158,7 @@ class PrinterDetector {
         .filter(p => p.name.length > 0);
 
     } catch (error) {
-      console.error("[PrinterDetector] Windows detection error:", error);
+      console.error("[PrinterDetector] Fallback (wmic) also failed:", error);
       this.printers = [];
     }
   }

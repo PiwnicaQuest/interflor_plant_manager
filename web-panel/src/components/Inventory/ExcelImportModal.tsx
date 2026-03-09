@@ -4,11 +4,13 @@ import { api } from '../../services/api';
 interface ExcelImportModalProps {
   onClose: () => void;
   onSuccess: () => void;
+  forceCurrency?: 'EUR' | 'PLN';
+  format?: 'standard' | 'polflor';
 }
 
-export function ExcelImportModal({ onClose, onSuccess }: ExcelImportModalProps) {
+export function ExcelImportModal({ onClose, onSuccess, forceCurrency, format = 'standard' }: ExcelImportModalProps) {
   const [file, setFile] = useState<File | null>(null);
-  const [currency, setCurrency] = useState<'EUR' | 'PLN'>('EUR');
+  const [currency, setCurrency] = useState<'EUR' | 'PLN'>(forceCurrency || 'EUR');
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<{
     success: number;
@@ -48,7 +50,7 @@ export function ExcelImportModal({ onClose, onSuccess }: ExcelImportModalProps) 
     setResult(null);
 
     try {
-      const response = await api.importExcel(file, currency);
+      const response = await api.importExcel(file, currency, format);
       setResult(response.result);
 
       if (response.result.success > 0) {
@@ -74,7 +76,7 @@ export function ExcelImportModal({ onClose, onSuccess }: ExcelImportModalProps) 
       <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            Import produktów z pliku
+            {format === 'polflor' ? 'Import Polflor' : `Import produktów z pliku ${forceCurrency ? `(${forceCurrency})` : ''}`}
           </h2>
 
           {/* Instructions */}
@@ -94,7 +96,9 @@ export function ExcelImportModal({ onClose, onSuccess }: ExcelImportModalProps) 
                 <li><strong>D:</strong> Wysokość (cm)</li>
                 <li><strong>E:</strong> Ilość szt./paletę</li>
                 <li><strong>F:</strong> Ilość palet</li>
-                <li><strong>G:</strong> Cena (EUR lub PLN — wybierz poniżej)</li>
+                <li><strong>G:</strong> Cena {format === 'polflor' ? '(PLN)' : '(EUR lub PLN — wybierz poniżej)'}</li>
+                {format === 'polflor' && <li><strong>H:</strong> Ogrodnik (floricode)</li>}
+                {format === 'polflor' && <li><strong>I:</strong> Kod kreskowy</li>}
               </ul>
             </div>
             <p className="mt-2 text-xs text-blue-700">
@@ -103,7 +107,7 @@ export function ExcelImportModal({ onClose, onSuccess }: ExcelImportModalProps) 
           </div>
 
           {/* Currency Selector */}
-          <div className="mb-6">
+          {!forceCurrency && <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Waluta cen w pliku
             </label>
@@ -138,7 +142,7 @@ export function ExcelImportModal({ onClose, onSuccess }: ExcelImportModalProps) 
                 <span className="font-medium">PLN</span>
               </label>
             </div>
-          </div>
+          </div>}
 
           {/* File Upload */}
           <div className="mb-6">

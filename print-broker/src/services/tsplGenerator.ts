@@ -13,11 +13,16 @@ export interface TsplLabelData {
   height: number;
 }
 
-const DPI = 300;
-const MM_TO_DOTS = DPI / 25.4;
+// Default 203 DPI (most common: Citizen, Xprinter, Zebra)
+// TSC MX340P uses 300 DPI
+let CURRENT_DPI = 203;
+
+function setDpi(dpi: number): void {
+  CURRENT_DPI = dpi;
+}
 
 function mmToDots(mm: number): number {
-  return Math.round(mm * MM_TO_DOTS);
+  return Math.round(mm * CURRENT_DPI / 25.4);
 }
 
 function escapeTspl(text: string): string {
@@ -68,7 +73,7 @@ export function generateTsplLabel(data: TsplLabelData, copies: number = 1): stri
 
   // Header
   commands.push("SIZE " + width + " mm, " + height + " mm");
-  commands.push("GAP 2 mm, 0 mm");
+  commands.push("GAP 0 mm, 0 mm");
   commands.push("SPEED 4");
   commands.push("DENSITY 8");
   commands.push("DIRECTION 1");
@@ -90,12 +95,17 @@ export function generateTsplLabel(data: TsplLabelData, copies: number = 1): stri
     commands.push("TEXT " + infoX + "," + mmToDots(11) + ",\"2\",0,1,1,\"" + safeInfo + "\"");
   }
 
-  // Barcode - centered
-  const barcodeWidthDots = getBarcodeWidth(barcode, 2);
+  // Barcode - centered, auto-fit narrow width
+  let narrowW = 3;
+  let barcodeWidthDots = getBarcodeWidth(barcode, narrowW);
+  while (barcodeWidthDots > labelWidth - 20 && narrowW > 1) {
+    narrowW--;
+    barcodeWidthDots = getBarcodeWidth(barcode, narrowW);
+  }
   const barcodeX = Math.max(10, Math.round((labelWidth - barcodeWidthDots) / 2));
   const barcodeY = mmToDots(height - 16);
   const barcodeHeight = mmToDots(10);
-  commands.push("BARCODE " + barcodeX + "," + barcodeY + ",\"128\"," + barcodeHeight + ",1,0,2,3,\"" + barcode + "\"");
+  commands.push("BARCODE " + barcodeX + "," + barcodeY + ",\"128\"," + barcodeHeight + ",1,0," + narrowW + ",3,\"" + barcode + "\"");
 
   commands.push("PRINT " + copies);
 
@@ -115,7 +125,7 @@ export function generateSimpleTsplLabel(
 
   // Header
   commands.push("SIZE " + width + " mm, " + height + " mm");
-  commands.push("GAP 2 mm, 0 mm");
+  commands.push("GAP 0 mm, 0 mm");
   commands.push("SPEED 4");
   commands.push("DENSITY 8");
   commands.push("DIRECTION 1");
@@ -129,17 +139,125 @@ export function generateSimpleTsplLabel(
   const textY = mmToDots(2);
   commands.push("TEXT " + textX + "," + textY + ",\"" + fontSize + "\",0,1,1,\"" + safeName + "\"");
 
-  // Barcode - centered
-  const barcodeWidthDots = getBarcodeWidth(barcode, 2);
+  // Barcode - centered, auto-fit narrow width
+  let narrowW = 3;
+  let barcodeWidthDots = getBarcodeWidth(barcode, narrowW);
+  while (barcodeWidthDots > labelWidth - 20 && narrowW > 1) {
+    narrowW--;
+    barcodeWidthDots = getBarcodeWidth(barcode, narrowW);
+  }
   const barcodeX = Math.max(10, Math.round((labelWidth - barcodeWidthDots) / 2));
   const barcodeY = mmToDots(9);
   const barcodeHeight = mmToDots(15);
-  commands.push("BARCODE " + barcodeX + "," + barcodeY + ",\"128\"," + barcodeHeight + ",1,0,2,3,\"" + barcode + "\"");
+  commands.push("BARCODE " + barcodeX + "," + barcodeY + ",\"128\"," + barcodeHeight + ",1,0," + narrowW + ",3,\"" + barcode + "\"");
 
   commands.push("PRINT " + copies);
 
   return commands.join("\r\n") + "\r\n";
 }
+
+
+// ==========================================
+// ZPL Generator (for Citizen, Zebra printers)
+// Citizen CL-S621: 203 DPI, supports ZPL II
+// ==========================================
+
+function escapeZpl(text: string): string {
+  return text
+    .replace(/[ąĄ]/g, 'a').replace(/[ćĆ]/g, 'c').replace(/[ęĘ]/g, 'e')
+    .replace(/[łŁ]/g, 'l').replace(/[ńŃ]/g, 'n').replace(/[óÓ]/g, 'o')
+    .replace(/[śŚ]/g, 's').replace(/[źŹżŻ]/g, 'z')
+    .replace(/[^\x20-\x7E]/g, '')
+    .replace(/\\/g, '')
+    .replace(/\^/g, '')
+    .replace(/~/g, '');
+}
+
+
+export function generateZplLabel(
+  barcode: string,
+  productName: string,
+  width: number = 50,
+  height: number = 30,
+  copies: number = 1
+): string {
+  // Citizen CL-S621 at 203 DPI, Zebra printers
+  const dpi = CURRENT_DPI;
+  const labelWidthDots = Math.round(width * dpi / 25.4);
+  const labelHeightDots = Math.round(height * dpi / 25.4);
+
+  const safeName = escapeZpl(productName);
+
+  // Auto-fit text: calculate max chars that fit label width (10 dot margin each side)
+  const charWidth = 14; // ZPL font 0 at 28x28 ~ 14 dots per char
+  const maxTextWidth = labelWidthDots - 20;
+  const maxChars = Math.floor(maxTextWidth / charWidth);
+  const displayName = safeName.length > maxChars
+    ? safeName.substring(0, maxChars - 3) + "..."
+    : safeName;
+
+  // Center text
+  const textWidthDots = displayName.length * charWidth;
+  const textX = Math.max(10, Math.round((labelWidthDots - textWidthDots) / 2));
+
+  // Calculate barcode width and auto-fit module width
+  // Code128: (start=11 + data*11 + checksum=11 + stop=13) * moduleWidth + quiet zones
+  let barcodeModuleWidth = 2;
+  let barcodeEstWidth = ((11 + barcode.length * 11 + 11 + 13) * barcodeModuleWidth) + 40;
+
+  // Reduce module width if barcode overflows
+  if (barcodeEstWidth > maxTextWidth) {
+    barcodeModuleWidth = 1;
+    barcodeEstWidth = ((11 + barcode.length * 11 + 11 + 13) * barcodeModuleWidth) + 40;
+  }
+
+  // Center barcode
+  const barcodeX = Math.max(10, Math.round((labelWidthDots - barcodeEstWidth) / 2));
+
+  const commands: string[] = [];
+
+  // Start label
+  commands.push("^XA");
+
+  // === CITIZEN/ZEBRA: Media type = gap detection ===
+  commands.push("^MNY");                          // Media tracking: detect gap between labels
+  commands.push("^LS0");                          // Label shift = 0 (no horizontal offset)
+
+  // Label dimensions
+  commands.push("^PW" + labelWidthDots);          // Print width in dots
+  commands.push("^LL" + labelHeightDots);         // Label length in dots
+  commands.push("^LH0,0");                        // Label home position
+
+  // Encoding
+  commands.push("^CI28");                         // UTF-8
+
+  // Product name - centered, near top
+  const textY = Math.round(labelHeightDots * 0.08);
+  commands.push("^FO" + textX + "," + textY);
+  commands.push("^A0N,28,28");                    // Font 0, normal, 28x28 dots
+  commands.push("^FD" + displayName + "^FS");
+
+  // Barcode - Code 128, centered
+  const barcodeY = Math.round(labelHeightDots * 0.35);
+  const barcodeHeightDots = Math.round(labelHeightDots * 0.40);
+
+  commands.push("^BY" + barcodeModuleWidth + ",3"); // Module width, wide-to-narrow ratio
+  commands.push("^FO" + barcodeX + "," + barcodeY);
+  commands.push("^BCN," + barcodeHeightDots + ",Y,N,N"); // Code128, height, text below
+  commands.push("^FD" + barcode + "^FS");
+
+  // Print quantity
+  commands.push("^PQ" + copies);
+
+  // End label
+  commands.push("^XZ");
+
+  return commands.join("\n") + "\n";
+}
+
+
+export { setDpi };
+
 
 export function parseHtmlForTspl(html: string): Partial<TsplLabelData> {
   const data: Partial<TsplLabelData> = {};

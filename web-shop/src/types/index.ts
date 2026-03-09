@@ -139,7 +139,7 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
 export const PAYMENT_STATUS_COLORS: Record<PaymentStatus, string> = {
   'unpaid': 'bg-yellow-100 text-yellow-800',
   'partially_paid': 'bg-blue-100 text-blue-800',
-  'paid': 'bg-green-100 text-green-800',
+  'paid': 'bg-pink-100 text-pink-800',
   'overdue': 'bg-red-100 text-red-800',
 };
 

@@ -30,7 +30,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
         }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-green-50">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-pink-50">
           <h2 className="text-lg font-semibold text-gray-900">
             Koszyk
             {items.length > 0 && (
@@ -54,7 +54,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
         <div className="flex flex-col h-[calc(100%-180px)] overflow-hidden">
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-600"></div>
             </div>
           ) : items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-500 p-4">
@@ -64,7 +64,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
               <p className="text-center">Twój koszyk jest pusty</p>
               <button
                 onClick={onClose}
-                className="mt-4 text-green-600 hover:text-green-700 font-medium"
+                className="mt-4 text-pink-600 hover:text-pink-700 font-medium"
               >
                 Przeglądaj katalog
               </button>
@@ -140,7 +140,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                         </div>
 
                         {/* Price */}
-                        <p className="text-sm font-semibold text-green-700 mt-1">
+                        <p className="text-sm font-semibold text-pink-700 mt-1">
                           {itemTotal.toFixed(2)} zł
                         </p>
                       </div>
@@ -161,14 +161,14 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             </div>
             <div className="flex justify-between text-lg font-bold text-gray-900 mb-4">
               <span>Suma:</span>
-              <span className="text-green-700">{totalPrice.toFixed(2)} zł</span>
+              <span className="text-pink-700">{totalPrice.toFixed(2)} zł</span>
             </div>
 
             <div className="space-y-2">
               <Link
                 to="/cart"
                 onClick={onClose}
-                className="block w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white text-center font-medium rounded-lg transition-colors"
+                className="block w-full py-3 px-4 bg-pink-600 hover:bg-pink-700 text-white text-center font-medium rounded-lg transition-colors"
               >
                 Przejdź do koszyka
               </Link>

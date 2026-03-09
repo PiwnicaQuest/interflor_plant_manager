@@ -250,3 +250,78 @@ export async function updateSetting(req: Request, res: Response) {
     return res.status(500).json({ error: error.message });
   }
 }
+
+
+// ============ SMTP SEND SETTINGS ============
+
+export async function getSmtpSendSettings(_req: Request, res: Response) {
+  try {
+    const settings = await SettingsModel.getSmtpSendSettings();
+    // Hide password
+    res.json({ ...settings, smtpPassword: settings.smtpPassword ? '********' : '' });
+  } catch (error) {
+    console.error('[settingsController.getSmtpSendSettings] Error:', error);
+    res.status(500).json({ error: 'Błąd pobierania ustawień SMTP' });
+  }
+}
+
+export async function updateSmtpSendSettings(req: Request, res: Response) {
+  try {
+    const { smtpHost, smtpPort, smtpUser, smtpPassword, smtpFrom, smtpSecurity } = req.body;
+
+    // If password is placeholder, don't update it
+    const passwordToSave = smtpPassword === '********' ? undefined : smtpPassword;
+
+    await SettingsModel.updateSmtpSendSettings({
+      smtpHost: smtpHost || '',
+      smtpPort: parseInt(smtpPort) || 587,
+      smtpUser: smtpUser || '',
+      smtpPassword: passwordToSave,
+      smtpFrom: smtpFrom || '',
+      smtpSecurity: smtpSecurity || 'starttls',
+    });
+
+    // Reset email service transporter to reload settings
+    const { emailService } = require('../services/emailService');
+    (emailService as any).transporter = null;
+
+    res.json({ message: 'Ustawienia SMTP zapisane' });
+  } catch (error) {
+    console.error('[settingsController.updateSmtpSendSettings] Error:', error);
+    res.status(500).json({ error: 'Błąd zapisu ustawień SMTP' });
+  }
+}
+
+export async function testSmtpSendSettings(req: Request, res: Response) {
+  try {
+    const { emailService } = require('../services/emailService');
+
+    // Force reload from DB
+    (emailService as any).transporter = null;
+    const configured = await emailService.ensureConfigured();
+    if (!configured) {
+      return res.status(400).json({ error: 'SMTP nie jest skonfigurowane. Uzupełnij i zapisz ustawienia.' });
+    }
+
+    const testEmail = req.body.testEmail;
+    if (!testEmail) {
+      return res.status(400).json({ error: 'Podaj adres email do testu' });
+    }
+
+    const sent = await emailService.sendEmail({
+      to: testEmail,
+      subject: 'Test wysyłki email - PlantManager',
+      text: 'To jest testowa wiadomość z systemu PlantManager. Jeśli ją widzisz, konfiguracja SMTP działa poprawnie.',
+      html: '<h2>Test PlantManager</h2><p>To jest testowa wiadomość. Konfiguracja SMTP działa poprawnie.</p>',
+    });
+
+    if (sent) {
+      res.json({ message: 'Email testowy wysłany pomyślnie' });
+    } else {
+      res.status(500).json({ error: 'Nie udało się wysłać emaila. Sprawdź ustawienia SMTP.' });
+    }
+  } catch (error: any) {
+    console.error('[settingsController.testSmtpSendSettings] Error:', error);
+    res.status(500).json({ error: error.message || 'Błąd wysyłki testowej' });
+  }
+}

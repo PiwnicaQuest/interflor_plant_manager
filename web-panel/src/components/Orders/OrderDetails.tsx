@@ -312,6 +312,25 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
     }, 2000);
   };
 
+  // Send order to Polflor via email (backend SMTP)
+  const [polflorSending, setPolflorSending] = useState(false);
+  const handlePolflorExport = async () => {
+    if (!confirm('Wysłać zamówienie do Polflor (damian@polflor.wroclaw.pl)?')) return;
+    try {
+      setPolflorSending(true);
+      const result = await api.sendOrderToPolflor(order.id);
+      if (result.error) {
+        alert('Błąd: ' + result.error);
+      } else {
+        alert(result.message || 'Email wysłany pomyślnie');
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Błąd wysyłki emaila');
+    } finally {
+      setPolflorSending(false);
+    }
+  };
+
   // Export to Excel with styling
   const handleExportExcel = async () => {
     const ExcelJS = (await import('exceljs')).default;
@@ -784,6 +803,12 @@ export function OrderDetails({ order, onClose, onOrderUpdated, onEdit }: OrderDe
               className="btn flex-1 min-w-[120px] bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
             >
               Eksport Excel
+            </button>
+            <button
+              onClick={handlePolflorExport}
+              className="btn flex-1 min-w-[120px] bg-green-600 hover:bg-green-700 text-white border-green-600"
+            >
+              Wyślij do Polflor
             </button>
             {canCreateDocument() && (
               <button

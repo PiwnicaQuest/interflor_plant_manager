@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { API } from '../../services/api';
-import type { OrderWithItems, Product, OrderStatus } from '../../types';
+import type { OrderWithItems, Product, OrderStatus, PriceGroup } from '../../types';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -69,10 +69,10 @@ interface EditedItem {
 }
 
 // Helper function to get correct price based on customer's price group
-const getCustomerPrice = (product: Product, priceGroupName?: string): number => {
+const getCustomerPrice = (product: Product, priceGroupName?: string, priceGroupDiscount?: number): number => {
   if (!priceGroupName) return product.basePriceGross || 0;
 
-  switch (priceGroupName) {
+  switch (priceGroupName.toLowerCase()) {
     case 'rabat_10':
       return product.priceDiscount10 || product.basePriceGross || 0;
     case 'rabat_12':
@@ -87,10 +87,17 @@ const getCustomerPrice = (product: Product, priceGroupName?: string): number => 
       return product.priceAuchan8 || product.basePriceGross || 0;
     case 'hurt':
       return product.pricePlus || product.basePriceGross || 0;
-    case 'detal':
     case 'podstawowa':
-    default:
       return product.basePriceGross || 0;
+    default: {
+      // Dynamic calculation using discount_percentage from price group
+      const base = product.basePriceGross || 0;
+      if (priceGroupDiscount !== undefined && priceGroupDiscount !== 0) {
+        const multiplier = 1 - (priceGroupDiscount / 100);
+        return Math.ceil(base * multiplier);
+      }
+      return base;
+    }
   }
 };
 
@@ -102,9 +109,16 @@ export function ScannerOrderDetailPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Price groups for dynamic price calculation
+  const [priceGroups, setPriceGroups] = useState<PriceGroup[]>([]);
+
   // Edit mode
   const [editMode, setEditMode] = useState(false);
   const [editedItems, setEditedItems] = useState<EditedItem[]>([]);
+
+  useEffect(() => {
+    API.getPriceGroups().then(r => setPriceGroups(r.priceGroups || [])).catch(() => {});
+  }, []);
 
   // Single item saving state
   const [savingItemIndex, setSavingItemIndex] = useState<number | null>(null);
@@ -161,7 +175,6 @@ export function ScannerOrderDetailPage() {
   // Focus scan input when entering edit mode
   useEffect(() => {
     if (editMode && scanInputRef.current) {
-      scanInputRef.current.focus();
     }
   }, [editMode]);
 
@@ -397,8 +410,7 @@ export function ScannerOrderDetailPage() {
       setScanLoading(false);
       setScanInput('');
       // Re-focus the input for next scan
-      scanInputRef.current?.focus();
-    }
+      }
   };
 
   // Obsługa skanera kodów kreskowych z prefiksem [barcode]
@@ -470,7 +482,6 @@ export function ScannerOrderDetailPage() {
     setScanInput('');
     setSearchResults([]);
     setShowSearchDropdown(false);
-    scanInputRef.current?.focus();
   };
 
   // Handle input change - search or prepare for barcode
@@ -517,7 +528,7 @@ export function ScannerOrderDetailPage() {
           inputValue: 1,
           unitsPerPallet: product.unitsPerPallet || 1,
           productName: product.plantName,
-          unitPrice: getCustomerPrice(product, order?.customerPriceGroupName),
+          unitPrice: getCustomerPrice(product, order?.customerPriceGroupName, priceGroups.find(pg => pg.name === order?.customerPriceGroupName)?.discountPercentage),
           imageUrl: product.imageUrl,
           isSaved: false,
           availableStock: product.totalUnits,
@@ -854,7 +865,6 @@ export function ScannerOrderDetailPage() {
               placeholder="Skanuj kod lub wyszukaj produkt..."
               className="w-full pl-10 pr-10 py-2.5 text-base border border-green-300 rounded-lg bg-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               autoComplete="off"
-              autoFocus
             />
             {scanLoading && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">

@@ -5,6 +5,7 @@ import type { Customer, PriceGroup } from '../../types';
 interface QuickCustomerModalProps {
   onClose: () => void;
   onCustomerCreated: (customer: Customer) => void;
+  editCustomer?: Customer | null;
 }
 
 interface FormData {
@@ -20,18 +21,18 @@ interface FormData {
   priceGroupId: number;
 }
 
-export function QuickCustomerModal({ onClose, onCustomerCreated }: QuickCustomerModalProps) {
+export function QuickCustomerModal({ onClose, onCustomerCreated, editCustomer }: QuickCustomerModalProps) {
   const [formData, setFormData] = useState<FormData>({
-    companyName: '',
-    firstName: '',
-    lastName: '',
-    nip: '',
-    email: '',
-    phone: '',
-    street: '',
-    postalCode: '',
-    city: '',
-    priceGroupId: 1,
+    companyName: editCustomer?.companyName || '',
+    firstName: editCustomer?.firstName || '',
+    lastName: editCustomer?.lastName || '',
+    nip: String(editCustomer?.nip || ''),
+    email: editCustomer?.email || '',
+    phone: String(editCustomer?.phone || ''),
+    street: editCustomer?.street || '',
+    postalCode: editCustomer?.postalCode || '',
+    city: editCustomer?.city || '',
+    priceGroupId: editCustomer?.priceGroupId || 1,
   });
 
   const [priceGroups, setPriceGroups] = useState<PriceGroup[]>([]);
@@ -47,7 +48,7 @@ export function QuickCustomerModal({ onClose, onCustomerCreated }: QuickCustomer
     try {
       const result = await API.getPriceGroups();
       setPriceGroups(result.priceGroups || []);
-      if (result.priceGroups?.length > 0) {
+      if (result.priceGroups?.length > 0 && !editCustomer) {
         setFormData(prev => ({ ...prev, priceGroupId: result.priceGroups[0].id }));
       }
     } catch (err) {
@@ -120,35 +121,47 @@ export function QuickCustomerModal({ onClose, onCustomerCreated }: QuickCustomer
       };
 
       // Add optional fields if provided
-      if (formData.firstName.trim()) customerData.firstName = formData.firstName.trim();
-      if (formData.lastName.trim()) customerData.lastName = formData.lastName.trim();
-      if (formData.nip.trim()) customerData.nip = formData.nip.trim();
-      if (formData.email.trim()) customerData.email = formData.email.trim();
-      if (formData.phone.trim()) customerData.phone = formData.phone.trim();
+      if ((formData.firstName || '').trim()) customerData.firstName = formData.firstName.trim();
+      if ((formData.lastName || '').trim()) customerData.lastName = formData.lastName.trim();
+      if ((formData.nip || '').trim()) customerData.nip = String(formData.nip).trim();
+      if ((formData.email || '').trim()) customerData.email = formData.email.trim();
+      if ((formData.phone || '').trim()) customerData.phone = formData.phone.trim();
 
-      const result = await API.createCustomer(customerData);
+      let newCustomer: Customer;
 
-      // Create a customer object to pass back
-      const newCustomer: Customer = {
-        id: result.customerId,
-        companyName: customerData.companyName,
-        firstName: customerData.firstName,
-        lastName: customerData.lastName,
-        nip: customerData.nip,
-        email: customerData.email || '',
-        phone: customerData.phone || '',
-        street: customerData.street || '',
-        postalCode: customerData.postalCode || '',
-        city: customerData.city || '',
-        country: 'Polska',
-        priceGroupId: customerData.priceGroupId || 1,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+      if (editCustomer) {
+        console.log('EDIT_CUSTOMER_DEBUG:', JSON.stringify({id: editCustomer.id, data: customerData}));
+        await API.updateCustomer(editCustomer.id, customerData);
+        newCustomer = {
+          ...editCustomer,
+          ...customerData,
+          updatedAt: new Date().toISOString(),
+        } as Customer;
+      } else {
+        const result = await API.createCustomer(customerData);
+        newCustomer = {
+          id: result.customerId,
+          companyName: customerData.companyName,
+          firstName: customerData.firstName,
+          lastName: customerData.lastName,
+          nip: customerData.nip,
+          email: customerData.email || '',
+          phone: customerData.phone || '',
+          street: customerData.street || '',
+          postalCode: customerData.postalCode || '',
+          city: customerData.city || '',
+          country: 'Polska',
+          priceGroupId: customerData.priceGroupId || 1,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+      }
 
       onCustomerCreated(newCustomer);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Nie udało się utworzyć kontrahenta');
+      console.error('Customer save error:', err, err?.response?.status, err?.response?.data);
+      const msg = err.response?.data?.error || err.message || (editCustomer ? 'Nie udało się zaktualizować kontrahenta' : 'Nie udało się utworzyć kontrahenta');
+      setError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -164,7 +177,7 @@ export function QuickCustomerModal({ onClose, onCustomerCreated }: QuickCustomer
       <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-900">Nowy kontrahent</h2>
+          <h2 className="text-lg font-bold text-gray-900">{editCustomer ? 'Edytuj kontrahenta' : 'Nowy kontrahent'}</h2>
           <button
             onClick={onClose}
             className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
@@ -348,10 +361,10 @@ export function QuickCustomerModal({ onClose, onCustomerCreated }: QuickCustomer
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  Dodawanie...
+                  {editCustomer ? 'Zapisywanie...' : 'Dodawanie...'}
                 </>
               ) : (
-                'Dodaj kontrahenta'
+                editCustomer ? 'Zapisz zmiany' : 'Dodaj kontrahenta'
               )}
             </button>
           </div>

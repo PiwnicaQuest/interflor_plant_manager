@@ -20,6 +20,7 @@ export async function generateReceiptHtml(receipt: ReceiptWithItems): Promise<st
   const formatDate = (date: Date | string) => {
     const d = typeof date === 'string' ? new Date(date) : date;
     return d.toLocaleString('pl-PL', {
+      timeZone: 'Europe/Warsaw',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',

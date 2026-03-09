@@ -96,7 +96,7 @@ export function LoginPage() {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Nie masz konta?{' '}
-              <span className="text-green-600">
+              <span className="text-pink-600">
                 Skontaktuj się z nami, aby założyć konto klienta
               </span>
             </p>
@@ -104,7 +104,7 @@ export function LoginPage() {
         </div>
 
         <div className="mt-6 text-center">
-          <Link to="/" className="text-sm text-gray-500 hover:text-green-600">
+          <Link to="/" className="text-sm text-gray-500 hover:text-pink-600">
             ← Wróć do katalogu
           </Link>
         </div>

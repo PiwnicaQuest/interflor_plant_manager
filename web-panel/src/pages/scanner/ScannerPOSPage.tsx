@@ -60,6 +60,7 @@ export function ScannerPOSPage() {
   const [printLoading, setPrintLoading] = useState(false);
   const [emailSending, setEmailSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [notification, setNotification] = useState<{type: 'success' | 'error'; message: string} | null>(null);
 
   // === Print hook ===
   const { printInvoicePdf, printProformaPdf, printReceipt } = usePrint({
@@ -142,7 +143,7 @@ export function ScannerPOSPage() {
     setSelectedDocType(type);
     setShowDocTypeSheet(false);
     if (type === DocumentType.PROFORMA) {
-      handleCheckout();
+      handleCheckout(undefined, undefined, undefined, type);
     } else {
       setShowPaymentSheet(true);
     }
@@ -177,8 +178,9 @@ export function ScannerPOSPage() {
   };
 
   // === Checkout ===
-  const handleCheckout = async (paymentMethod?: PaymentMethod, receivedAmount?: number, deadlineDays?: number) => {
-    if (!selectedOrder || !selectedDocType) return;
+  const handleCheckout = async (paymentMethod?: PaymentMethod, receivedAmount?: number, deadlineDays?: number, docTypeOverride?: DocumentType) => {
+    const docType = docTypeOverride || selectedDocType;
+    if (!selectedOrder || !docType) return;
     try {
       setProcessing(true);
       setError('');
@@ -186,7 +188,7 @@ export function ScannerPOSPage() {
       const result = await api.checkout({
         orderId: selectedOrder.id,
         paymentMethod,
-        documentType: selectedDocType,
+        documentType: docType,
         paymentDeadlineDays: deadlineDays,
         discountPercentage: orderDiscount > 0 ? orderDiscount : undefined,
       });
@@ -293,15 +295,22 @@ export function ScannerPOSPage() {
     window.open(viewUrl, '_blank');
   };
 
-  const handleSendEmail = async (docId?: number) => {
+  const handleSendEmail = async (docId?: number, docType?: string) => {
     const id = docId || checkoutResult?.documentId;
     if (!id) return;
+    const type = docType || checkoutResult?.documentType;
     try {
       setEmailSending(true);
-      await api.sendInvoiceEmail(id);
+      if (type === 'proforma') {
+        await api.sendProformaEmail(id);
+      } else {
+        await api.sendInvoiceEmail(id);
+      }
       setEmailSent(true);
+      setNotification({ type: 'success', message: 'Email wysłany pomyślnie' });
     } catch (err: any) {
       setError('Błąd wysyłki email');
+      setNotification({ type: 'error', message: 'Błąd wysyłki email' });
     } finally {
       setEmailSending(false);
     }
@@ -364,6 +373,13 @@ export function ScannerPOSPage() {
         <div className="mx-4 mt-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex justify-between items-start">
           <span>{error}</span>
           <button onClick={() => setError('')} className="ml-2 text-red-500 font-bold">×</button>
+        </div>
+      )}
+      {/* Notification */}
+      {notification && (
+        <div className={"fixed top-4 left-4 right-4 z-[9999] p-4 rounded-xl shadow-lg text-sm font-medium flex justify-between items-center " + (notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white')}>
+          <span>{notification.message}</span>
+          <button onClick={() => setNotification(null)} className="ml-2 font-bold text-white/80">×</button>
         </div>
       )}
 
@@ -762,22 +778,26 @@ export function ScannerPOSPage() {
               />
             </div>
             <div className="grid grid-cols-3 gap-2 px-6 mt-4">
-              {[10, 20, 50, 100, 200, 500].map((amount) => (
-                <button
-                  key={amount}
-                  onClick={() => setCashReceived(String(amount))}
-                  className="py-3 bg-gray-100 rounded-lg font-medium active:bg-gray-200 transition-colors"
-                >
-                  {amount} zł
-                </button>
-              ))}
+              {(() => {
+                const total = discountedTotal;
+                const roundUp = (v: number, step: number) => Math.ceil(v / step) * step;
+                const suggestions = new Set<number>();
+                suggestions.add(Math.ceil(total));
+                [10, 20, 50, 100, 200, 500].forEach(step => {
+                  const rounded = roundUp(total, step);
+                  if (rounded >= total) suggestions.add(rounded);
+                });
+                return Array.from(suggestions).sort((a, b) => a - b).slice(0, 6).map((amount) => (
+                  <button
+                    key={amount}
+                    onClick={() => setCashReceived(String(amount))}
+                    className={'py-3 rounded-lg font-medium active:bg-gray-200 transition-colors ' + (amount === Math.ceil(total) ? 'bg-primary-100 text-primary-700 border border-primary-300' : 'bg-gray-100')}
+                  >
+                    {amount} zł
+                  </button>
+                ));
+              })()}
             </div>
-            <button
-              onClick={() => setCashReceived(formatPrice(discountedTotal))}
-              className="block mx-auto mt-3 text-primary-600 text-sm font-medium"
-            >
-              Kwota równa ({formatPrice(discountedTotal)} zł)
-            </button>
             {cashReceived && Number(cashReceived) >= discountedTotal && (
               <div className="text-center mt-4 py-3 mx-6 bg-green-50 rounded-xl border border-green-200">
                 <p className="text-sm text-green-600">Reszta</p>
@@ -1029,7 +1049,7 @@ export function ScannerPOSPage() {
               </svg>
               Podgląd dokumentu
             </button>
-            {checkoutResult.documentType === 'invoice' && checkoutResult.customerHasEmail && (
+            {(checkoutResult.documentType === 'invoice' || checkoutResult.documentType === 'proforma') && (
               <button
                 onClick={() => handleSendEmail()}
                 disabled={emailSending || emailSent}
@@ -1087,12 +1107,12 @@ export function ScannerPOSPage() {
                   >
                     👁️ Podgląd dokumentu
                   </button>
-                  {showHistoryActions.document.type === 'invoice' && (
+                  {(showHistoryActions.document.type === 'invoice' || showHistoryActions.document.type === 'proforma') && (
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         const tx = showHistoryActions;
                         setShowHistoryActions(null);
-                        handleSendEmail(tx.document!.id);
+                        await handleSendEmail(tx.document!.id, tx.document!.type);
                       }}
                       className="w-full p-4 bg-gray-50 rounded-xl text-left active:bg-gray-100 border border-gray-200 font-medium"
                     >

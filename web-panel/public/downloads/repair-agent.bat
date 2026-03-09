@@ -45,7 +45,7 @@ if not exist dist mkdir dist
 :: Check if dist/index.js exists
 if not exist dist\index.js (
     echo [INFO] Pobieranie aplikacji z serwera...
-    powershell -Command "Invoke-WebRequest -Uri 'https://pm.polflor.wroclaw.pl/api/print/agent-files/dist/index.js' -OutFile 'dist/index.js'"
+    powershell -Command "Invoke-WebRequest -Uri 'https://pm.interflor.pl/api/print/agent-files/dist/index.js' -OutFile 'dist/index.js'"
 )
 
 :: Create package.json if missing

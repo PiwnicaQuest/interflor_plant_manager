@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { SettingsModel } from '../models/Settings';
 
 interface SendEmailOptions {
   to: string;
@@ -18,28 +19,20 @@ class EmailService {
     const pass = process.env.SMTP_PASSWORD;
 
     if (!host || !user || !pass) {
-      console.warn('Email service not configured - SMTP_HOST, SMTP_USER, SMTP_PASSWORD required');
+      console.warn('Email service not configured via env - will try DB settings on demand');
       return;
     }
 
     this.fromEmail = process.env.SMTP_FROM || user;
 
-    // Create transporter with TLS options for compatibility
     this.transporter = nodemailer.createTransport({
       host,
       port,
-      secure: port === 465, // true for 465, false for other ports
-      auth: {
-        user,
-        pass,
-      },
-      tls: {
-        // Validate SSL/TLS certificates
-        rejectUnauthorized: true,
-      },
+      secure: port === 465,
+      auth: { user, pass },
+      tls: { rejectUnauthorized: false },
     });
 
-    // Verify connection
     this.transporter.verify((error) => {
       if (error) {
         console.error('Email service connection error:', error);
@@ -49,11 +42,49 @@ class EmailService {
     });
   }
 
+  /**
+   * Ensure transporter is configured, loading from DB if needed
+   */
+  async ensureConfigured(): Promise<boolean> {
+    if (this.transporter) return true;
+
+    try {
+      const settings = await SettingsModel.getSmtpSendSettings();
+      if (!settings.smtpHost || !settings.smtpUser || !settings.smtpPassword) {
+        return false;
+      }
+
+      const port = settings.smtpPort || 587;
+      const secure = settings.smtpSecurity === 'ssl' || port === 465;
+
+      this.fromEmail = settings.smtpFrom || settings.smtpUser;
+      this.transporter = nodemailer.createTransport({
+        host: settings.smtpHost,
+        port,
+        secure,
+        auth: { user: settings.smtpUser, pass: settings.smtpPassword },
+        tls: { rejectUnauthorized: false },
+      });
+
+      console.log('Email service configured from DB settings');
+      return true;
+    } catch (error) {
+      console.error('Failed to load SMTP settings from DB:', error);
+      return false;
+    }
+  }
+
   isConfigured(): boolean {
     return this.transporter !== null;
   }
 
-  async sendEmail(options: SendEmailOptions): Promise<boolean> {
+  async isConfiguredAsync(): Promise<boolean> {
+    if (this.transporter) return true;
+    return this.ensureConfigured();
+  }
+
+  async sendEmail(options: SendEmailOptions & { attachments?: Array<{ filename: string; content: Buffer; contentType?: string }> }): Promise<boolean> {
+    await this.ensureConfigured();
     if (!this.transporter) {
       console.error('Email service not configured');
       return false;
@@ -66,6 +97,7 @@ class EmailService {
         subject: options.subject,
         text: options.text,
         html: options.html,
+        attachments: options.attachments,
       });
       console.log(`Email sent to ${options.to}`);
       return true;
@@ -134,7 +166,7 @@ class EmailService {
       </p>
     </div>
     <div class="footer">
-      <p>POLFLOR - System zarządzania magazynem roślin</p>
+      <p>INTERFLOR</p>
       <p>Ta wiadomosc zostala wygenerowana automatycznie.</p>
     </div>
   </div>
@@ -157,7 +189,7 @@ Link do pobrania: ${printUrl}
 W razie pytan prosimy o kontakt.
 
 Pozdrawiamy,
-Zespol POLFLOR
+Zespol INTERFLOR
     `;
 
     return this.sendEmail({
@@ -173,7 +205,7 @@ Zespol POLFLOR
     password: string,
     customerName?: string
   ): Promise<boolean> {
-    const shopUrl = process.env.SHOP_URL || 'https://sklep.fast-site.pl';
+    const shopUrl = process.env.SHOP_URL || 'https://sklep.interflor.pl';
 
     const greeting = customerName ? `Szanowny/a ${customerName}` : 'Szanowny Kliencie';
 
@@ -198,12 +230,12 @@ Zespol POLFLOR
 <body>
   <div class="container">
     <div class="header">
-      <h1>POLFLOR - Sklep Online</h1>
+      <h1>INTERFLOR - Sklep Online</h1>
     </div>
     <div class="content">
       <p>${greeting},</p>
 
-      <p>Twoje konto w sklepie internetowym POLFLOR zostało utworzone.
+      <p>Twoje konto w sklepie internetowym INTERFLOR zostało utworzone.
       Ponizej znajdziesz dane do logowania:</p>
 
       <div class="credentials">
@@ -223,7 +255,7 @@ Zespol POLFLOR
       </p>
     </div>
     <div class="footer">
-      <p>POLFLOR - System zarządzania magazynem roślin</p>
+      <p>INTERFLOR</p>
       <p>Ta wiadomosc zostala wygenerowana automatycznie.</p>
     </div>
   </div>
@@ -234,7 +266,7 @@ Zespol POLFLOR
     const text = `
 ${greeting},
 
-Twoje konto w sklepie internetowym POLFLOR zostało utworzone.
+Twoje konto w sklepie internetowym INTERFLOR zostało utworzone.
 
 Dane do logowania:
 - Email (login): ${email}
@@ -245,12 +277,12 @@ Link do sklepu: ${shopUrl}
 Zalecamy zmiane hasla po pierwszym logowaniu.
 
 Pozdrawiamy,
-Zespol POLFLOR
+Zespol INTERFLOR
     `;
 
     return this.sendEmail({
       to: email,
-      subject: 'Twoje konto w sklepie POLFLOR',
+      subject: 'Twoje konto w sklepie INTERFLOR',
       text,
       html,
     });
@@ -261,7 +293,7 @@ Zespol POLFLOR
     newPassword: string,
     customerName?: string
   ): Promise<boolean> {
-    const shopUrl = process.env.SHOP_URL || 'https://sklep.fast-site.pl';
+    const shopUrl = process.env.SHOP_URL || 'https://sklep.interflor.pl';
 
     const greeting = customerName ? `Szanowny/a ${customerName}` : 'Szanowny Kliencie';
 
@@ -286,12 +318,12 @@ Zespol POLFLOR
 <body>
   <div class="container">
     <div class="header">
-      <h1>POLFLOR - Reset hasla</h1>
+      <h1>INTERFLOR - Reset hasla</h1>
     </div>
     <div class="content">
       <p>${greeting},</p>
 
-      <p>Twoje hasło do sklepu internetowego POLFLOR zostało zresetowane.
+      <p>Twoje hasło do sklepu internetowego INTERFLOR zostało zresetowane.
       Ponizej znajdziesz nowe dane do logowania:</p>
 
       <div class="credentials">
@@ -311,7 +343,7 @@ Zespol POLFLOR
       </p>
     </div>
     <div class="footer">
-      <p>POLFLOR - System zarządzania magazynem roślin</p>
+      <p>INTERFLOR</p>
       <p>Ta wiadomosc zostala wygenerowana automatycznie.</p>
     </div>
   </div>
@@ -322,7 +354,7 @@ Zespol POLFLOR
     const text = `
 ${greeting},
 
-Twoje hasło do sklepu internetowego POLFLOR zostało zresetowane.
+Twoje hasło do sklepu internetowego INTERFLOR zostało zresetowane.
 
 Nowe dane do logowania:
 - Email (login): ${email}
@@ -333,12 +365,12 @@ Link do sklepu: ${shopUrl}
 Zalecamy zmiane hasla po zalogowaniu.
 
 Pozdrawiamy,
-Zespol POLFLOR
+Zespol INTERFLOR
     `;
 
     return this.sendEmail({
       to: email,
-      subject: 'Reset hasla - POLFLOR',
+      subject: 'Reset hasla - INTERFLOR',
       text,
       html,
     });
@@ -354,13 +386,14 @@ Zespol POLFLOR
     subject?: string,
     message?: string
   ): Promise<boolean> {
+    await this.ensureConfigured();
     if (!this.transporter) {
       console.error('Email service not configured');
       return false;
     }
 
     const greeting = customerName ? `Szanowny/a ${customerName}` : 'Szanowny Kliencie';
-    const defaultSubject = subject || `Faktura VAT ${invoiceNumber} - POLFLOR`;
+    const defaultSubject = subject || `Faktura VAT ${invoiceNumber} - INTERFLOR`;
     const customMessage = message ? `<p style="margin: 20px 0; white-space: pre-line;">${message}</p>` : '';
     const totalInfo = totalGross ? `<p><strong>Kwota do zapłaty:</strong> ${Number(totalGross).toFixed(2)} PLN</p>` : '';
     const deadlineInfo = paymentDeadline ? `<p><strong>Termin płatności:</strong> ${paymentDeadline}</p>` : '';
@@ -406,7 +439,7 @@ Zespol POLFLOR
       </p>
     </div>
     <div class="footer">
-      <p>POLFLOR - System zarządzania magazynem roślin</p>
+      <p>INTERFLOR</p>
       <p>Ta wiadomość została wygenerowana automatycznie.</p>
     </div>
   </div>
@@ -430,7 +463,7 @@ Faktura znajduje się w załączniku do tej wiadomości w formacie PDF.
 W razie pytań prosimy o kontakt.
 
 Pozdrawiamy,
-Zespół POLFLOR
+Zespół INTERFLOR
     `;
 
     try {
@@ -455,6 +488,109 @@ Zespół POLFLOR
       return false;
     }
   }
+
+  async sendProformaEmailWithPdf(
+    email: string,
+    proformaNumber: string,
+    pdfBuffer: Buffer,
+    customerName?: string,
+    totalGross?: number,
+    subject?: string,
+    message?: string
+  ): Promise<boolean> {
+    await this.ensureConfigured();
+    if (!this.transporter) {
+      console.error('Email service not configured');
+      return false;
+    }
+
+    const greeting = customerName ? `Szanowny/a ${customerName}` : 'Szanowny Kliencie';
+    const defaultSubject = subject || `Faktura Pro Forma ${proformaNumber} - INTERFLOR`;
+    const customMessage = message ? `<p style="margin: 20px 0; white-space: pre-line;">${message}</p>` : '';
+    const totalInfo = totalGross ? `<p><strong>Kwota do zaplaty:</strong> ${Number(totalGross).toFixed(2)} PLN</p>` : '';
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background-color: #16a34a; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+    .content { background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; }
+    .proforma-info { background-color: #fff; border: 2px solid #16a34a; border-radius: 8px; padding: 20px; margin: 20px 0; }
+    .proforma-info p { margin: 10px 0; }
+    .proforma-info strong { color: #16a34a; }
+    .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; border-top: 1px solid #e5e7eb; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Faktura Pro Forma</h1>
+    </div>
+    <div class="content">
+      <p>${greeting},</p>
+      <p>W zalaczeniu przesylamy fakture pro forma.</p>
+      ${customMessage}
+      <div class="proforma-info">
+        <p><strong>Numer dokumentu:</strong> ${proformaNumber}</p>
+        ${totalInfo}
+      </div>
+      <p>Faktura pro forma znajduje sie w zalaczniku do tej wiadomosci w formacie PDF.</p>
+      <p style="margin-top: 30px; font-size: 14px; color: #6b7280;">
+        W razie pytan prosimy o kontakt.
+      </p>
+    </div>
+    <div class="footer">
+      <p>INTERFLOR</p>
+      <p>Ta wiadomosc zostala wygenerowana automatycznie.</p>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    const text = `
+${greeting},
+
+W zalaczeniu przesylamy fakture pro forma.
+
+${message || ''}
+
+Numer dokumentu: ${proformaNumber}
+${totalGross ? `Kwota do zaplaty: ${Number(totalGross).toFixed(2)} PLN` : ''}
+
+Faktura pro forma znajduje sie w zalaczniku w formacie PDF.
+
+Pozdrawiamy,
+Zespol INTERFLOR
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: this.fromEmail,
+        to: email,
+        subject: defaultSubject,
+        text,
+        html,
+        attachments: [
+          {
+            filename: `ProForma_${proformaNumber.replace(/\//g, '_')}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf',
+          },
+        ],
+      });
+      console.log(`Proforma email sent to ${email} for proforma ${proformaNumber}`);
+      return true;
+    } catch (error) {
+      console.error('Error sending proforma email:', error);
+      return false;
+    }
+  }
+
 }
 
 export const emailService = new EmailService();

@@ -21,6 +21,7 @@ import { AuthController } from './controllers/auth.controller';
 import { SessionModel } from './models/Session';
 import { InventoryController } from './controllers/inventory.controller';
 import { OrderController } from './controllers/order.controller';
+import { sendOrderToPolflor } from './controllers/order.controller';
 import { CustomerController } from './controllers/customer.controller';
 import { InvoiceController } from './controllers/invoice.controller';
 import { POSController } from './controllers/pos.controller';
@@ -36,7 +37,7 @@ import { UserController } from './controllers/user.controller';
 import { InventoryMovementController } from './controllers/inventoryMovement.controller';
 import { PriceGroupController } from './controllers/priceGroup.controller';
 import { CronService } from './services/cronService';
-import * as SettingsController from './controllers/settingsController';
+import * as SettingsController from './controllers/settingsController'; 
 import { growerPassportController } from './controllers/growerPassport.controller';
 import { PrintTemplateController } from './controllers/printTemplate.controller';
 import { MigrationController } from './controllers/migrationController';
@@ -49,6 +50,7 @@ import { LossesController } from "./controllers/losses.controller";
 import { TagsController } from "./controllers/tags.controller";
 import { PermissionProfileController } from "./controllers/permissionProfile.controller";
 import { LoginHistoryController } from "./controllers/loginHistory.controller";
+import { KsefController } from "./controllers/ksef.controller";
 import { ImageService, ImageSize } from './services/imageService';
 import { OrderModel } from './models/Order';
 import { SettingsModel } from './models/Settings';
@@ -177,10 +179,23 @@ app.get('/invoices/:id', requireAuth, InvoiceController.getById);
 app.post('/invoices', requireAuth, requirePermission('invoices:create'), InvoiceController.create);
 app.patch('/invoices/:id/payment-status', requireAuth, requirePermission('invoices:payment'), InvoiceController.updatePaymentStatus);
 app.get('/invoices/:id/pdf', requireAuth, InvoiceController.getPDF);
-app.post('/invoices/:id/send-email', requireAuth, requirePermission('invoices:view'), InvoiceController.sendEmail);
+app.post('/invoices/:id/send-email', requireAuth, requireRoleOrPermission([UserRole.POS], 'invoices:view'), InvoiceController.sendEmail);
 app.get("/invoices/:id/html", requireAuth, InvoiceController.getHTML);
 app.patch("/invoices/:id/payment-method", requireAuth, requirePermission('invoices:edit'), InvoiceController.updatePaymentMethod);
 app.get("/invoices/:id/audit-log", requireAuth, requirePermission('invoices:view'), InvoiceController.getAuditLog);
+
+// ============================================
+// KSEF ROUTES
+// ============================================
+app.post("/ksef/invoices/:id/send", requireAuth, requirePermission("invoices:create"), KsefController.sendInvoice);
+app.get("/ksef/invoices/:id/status", requireAuth, requirePermission("invoices:view"), KsefController.getStatus);
+app.get("/ksef/invoices/:id/xml", requireAuth, requirePermission("invoices:view"), KsefController.getXml);
+app.post("/ksef/invoices/:id/retry", requireAuth, requirePermission("invoices:create"), KsefController.retrySend);
+app.get("/ksef/invoices/:id/upo", requireAuth, requirePermission("invoices:view"), KsefController.getUpo);
+app.post("/ksef/send-bulk", requireAuth, requirePermission("invoices:create"), KsefController.sendBulk);
+app.get("/ksef/settings", requireAuth, requirePermission("settings:view"), KsefController.getSettings);
+app.put("/ksef/settings", requireAuth, requirePermission("settings:edit"), KsefController.updateSettings);
+app.post("/ksef/test-connection", requireAuth, requirePermission("settings:edit"), KsefController.testConnection);
 
 // ============================================
 
@@ -202,15 +217,15 @@ app.post("/proforma/:id/clone", requireAuth, requirePermission('invoices:create'
 app.delete("/proforma/:id", requireAuth, requirePermission('invoices:delete'), ProformaController.delete);
 app.put("/proforma/:id", requireAuth, requirePermission('invoices:edit'), ProformaController.update);
 app.patch("/proforma/:id/status", requireAuth, requirePermission('invoices:edit'), ProformaController.updateStatus);
-app.post("/proforma/:id/send-email", requireAuth, requirePermission('invoices:view'), ProformaController.sendEmail);
+app.post("/proforma/:id/send-email", requireAuth, requireRoleOrPermission([UserRole.POS], "invoices:view"), ProformaController.sendEmail);
 
 // CUSTOMERS ROUTES
 // ============================================
 
 app.get('/customers', requireAuth, CustomerController.getAll);
 app.get('/customers/:id', requireAuth, CustomerController.getById);
-app.post('/customers', requireAuth, requirePermission('customers:create'), CustomerController.create);
-app.put('/customers/:id', requireAuth, requirePermission('customers:edit'), CustomerController.update);
+app.post('/customers', requireAuth, requireRoleOrPermission([UserRole.POS], 'customers:create'), CustomerController.create);
+app.put('/customers/:id', requireAuth, requireRoleOrPermission([UserRole.POS], 'customers:edit'), CustomerController.update);
 app.delete('/customers/:id', requireAuth, requirePermission('customers:delete'), CustomerController.delete);
 app.post('/customers/lookup-nip', requireAuth, CustomerController.lookupNIP);
 
@@ -267,7 +282,7 @@ app.get("/orders/:id/confirmation-html", requireAuth, async (req: Request, res: 
 
     const formatDateFn = (date: Date | string) => {
       const d = typeof date === 'string' ? new Date(date) : date;
-      return d.toLocaleString('pl-PL', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+      return d.toLocaleString('pl-PL', { timeZone: 'Europe/Warsaw', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
     };
     const pmLabel = (m: string) => ({ card: 'Karta', cash: 'Gotowka', transfer: 'Przelew' }[m] || m);
 
@@ -443,6 +458,16 @@ app.put("/settings/email-import", requireAuth, requirePermission('settings:edit'
 
 // Manualna synchronizacja email importu
 app.post("/settings/email-import/sync", requireAuth, requirePermission('settings:edit'), async (req: Request, res: Response) => {
+  try {
+    console.log("[API] Manual email sync triggered by user: " + (req as any).user?.email);
+    const emailImportService = new EmailImportService();
+    const result = await emailImportService.syncEmails();
+    res.json({ success: true, result });
+  } catch (error: any) {
+    console.error("[API] Email sync error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 // Force sync email import (last 24h, SEEN + UNSEEN)
 app.post("/settings/email-import/sync-force", requireAuth, requirePermission("settings:edit"), async (req: Request, res: Response) => {
@@ -456,16 +481,14 @@ app.post("/settings/email-import/sync-force", requireAuth, requirePermission("se
     res.status(500).json({ success: false, error: error.message });
   }
 });
-  try {
-    console.log("[API] Manual email sync triggered by user: " + (req as any).user?.email);
-    const emailImportService = new EmailImportService();
-    const result = await emailImportService.syncEmails();
-    res.json({ success: true, result });
-  } catch (error: any) {
-    console.error("[API] Email sync error:", error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+
+// Send order to Polflor via email
+app.post("/orders/:id/send-polflor", requireAuth, requirePermission('orders:edit'), sendOrderToPolflor);
+
+// SMTP Send Settings
+app.get("/settings/smtp-send", requireAuth, requirePermission("settings:view"), SettingsController.getSmtpSendSettings);
+app.put("/settings/smtp-send", requireAuth, requirePermission("settings:edit"), SettingsController.updateSmtpSendSettings);
+app.post("/settings/smtp-send/test", requireAuth, requirePermission("settings:edit"), SettingsController.testSmtpSendSettings);
 
 // ============================================
 // LOSSES ROUTES (Admin only)

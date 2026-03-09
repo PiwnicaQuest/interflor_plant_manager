@@ -48,19 +48,19 @@ export class CustomerModel {
   static async create(data: Partial<Customer>): Promise<Customer> {
     const {
       userId,
-      companyName,
-      firstName,
-      lastName,
-      nip,
-      street,
-      postalCode,
-      city,
+      companyName = '',
+      firstName = '',
+      lastName = '',
+      nip = '',
+      street = '',
+      postalCode = '',
+      city = '',
       country = 'Polska',
-      phone,
-      email,
+      phone = '',
+      email = '',
       priceGroupId = 1,
       notes,
-      customerCode,
+      customerCode = '',
       vatEu,
       isEuCompany = false,
     } = data;
@@ -73,22 +73,22 @@ export class CustomerModel {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *`,
       [
-        userId,
-        companyName,
-        firstName,
-        lastName,
-        nip,
-        street,
-        postalCode,
-        city,
-        country,
-        phone,
-        email,
-        priceGroupId,
-        notes,
-        customerCode,
-        vatEu,
-        isEuCompany,
+        userId || null,
+        companyName || '',
+        firstName || '',
+        lastName || '',
+        nip || '',
+        street || '',
+        postalCode || '',
+        city || '',
+        country || 'Polska',
+        phone || '',
+        email || '',
+        priceGroupId || 1,
+        notes || null,
+        customerCode || '',
+        vatEu || null,
+        isEuCompany || false,
       ]
     );
 
@@ -227,7 +227,7 @@ export class CustomerModel {
   }
 
   static async getPriceForCustomer(customerId: number, productId: number): Promise<number> {
-    const result = await query<{ price: number; is_eu_company: boolean }>(
+    const result = await query<{ price: number; is_eu_company: boolean; discount_percentage: number }>(
       `SELECT
         CASE pg.name
           WHEN 'podstawowa' THEN p.base_price_gross
@@ -240,9 +240,10 @@ export class CustomerModel {
           WHEN 'hurt' THEN p.price_discount_15
           WHEN 'detal' THEN p.base_price_gross
           WHEN 'plus_8' THEN p.price_plus
-          ELSE p.base_price_gross
+          ELSE ROUND(p.base_price_gross * (1 - COALESCE(pg.discount_percentage, 0) / 100.0), 2)
         END as price,
-        COALESCE(c.is_eu_company, false) as is_eu_company
+        COALESCE(c.is_eu_company, false) as is_eu_company,
+        COALESCE(pg.discount_percentage, 0) as discount_percentage
        FROM products p
        CROSS JOIN customers c
        LEFT JOIN price_groups pg ON c.price_group_id = pg.id
@@ -252,12 +253,12 @@ export class CustomerModel {
 
     const row = result.rows[0];
     if (!row) return 0;
-    
+
     // For EU customers (0% VAT), return net price (gross / 1.08)
     if ((row as any).isEuCompany === true || (row as any).is_eu_company === true) {
       return Math.round((row.price / 1.08) * 100) / 100;
     }
-    
+
     return row.price || 0;
   }
 }

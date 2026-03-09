@@ -174,7 +174,7 @@ export function CartPage() {
 
                   {/* Price - mobile */}
                   <div className="text-right sm:hidden">
-                    <span className="font-bold text-green-600 text-sm">
+                    <span className="font-bold text-pink-600 text-sm">
                       {formatPrice(item.product.price * item.quantity)}
                     </span>
                   </div>
@@ -211,7 +211,7 @@ export function CartPage() {
 
                   {/* Price & Remove - desktop */}
                   <div className="hidden sm:flex flex-col items-end justify-between">
-                    <span className="font-bold text-green-600">
+                    <span className="font-bold text-pink-600">
                       {formatPrice(item.product.price * item.quantity)}
                     </span>
                     <button
@@ -254,7 +254,7 @@ export function CartPage() {
             <div className="border-t pt-4 mb-4 sm:mb-6">
               <div className="flex justify-between text-lg sm:text-xl font-bold">
                 <span>Razem</span>
-                <span className="text-green-600">{formatPrice(totalPrice)}</span>
+                <span className="text-pink-600">{formatPrice(totalPrice)}</span>
               </div>
             </div>
 
@@ -318,7 +318,7 @@ export function CartPage() {
                   )}
                 </div>
                 {selectedCustomerId && (
-                  <p className="text-xs sm:text-sm text-green-600 mt-1">
+                  <p className="text-xs sm:text-sm text-pink-600 mt-1">
                     ✓ Wybrany: {customers.find(c => c.id === selectedCustomerId)?.name}
                   </p>
                 )}

@@ -297,7 +297,8 @@ export class InvoiceModel {
       // Update invoice with actual totals
       await client.query(`
         UPDATE invoices
-        SET subtotal_net = $1, total_vat = $2, total_gross = $3
+        SET subtotal_net = $1, total_vat = $2, total_gross = $3,
+            paid_amount = CASE WHEN payment_status = 'paid' THEN $3 ELSE paid_amount END
         WHERE id = $4
       `, [actualTotals.subtotalNet, actualTotals.totalVat, actualTotals.totalGross, invoice.id]);
 
@@ -363,14 +364,23 @@ export class InvoiceModel {
         // For WDT, VAT rate is 0%
         const vatRate = isWdt ? 0 : originalVatRate;
 
-        // Calculate original net price from gross (removing Polish VAT)
-        const originalUnitPriceGross = item.unitPriceGross;
-        const originalUnitPriceNet = round2(originalUnitPriceGross / (1 + originalVatRate / 100));
+        // Order already stores the correct price:
+        // - Domestic: unit_price_gross includes Polish VAT
+        // - WDT: unit_price_gross is already the net price (VAT was removed when order was created)
+        const orderUnitPriceGross = item.unitPriceGross;
 
-        // For WDT: customer pays NET price (no Polish VAT), gross = net because VAT = 0%
-        // For domestic: normal gross/net calculation
-        const unitPriceNet = originalUnitPriceNet;
-        const unitPriceGross = isWdt ? originalUnitPriceNet : originalUnitPriceGross;
+        let unitPriceNet: number;
+        let unitPriceGross: number;
+
+        if (isWdt) {
+          // WDT: order price is already net, no VAT to remove
+          unitPriceNet = round2(orderUnitPriceGross);
+          unitPriceGross = unitPriceNet; // gross = net when VAT = 0%
+        } else {
+          // Domestic: calculate net from gross
+          unitPriceNet = round2(orderUnitPriceGross / (1 + originalVatRate / 100));
+          unitPriceGross = orderUnitPriceGross;
+        }
 
         // Calculate totals
         const itemTotalNet = round2(unitPriceNet * item.quantity);
@@ -456,7 +466,8 @@ export class InvoiceModel {
       // Update invoice with actual totals
       await client.query(`
         UPDATE invoices
-        SET subtotal_net = $1, total_vat = $2, total_gross = $3
+        SET subtotal_net = $1, total_vat = $2, total_gross = $3,
+            paid_amount = CASE WHEN payment_status = 'paid' THEN $3 ELSE paid_amount END
         WHERE id = $4
       `, [actualTotals.subtotalNet, actualTotals.totalVat, actualTotals.totalGross, invoice.id]);
 
@@ -567,7 +578,8 @@ export class InvoiceModel {
       // Update invoice with actual totals
       await client.query(`
         UPDATE invoices
-        SET subtotal_net = $1, total_vat = $2, total_gross = $3
+        SET subtotal_net = $1, total_vat = $2, total_gross = $3,
+            paid_amount = CASE WHEN payment_status = 'paid' THEN $3 ELSE paid_amount END
         WHERE id = $4
       `, [actualTotals.subtotalNet, actualTotals.totalVat, actualTotals.totalGross, invoice.id]);
 
@@ -656,14 +668,23 @@ export class InvoiceModel {
         // For WDT, VAT rate is 0%
         const vatRate = isWdt ? 0 : originalVatRate;
 
-        // Calculate original net price from gross (removing Polish VAT)
-        const originalUnitPriceGross = item.unitPriceGross;
-        const originalUnitPriceNet = round2(originalUnitPriceGross / (1 + originalVatRate / 100));
+        // Order already stores the correct price:
+        // - Domestic: unit_price_gross includes Polish VAT
+        // - WDT: unit_price_gross is already the net price (VAT was removed when order was created)
+        const orderUnitPriceGross = item.unitPriceGross;
 
-        // For WDT: customer pays NET price (no Polish VAT), gross = net because VAT = 0%
-        // For domestic: normal gross/net calculation
-        const unitPriceNet = originalUnitPriceNet;
-        const unitPriceGross = isWdt ? originalUnitPriceNet : originalUnitPriceGross;
+        let unitPriceNet: number;
+        let unitPriceGross: number;
+
+        if (isWdt) {
+          // WDT: order price is already net, no VAT to remove
+          unitPriceNet = round2(orderUnitPriceGross);
+          unitPriceGross = unitPriceNet; // gross = net when VAT = 0%
+        } else {
+          // Domestic: calculate net from gross
+          unitPriceNet = round2(orderUnitPriceGross / (1 + originalVatRate / 100));
+          unitPriceGross = orderUnitPriceGross;
+        }
 
         // Calculate totals
         const itemTotalNet = round2(unitPriceNet * item.quantity);
@@ -757,7 +778,8 @@ export class InvoiceModel {
       // Update invoice with actual totals
       await client.query(`
         UPDATE invoices
-        SET subtotal_net = $1, total_vat = $2, total_gross = $3
+        SET subtotal_net = $1, total_vat = $2, total_gross = $3,
+            paid_amount = CASE WHEN payment_status = 'paid' THEN $3 ELSE paid_amount END
         WHERE id = $4
       `, [actualTotals.subtotalNet, actualTotals.totalVat, actualTotals.totalGross, invoice.id]);
 
@@ -882,13 +904,70 @@ export class InvoiceModel {
         insertedItems.push(itemResult.rows[0]);
       }
 
+      // Deduct stock for items with productId
+      for (const item of adjustedItems) {
+        if (!item.productId) continue;
+
+        // Get current stock
+        const productResult = await client.query(
+          'SELECT total_units, units_per_pallet FROM products WHERE id = $1 FOR UPDATE',
+          [item.productId]
+        );
+
+        if (productResult.rows.length === 0) continue;
+
+        const product = productResult.rows[0];
+        const currentStock = parseInt(product.totalUnits) || parseInt(product.total_units) || 0;
+        const unitsPerPallet = parseInt(product.unitsPerPallet) || parseInt(product.units_per_pallet) || 1;
+
+        if (currentStock < item.quantity) {
+          throw new Error(`Niewystarczający stan magazynowy dla produktu ID ${item.productId}. Dostępne: ${currentStock}, wymagane: ${item.quantity}`);
+        }
+
+        const newTotalUnits = currentStock - item.quantity;
+        const newPalletCount = Math.floor(newTotalUnits / unitsPerPallet);
+        const newLooseUnits = newTotalUnits % unitsPerPallet;
+
+        await client.query(
+          'UPDATE products SET pallet_count = $1, loose_units = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
+          [newPalletCount, newLooseUnits, item.productId]
+        );
+
+        // Auto-archive if stock reached 0
+        if (newTotalUnits <= 0) {
+          await client.query(
+            'UPDATE products SET is_archived = true, archived_at = CURRENT_TIMESTAMP, visible_in_shop = false WHERE id = $1',
+            [item.productId]
+          );
+        }
+
+        // Record inventory movement
+        await client.query(
+          `INSERT INTO inventory_movements (
+            product_id, user_id, movement_type, delta_units, delta_pallets,
+            reason, reference_type, reference_id
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            item.productId,
+            createdByUserId,
+            'invoice',
+            -item.quantity,
+            -Math.ceil(item.quantity / unitsPerPallet),
+            `Faktura ${invoiceNumber}`,
+            'invoice',
+            invoice.id,
+          ]
+        );
+      }
+
       // Recalculate totals from actual database values (GENERATED columns)
       const actualTotals = await recalculateInvoiceTotals(client, invoice.id);
 
       // Update invoice with actual totals
       await client.query(`
         UPDATE invoices
-        SET subtotal_net = $1, total_vat = $2, total_gross = $3
+        SET subtotal_net = $1, total_vat = $2, total_gross = $3,
+            paid_amount = CASE WHEN payment_status = 'paid' THEN $3 ELSE paid_amount END
         WHERE id = $4
       `, [actualTotals.subtotalNet, actualTotals.totalVat, actualTotals.totalGross, invoice.id]);
 
@@ -1050,7 +1129,8 @@ export class InvoiceModel {
       // Update invoice with actual totals
       await client.query(`
         UPDATE invoices
-        SET subtotal_net = $1, total_vat = $2, total_gross = $3
+        SET subtotal_net = $1, total_vat = $2, total_gross = $3,
+            paid_amount = CASE WHEN payment_status = 'paid' THEN $3 ELSE paid_amount END
         WHERE id = $4
       `, [actualTotals.subtotalNet, actualTotals.totalVat, actualTotals.totalGross, invoice.id]);
 

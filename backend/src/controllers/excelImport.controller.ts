@@ -45,6 +45,7 @@ export class ExcelImportController {
 
       // Odczyt waluty z body (multer fields)
       const currency = req.body.currency === 'PLN' ? 'PLN' : 'EUR';
+      const format = req.body.format === 'polflor' ? 'polflor' : 'standard';
 
       console.log(
         'Otrzymano plik:',
@@ -52,10 +53,12 @@ export class ExcelImportController {
         'rozmiar:',
         req.file.size,
         'waluta:',
-        currency
+        currency,
+        'format:',
+        format
       );
 
-      const result = await ExcelImportService.importProducts(req.file.buffer, currency);
+      const result = await ExcelImportService.importProducts(req.file.buffer, currency, format as any);
 
       return res.json({
         message: `Import zakończony. Sukces: ${result.success}, Błędy: ${result.failed}`,

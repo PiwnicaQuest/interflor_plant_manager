@@ -9,14 +9,16 @@ interface EditPriceGroupModalProps {
 
 export function EditPriceGroupModal({ priceGroup, onClose, onUpdate }: EditPriceGroupModalProps) {
   const [name, setName] = useState(priceGroup.name);
-  const [discountPercentage, setDiscountPercentage] = useState<string>(priceGroup.discountPercentage.toString());
+  const [percentageValue, setPercentageValue] = useState<string>(Math.abs(priceGroup.discountPercentage).toString());
+  const [mode, setMode] = useState<'discount' | 'markup'>(priceGroup.discountPercentage < 0 ? 'markup' : 'discount');
   const [description, setDescription] = useState(priceGroup.description || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     setName(priceGroup.name);
-    setDiscountPercentage(priceGroup.discountPercentage.toString());
+    setPercentageValue(Math.abs(priceGroup.discountPercentage).toString());
+    setMode(priceGroup.discountPercentage < 0 ? 'markup' : 'discount');
     setDescription(priceGroup.description || '');
   }, [priceGroup]);
 
@@ -24,28 +26,29 @@ export function EditPriceGroupModal({ priceGroup, onClose, onUpdate }: EditPrice
     e.preventDefault();
     setError('');
 
-    // Walidacja
     if (!name || name.trim().length === 0) {
       setError('Nazwa grupy cenowej jest wymagana');
       return;
     }
 
-    const discount = parseFloat(discountPercentage);
-    if (isNaN(discount)) {
-      setError('Rabat musi być liczbą');
+    const value = parseFloat(percentageValue);
+    if (isNaN(value)) {
+      setError('Wartość musi być liczbą');
       return;
     }
 
-    if (discount < 0 || discount > 100) {
-      setError('Rabat musi być między 0 a 100%');
+    if (value < 0 || value > 100) {
+      setError('Wartość musi być między 0 a 100%');
       return;
     }
+
+    const discountPercentage = mode === 'markup' ? -value : value;
 
     setLoading(true);
     try {
       await onUpdate(priceGroup.id, {
         name: name.trim(),
-        discountPercentage: discount,
+        discountPercentage,
         description: description.trim() || undefined,
       });
       onClose();
@@ -56,10 +59,17 @@ export function EditPriceGroupModal({ priceGroup, onClose, onUpdate }: EditPrice
     }
   };
 
+  const previewText = () => {
+    const value = parseFloat(percentageValue) || 0;
+    if (value === 0) return 'Cena bazowa (bez zmian)';
+    if (mode === 'discount') return `Cena bazowa - ${value}% = cena po rabacie`;
+    return `Cena bazowa + ${value}% = cena z narzutem`;
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg max-w-md w-full p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Edytuj grupę cenową</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Edytuj grupe cenowa</h2>
 
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-800 text-sm">
@@ -77,27 +87,56 @@ export function EditPriceGroupModal({ priceGroup, onClose, onUpdate }: EditPrice
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="np. VIP, Hurtownia, Rabat 15%"
+              placeholder="np. VIP, Hurtownia, Narzut 8%"
               required
             />
           </div>
 
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Rabat (%) <span className="text-red-500">*</span>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Typ modyfikacji ceny <span className="text-red-500">*</span>
             </label>
-            <input
-              type="number"
-              value={discountPercentage}
-              onChange={(e) => setDiscountPercentage(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="0-100"
-              min="0"
-              max="100"
-              step="0.01"
-              required
-            />
-            <p className="text-xs text-gray-500 mt-1">Wartość od 0 do 100</p>
+            <div className="flex rounded-lg overflow-hidden border border-gray-300 mb-3">
+              <button
+                type="button"
+                onClick={() => setMode('discount')}
+                className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
+                  mode === 'discount'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                Rabat (-)
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('markup')}
+                className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
+                  mode === 'markup'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                Narzut (+)
+              </button>
+            </div>
+            <div className="relative">
+              <input
+                type="number"
+                value={percentageValue}
+                onChange={(e) => setPercentageValue(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8"
+                placeholder="0-100"
+                min="0"
+                max="100"
+                step="0.01"
+                required
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>
+            </div>
+            <p className={`text-xs mt-1 ${mode === 'markup' ? 'text-green-600' : 'text-blue-600'}`}>
+              {previewText()}
+            </p>
           </div>
 
           <div className="mb-6">

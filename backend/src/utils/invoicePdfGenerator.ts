@@ -163,19 +163,18 @@ export async function generateInvoicePdfDirect(invoice: InvoiceWithItems): Promi
   y += boxH + 22;
 
   // === ITEMS TABLE ===
-  const cw = [22, 140, 32, 26, 48, 48, 32, 60, 52, 56];
+  const cw = [18, 168, 28, 22, 44, 44, 28, 54, 48, 52];
   const cx: number[] = [];
   let tx = ML;
   for (const w of cw) { cx.push(tx); tx += w; }
 
   // Header
-  const hh = 32;
+  const hh = 24;
   doc.rect(ML, y, CW, hh).fillAndStroke(LIGHT_GRAY, BORDER);
-  doc.font("B").fontSize(7).fillColor(GRAY);
-  const headers = ["Lp.", "Nazwa towaru/usługi", "Ilość", "J.m.", "Cena\nnetto", "Cena\nbrutto", "VAT%", "Kwota netto", "Kwota VAT", "Kwota\nbrutto"];
+  doc.font("B").fontSize(6.5).fillColor(GRAY);
+  const headers = ["Lp.", "Nazwa towaru/usługi", "Ilość", "J.m.", "Cena\nnetto", "Cena\nbrutto", "VAT%", "Kwota\nnetto", "Kwota\nVAT", "Kwota\nbrutto"];
   headers.forEach((h, i) => {
-    const align = i < 2 ? "left" : (i === 6 ? "center" : "right");
-    doc.text(h, cx[i] + 3, y + 6, { width: cw[i] - 6, align });
+    doc.text(h, cx[i] + 3, y + 4, { width: cw[i] - 6, align: "center" });
   });
   y += hh;
 
@@ -183,13 +182,12 @@ export async function generateInvoicePdfDirect(invoice: InvoiceWithItems): Promi
 
   // Rows
   let totalQty = 0;
-  const ROW_HEIGHT = 52;
-  
+  const ROW_HEIGHT = 18;
+
   items.forEach((item, idx) => {
-    // Page break - only when really needed (leave space for RAZEM row + small margin)
-    if (y + ROW_HEIGHT > PAGE_H - MB - 30) { 
-      doc.addPage(); 
-      y = MT; 
+    if (y + ROW_HEIGHT > PAGE_H - MB - 30) {
+      doc.addPage();
+      y = MT;
     }
 
     const bg = idx % 2 === 0 ? "#ffffff" : "#fafafa";
@@ -204,53 +202,49 @@ export async function generateInvoicePdfDirect(invoice: InvoiceWithItems): Promi
     const tVat = Number(item.totalVat) || tNet * item.vatRate / 100;
     const tGross = Number(item.totalGross) || tNet + tVat;
 
-    // Lp
-    doc.font("R").fontSize(9).fillColor(TEXT).text((idx + 1).toString(), cx[0] + 2, y + 18, { width: cw[0] - 4, align: "center" });
+    const cy = y + 5;
 
-    // Name (top of cell)
+    // Lp - centered
+    doc.font("R").fontSize(7).fillColor(TEXT).text((idx + 1).toString(), cx[0] + 1, cy, { width: cw[0] - 2, align: "center" });
+
+    // Name + passport + PKWiU compact
     const name = item.description || "Produkt";
-    doc.font("R").fontSize(9).fillColor(TEXT).text(name, cx[1] + 4, y + 5, { width: cw[1] - 8 });
-    
-    // Passport + PKWiU (bottom of cell, close together, clearly separated from name)
     const passport = (item as any).growerPassport || "";
     const pkwiu = "01.30.10.0";
-    doc.font("R").fontSize(7).fillColor(GRAY);
-    if (passport) {
-      doc.text(`Paszport: ${passport}`, cx[1] + 4, y + 32, { width: cw[1] - 8 });
-      doc.text(`PKWiU: ${pkwiu}`, cx[1] + 4, y + 41, { width: cw[1] - 8 });
-    } else {
-      doc.text(`PKWiU: ${pkwiu}`, cx[1] + 4, y + 38, { width: cw[1] - 8 });
-    }
+    const nameExtra = passport ? " [" + passport + "]" : "";
+    doc.font("R").fontSize(6.5).fillColor(TEXT).text(name + nameExtra, cx[1] + 3, y + 2, { width: cw[1] - 6 });
+    doc.font("R").fontSize(5).fillColor(GRAY).text("PKWiU: " + pkwiu, cx[1] + 3, y + 12, { width: cw[1] - 6 });
 
-    // Qty
-    doc.font("B").fontSize(9).fillColor(BLUE).text(qty.toString(), cx[2] + 2, y + 18, { width: cw[2] - 4, align: "center" });
+    // Qty - centered
+    doc.font("B").fontSize(7).fillColor(BLUE).text(qty.toString(), cx[2] + 1, cy, { width: cw[2] - 2, align: "center" });
 
-    // Jm
-    doc.font("R").fontSize(9).fillColor(TEXT).text("szt.", cx[3] + 2, y + 18, { width: cw[3] - 4, align: "center" });
+    // Jm - centered
+    doc.font("R").fontSize(7).fillColor(TEXT).text("szt.", cx[3] + 1, cy, { width: cw[3] - 2, align: "center" });
 
-    // Prices
-    doc.font("R").fontSize(8).text(fmtNum(uNet), cx[4] + 2, y + 18, { width: cw[4] - 4, align: "right" });
-    doc.text(fmtNum(uGross), cx[5] + 2, y + 18, { width: cw[5] - 4, align: "right" });
-    doc.text(`${item.vatRate}%`, cx[6] + 2, y + 18, { width: cw[6] - 4, align: "center" });
-    doc.text(fmtNum(tNet), cx[7] + 2, y + 18, { width: cw[7] - 4, align: "right" });
-    doc.text(fmtNum(tVat), cx[8] + 2, y + 18, { width: cw[8] - 4, align: "right" });
+    // Prices - all centered
+    doc.font("R").fontSize(6.5).fillColor(TEXT).text(fmtNum(uNet), cx[4] + 1, cy, { width: cw[4] - 2, align: "center" });
+    doc.text(fmtNum(uGross), cx[5] + 1, cy, { width: cw[5] - 2, align: "center" });
+    doc.text(item.vatRate + "%", cx[6] + 1, cy, { width: cw[6] - 2, align: "center" });
+    doc.text(fmtNum(tNet), cx[7] + 1, cy, { width: cw[7] - 2, align: "center" });
+    doc.text(fmtNum(tVat), cx[8] + 1, cy, { width: cw[8] - 2, align: "center" });
 
-    doc.font("B").fontSize(8).text(fmtNum(tGross), cx[9] + 2, y + 18, { width: cw[9] - 4, align: "right" });
+    doc.font("B").fontSize(6.5).text(fmtNum(tGross), cx[9] + 1, cy, { width: cw[9] - 2, align: "center" });
 
     y += ROW_HEIGHT;
   });
 
   // RAZEM row
-  const rzh = 26;
+  const rzh = 16;
   doc.rect(ML, y, CW, rzh).fillAndStroke(LIGHT_GRAY, BORDER);
   cx.forEach((x, i) => { if (i > 0) doc.moveTo(x, y).lineTo(x, y + rzh).stroke(BORDER); });
 
-  doc.font("B").fontSize(9).fillColor(TEXT).text("RAZEM:", cx[0] + 2, y + 8, { width: cw[0] + cw[1] - 4, align: "right" });
-  doc.fillColor(BLUE).text(totalQty.toString(), cx[2] + 2, y + 8, { width: cw[2] - 4, align: "center" });
-  doc.fillColor(TEXT).fontSize(8);
-  doc.text(`${fmtNum(invoice.subtotalNet)} zł`, cx[7] + 2, y + 8, { width: cw[7] - 4, align: "right" });
-  doc.text(`${fmtNum(invoice.totalVat)} zł`, cx[8] + 2, y + 8, { width: cw[8] - 4, align: "right" });
-  doc.fillColor(BLUE).text(`${fmtNum(invoice.totalGross)} zł`, cx[9] + 2, y + 8, { width: cw[9] - 4, align: "right" });
+  const rcy = y + 4;
+  doc.font("B").fontSize(7).fillColor(TEXT).text("RAZEM:", cx[0] + 1, rcy, { width: cw[0] + cw[1] - 2, align: "center" });
+  doc.fillColor(BLUE).text(totalQty.toString(), cx[2] + 1, rcy, { width: cw[2] - 2, align: "center" });
+  doc.fillColor(TEXT).fontSize(6.5);
+  doc.text(fmtNum(invoice.subtotalNet) + " zl", cx[7] + 1, rcy, { width: cw[7] - 2, align: "center" });
+  doc.text(fmtNum(invoice.totalVat) + " zl", cx[8] + 1, rcy, { width: cw[8] - 2, align: "center" });
+  doc.fillColor(BLUE).text(fmtNum(invoice.totalGross) + " zl", cx[9] + 1, rcy, { width: cw[9] - 2, align: "center" });
 
   y += rzh + 18;
 
@@ -317,12 +311,15 @@ export async function generateInvoicePdfDirect(invoice: InvoiceWithItems): Promi
   doc.fillColor(BLUE).text(`${fmtNum(invoice.totalGross)} zł`, vatX[3] + 6, y + 7, { width: vatCw[3] - 12, align: "right" });
   y += vrhz + 18;
 
-  // PŁATNOŚĆ
+  // PŁATNOŚĆ - inline
   doc.font("B").fontSize(9).fillColor(GRAY).text("PŁATNOŚĆ", ML, y);
   y += 14;
-  doc.font("R").fontSize(10).fillColor(TEXT).text("Forma: ", ML, y, { continued: true }).font("B").text(payMethodLabel(invoice.paymentMethod));
-  y += 14;
-  doc.font("R").text("Status: ", ML, y, { continued: true }).font("B").text(payStatusLabel(invoice.paymentStatus));
+  const payLineY = y;
+  doc.font("R").fontSize(9).fillColor(TEXT).text("Forma: ", ML, payLineY, { continued: true }).font("B").text(payMethodLabel(invoice.paymentMethod));
+  doc.font("R").fontSize(9).fillColor(TEXT).text("Status: ", ML + 100, payLineY, { continued: true }).font("B").text(payStatusLabel(invoice.paymentStatus));
+  if (invoice.paymentDeadline) {
+    doc.font("R").fontSize(9).fillColor(TEXT).text("Termin: ", ML + 220, payLineY, { continued: true }).font("B").fillColor(BLUE).text(fmtDate(invoice.paymentDeadline));
+  }
   y += 20;
 
   if (seller.account) {
@@ -332,7 +329,7 @@ export async function generateInvoicePdfDirect(invoice: InvoiceWithItems): Promi
     roundedRect(doc, ML, y, leftW, bbh, 6);
     doc.stroke(BORDER);
     doc.font("B").fontSize(10).fillColor(BLUE).text(seller.bank, ML + 12, y + 8);
-    doc.font("R").fontSize(10).fillColor(TEXT).text(`Numer konta: ${seller.account}`, ML + 12, y + 24);
+    doc.font("R").fontSize(10).fillColor(TEXT).text(seller.account, ML + 12, y + 24);
     y += bbh + 10;
   }
 
@@ -349,7 +346,7 @@ export async function generateInvoicePdfDirect(invoice: InvoiceWithItems): Promi
 
   // Payment Summary - right side
   const psY = startY;
-  const psh = 105;
+  const psh = 120;
   roundedRect(doc, rightX, psY, rightW, psh, 6);
   doc.fill(LIGHT_GRAY);
   roundedRect(doc, rightX, psY, rightW, psh, 6);
@@ -365,8 +362,8 @@ export async function generateInvoicePdfDirect(invoice: InvoiceWithItems): Promi
   doc.font("B").text(`${fmtNum(invoice.paidAmount)} zł`, rightX + 12, psY + 50, { width: rightW - 24, align: "right" });
 
   const remain = Number(invoice.totalGross) - Number(invoice.paidAmount);
-  doc.font("R").fontSize(9).text("Pozostało do zapłaty:", rightX + 12, psY + 70);
-  doc.font("B").fontSize(16).fillColor(BLUE).text(`${fmtNum(remain)} PLN`, rightX + 12, psY + 84, { width: rightW - 24, align: "center" });
+  doc.font("R").fontSize(9).text("Pozostało do zapłaty:", rightX + 12, psY + 72);
+  doc.font("B").fontSize(14).fillColor(BLUE).text(`${fmtNum(remain)} PLN`, rightX + 12, psY + 90, { width: rightW - 24, align: "center" });
 
   // === SIGNATURES ===
   y = Math.max(y + 60, PAGE_H - MB - 55);

@@ -1,4 +1,24 @@
 import * as XLSX from 'xlsx';
+import { query } from '../models/database';
+
+function generateEAN13(numericPart: number): string {
+  // Internal EAN-13: prefix 20 + 10-digit number + check digit
+  const base = '20' + numericPart.toString().padStart(10, '0');
+  // Calculate EAN-13 check digit
+  let sum = 0;
+  for (let i = 0; i < 12; i++) {
+    sum += parseInt(base[i]) * (i % 2 === 0 ? 1 : 3);
+  }
+  const checkDigit = (10 - (sum % 10)) % 10;
+  return base + checkDigit.toString();
+}
+
+async function getNextBarcodeSequence(): Promise<number> {
+  const result = await query(
+    "SELECT COALESCE(MAX(CAST(SUBSTRING(barcode FROM 3 FOR 10) AS BIGINT)), 0) + 1 as next_seq FROM products WHERE barcode LIKE '20%' AND LENGTH(barcode) = 13"
+  );
+  return parseInt(result.rows[0].next_seq) || 1;
+}
 import { ProductModel } from '../models/Product';
 import { SettingsModel } from '../models/Settings';
 
@@ -29,7 +49,8 @@ export class ExcelImportService {
    */
   static async importProducts(
     fileBuffer: Buffer,
-    currency: 'EUR' | 'PLN'
+    currency: 'EUR' | 'PLN',
+    format: 'standard' | 'polflor' = 'standard'
   ): Promise<ExcelImportResult> {
     const result: ExcelImportResult = {
       success: 0,
@@ -55,54 +76,46 @@ export class ExcelImportService {
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
 
-      // --- Parsuj datę dostawy z wiersza 1 ---
-      // Sprawdź merged cells — data może być w A1 (merged A1:G1)
+      // --- Parsuj datę dostawy z wiersza 1 (komórka A1, scalona A1:G1) ---
       let deliveryDateStr: string | null = null;
 
-      // Spróbuj odczytać z A1, B1 itd. (merged cell zwykle ma wartość w pierwszej komórce)
-      for (const cellAddr of ['A1', 'B1', 'C1', 'D1']) {
-        const cell = worksheet[cellAddr];
-        if (cell && cell.v !== undefined && cell.v !== null && cell.v !== '') {
-          const val = cell.v;
-          if (val instanceof Date) {
-            deliveryDateStr = val.toISOString().split('T')[0];
-          } else {
-            const strVal = val.toString().trim();
-            // Pomiń nagłówek "Data dostawy" — szukamy wartości daty
-            if (strVal.toLowerCase().includes('data dostawy')) {
-              continue;
-            }
-            // Spróbuj sparsować datę
-            const parsed = new Date(strVal);
-            if (!isNaN(parsed.getTime())) {
-              deliveryDateStr = parsed.toISOString().split('T')[0];
-            } else {
-              // Spróbuj format DD.MM.YYYY lub DD/MM/YYYY
-              const match = strVal.match(/(\d{1,2})[./](\d{1,2})[./](\d{4})/);
-              if (match) {
-                const [, day, month, year] = match;
-                deliveryDateStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-              }
-            }
+      const cellA1 = worksheet['A1'];
+      if (cellA1) {
+        // SheetJS cell types: t='d' (date), t='s' (string), t='n' (number)
+        if (cellA1.t === 'd' || (cellA1.v && cellA1.v.toString().match(/^\d{4}-\d{2}-\d{2}/))) {
+          // Date type or ISO string — parse directly
+          const d = new Date(cellA1.v);
+          if (!isNaN(d.getTime())) {
+            deliveryDateStr = d.toISOString().split('T')[0];
           }
-          if (deliveryDateStr) break;
         }
-      }
-
-      // Jeśli nie znaleziono w osobnych komórkach, sprawdź czy data jest w tej samej komórce po "Data dostawy"
-      if (!deliveryDateStr) {
-        const cellA1 = worksheet['A1'];
-        if (cellA1) {
-          const fullStr = (cellA1.w || cellA1.v || '').toString().trim();
-          // "Data dostawy 15.03.2026" lub "Data dostawy: 2026-03-15"
-          const match = fullStr.match(/(\d{1,2})[./](\d{1,2})[./](\d{4})/);
-          if (match) {
-            const [, day, month, year] = match;
-            deliveryDateStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-          } else {
-            const isoMatch = fullStr.match(/(\d{4})-(\d{2})-(\d{2})/);
-            if (isoMatch) {
-              deliveryDateStr = isoMatch[0];
+        
+        if (!deliveryDateStr) {
+          // Try formatted value (cell.w) or raw value as string
+          const strVal = (cellA1.w || cellA1.v || '').toString().trim();
+          
+          // Skip if it's just a header label
+          if (!strVal.toLowerCase().includes('data dostawy') || strVal.length > 20) {
+            // Try DD.MM.YYYY or DD/MM/YYYY
+            const match = strVal.match(/(\d{1,2})[./](\d{1,2})[./](\d{2,4})/);
+            if (match) {
+              const [, day, month, yearStr] = match;
+              const year = yearStr.length === 2 ? '20' + yearStr : yearStr;
+              deliveryDateStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+            } else {
+              // Try M/D/YY format (SheetJS default: "2/25/26")
+              const usMatch = strVal.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+              if (usMatch) {
+                const [, month, day, yearStr] = usMatch;
+                const year = yearStr.length === 2 ? '20' + yearStr : yearStr;
+                deliveryDateStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+              } else {
+                // Try ISO format
+                const isoMatch = strVal.match(/(\d{4})-(\d{2})-(\d{2})/);
+                if (isoMatch) {
+                  deliveryDateStr = isoMatch[0];
+                }
+              }
             }
           }
         }
@@ -124,6 +137,26 @@ export class ExcelImportService {
       const dataRows = allRows.slice(2);
 
       console.log(`Excel import: znaleziono ${dataRows.length} wierszy danych`);
+
+      let barcodeSeq = await getNextBarcodeSequence();
+
+      // Load grower lookup maps from DB (polflor format)
+      let floricodeMap = new Map<string, string>(); // floricode -> grower_name
+      let growerNameMap = new Map<string, string>(); // lowercase name -> exact name
+      if (format === 'polflor') {
+        const growerResult = await query('SELECT floricode, grower_name FROM grower_passports WHERE grower_name IS NOT NULL');
+        for (const row of growerResult.rows) {
+          const code = (row.floricode || '').trim(); // no underscore, stays same
+          const name = (row.growerName || '').trim(); // DB auto-converts snake_case to camelCase
+          if (code && name) {
+            floricodeMap.set(code, name);
+          }
+          if (name) {
+            growerNameMap.set(name.toLowerCase(), name);
+          }
+        }
+        console.log(`Polflor import: załadowano ${floricodeMap.size} florikodów i ${growerNameMap.size} nazw ogrodników`);
+      }
 
       for (let i = 0; i < dataRows.length; i++) {
         const row = dataRows[i];
@@ -197,11 +230,42 @@ export class ExcelImportService {
                   priceDiscount25: null,
                 };
 
+          // Kolumna H (indeks 7): Ogrodnik — match by floricode or name against grower_passports
+          let grower: string | null = null;
+          if (format === 'polflor') {
+            const rawValue = (row[7] || '').toString().trim();
+            if (rawValue) {
+              // Try floricode match (strip leading zeros for comparison)
+              const stripped = rawValue.replace(/^0+/, '') || rawValue;
+              const byFloricode = floricodeMap.get(stripped) || floricodeMap.get(rawValue);
+              if (byFloricode) {
+                grower = byFloricode;
+              } else {
+                // Try name match (case-insensitive)
+                const byName = growerNameMap.get(rawValue.toLowerCase());
+                if (byName) {
+                  grower = byName;
+                } else {
+                  console.log(`[Row ${rowNumber}] Ogrodnik "${rawValue}" nie znaleziony w bazie — pomijam`);
+                }
+              }
+            }
+          }
+
+          // Kolumna I (indeks 8): Kod kreskowy (barcode) — only in polflor format
+          let barcode: string | null = null;
+          if (format === 'polflor') {
+            const barcodeStr = (row[8] || '').toString().trim();
+            if (barcodeStr) {
+              barcode = barcodeStr;
+            }
+          }
+
           const productData: any = {
             plantName,
             potSize,
             plantHeightCm,
-            barcode: null,
+            barcode: barcode || generateEAN13(barcodeSeq++),
             purchasePricePln: parseFloat(purchasePricePln.toFixed(2)),
             pricePlus: prices.pricePlus,
             basePriceGross: prices.basePriceGross,
@@ -214,7 +278,7 @@ export class ExcelImportService {
             unitsPerPallet,
             vatRate,
             imageUrl,
-            grower: null,
+            grower: grower,
             visibleInShop: false,
             deliveryDate: deliveryDateStr || undefined,
           };
