@@ -127,6 +127,7 @@ export interface Customer {
   priceGroupId: number;
   notes?: string;
   customerCode?: string;
+  customerEmail?: string;
   createdAt: Date;
   updatedAt: Date;
   // Recipient (delivery address) fields
@@ -156,6 +157,7 @@ export interface CustomerSnapshot {
   phone: string;
   email: string;
   customerCode?: string;
+  customerEmail?: string;
   vatEu?: string;
 }
 
@@ -282,6 +284,7 @@ export interface OrderWithItems extends Order {
   items: OrderItem[];
   customerName?: string;
   customerCode?: string;
+  customerEmail?: string;
   vatEu?: string;
 }
 
@@ -343,6 +346,7 @@ export interface Receipt {
   customerId?: number;
   customerName?: string;
   customerCode?: string;
+  customerEmail?: string;
   vatEu?: string;
   buyerSnapshot?: CustomerSnapshot;
   paymentMethod: PaymentMethod;
@@ -613,6 +617,7 @@ export interface WSOrderCreatedMessage extends WSMessage {
     orderNumber: string;
     customerName?: string;
   customerCode?: string;
+  customerEmail?: string;
   vatEu?: string;
     itemCount: number;
     totalAmount: number;
@@ -643,6 +648,7 @@ export interface AuthRequest extends Request {
 export interface OrderWithDocument extends Order {
   customerName?: string;
   customerCode?: string;
+  customerEmail?: string;
   vatEu?: string;
   itemCount?: number;
   document?: {

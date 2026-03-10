@@ -192,6 +192,7 @@ export interface Order {
   orderNumber: string;
   customerId?: number;
   customerName?: string;
+  customerEmail?: string;
   customerCode?: string;
   customerPriceGroupId?: number;
   customerPriceGroupName?: string;
@@ -285,6 +286,7 @@ export interface Invoice {
   orderId?: number;
   customerId?: number;
   customerName?: string;
+  customerEmail?: string;
   customerCode?: string;
   issueDate: string;
   saleDate: string;
@@ -616,6 +618,7 @@ export interface CompletedOrderSummary {
   orderNumber: string;
   customerId?: number;
   customerName?: string;
+  customerEmail?: string;
   customerCode?: string;
   totalAmount: number;
   completedAt?: string;

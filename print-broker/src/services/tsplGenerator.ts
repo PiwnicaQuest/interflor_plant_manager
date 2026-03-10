@@ -74,7 +74,7 @@ export function generateTsplLabel(data: TsplLabelData, copies: number = 1): stri
   // Header
   commands.push("SIZE " + width + " mm, " + height + " mm");
   commands.push("GAP 0 mm, 0 mm");
-  commands.push("SPEED 4");
+  commands.push("SPEED 10");
   commands.push("DENSITY 8");
   commands.push("DIRECTION 1");
   commands.push("CLS");
@@ -96,14 +96,14 @@ export function generateTsplLabel(data: TsplLabelData, copies: number = 1): stri
   }
 
   // Barcode - centered, auto-fit narrow width
-  let narrowW = 3;
+  let narrowW = 2;
   let barcodeWidthDots = getBarcodeWidth(barcode, narrowW);
-  while (barcodeWidthDots > labelWidth - 20 && narrowW > 1) {
+  while (barcodeWidthDots > labelWidth - 4 && narrowW > 1) {
     narrowW--;
     barcodeWidthDots = getBarcodeWidth(barcode, narrowW);
   }
-  const barcodeX = Math.max(10, Math.round((labelWidth - barcodeWidthDots) / 2));
-  const barcodeY = mmToDots(height - 16);
+  const barcodeX = Math.max(2, Math.round((labelWidth - barcodeWidthDots) / 2));
+  const barcodeY = mmToDots(height - 11);
   const barcodeHeight = mmToDots(10);
   commands.push("BARCODE " + barcodeX + "," + barcodeY + ",\"128\"," + barcodeHeight + ",1,0," + narrowW + ",3,\"" + barcode + "\"");
 
@@ -126,7 +126,7 @@ export function generateSimpleTsplLabel(
   // Header
   commands.push("SIZE " + width + " mm, " + height + " mm");
   commands.push("GAP 0 mm, 0 mm");
-  commands.push("SPEED 4");
+  commands.push("SPEED 10");
   commands.push("DENSITY 8");
   commands.push("DIRECTION 1");
   commands.push("CLS");
@@ -136,18 +136,18 @@ export function generateSimpleTsplLabel(
   const fontSize = safeName.length > 20 ? "3" : "4";
   const textWidth = getTextWidth(safeName, fontSize);
   const textX = Math.max(10, Math.round((labelWidth - textWidth) / 2));
-  const textY = mmToDots(2);
+  const textY = mmToDots(7);
   commands.push("TEXT " + textX + "," + textY + ",\"" + fontSize + "\",0,1,1,\"" + safeName + "\"");
 
   // Barcode - centered, auto-fit narrow width
-  let narrowW = 3;
+  let narrowW = 2;
   let barcodeWidthDots = getBarcodeWidth(barcode, narrowW);
-  while (barcodeWidthDots > labelWidth - 20 && narrowW > 1) {
+  while (barcodeWidthDots > labelWidth - 4 && narrowW > 1) {
     narrowW--;
     barcodeWidthDots = getBarcodeWidth(barcode, narrowW);
   }
-  const barcodeX = Math.max(10, Math.round((labelWidth - barcodeWidthDots) / 2));
-  const barcodeY = mmToDots(9);
+  const barcodeX = Math.max(2, Math.round((labelWidth - barcodeWidthDots) / 2));
+  const barcodeY = mmToDots(14);
   const barcodeHeight = mmToDots(15);
   commands.push("BARCODE " + barcodeX + "," + barcodeY + ",\"128\"," + barcodeHeight + ",1,0," + narrowW + ",3,\"" + barcode + "\"");
 
@@ -212,7 +212,7 @@ export function generateZplLabel(
   }
 
   // Center barcode
-  const barcodeX = Math.max(10, Math.round((labelWidthDots - barcodeEstWidth) / 2));
+  const barcodeX = Math.max(2, Math.round((labelWidthDots - barcodeEstWidth) / 2));
 
   const commands: string[] = [];
 

@@ -9,7 +9,7 @@ import { CSVImportModal } from '../components/Inventory/CSVImportModal';
 import { ExcelImportModal } from '../components/Inventory/ExcelImportModal';
 import { BarcodeModal } from '../components/Inventory/BarcodeModal';
 import { BatchBarcodeModal } from '../components/Inventory/BatchBarcodeModal';
-import { InventoryFilters, InventoryFilterValues } from '../components/Inventory/InventoryFilters';
+import { InventoryFilterValues } from '../components/Inventory/InventoryFilters';
 import { ProductDistributionPanel } from '../components/Inventory/ProductDistributionPanel';
 import { SimilarProductsModal } from '../components/Inventory/SimilarProductsModal';
 import { BulkTagsModal } from '../components/Inventory/BulkTagsModal';
@@ -1135,11 +1135,7 @@ export function InventoryPage() {
         </nav>
       </div>
 
-        {/* Filters */}
-        <InventoryFilters
-          filters={filters}
-          onChange={setFilters}
-        />
+
       </div>
 
       {/* Selection info bar with bulk actions */}

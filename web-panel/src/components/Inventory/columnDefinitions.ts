@@ -46,7 +46,7 @@ export const ALL_COLUMNS: ColumnDefinition[] = [
     key: 'image',
     label: 'Zdjęcie',
     group: 'system',
-    defaultWidth: 28,
+    defaultWidth: 24,
     minWidth: 20,
     editable: false,
     filterable: false,
@@ -55,7 +55,7 @@ export const ALL_COLUMNS: ColumnDefinition[] = [
   // Info columns
   {
     key: 'plantName',
-    label: 'Nazwa rośliny',
+    label: 'Nazwa',
     group: 'info',
     defaultWidth: 180,
     minWidth: 100,
@@ -67,8 +67,8 @@ export const ALL_COLUMNS: ColumnDefinition[] = [
 
   {
     key: 'createdAt',
-    label: 'Dodano',
-    shortLabel: 'Dodano',
+    label: 'Data dostawy',
+    shortLabel: 'Data dost.',
     group: 'date',
     defaultWidth: 85,
     minWidth: 70,
@@ -80,7 +80,7 @@ export const ALL_COLUMNS: ColumnDefinition[] = [
   // Info columns continued
   {
     key: 'potSize',
-    label: 'Doniczka',
+    label: 'Średnica',
     group: 'info',
     defaultWidth: 65,
     minWidth: 50,
@@ -110,8 +110,8 @@ export const ALL_COLUMNS: ColumnDefinition[] = [
   },
   {
     key: 'unitsPerPallet',
-    label: 'Szt/paleta',
-    shortLabel: 'Szt/pal',
+    label: 'Szt./pal.',
+    shortLabel: 'Szt./pal.',
     group: 'inventory',
     defaultWidth: 55,
     minWidth: 45,
@@ -120,8 +120,8 @@ export const ALL_COLUMNS: ColumnDefinition[] = [
   },
   {
     key: 'totalUnits',
-    label: 'Suma sztuk',
-    shortLabel: 'Suma',
+    label: 'Łącznie',
+    shortLabel: 'Łącznie',
     group: 'inventory',
     defaultWidth: 55,
     minWidth: 45,
@@ -132,7 +132,7 @@ export const ALL_COLUMNS: ColumnDefinition[] = [
   {
     key: 'totalSold',
     label: 'Sprzedane',
-    shortLabel: 'Sprz.',
+    shortLabel: 'Sprzedane',
     group: 'inventory',
     defaultWidth: 55,
     minWidth: 45,
@@ -167,8 +167,8 @@ export const ALL_COLUMNS: ColumnDefinition[] = [
   // Base price column
   {
     key: 'basePrice',
-    label: 'Cena podstawowa',
-    shortLabel: 'Podst.',
+    label: 'Bazowa',
+    shortLabel: 'Bazowa',
     group: 'basePrice',
     defaultWidth: 60,
     minWidth: 50,
@@ -237,7 +237,7 @@ export const ALL_COLUMNS: ColumnDefinition[] = [
   },
   {
     key: 'passport',
-    label: 'Paszport ogrodnika',
+    label: 'Paszport',
     shortLabel: 'Paszport',
     group: 'grower',
     defaultWidth: 75,

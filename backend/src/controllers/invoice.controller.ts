@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { InvoiceModel } from '../models/Invoice';
 import { CustomerModel } from '../models/Customer';
+import { OrderModel } from '../models/Order';
 import { PaymentMethod } from '../types';
 import { generateInvoicePdfDirect } from '../utils/invoicePdfGenerator';
 import { emailService } from '../services/emailService';
@@ -127,7 +128,7 @@ export class InvoiceController {
           invoiceId: invoice.id,
         });
       } else {
-        // Create standalone invoice
+        // Create standalone invoice - also create an order so it shows in POS history
         if (!customerId || !items || items.length === 0) {
           return res.status(400).json({ error: 'Brak wymaganych pól' });
         }
@@ -152,10 +153,38 @@ export class InvoiceController {
           vatEu: customer.vatEu,
         };
 
-        // Create recipient snapshot if customer has recipient data
         const recipientSnapshot = InvoiceController.createRecipientSnapshot(customer);
-
         const deadline = paymentDeadline ? new Date(paymentDeadline) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
+        // Create order from invoice items so it appears in POS history
+        const orderItems = items.filter((i: any) => i.productId).map((i: any) => ({
+          productId: i.productId,
+          quantity: i.quantity,
+          unitPriceGross: i.unitPriceGross || Math.round(i.unitPriceNet * (1 + (i.vatRate || 8) / 100) * 100) / 100,
+        }));
+
+        let createdOrderId: number | undefined;
+
+        if (orderItems.length > 0) {
+          try {
+            const order = await OrderModel.create(
+              customerId,
+              orderItems,
+              buyerSnapshot as any,
+              req.user?.userId,
+              undefined,
+              recipientSnapshot as any,
+              'panel'
+            );
+            createdOrderId = order.id;
+
+            // Mark order as completed immediately
+            await OrderModel.updateStatus(order.id, 'completed' as any, req.user?.userId, 'Faktura z panelu');
+          } catch (orderErr) {
+            console.error('Error creating order for invoice:', orderErr);
+            // Continue - invoice can still be created without order
+          }
+        }
 
         const invoice = await InvoiceModel.create(
           customerId,
@@ -164,7 +193,8 @@ export class InvoiceController {
           paymentMethod as PaymentMethod,
           deadline,
           req.user?.userId,
-          recipientSnapshot
+          recipientSnapshot,
+          createdOrderId
         );
 
         return res.status(201).json({

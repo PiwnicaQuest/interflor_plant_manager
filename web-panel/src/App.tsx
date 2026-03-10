@@ -35,6 +35,7 @@ import {
   ScannerNewOrderPage,
   ScannerLossPage,
   ScannerInventoryPage,
+  ScannerAddPlantPage,
   ScannerPOSPage,
 } from "./pages/scanner";
 
@@ -125,6 +126,7 @@ function App() {
             <Route path="orders/:id" element={<ScannerOrderDetailPage />} />
             <Route path="losses" element={<ScannerLossPage />} />
             <Route path="inventory" element={<ScannerInventoryPage />} />
+            <Route path="add-plant" element={<ScannerAddPlantPage />} />
             <Route path="pos" element={<ScannerPOSPage />} />
           </Route>
 

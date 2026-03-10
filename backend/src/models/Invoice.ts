@@ -810,7 +810,8 @@ export class InvoiceModel {
     paymentMethod: PaymentMethod,
     paymentDeadline: Date | null,
     createdByUserId?: number,
-    recipientSnapshot?: CustomerSnapshot
+    recipientSnapshot?: CustomerSnapshot,
+    orderId?: number
   ): Promise<InvoiceWithItems> {
     return transaction(async (client) => {
       // Generate invoice number
@@ -860,8 +861,8 @@ export class InvoiceModel {
           invoice_number, customer_id, buyer_snapshot,
           issue_date, sale_date, payment_deadline, payment_method,
           payment_status, paid_amount,
-          subtotal_net, total_vat, total_gross, created_by_user_id, invoice_type, transaction_type
-        ) VALUES ($1, $2, $3, CURRENT_DATE, CURRENT_DATE, $4, $5, $6::payment_status, $7, $8, $9, $10, $11, 'invoice'::invoice_type, $12::transaction_type)
+          subtotal_net, total_vat, total_gross, created_by_user_id, invoice_type, transaction_type, order_id
+        ) VALUES ($1, $2, $3, CURRENT_DATE, CURRENT_DATE, $4, $5, $6::payment_status, $7, $8, $9, $10, $11, 'invoice'::invoice_type, $12::transaction_type, $13)
         RETURNING *`,
         [
           invoiceNumber,
@@ -876,6 +877,7 @@ export class InvoiceModel {
           totalGross,
           createdByUserId,
           transactionType,
+          orderId || null,
         ]
       );
 

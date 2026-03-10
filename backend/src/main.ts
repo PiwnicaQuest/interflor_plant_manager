@@ -115,6 +115,16 @@ app.get("/inventory/merge-history", requireAuth, requirePermission('inventory:me
 app.post('/inventory/scan-barcode', requireAuth, InventoryController.scanBarcodeWithMerged);
 app.post("/inventory/import-csv", requireAuth, requirePermission('inventory:create'), csvUpload.single("file"), CSVImportController.importCSV);
 app.post("/inventory/import-excel", requireAuth, requirePermission('inventory:create'), excelUpload.single("file"), ExcelImportController.importExcel);
+app.get('/inventory/check-barcode/:barcode', requireAuth, async (req: any, res: any) => {
+  try {
+    const barcode = req.params.barcode;
+    const { ProductModel } = await import("./models/Product");
+    const product = await ProductModel.getByBarcode(barcode);
+    return res.json({ exists: !!product });
+  } catch (err) {
+    return res.json({ exists: false });
+  }
+});
 app.get('/inventory/barcode/:barcode', requireAuth, ScannerController.getProductByBarcode);
 
 app.get('/inventory/:id', requireAuth, InventoryController.getById);

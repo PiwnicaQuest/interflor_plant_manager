@@ -150,7 +150,9 @@ export function POSPage() {
         documentNumber: result.documentNumber,
         documentId: result.documentId,
         totalAmount: result.totalAmount,
-        customerHasEmail: !!selectedOrder?.customerId,
+        customerHasEmail: !!selectedOrder?.customerEmail,
+        customerId: selectedOrder?.customerId,
+        customerEmail: selectedOrder?.customerEmail,
         paymentDetails: methodLabel ? `${methodLabel}: ${formatPrice(result.totalAmount)} PLN` : undefined,
         change,
       });
@@ -284,9 +286,18 @@ export function POSPage() {
     window.open(viewUrl, '_blank');
   };
 
-  const handleSendEmail = async () => {
-    if (!checkoutResult || checkoutResult.documentType !== 'invoice') return;
-    await api.sendInvoiceEmail(checkoutResult.documentId);
+  const handleSendEmail = async (email?: string) => {
+    if (!checkoutResult) return;
+    const opts = email ? { email } : undefined;
+    if (checkoutResult.documentType === 'invoice') {
+      await api.sendInvoiceEmail(checkoutResult.documentId, opts);
+    } else if (checkoutResult.documentType === 'proforma') {
+      await api.sendProformaEmail(checkoutResult.documentId, opts);
+    }
+  };
+
+  const handleSaveCustomerEmail = async (customerId: number, email: string) => {
+    await api.updateCustomer(customerId, { email });
   };
 
   const handleCloseSuccessModal = () => {
@@ -337,7 +348,48 @@ export function POSPage() {
     window.open(viewUrl, '_blank');
   };
 
+  const [historyEmailSending, setHistoryEmailSending] = useState<number | null>(null);
+  const [historyEmailSent, setHistoryEmailSent] = useState<Set<number>>(new Set());
+  const [emailModalOrder, setEmailModalOrder] = useState<CompletedOrderSummary | null>(null);
+  const [emailModalInput, setEmailModalInput] = useState('');
+  const [emailModalSaved, setEmailModalSaved] = useState(false);
 
+  const handleHistoryEmailClick = (order: CompletedOrderSummary) => {
+    setEmailModalOrder(order);
+    setEmailModalInput(order.customerEmail || '');
+    setEmailModalSaved(false);
+  };
+
+  const handleHistoryEmailSend = async () => {
+    if (!emailModalOrder?.document) return;
+    const docType = emailModalOrder.document.type;
+    const docId = emailModalOrder.document.id;
+    if (docType !== 'invoice' && docType !== 'proforma') return;
+
+    const opts = emailModalInput ? { email: emailModalInput } : undefined;
+
+    try {
+      setHistoryEmailSending(docId);
+      if (docType === 'invoice') {
+        await api.sendInvoiceEmail(docId, opts);
+      } else {
+        await api.sendProformaEmail(docId, opts);
+      }
+      setHistoryEmailSent(prev => new Set(prev).add(docId));
+      // Save email to customer if manually entered
+      if (emailModalInput && emailModalOrder.customerId) {
+        try {
+          await api.updateCustomer(emailModalOrder.customerId, { email: emailModalInput });
+          setEmailModalSaved(true);
+        } catch (e) {}
+      }
+      setTimeout(() => setEmailModalOrder(null), 1500);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Błąd wysyłania emaila');
+    } finally {
+      setHistoryEmailSending(null);
+    }
+  };
 
   const handleDownloadDailyReport = async () => {
     setDownloadingReport(true);
@@ -827,6 +879,33 @@ export function POSPage() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                               </svg>
                             </button>
+                            {order.document && (order.document.type === 'invoice' || order.document.type === 'proforma') && (
+                              <button
+                                onClick={() => handleHistoryEmailClick(order)}
+                                disabled={historyEmailSending === order.document!.id || historyEmailSent.has(order.document!.id)}
+                                className={`p-1.5 rounded transition-colors ${
+                                  historyEmailSent.has(order.document!.id)
+                                    ? 'text-green-600 bg-green-50'
+                                    : 'text-gray-500 hover:text-orange-600 hover:bg-orange-50'
+                                } disabled:opacity-50`}
+                                title={historyEmailSent.has(order.document!.id) ? 'Wysłano' : 'Wyślij mailem'}
+                              >
+                                {historyEmailSending === order.document!.id ? (
+                                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                  </svg>
+                                ) : historyEmailSent.has(order.document!.id) ? (
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                ) : (
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                  </svg>
+                                )}
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -958,8 +1037,69 @@ export function POSPage() {
           onViewDocument={handleViewDocument}
           onSendEmail={handleSendEmail}
           hasCustomerEmail={checkoutResult.customerHasEmail}
+          customerId={checkoutResult.customerId}
+          customerEmail={checkoutResult.customerEmail}
+          onSaveCustomerEmail={handleSaveCustomerEmail}
         />
       )}
+      {/* Email Modal */}
+      {emailModalOrder && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-sm w-full p-5 shadow-xl">
+            <h3 className="text-lg font-semibold mb-3">
+              Wyślij {emailModalOrder.document?.type === 'proforma' ? 'pro formę' : 'fakturę'} mailem
+            </h3>
+            <p className="text-sm text-gray-500 mb-1">{emailModalOrder.document?.number}</p>
+            <p className="text-sm text-gray-500 mb-3">{emailModalOrder.customerName || 'Brak klienta'}</p>
+            {!historyEmailSent.has(emailModalOrder.document?.id || 0) ? (
+              <>
+                <input
+                  type="email"
+                  value={emailModalInput}
+                  onChange={(e) => setEmailModalInput(e.target.value)}
+                  placeholder="Adres e-mail"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 mb-3"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setEmailModalOrder(null)}
+                    className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg text-sm transition-colors"
+                  >
+                    Anuluj
+                  </button>
+                  <button
+                    onClick={handleHistoryEmailSend}
+                    disabled={historyEmailSending !== null || !emailModalInput}
+                    className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-lg text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {historyEmailSending !== null ? (
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    )}
+                    Wyślij
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-4">
+                <svg className="w-12 h-12 text-green-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <p className="text-green-700 font-medium">Wysłano!</p>
+                {emailModalSaved && <p className="text-xs text-green-600 mt-1">Email zapisany w danych kontrahenta</p>}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

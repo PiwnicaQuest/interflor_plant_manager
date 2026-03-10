@@ -101,6 +101,7 @@ export class OrderModel {
       SELECT o.*,
              COALESCE(c.company_name, CONCAT(c.first_name, ' ', c.last_name)) as customer_name,
              c.customer_code as customer_code,
+             c.email as customer_email,
              (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) as item_count
       FROM orders o
       LEFT JOIN customers c ON o.customer_id = c.id
@@ -216,8 +217,8 @@ export class OrderModel {
       };
     });
 
-    const customerResult = await query<{ companyName?: string; firstName?: string; lastName?: string; customerCode?: string; priceGroupId?: number; priceGroupName?: string }>(
-      `SELECT c.company_name, c.first_name, c.last_name, c.customer_code, c.price_group_id, pg.name as price_group_name
+    const customerResult = await query<{ companyName?: string; firstName?: string; lastName?: string; customerCode?: string; email?: string; priceGroupId?: number; priceGroupName?: string }>(
+      `SELECT c.company_name, c.first_name, c.last_name, c.customer_code, c.email, c.price_group_id, pg.name as price_group_name
        FROM customers c
        LEFT JOIN price_groups pg ON c.price_group_id = pg.id
        WHERE c.id = $1`,
@@ -227,11 +228,13 @@ export class OrderModel {
     let customerName: string | undefined;
     let customerCode: string | undefined;
     let customerPriceGroupId: number | undefined;
+    let customerEmail: string | undefined;
     let customerPriceGroupName: string | undefined;
     if (customerResult.rows.length > 0) {
       const customer = customerResult.rows[0];
       customerName = customer.companyName || `${customer.firstName} ${customer.lastName}`;
       customerCode = customer.customerCode;
+      customerEmail = customer.email;
       customerPriceGroupId = customer.priceGroupId;
       customerPriceGroupName = customer.priceGroupName;
     }
@@ -241,6 +244,7 @@ export class OrderModel {
       items,
       customerCode,
       customerName,
+      customerEmail,
       customerPriceGroupId,
       customerPriceGroupName,
     };
@@ -1016,21 +1020,32 @@ export class OrderModel {
         o.*,
         COALESCE(c.company_name, CONCAT(c.first_name, ' ', c.last_name)) as customer_name,
              c.customer_code as customer_code,
+             c.email as customer_email,
         (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) as item_count,
-        -- Invoice info (if exists)
+        -- Invoice info (latest invoice, not proforma)
         i.id as invoice_id,
         i.invoice_number,
         i.payment_method as invoice_payment_method,
         i.payment_splits as invoice_payment_splits,
-        -- Receipt info (if exists)
+        -- Receipt info (latest receipt)
         r.id as receipt_id,
         r.receipt_number,
         r.payment_method as receipt_payment_method,
         r.payment_splits as receipt_payment_splits
       FROM orders o
       LEFT JOIN customers c ON o.customer_id = c.id
-      LEFT JOIN invoices i ON i.order_id = o.id AND (i.invoice_type = 'invoice' OR i.invoice_type IS NULL)
-      LEFT JOIN receipts r ON r.order_id = o.id
+      LEFT JOIN LATERAL (
+        SELECT i2.id, i2.invoice_number, i2.payment_method, i2.payment_splits
+        FROM invoices i2
+        WHERE i2.order_id = o.id AND i2.invoice_type = 'invoice'
+        ORDER BY i2.id DESC LIMIT 1
+      ) i ON true
+      LEFT JOIN LATERAL (
+        SELECT r2.id, r2.receipt_number, r2.payment_method, r2.payment_splits
+        FROM receipts r2
+        WHERE r2.order_id = o.id
+        ORDER BY r2.id DESC LIMIT 1
+      ) r ON true
       WHERE o.status = 'completed'
         AND DATE(o.completed_at) = CURRENT_DATE
       ORDER BY o.completed_at DESC
@@ -1065,6 +1080,7 @@ export class OrderModel {
         orderNumber: row.orderNumber,
         customerId: row.customerId,
         customerName: row.customerName,
+        customerEmail: row.customerEmail,
         totalAmount: row.totalAmountAfterDiscount || row.totalAmount,
         discountPercentage: row.discountPercentage || 0,
         status: row.status,
@@ -1331,6 +1347,7 @@ export class OrderModel {
         o.*,
         COALESCE(c.company_name, CONCAT(c.first_name, ' ', c.last_name)) as customer_name,
         c.customer_code as customer_code,
+             c.email as customer_email,
         (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) as item_count,
         -- Invoice info (if exists)
         i.id as invoice_id,
@@ -1344,8 +1361,18 @@ export class OrderModel {
         r.payment_splits as receipt_payment_splits
       FROM orders o
       LEFT JOIN customers c ON o.customer_id = c.id
-      LEFT JOIN invoices i ON i.order_id = o.id AND (i.invoice_type = 'invoice' OR i.invoice_type IS NULL)
-      LEFT JOIN receipts r ON r.order_id = o.id
+      LEFT JOIN LATERAL (
+        SELECT i2.id, i2.invoice_number, i2.payment_method, i2.payment_splits
+        FROM invoices i2
+        WHERE i2.order_id = o.id AND i2.invoice_type = 'invoice'
+        ORDER BY i2.id DESC LIMIT 1
+      ) i ON true
+      LEFT JOIN LATERAL (
+        SELECT r2.id, r2.receipt_number, r2.payment_method, r2.payment_splits
+        FROM receipts r2
+        WHERE r2.order_id = o.id
+        ORDER BY r2.id DESC LIMIT 1
+      ) r ON true
       WHERE o.status = 'completed'
         AND DATE(o.completed_at) = $1
       ORDER BY o.completed_at DESC
@@ -1398,6 +1425,7 @@ export class OrderModel {
         orderNumber: row.orderNumber,
         customerId: row.customerId,
         customerName: row.customerName,
+        customerEmail: row.customerEmail,
         customerCode: row.customerCode,
         totalAmount: row.totalAmountAfterDiscount || row.totalAmount,
         discountPercentage: row.discountPercentage || 0,
@@ -1418,6 +1446,7 @@ export class OrderModel {
         orderNumber: row.orderNumber,
         customerId: row.customerId,
         customerName: row.customerName,
+        customerEmail: row.customerEmail,
         customerCode: row.customerCode,
         totalAmount: row.totalGross,
         status: 'proforma',

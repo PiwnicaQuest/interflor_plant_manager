@@ -434,10 +434,11 @@ export function usePrint(options: UsePrintOptions = {}) {
               window.onload = function() {
                 setTimeout(function() {
                   window.print();
-                  setTimeout(function() { try { window.close(); } catch(e) {} }, 1000);
                 }, 500);
               };
+
             </script>
+
           </body>
           </html>
         `;

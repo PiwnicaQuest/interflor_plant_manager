@@ -8,6 +8,9 @@ export function ScannerScanPage() {
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [editingBarcode, setEditingBarcode] = useState(false);
+  const [editBarcodeValue, setEditBarcodeValue] = useState('');
+  const [savingBarcode, setSavingBarcode] = useState(false);
   const [movements, setMovements] = useState<InventoryMovement[]>([]);
   const [productLoading, setProductLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -408,12 +411,56 @@ export function ScannerScanPage() {
                       <span className="font-medium">{selectedProduct.looseUnits}</span>
                     </div>
                   )}
-                  {selectedProduct.barcode && (
-                    <div className="col-span-2 flex justify-between py-1.5 border-b border-gray-100">
+                  <div className="col-span-2 flex justify-between items-center py-1.5 border-b border-gray-100">
                       <span className="text-gray-500">Kod</span>
-                      <span className="font-mono text-xs">{selectedProduct.barcode}</span>
+                      {editingBarcode ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="text"
+                            value={editBarcodeValue}
+                            onChange={(e) => setEditBarcodeValue(e.target.value)}
+                            className="w-36 px-2 py-1 border border-blue-300 rounded text-xs font-mono focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                            autoFocus
+                          />
+                          <button
+                            onClick={async () => {
+                              if (!editBarcodeValue.trim() || !selectedProduct) return;
+                              setSavingBarcode(true);
+                              try {
+                                await API.updateProduct(selectedProduct.id, { barcode: editBarcodeValue.trim() });
+                                setSelectedProduct({ ...selectedProduct, barcode: editBarcodeValue.trim() });
+                                setEditingBarcode(false);
+                              } catch (err: any) {
+                                alert(err?.response?.data?.error || 'Blad zapisu');
+                              } finally {
+                                setSavingBarcode(false);
+                              }
+                            }}
+                            disabled={savingBarcode}
+                            className="p-1 text-green-600 hover:text-green-800"
+                          >
+                            {savingBarcode ? (
+                              <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-green-600 border-t-transparent" />
+                            ) : (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                            )}
+                          </button>
+                          <button onClick={() => setEditingBarcode(false)} className="p-1 text-gray-400 hover:text-gray-600">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-xs">{selectedProduct.barcode || '-'}</span>
+                          <button
+                            onClick={() => { setEditBarcodeValue(selectedProduct.barcode || ''); setEditingBarcode(true); }}
+                            className="p-0.5 text-blue-500 hover:text-blue-700"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  )}
                   {selectedProduct.createdAt && (
                     <div className="col-span-2 flex justify-between py-1.5 border-b border-gray-100">
                       <span className="text-gray-500">Data dodania</span>

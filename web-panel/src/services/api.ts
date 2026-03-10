@@ -133,6 +133,11 @@ class ApiClient {
     return response.data;
   }
 
+  async checkBarcode(barcode: string): Promise<{ exists: boolean }> {
+    const response = await this.client.get(`/inventory/check-barcode/${barcode}`);
+    return response.data;
+  }
+
   async createProduct(data: Partial<Product>): Promise<{ message: string; productId: number; product: Product }> {
     const response = await this.client.post('/inventory', data);
     return response.data;

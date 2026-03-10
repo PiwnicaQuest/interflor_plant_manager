@@ -62,6 +62,13 @@ export function ScannerPOSPage() {
   const [emailSent, setEmailSent] = useState(false);
   const [notification, setNotification] = useState<{type: 'success' | 'error'; message: string} | null>(null);
 
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
   // === Print hook ===
   const { printInvoicePdf, printProformaPdf, printReceipt } = usePrint({
     onError: (err) => {
@@ -204,7 +211,7 @@ export function ScannerPOSPage() {
         documentNumber: result.documentNumber,
         documentId: result.documentId,
         totalAmount: result.totalAmount,
-        customerHasEmail: !!selectedOrder.customerId,
+        customerHasEmail: !!(selectedOrder as any).customerEmail,
         change,
         orderId: result.orderId,
       });
@@ -242,7 +249,7 @@ export function ScannerPOSPage() {
         documentNumber: result.documentNumber,
         documentId: result.documentId,
         totalAmount: result.totalAmount,
-        customerHasEmail: !!selectedOrder.customerId,
+        customerHasEmail: !!(selectedOrder as any).customerEmail,
         orderId: result.orderId,
       });
 
@@ -295,22 +302,37 @@ export function ScannerPOSPage() {
     window.open(viewUrl, '_blank');
   };
 
-  const handleSendEmail = async (docId?: number, docType?: string) => {
+  const [manualEmail, setManualEmail] = useState('');
+  const [emailSaved, setEmailSaved] = useState(false);
+
+  const handleSendEmail = async (docId?: number, docType?: string, email?: string) => {
     const id = docId || checkoutResult?.documentId;
     if (!id) return;
     const type = docType || checkoutResult?.documentType;
     try {
       setEmailSending(true);
+      const opts = email ? { email } : undefined;
       if (type === 'proforma') {
-        await api.sendProformaEmail(id);
+        await api.sendProformaEmail(id, opts);
       } else {
-        await api.sendInvoiceEmail(id);
+        await api.sendInvoiceEmail(id, opts);
+      }
+      // Save email to customer if manually entered
+      if (email && checkoutResult?.orderId) {
+        try {
+          const orderData = selectedOrder || completedOrders.find(o => o.id === checkoutResult.orderId);
+          if (orderData && (orderData as any).customerId) {
+            await api.updateCustomer((orderData as any).customerId, { email });
+            setEmailSaved(true);
+          }
+        } catch (e) {}
       }
       setEmailSent(true);
       setNotification({ type: 'success', message: 'Email wysłany pomyślnie' });
     } catch (err: any) {
-      setError('Błąd wysyłki email');
-      setNotification({ type: 'error', message: 'Błąd wysyłki email' });
+      const msg = err?.response?.data?.error || err.message || 'Błąd wysyłki email';
+      setError(msg);
+      setNotification({ type: 'error', message: msg });
     } finally {
       setEmailSending(false);
     }
@@ -1050,8 +1072,23 @@ export function ScannerPOSPage() {
               Podgląd dokumentu
             </button>
             {(checkoutResult.documentType === 'invoice' || checkoutResult.documentType === 'proforma') && (
+              <>
+              {!emailSent && !checkoutResult.customerHasEmail && (
+                <div className="flex gap-2 px-0">
+                  <input
+                    type="email"
+                    value={manualEmail}
+                    onChange={(e) => setManualEmail(e.target.value)}
+                    placeholder="Wpisz adres e-mail klienta"
+                    className="flex-1 px-3 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+              )}
+              {emailSaved && (
+                <p className="text-xs text-green-600 text-center">Email zapisany w danych kontrahenta</p>
+              )}
               <button
-                onClick={() => handleSendEmail()}
+                onClick={() => handleSendEmail(undefined, undefined, manualEmail || undefined)}
                 disabled={emailSending || emailSent}
                 className="w-full py-3.5 bg-gray-100 text-gray-800 rounded-xl font-medium flex items-center justify-center gap-2 active:bg-gray-200 disabled:opacity-50"
               >
@@ -1068,6 +1105,7 @@ export function ScannerPOSPage() {
                 )}
                 {emailSent ? 'Wysłano' : 'Wyślij e-mail'}
               </button>
+              </>
             )}
             <button onClick={resetFlow} className="w-full py-3.5 text-gray-400 font-medium">
               Zamknij

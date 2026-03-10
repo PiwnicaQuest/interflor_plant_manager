@@ -174,7 +174,6 @@ export function Layout() {
       adminItems.push({ path: '/settings', label: 'Ustawienia' });
     }
     if (hasPermission('settings:edit')) {
-      adminItems.push({ path: '/templates', label: 'Szablony etykiet' });
     }
     if (hasPermission('inventory:delete')) {
       adminItems.push({ path: '/losses', label: 'Straty' });
@@ -193,7 +192,7 @@ export function Layout() {
       {/* Header */}
       <header className="flex-shrink-0 bg-brand shadow-sm border-b border-brand-dark">
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-14 md:h-16">
+          <div className="flex justify-between items-center h-16 md:h-18">
             <div className="flex items-center space-x-8">
               {/* Hamburger button - mobile only */}
               <button
@@ -206,7 +205,7 @@ export function Layout() {
                 </svg>
               </button>
               <div className="flex items-center gap-2">
-                <img src="/interflor-logo.png" alt="INTERFLOR" className="h-20" />
+                <img src="/interflor-logo.png" alt="INTERFLOR" className="h-12 md:h-14" />
               </div>
               <nav className="hidden md:flex items-center">
                 {navGroups.map((group, groupIndex) => (
@@ -265,7 +264,7 @@ export function Layout() {
           <div className="fixed inset-y-0 left-0 w-72 bg-brand shadow-xl overflow-y-auto">
             {/* Drawer header */}
             <div className="flex items-center justify-between px-4 h-14 border-b border-brand-dark">
-              <img src="/interflor-logo.png" alt="INTERFLOR" className="h-20" />
+              <img src="/interflor-logo.png" alt="INTERFLOR" className="h-12 md:h-14" />
               <button
                 className="p-2 rounded-md text-gray-200 hover:bg-brand-dark"
                 onClick={() => setMobileMenuOpen(false)}

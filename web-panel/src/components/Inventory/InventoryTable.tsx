@@ -55,6 +55,7 @@ const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   discount20: 42,
   discount25: 42,
   auchan8: 42,
+  detal1: 55,
   visible: 36,
   grower: 80,
   passport: 60,
@@ -414,11 +415,11 @@ export function InventoryTable({
 
   // Default column order (moved before early return to respect React hooks rules)
   const DEFAULT_COLUMN_ORDER = [
-    "checkbox", "lastMovement", "createdAt", "visible", "image", "plantName", "tags",
+    "checkbox", "createdAt", "visible", "image", "plantName", "tags",
     "palletCount", "unitsPerPallet", "totalUnits", "potSize", "plantHeight",
     "purchasePrice", "pricePlus", "basePrice", "detal1",
-    "discount10", "discount12", "discount15", "discount20", "discount25", "auchan8",
-    "totalSold", "grower", "passport", "actions"
+    "totalSold", "grower", "passport", "actions",
+    "lastMovement", "discount10", "discount12", "discount15", "discount20", "discount25", "auchan8"
   ];
 
   // Get sorted column keys based on columnOrder prop
@@ -1031,17 +1032,17 @@ export function InventoryTable({
     checkbox: { label: "", style: headerStyles.checkbox, borderClass: "border-b-2 border-gray-300" },
     image: { label: "📷", style: headerStyles.image, title: "Zdjęcie", borderClass: "border-b-2 border-gray-300" },
     plantName: { label: "Nazwa", style: headerStyles.info, title: "Nazwa rośliny", borderClass: "border-b-2 border-slate-400 border-l border-slate-300" },
-    createdAt: { label: "📅D", style: headerStyles.date, title: "Data dodania", borderClass: "border-b-2 border-cyan-400 border-l border-cyan-300" },
-    potSize: { label: "⌀", style: headerStyles.info, title: "Rozmiar doniczki", borderClass: "border-b-2 border-slate-400 border-l border-slate-300" },
-    plantHeight: { label: "↕", style: headerStyles.info, title: "Wysokość rośliny", borderClass: "border-b-2 border-slate-400" },
-    palletCount: { label: "🎨", style: headerStyles.inventory, title: "Liczba palet", borderClass: "border-b-2 border-amber-400 border-l border-amber-300" },
-    unitsPerPallet: { label: "szt/p", style: headerStyles.inventory, title: "Sztuk na palecie", borderClass: "border-b-2 border-amber-400" },
-    totalUnits: { label: "Σ", style: headerStyles.inventory, title: "Suma sztuk (edytowalne)", borderClass: "border-b-2 border-amber-400" },
-    totalSold: { label: "📦", style: headerStyles.inventory, title: "Sprzedane", borderClass: "border-b-2 border-amber-400" },
-    purchasePrice: { label: "Zak", style: headerStyles.purchase, title: "Cena zakupu", borderClass: "border-b-2 border-blue-400 border-l border-blue-300" },
-    pricePlus: { label: "C+", style: headerStyles.pricePlus, title: "Cena+ (zakup + marża)", borderClass: "border-b-2 border-yellow-500 border-l border-yellow-400 font-bold" },
-    basePrice: { label: "Baz", style: headerStyles.basePrice, title: "Cena podstawowa (edytowalne)", borderClass: "border-b-2 border-green-500 border-l border-green-400 font-bold" },
-    detal1: { label: "Det.1", style: headerStyles.detal1, title: "Cena Detal 1 (narzut z grupy cenowej)", borderClass: "border-b-2 border-rose-400 border-l border-rose-300 font-bold" },
+    createdAt: { label: "Data dostawy", style: headerStyles.date, title: "Data dostawy", borderClass: "border-b-2 border-cyan-400 border-l border-cyan-300" },
+    potSize: { label: "Średnica", style: headerStyles.info, title: "Średnica doniczki", borderClass: "border-b-2 border-slate-400 border-l border-slate-300" },
+    plantHeight: { label: "Wysokość", style: headerStyles.info, title: "Wysokość rośliny", borderClass: "border-b-2 border-slate-400" },
+    palletCount: { label: "Palety", style: headerStyles.inventory, title: "Liczba palet", borderClass: "border-b-2 border-amber-400 border-l border-amber-300" },
+    unitsPerPallet: { label: "Szt./pal.", style: headerStyles.inventory, title: "Sztuk na palecie", borderClass: "border-b-2 border-amber-400" },
+    totalUnits: { label: "Łącznie", style: headerStyles.inventory, title: "Suma sztuk (edytowalne)", borderClass: "border-b-2 border-amber-400" },
+    totalSold: { label: "Sprzedane", style: headerStyles.inventory, title: "Sprzedane", borderClass: "border-b-2 border-amber-400" },
+    purchasePrice: { label: "Cena zakupu", style: headerStyles.purchase, title: "Cena zakupu", borderClass: "border-b-2 border-blue-400 border-l border-blue-300" },
+    pricePlus: { label: "Cena+", style: headerStyles.pricePlus, title: "Cena+ (zakup + marża)", borderClass: "border-b-2 border-yellow-500 border-l border-yellow-400 font-bold" },
+    basePrice: { label: "Bazowa", style: headerStyles.basePrice, title: "Cena podstawowa (edytowalne)", borderClass: "border-b-2 border-green-500 border-l border-green-400 font-bold" },
+    detal1: { label: "Detal 1", style: headerStyles.detal1, title: "Cena Detal 1 (narzut z grupy cenowej)", borderClass: "border-b-2 border-rose-400 border-l border-rose-300 font-bold" },
     discount10: { label: "10", style: headerStyles.discounts, title: "Rabat -10%", borderClass: "border-b-2 border-purple-400 border-l border-purple-300" },
     discount12: { label: "12", style: headerStyles.discounts, title: "Rabat -12%", borderClass: "border-b-2 border-purple-400" },
     discount15: { label: "15", style: headerStyles.discounts, title: "Rabat -15%", borderClass: "border-b-2 border-purple-400" },
@@ -1049,11 +1050,11 @@ export function InventoryTable({
     discount25: { label: "25", style: headerStyles.discounts, title: "Rabat -25%", borderClass: "border-b-2 border-purple-400" },
     auchan8: { label: "A8", style: headerStyles.discounts, title: "Auchan (cena podstawowa)", borderClass: "border-b-2 border-purple-400" },
     lastMovement: { label: "Ost.ruch", style: headerStyles.inventory, title: "Ostatni ruch magazynowy", borderClass: "border-b-2 border-amber-400" },
-    visible: { label: "👁", style: headerStyles.status, title: "Widoczność w sklepie", borderClass: "border-b-2 border-orange-400" },
-    grower: { label: "🌱", style: headerStyles.grower, title: "Ogrodnik/Producent", borderClass: "border-b-2 border-teal-400 border-l border-teal-300" },
-    passport: { label: "ID", style: headerStyles.grower, title: "Paszport ogrodnika", borderClass: "border-b-2 border-teal-400" },
-    tags: { label: "🏷", style: headerStyles.tags, title: "Tagi/Kategorie", borderClass: "border-b-2 border-pink-400 border-l border-pink-300" },
-    actions: { label: "⚙", style: headerStyles.actions, title: "Akcje", borderClass: "border-b-2 border-gray-300 border-l border-gray-200" },
+    visible: { label: "Sklep", style: headerStyles.status, title: "Widoczność w sklepie", borderClass: "border-b-2 border-orange-400" },
+    grower: { label: "Ogrodnik", style: headerStyles.grower, title: "Ogrodnik/Producent", borderClass: "border-b-2 border-teal-400 border-l border-teal-300" },
+    passport: { label: "Paszport", style: headerStyles.grower, title: "Paszport ogrodnika", borderClass: "border-b-2 border-teal-400" },
+    tags: { label: "Tagi", style: headerStyles.tags, title: "Tagi/Kategorie", borderClass: "border-b-2 border-pink-400 border-l border-pink-300" },
+    actions: { label: "Akcje", style: headerStyles.actions, title: "Akcje", borderClass: "border-b-2 border-gray-300 border-l border-gray-200" },
   };
 
   // Render header content based on column key
@@ -1115,7 +1116,7 @@ export function InventoryTable({
   // Cell configurations for dynamic rendering - styles and border classes
   const cellConfigs: Record<string, { styleKey: string; borderClass: string; extraClass?: string }> = {
     checkbox: { styleKey: "checkbox", borderClass: "border-b border-gray-200" },
-    image: { styleKey: "image", borderClass: "border-b border-gray-200", extraClass: "!px-0 !py-px text-center" },
+    image: { styleKey: "image", borderClass: "border-b border-gray-200", extraClass: "!px-0 !py-px flex items-center justify-center" },
     plantName: { styleKey: "info", borderClass: "border-b border-slate-200 border-l border-slate-200", extraClass: "text-xs" },
     createdAt: { styleKey: "date", borderClass: "border-b border-cyan-200 border-l border-cyan-200", extraClass: "text-center text-xs text-gray-600" },
     potSize: { styleKey: "info", borderClass: "border-b border-slate-200 border-l border-slate-200", extraClass: "text-center text-xs" },
@@ -1295,23 +1296,21 @@ export function InventoryTable({
       case "actions":
         return (
           <div className="flex gap-0.5 flex-nowrap">
-            <button onClick={() => onShowBarcode(product)} className="text-gray-600 hover:text-gray-800 text-xs px-0.5 hover:bg-gray-100 rounded" title={product.barcode ? `Kod: ${product.barcode}` : "Generuj kod"}>
-              {product.barcode ? "📊" : "➕"}
+            <button onClick={() => onShowBarcode(product)} className="text-[10px] px-1 py-0.5 w-10 text-center bg-gray-500 hover:bg-gray-600 text-white rounded whitespace-nowrap" title={product.barcode ? `Kod: ${product.barcode}` : "Generuj kod"}>
+              {product.barcode ? "Kod" : "+Kod"}
             </button>
             {onDuplicateProduct && (
-              <button onClick={() => onDuplicateProduct(product)} className="text-blue-600 hover:text-blue-800 text-xs px-0.5 hover:bg-blue-50 rounded" title="Kopiuj">📋</button>
+              <button onClick={() => onDuplicateProduct(product)} className="text-[10px] px-1 py-0.5 w-10 text-center bg-blue-500 hover:bg-blue-600 text-white rounded whitespace-nowrap">Kopiuj</button>
             )}
             {!product.isArchived && onReportLoss && (
-              <button onClick={() => onReportLoss(product)} className="text-red-600 hover:text-red-800 text-xs px-0.5 hover:bg-red-50 rounded" title="Zglos strate">⚠️</button>
+              <button onClick={() => onReportLoss(product)} className="text-[10px] px-1 py-0.5 w-10 text-center bg-orange-500 hover:bg-orange-600 text-white rounded whitespace-nowrap">Strata</button>
             )}
-            {!product.isArchived && onArchiveProduct && (
-              <button onClick={() => onArchiveProduct(product)} className="text-yellow-600 hover:text-yellow-800 text-xs px-0.5 hover:bg-yellow-50 rounded" title="Archiwizuj">📦</button>
-            )}
+
             {product.isArchived && onRestoreProduct && (
-              <button onClick={() => onRestoreProduct(product)} className="text-green-600 hover:text-green-800 text-xs px-0.5 hover:bg-green-50 rounded" title="Przywroc">↩️</button>
+              <button onClick={() => onRestoreProduct(product)} className="text-[10px] px-1 py-0.5 w-10 text-center bg-green-500 hover:bg-green-600 text-white rounded whitespace-nowrap">Przywroc</button>
             )}
             {onDeleteProduct && (
-              <button onClick={() => onDeleteProduct(product)} className="text-red-600 hover:text-red-800 text-xs px-0.5 hover:bg-red-50 rounded" title="Usuń">🗑️</button>
+              <button onClick={() => onDeleteProduct(product)} className="text-[10px] px-1 py-0.5 w-10 text-center bg-red-500 hover:bg-red-600 text-white rounded whitespace-nowrap">Usun</button>
             )}
           </div>
         );
