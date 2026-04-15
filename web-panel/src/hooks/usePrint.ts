@@ -78,6 +78,8 @@ const getBasePrintStyles = (documentType: DocumentType): string => {
         }
         html, body {
           width: 72mm;
+          min-height: 100%;
+          height: auto !important;
           margin: 0;
           padding: 0;
           font-family: "Courier New", Courier, monospace;
@@ -85,14 +87,18 @@ const getBasePrintStyles = (documentType: DocumentType): string => {
           line-height: 1.3;
           color: #000;
           background: #fff;
+          overflow: visible !important;
         }
         @media print {
           @page {
             size: 72mm auto;
-            margin: 2mm;
+            margin: 1mm 0;
           }
           html, body {
             width: 72mm;
+            height: auto !important;
+            padding: 0 2mm;
+            overflow: visible !important;
           }
           .no-print { display: none !important; }
           * {
@@ -411,63 +417,91 @@ export function usePrint(options: UsePrintOptions = {}) {
       }
 
       // ========================================
-      // 2. Browser print fallback
+      // 2. Browser print fallback (window.open with full print CSS)
       // ========================================
       try {
-        console.log("[usePrint] Using browser print...");
+        console.log("[usePrint] Using browser print (window.open)...");
 
         const title = printOptions?.title || "Wydruk";
         const baseStyles = getBasePrintStyles(documentType);
 
-        const fullHtml = `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>${title}</title>
-            ${baseStyles}
-          </head>
-          <body>
-            ${htmlContent}
-            <script>
-              window.onload = function() {
-                setTimeout(function() {
-                  window.print();
-                }, 500);
-              };
+        const fullHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  ${baseStyles}
+  <style>
+    html, body {
+      height: auto !important;
+      overflow: visible !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    @media print {
+      html, body {
+        height: auto !important;
+        overflow: visible !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  ${htmlContent}
+  <script>
+    // Wait for images, then force full height and print
+    var imgs = document.querySelectorAll('img');
+    var loaded = 0;
+    var total = imgs.length;
 
-            </script>
+    function doPrint() {
+      // Force document to show full content height (Android fix)
+      document.body.style.height = 'auto';
+      document.body.style.overflow = 'visible';
+      document.body.style.position = 'relative';
+      document.documentElement.style.height = 'auto';
+      document.documentElement.style.overflow = 'visible';
+      // Scroll to top
+      window.scrollTo(0, 0);
+      // Small delay for layout recalc
+      setTimeout(function() {
+        window.print();
+      }, 600);
+    }
 
-          </body>
-          </html>
-        `;
+    if (total === 0) {
+      setTimeout(doPrint, 300);
+    } else {
+      function checkDone() { loaded++; if (loaded >= total) setTimeout(doPrint, 300); }
+      imgs.forEach(function(img) {
+        if (img.complete) checkDone();
+        else { img.onload = checkDone; img.onerror = checkDone; }
+      });
+      setTimeout(doPrint, 4000);
+    }
+  </script>
+</body>
+</html>`;
 
-        const printWindow = window.open(
-          "",
-          "_blank",
-          printOptions?.windowFeatures || "width=900,height=700"
-        );
+        const blob = new Blob([fullHtml], { type: 'text/html' });
+        const blobUrl = URL.createObjectURL(blob);
+        const printWindow = window.open(blobUrl, '_blank');
 
         if (!printWindow) {
-          const result: PrintResult = {
-            success: false,
-            method: "browser",
-            error: "Nie można otworzyć okna drukowania. Sprawdź blokadę popup.",
-          };
+          URL.revokeObjectURL(blobUrl);
+          // Try direct navigation as last resort (for strict popup blockers)
+          window.location.href = blobUrl;
+          const result: PrintResult = { success: true, method: "browser" };
           setLastResult(result);
-          onError?.(result.error!);
+          onBrowserPrint?.();
           return result;
         }
 
-        printWindow.document.write(fullHtml);
-        printWindow.document.close();
+        // Clean up blob URL after use
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
 
-        const result: PrintResult = {
-          success: true,
-          method: "browser",
-        };
-
+        const result: PrintResult = { success: true, method: "browser" };
         setLastResult(result);
         onBrowserPrint?.();
         return result;
@@ -475,7 +509,7 @@ export function usePrint(options: UsePrintOptions = {}) {
         const result: PrintResult = {
           success: false,
           method: "browser",
-          error: error.message || "Błąd drukowania",
+          error: error.message || "Blad drukowania",
         };
         setLastResult(result);
         onError?.(result.error!);

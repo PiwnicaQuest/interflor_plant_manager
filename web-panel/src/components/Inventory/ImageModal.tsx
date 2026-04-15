@@ -27,6 +27,9 @@ export function ImageModal({ product, onClose, onImageUpdated }: ImageModalProps
   const [urlInput, setUrlInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [searchResults, setSearchResults] = useState<Array<{ title: string; link: string; thumbnail: string }>>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentImageUrl = product.barcode
@@ -108,6 +111,42 @@ export function ImageModal({ product, onClose, onImageUpdated }: ImageModalProps
     }
   };
 
+  const handleWebSearch = async () => {
+    setSearchLoading(true);
+    setSearchResults([]);
+    setShowSearch(true);
+    setError(null);
+    try {
+      const q = [product.plantName, product.potSize, product.plantHeightCm ? product.plantHeightCm + 'cm' : ''].filter(Boolean).join(' ');
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/inventory/search-images?q=${encodeURIComponent(q)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Blad wyszukiwania');
+      setSearchResults(data.images || []);
+    } catch (err: any) {
+      setError(err.message || 'Blad wyszukiwania zdjec');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleSelectSearchImage = async (imageUrl: string) => {
+    setIsUploading(true);
+    setError(null);
+    try {
+      const result = await api.setProductImageUrl(product.id, imageUrl);
+      onImageUpdated({ ...product, imageUrl: imageUrl });
+      setShowSearch(false);
+      setSearchResults([]);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Blad zapisywania zdjecia');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const displayUrl = previewUrl || currentImageUrl;
 
   return (
@@ -116,7 +155,7 @@ export function ImageModal({ product, onClose, onImageUpdated }: ImageModalProps
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+      <div className={`relative bg-white rounded-xl shadow-2xl w-full mx-4 overflow-hidden transition-all ${showSearch ? 'max-w-4xl' : 'max-w-lg'}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
           <div className="min-w-0">
@@ -208,6 +247,57 @@ export function ImageModal({ product, onClose, onImageUpdated }: ImageModalProps
               Zapisz
             </button>
           </div>
+
+          {/* Web search button */}
+          <button
+            onClick={handleWebSearch}
+            disabled={isUploading || searchLoading}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors text-sm font-medium"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            {searchLoading ? 'Szukam...' : 'Wyszukaj w sieci'}
+          </button>
+
+          {/* Search results grid */}
+          {showSearch && (
+            <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs text-gray-500 font-medium">Wyniki wyszukiwania ({searchResults.length})</span>
+                <button onClick={() => { setShowSearch(false); setSearchResults([]); }} className="text-xs text-gray-400 hover:text-gray-600">Zamknij</button>
+              </div>
+              {searchLoading ? (
+                <div className="flex justify-center py-8">
+                  <div className="w-8 h-8 border-3 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : searchResults.length === 0 ? (
+                <p className="text-center text-gray-400 text-sm py-4">Brak wynikow</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {searchResults.map((img, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleSelectSearchImage(img.link)}
+                      disabled={isUploading}
+                      className="group relative aspect-square bg-white rounded-lg border border-gray-200 overflow-hidden hover:border-purple-500 hover:shadow-md transition-all disabled:opacity-50"
+                      title={img.title}
+                    >
+                      <img
+                        src={img.thumbnail}
+                        alt={img.title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23ccc" stroke-width="1"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14"/></svg>'; }}
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                        <span className="opacity-0 group-hover:opacity-100 bg-white/90 text-xs px-2 py-1 rounded font-medium text-gray-700 transition-opacity">Wybierz</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Delete button */}
           {product.imageUrl && (

@@ -15,143 +15,11 @@ interface OrderItem {
   price: number;
   palletCount: number;
   unitsPerPallet: number;
-  inputMode: 'pallets' | 'units';
-  originalQuantity?: number; // Track original quantity for edit mode validation
+  itemDiscount: number;
+  originalQuantity?: number;
 }
 
-function CustomerSearchInput({
-  customers,
-  selectedCustomerId,
-  onSelect,
-  disabled,
-}: {
-  customers: Customer[];
-  selectedCustomerId: number | null;
-  onSelect: (customerId: number, customer: Customer | undefined) => void;
-  disabled?: boolean;
-}) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
-  const [highlightedIndex, setHighlightedIndex] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const filteredCustomers = searchTerm.trim() === ''
-    ? customers
-    : customers.filter(c => {
-        const searchLower = searchTerm.toLowerCase();
-        const companyName = (c.companyName || '').toLowerCase();
-        const customerCode = String(c.customerCode || '').toLowerCase();
-        const firstName = (c.firstName || '').toLowerCase();
-        const lastName = (c.lastName || '').toLowerCase();
-        const nip = String(c.nip || '').replace(/[^0-9]/g, '');
-        const searchNip = searchTerm.replace(/[^0-9]/g, '');
-        return customerCode.includes(searchLower) ||
-               companyName.includes(searchLower) ||
-               firstName.includes(searchLower) ||
-               lastName.includes(searchLower) ||
-               (c.firstName && c.lastName && (firstName + ' ' + lastName).includes(searchLower)) ||
-               (searchNip.length >= 3 && nip.includes(searchNip));
-      });
-
-  const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
-  const formatCustomerName = (customer: Customer) => {
-    const name = customer.companyName || ((customer.firstName || '') + ' ' + (customer.lastName || '')).trim();
-    return customer.customerCode ? '[' + customer.customerCode + '] ' + name : name;
-  };
-
-  useEffect(() => {
-    if (selectedCustomer && !isOpen) setSearchTerm(formatCustomerName(selectedCustomer));
-  }, [selectedCustomer, isOpen]);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
-          inputRef.current && !inputRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-        if (selectedCustomer) setSearchTerm(formatCustomerName(selectedCustomer));
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [selectedCustomer]);
-
-  const handleSelect = (customer: Customer) => {
-    onSelect(customer.id, customer);
-    setSearchTerm(formatCustomerName(customer));
-    setIsOpen(false);
-  };
-
-  return (
-    <div className="relative">
-      <input ref={inputRef} type="text" className="input w-full" placeholder="Wpisz nazwe firmy, imie, nazwisko lub NIP..."
-        value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setIsOpen(true); setHighlightedIndex(0); }}
-        onFocus={() => { setIsOpen(true); if (selectedCustomer) setSearchTerm(''); }}
-        disabled={disabled} autoComplete="off" />
-      {isOpen && filteredCustomers.length > 0 && (
-        <div ref={dropdownRef} className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-          {filteredCustomers.slice(0, 50).map((customer, index) => (
-            <div key={customer.id} className={'px-3 py-2 cursor-pointer ' + (index === highlightedIndex ? 'bg-primary-100 text-primary-900' : 'hover:bg-gray-50') + (selectedCustomerId === customer.id ? ' bg-green-50' : '')}
-              onClick={() => handleSelect(customer)} onMouseEnter={() => setHighlightedIndex(index)}>
-              <div className="flex justify-between items-start">
-                <div><div className="font-medium">{formatCustomerName(customer)}</div>
-                  <div className="text-sm text-gray-500">{customer.nip && <span className="mr-3">NIP: {customer.nip}</span>}{customer.city && <span>{customer.city}</span>}</div></div>
-                <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">{customer.priceGroupName || 'Podstawowa'}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ProductSearchInput({ products, selectedProductId, onSelect, disabled, orderProductIds = [] }: { products: Product[]; selectedProductId: number; onSelect: (productId: number, product: Product | undefined) => void; disabled?: boolean; orderProductIds?: number[]; }) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
-  const [highlightedIndex, setHighlightedIndex] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  // Include products with stock > 1 OR products already in the order (for edit mode)
-  const availableProducts = products.filter(p => p.totalUnits > 1 || orderProductIds.includes(p.id));
-  const filteredProducts = searchTerm.trim() === '' ? availableProducts : availableProducts.filter(p => p.plantName.toLowerCase().includes(searchTerm.toLowerCase()) || (p.potSize && String(p.potSize).toLowerCase().includes(searchTerm.toLowerCase())));
-  const selectedProduct = products.find(p => p.id === selectedProductId);
-
-  useEffect(() => { if (selectedProduct && !isOpen) setSearchTerm(selectedProduct.plantName + ' (' + (selectedProduct.potSize || '-') + ')'); }, [selectedProduct, isOpen]);
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node) && inputRef.current && !inputRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-        if (selectedProduct) setSearchTerm(selectedProduct.plantName + ' (' + (selectedProduct.potSize || '-') + ')');
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [selectedProduct]);
-
-  const handleSelect = (product: Product) => { onSelect(product.id, product); setSearchTerm(product.plantName + ' (' + (product.potSize || '-') + ')'); setIsOpen(false); };
-
-  return (
-    <div className="relative">
-      <input ref={inputRef} type="text" className="input w-full" placeholder="Wpisz nazwe rośliny..."
-        value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setIsOpen(true); setHighlightedIndex(0); }}
-        onFocus={() => { setIsOpen(true); if (selectedProduct) setSearchTerm(''); }} disabled={disabled} autoComplete="off" />
-      {isOpen && filteredProducts.length > 0 && (
-        <div ref={dropdownRef} className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-          {filteredProducts.slice(0, 50).map((product, index) => (
-            <div key={product.id} className={'px-3 py-2 cursor-pointer flex justify-between items-center ' + (index === highlightedIndex ? 'bg-primary-100 text-primary-900' : 'hover:bg-gray-50') + (selectedProductId === product.id ? ' bg-green-50' : '')}
-              onClick={() => handleSelect(product)} onMouseEnter={() => setHighlightedIndex(index)}>
-              <div><div className="font-medium">{product.plantName}</div>
-                <div className="text-sm text-gray-500">{product.potSize || '-'} | {product.plantHeightCm || '-'} cm | {product.unitsPerPallet || 1} szt/paleta | {product.createdAt ? new Date(product.createdAt).toLocaleDateString('pl-PL') : '-'}</div></div>
-              <div className="text-right"><div className={'text-sm font-semibold ' + (product.totalUnits < 10 ? 'text-orange-600' : 'text-primary-600')}>{product.palletCount || 0} pal. ({product.totalUnits} szt.)</div>
-                <div className="text-xs text-gray-500">{product.basePriceGross?.toFixed(2)} PLN</div></div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -163,9 +31,19 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [loadingData, setLoadingData] = useState(true);
+  const [productSearch, setProductSearch] = useState('');
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
+  const [orderDiscount, setOrderDiscount] = useState(0);
+  const [discountType, setDiscountType] = useState<'percent' | 'amount'>('percent');
+  // Per-product qty/unit in left panel
+  const [productQty, setProductQty] = useState<Record<number, number>>({});
+  const [productUnit, setProductUnit] = useState<Record<number, 'szt' | 'pal'>>({});
   const [newCustomer, setNewCustomer] = useState({ companyName: '', firstName: '', lastName: '', nip: '', email: '', phone: '', street: '', postalCode: '', city: '', priceGroupId: 1 });
   const isEditMode = !!order;
+  const customerDropRef = useRef<HTMLDivElement>(null);
+  const customerInputRef2 = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -175,173 +53,396 @@ export function OrderForm({ order, onSave, onCancel }: OrderFormProps) {
         setCustomers(customersData.customers);
         setProducts(productsData.products);
         if (order && order.items) {
-          const snapshotProducts: Product[] = []; // Products created from snapshots (not in inventory)
+          const snapshotProducts: Product[] = [];
           const orderItems: OrderItem[] = order.items.map(item => {
             let product = productsData.products.find((p: Product) => p.id === item.productId);
-            // Fallback: if product not in inventory (zero stock), create from productSnapshot
             if (!product && item.productSnapshot) {
               const snap = item.productSnapshot as any;
-              product = {
-                id: snap.id || item.productId,
-                plantName: snap.plantName || item.productName || 'Nieznany produkt',
-                potSize: snap.potSize || null,
-                plantHeightCm: snap.plantHeightCm || null,
-                unitsPerPallet: snap.unitsPerPallet || item.unitsPerPallet || 1,
-                totalUnits: 0, // Product is out of stock
-                palletCount: 0,
-                basePriceGross: parseFloat(String(item.unitPriceGross)) || 0,
-                barcode: snap.barcode || null,
-                imageUrl: snap.imageUrl || null,
-              } as Product;
+              product = { id: snap.id || item.productId, plantName: snap.plantName || item.productName || 'Nieznany', potSize: snap.potSize || null, unitsPerPallet: snap.unitsPerPallet || item.unitsPerPallet || 1, totalUnits: 0, palletCount: 0, basePriceGross: parseFloat(String(item.unitPriceGross)) || 0, barcode: snap.barcode || null, imageUrl: snap.imageUrl || null } as Product;
               snapshotProducts.push(product);
             }
-            const unitsPerPallet = item.unitsPerPallet || product?.unitsPerPallet || 1;
-            return { productId: item.productId!, product, quantity: item.quantity, price: item.unitPriceGross,
-              palletCount: item.palletCount || Math.floor(item.quantity / unitsPerPallet), unitsPerPallet, inputMode: 'units' as const,
-              originalQuantity: item.quantity };
+            const upp = item.unitsPerPallet || product?.unitsPerPallet || 1;
+            return { productId: item.productId!, product, quantity: item.quantity, price: item.unitPriceGross, palletCount: item.palletCount || Math.floor(item.quantity / upp), unitsPerPallet: upp, itemDiscount: 0, originalQuantity: item.quantity };
           });
-          // Add snapshot products to the products list so ProductSearchInput can find them
-          if (snapshotProducts.length > 0) {
-            setProducts([...productsData.products, ...snapshotProducts]);
-          }
+          if (snapshotProducts.length > 0) setProducts([...productsData.products, ...snapshotProducts]);
           setItems(orderItems);
-          if (order.customerId) { const customer = customersData.customers.find((c: Customer) => c.id === order.customerId); setSelectedCustomer(customer); }
+          if (order.customerId) {
+            const c = customersData.customers.find((c: Customer) => c.id === order.customerId);
+            setSelectedCustomer(c);
+            setCustomerSearch(c?.companyName || `${c?.firstName || ''} ${c?.lastName || ''}`.trim());
+          }
         }
-      } catch (err) { console.error('Error loading data:', err); setError('Błąd podczas ładowania danych'); }
+      } catch (err) { setError('Błąd ładowania danych'); }
       finally { setLoadingData(false); }
     };
     fetchData();
   }, [order]);
 
-  const handleCustomerSelect = (customerId: number, customer: Customer | undefined) => {
-    setSelectedCustomerId(customerId); setSelectedCustomer(customer);
-    if (customer && items.length > 0) {
-      const discountMap: Record<number, keyof Product> = { 1: 'basePriceGross', 2: 'priceDiscount10', 3: 'priceDiscount12', 4: 'priceDiscount15', 5: 'priceDiscount20', 6: 'priceDiscount25' };
-      const priceField = discountMap[customer.priceGroupId] || 'basePriceGross';
-      setItems(items.map(item => {
-        if (!item.product) return item;
-        const grossPrice = (item.product[priceField] as number) || item.product.basePriceGross || 0;
-        const price = customer.isEuCompany ? Math.round((grossPrice / 1.08) * 100) / 100 : grossPrice;
-        return { ...item, price };
-      }));
-    }
-  };
-
-  const addItem = () => setItems([...items, { productId: 0, quantity: 0, price: 0, palletCount: 0, unitsPerPallet: 1, inputMode: 'pallets' }]);
-  const removeItem = (index: number) => setItems(items.filter((_, i) => i !== index));
-
-  const handleProductSelect = (index: number, productId: number, product: Product | undefined) => {
-    const newItems = [...items];
-    newItems[index].productId = productId; newItems[index].product = product; newItems[index].unitsPerPallet = product?.unitsPerPallet || 1;
-    if (product && selectedCustomerId) {
-      const customer = selectedCustomer || customers.find(c => c.id === selectedCustomerId);
-      if (customer) {
-        const discountMap: Record<number, keyof Product> = { 1: 'basePriceGross', 2: 'priceDiscount10', 3: 'priceDiscount12', 4: 'priceDiscount15', 5: 'priceDiscount20', 6: 'priceDiscount25' };
-        const grossPrice = (product[discountMap[customer.priceGroupId] || 'basePriceGross'] as number) || product.basePriceGross || 0;
-        newItems[index].price = customer.isEuCompany ? Math.round((grossPrice / 1.08) * 100) / 100 : grossPrice;
+  // Close customer dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (customerDropRef.current && !customerDropRef.current.contains(e.target as Node) &&
+          customerInputRef2.current && !customerInputRef2.current.contains(e.target as Node)) {
+        setShowCustomerDropdown(false);
       }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const getProductPrice = (product: Product, customer?: Customer): number => {
+    if (!customer) return product.basePriceGross || 0;
+    const map: Record<number, keyof Product> = { 1: 'basePriceGross', 2: 'priceDiscount10', 3: 'priceDiscount12', 4: 'priceDiscount15', 5: 'priceDiscount20', 6: 'priceDiscount25' };
+    const gross = (product[map[customer.priceGroupId] || 'basePriceGross'] as number) || product.basePriceGross || 0;
+    return customer.isEuCompany ? round2(gross / 1.08) : gross;
+  };
+
+  const handleCustomerSelect = (customer: Customer) => {
+    setSelectedCustomerId(customer.id); setSelectedCustomer(customer);
+    setCustomerSearch(customer.companyName || `${customer.firstName || ''} ${customer.lastName || ''}`.trim());
+    setShowCustomerDropdown(false);
+    if (items.length > 0) {
+      setItems(items.map(item => item.product ? { ...item, price: getProductPrice(item.product, customer) } : item));
     }
-    setItems(newItems);
   };
 
-  const updateItemPalletCount = (index: number, palletCount: number) => {
-    const newItems = [...items]; const item = newItems[index];
-    item.palletCount = palletCount || 0; item.quantity = item.palletCount * item.unitsPerPallet;
-    setItems(newItems);
+  const addProduct = (product: Product) => {
+    const qty = productQty[product.id] || 1;
+    const unit = productUnit[product.id] || 'szt';
+    const upp = product.unitsPerPallet || 1;
+    const totalQty = unit === 'pal' ? qty * upp : qty;
+    const pallets = unit === 'pal' ? qty : Math.floor(totalQty / upp);
+    const price = getProductPrice(product, selectedCustomer);
+
+    const existing = items.findIndex(i => i.productId === product.id);
+    if (existing >= 0) {
+      setItems(prev => prev.map((item, idx) => idx === existing ? { ...item, quantity: item.quantity + totalQty, palletCount: Math.floor((item.quantity + totalQty) / item.unitsPerPallet) } : item));
+    } else {
+      setItems(prev => [...prev, { productId: product.id, product, quantity: totalQty, price, palletCount: pallets, unitsPerPallet: upp, itemDiscount: 0 }]);
+    }
   };
 
-  const updateItemQuantity = (index: number, quantity: number) => {
-    const newItems = [...items]; const item = newItems[index];
-    item.quantity = quantity || 0; item.palletCount = Math.floor(item.quantity / item.unitsPerPallet);
-    setItems(newItems);
+  const removeItem = (index: number) => setItems(prev => prev.filter((_, i) => i !== index));
+
+  const updateItemQty = (index: number, qty: number) => {
+    setItems(prev => prev.map((item, i) => i === index ? { ...item, quantity: Math.max(0, qty), palletCount: Math.floor(Math.max(0, qty) / item.unitsPerPallet) } : item));
   };
 
-  const toggleInputMode = (index: number) => { const newItems = [...items]; newItems[index].inputMode = newItems[index].inputMode === 'pallets' ? 'units' : 'pallets'; setItems(newItems); };
-  const updateItemPrice = (index: number, price: number) => { const newItems = [...items]; newItems[index].price = price; setItems(newItems); };
-  const calculateTotal = () => items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
-  const handleAddCustomer = async () => {
-    try {
-      if (!newCustomer.email || !newCustomer.phone || !newCustomer.street || !newCustomer.postalCode || !newCustomer.city) { setError('Wypelnij wszystkie wymagane pola kontrahenta'); return; }
-      if (!newCustomer.companyName && (!newCustomer.firstName || !newCustomer.lastName)) { setError('Podaj nazwe firmy lub imie i nazwisko'); return; }
-      const response = await api.createCustomer(newCustomer);
-      const customersData = await api.getCustomers(); setCustomers(customersData.customers);
-      const newCustomerData = customersData.customers.find((c: Customer) => c.id === response.customerId);
-      setSelectedCustomerId(response.customerId); setSelectedCustomer(newCustomerData); setShowAddCustomer(false); setError('');
-      setNewCustomer({ companyName: '', firstName: '', lastName: '', nip: '', email: '', phone: '', street: '', postalCode: '', city: '', priceGroupId: 1 });
-    } catch (err: any) { setError(err.response?.data?.error || 'Błąd podczas dodawania kontrahenta'); }
+  const updateItemPrice = (index: number, price: number) => {
+    setItems(prev => prev.map((item, i) => i === index ? { ...item, price } : item));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const updateItemDiscount = (index: number, pct: number) => {
+    setItems(prev => prev.map((item, i) => {
+      if (i !== index) return item;
+      const origPrice = item.itemDiscount > 0 ? round2(item.price / (1 - item.itemDiscount / 100)) : item.price;
+      const newPrice = pct > 0 ? round2(origPrice * (1 - pct / 100)) : origPrice;
+      return { ...item, itemDiscount: pct, price: newPrice };
+    }));
+  };
+
+  // Totals
+  const rawTotal = items.reduce((s, i) => s + round2(i.price * i.quantity), 0);
+  const discountAmt = discountType === 'percent' ? round2(rawTotal * orderDiscount / 100) : round2(orderDiscount);
+  const discountRatio = rawTotal > 0 ? (rawTotal - discountAmt) / rawTotal : 1;
+  const totalGross = round2(rawTotal - discountAmt);
+  const totalNet = round2(totalGross / 1.08);
+  const totalVat = round2(totalGross - totalNet);
+  const totalUnits = items.reduce((s, i) => s + i.quantity, 0);
+
+  const handleSubmit = async () => {
     if (!selectedCustomerId && !isEditMode) { setError('Wybierz klienta'); return; }
     if (items.length === 0) { setError('Dodaj przynajmniej jeden produkt'); return; }
-    if (items.some(item => !item.productId || item.quantity <= 0)) { setError('Wszystkie produkty muszą mieć wybraną pozycje i ilość większą od 0'); return; }
-
+    if (items.some(item => !item.productId || item.quantity <= 0)) { setError('Wszystkie pozycje muszą mieć ilość > 0'); return; }
     setLoading(true); setError('');
     try {
+      const adjustedItems = items.map(item => ({
+        productId: item.productId, quantity: item.quantity,
+        palletCount: item.palletCount, unitsPerPallet: item.unitsPerPallet,
+        unitPriceGross: selectedCustomer?.isEuCompany ? round2(item.price * discountRatio * 1.08) : round2(item.price * discountRatio),
+      }));
       if (isEditMode && order) {
-        await api.updateOrder(order.id, { items: items.map(item => ({ productId: item.productId!, quantity: item.quantity, palletCount: item.palletCount, unitsPerPallet: item.unitsPerPallet, unitPriceGross: selectedCustomer?.isEuCompany ? Math.round(item.price * 1.08 * 100) / 100 : item.price })) });
+        await api.updateOrder(order.id, { items: adjustedItems });
       } else {
-        await api.createOrder({
-          customerId: selectedCustomerId!,
-          items: items.map(item => ({ productId: item.productId!, quantity: item.quantity, palletCount: item.palletCount, unitsPerPallet: item.unitsPerPallet })),
-          customerNotes: customerNotes || undefined,
-        });
+        await api.createOrder({ customerId: selectedCustomerId!, items: adjustedItems, customerNotes: customerNotes || undefined });
       }
       onSave();
-    } catch (err: any) { setError(err.response?.data?.error || 'Błąd podczas ' + (isEditMode ? 'aktualizacji' : 'tworzenia') + ' zamówienia'); }
+    } catch (err: any) { setError(err.response?.data?.error || 'Błąd'); }
     finally { setLoading(false); }
   };
 
-  if (loadingData) return (<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"><div className="bg-white rounded-lg p-6"><p className="text-gray-600">Ładowanie danych...</p></div></div>);
+  const handleAddCustomer = async () => {
+    try {
+      if (!newCustomer.email || !newCustomer.phone || !newCustomer.street || !newCustomer.postalCode || !newCustomer.city) { setError('Wypełnij wymagane pola'); return; }
+      const response = await api.createCustomer(newCustomer);
+      const data = await api.getCustomers(); setCustomers(data.customers);
+      const created = data.customers.find((c: Customer) => c.id === response.customerId);
+      if (created) handleCustomerSelect(created);
+      setShowAddCustomer(false);
+      setNewCustomer({ companyName: '', firstName: '', lastName: '', nip: '', email: '', phone: '', street: '', postalCode: '', city: '', priceGroupId: 1 });
+    } catch (err: any) { setError(err.response?.data?.error || 'Błąd'); }
+  };
+
+  const availableProducts = products.filter(p => (p.totalUnits > 0 || items.some(i => i.productId === p.id)) && !p.isArchived);
+  const filteredProducts = productSearch.trim() === '' ? availableProducts : availableProducts.filter(p =>
+    (p.plantName || '').toLowerCase().includes(productSearch.toLowerCase()) ||
+    (p.potSize && String(p.potSize).toLowerCase().includes(productSearch.toLowerCase())) ||
+    (p.barcode && String(p.barcode).includes(productSearch))
+  );
+  const filteredCustomers = (() => {
+    const q = customerSearch.trim().toLowerCase();
+    if (!q) return customers.slice(0, 50);
+    return customers.filter(c => {
+      const name = (c.companyName || '').toLowerCase();
+      const code = String(c.customerCode || '').toLowerCase();
+      const first = (c.firstName || '').toLowerCase();
+      const last = (c.lastName || '').toLowerCase();
+      const nipStr = String(c.nip || '');
+      return name.includes(q) || code.includes(q) || first.includes(q) || last.includes(q) || nipStr.includes(q);
+    }).slice(0, 50);
+  })();
+
+  if (loadingData) return (<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"><div className="bg-white rounded-lg p-6">Ładowanie...</div></div>);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-[1536px] w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">{isEditMode ? 'Edytuj zamówienie ' + order?.orderNumber : 'Nowe zamówienie'}</h2>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && <div className="bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded">{error}</div>}
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <label className="block text-sm font-medium text-gray-700">Klient (Nabywca) <span className="text-red-500">*</span></label>
-                {!isEditMode && <button type="button" onClick={() => setShowAddCustomer(true)} className="text-sm text-blue-600 hover:text-blue-700">+ Dodaj nowego</button>}
-              </div>
-              {isEditMode ? <input type="text" className="input bg-gray-100" value={order?.customerName || 'Brak danych'} disabled /> : <CustomerSearchInput customers={customers} selectedCustomerId={selectedCustomerId} onSelect={handleCustomerSelect} />}
-              {selectedCustomer && <div className="mt-1 text-sm text-gray-500">Grupa cenowa: <span className="font-medium">{selectedCustomer.priceGroupName || 'Podstawowa'}</span>{selectedCustomer.nip && <span className="ml-3">NIP: {selectedCustomer.nip}</span>}{selectedCustomer.isEuCompany && <span className="ml-3 text-primary-700 font-medium">VAT-EU: {selectedCustomer.vatEu} (ceny netto)</span>}</div>}
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6">
+      <div className="bg-white rounded-xl shadow-2xl w-full flex flex-col" style={{ width: 'calc(100vw - 48px)', maxWidth: '1600px', height: 'calc(100vh - 48px)' }}>
+        {/* Header */}
+        <div className="flex justify-between items-center px-6 py-3 border-b bg-gray-50 rounded-t-xl">
+          <h2 className="text-lg font-bold text-gray-900">{isEditMode ? `Edytuj zamówienie ${order?.orderNumber}` : 'Nowe zamówienie'}</h2>
+          <button onClick={onCancel} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+        </div>
+
+        {error && <div className="mx-4 mt-2 p-2 bg-red-50 text-red-700 rounded text-sm">{error}</div>}
+
+        <div className="flex flex-1 overflow-hidden">
+          {/* ═══ LEFT: Product Catalog ═══ */}
+          <div className="w-[45%] border-r flex flex-col">
+            <div className="p-3 border-b bg-gray-50">
+              <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                placeholder="Szukaj produktów..." value={productSearch} onChange={e => setProductSearch(e.target.value)} />
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              {filteredProducts.length === 0 ? (
+                <div className="text-center text-gray-400 py-8 text-sm">Brak produktów</div>
+              ) : filteredProducts.map(p => {
+                const price = getProductPrice(p, selectedCustomer);
+                const isAdded = items.some(i => i.productId === p.id);
+                const qty = productQty[p.id] || 1;
+                const unit = productUnit[p.id] || 'szt';
+                return (
+                  <div key={p.id} className={`flex items-center gap-2 p-2 rounded-lg border ${isAdded ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100 hover:border-gray-300'} transition-colors`}>
+                    {/* Image */}
+                    <div className="w-12 h-12 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
+                      {p.imageUrl ? (
+                        <img src={p.imageUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">brak</div>
+                      )}
+                    </div>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0 mr-1">
+                      <div className="font-medium text-sm leading-tight truncate">{p.plantName}</div>
+                      <div className="text-xs text-gray-500">
+                        {p.potSize || '-'} | Stan: {p.totalUnits} szt | {p.unitsPerPallet || 1} szt/pal
+                      </div>
+                    </div>
+                    {/* Price */}
+                    <div className="text-right flex-shrink-0 w-16">
+                      <div className="font-bold text-sm text-green-700">{price.toFixed(2)}</div>
+                      <div className="text-xs text-gray-400">zł brutto</div>
+                    </div>
+                    {/* Unit + Qty + Add */}
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <select className="w-12 px-1 py-1.5 border border-gray-300 rounded text-xs"
+                        value={unit} onChange={e => setProductUnit(prev => ({ ...prev, [p.id]: e.target.value as 'szt' | 'pal' }))}>
+                        <option value="szt">szt</option>
+                        <option value="pal">pal</option>
+                      </select>
+                      <input type="number" className="w-12 px-1 py-1.5 border border-gray-300 rounded text-xs text-center"
+                        min="1" value={qty}
+                        onChange={e => setProductQty(prev => ({ ...prev, [p.id]: Math.max(1, parseInt(e.target.value) || 1) }))} />
+                      <button onClick={() => addProduct(p)}
+                        className="w-8 h-8 flex items-center justify-center bg-green-500 hover:bg-green-600 text-white rounded-lg text-lg font-bold transition-colors flex-shrink-0">
+                        +
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ═══ RIGHT: Order Details ═══ */}
+          <div className="w-[55%] flex flex-col">
+            {/* Customer */}
+            <div className="p-3 border-b">
+              <div className="text-xs text-gray-500 mb-1">Kontrahent</div>
+              {isEditMode ? (
+                <div className="px-3 py-2 bg-gray-100 rounded-lg text-sm"><strong>{order?.customerName || 'Brak'}</strong>
+                  {selectedCustomer?.priceGroupName && <span className="ml-2 text-gray-400">({selectedCustomer.priceGroupName})</span>}
+                </div>
+              ) : (
+                <div className="relative">
+                  <div className="flex gap-2">
+                    <input ref={customerInputRef2} type="text" className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                      placeholder="Szukaj: nazwa, kod klienta, NIP..."
+                      value={customerSearch}
+                      onChange={e => { setCustomerSearch(e.target.value); setShowCustomerDropdown(true); }}
+                      onFocus={() => { setShowCustomerDropdown(true); if (selectedCustomerId) setCustomerSearch(''); }}
+                      autoComplete="off" />
+                    <button type="button" onClick={() => setShowAddCustomer(true)}
+                      className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 whitespace-nowrap">+ Nowy</button>
+                  </div>
+                  {showCustomerDropdown && filteredCustomers.length > 0 && (
+                    <div ref={customerDropRef} className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {filteredCustomers.map(c => (
+                        <div key={c.id}
+                          className={`px-3 py-2 cursor-pointer hover:bg-blue-50 ${selectedCustomerId === c.id ? 'bg-blue-50' : ''}`}
+                          onClick={() => handleCustomerSelect(c)}>
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <div className="font-medium text-sm">{c.companyName || `${c.firstName || ''} ${c.lastName || ''}`.trim()}</div>
+                              <div className="text-xs text-gray-500">
+                                {c.customerCode && <span className="mr-2">Kod: {c.customerCode}</span>}
+                                {c.nip && <span className="mr-2">NIP: {c.nip}</span>}
+                                {c.city && <span>{c.city}</span>}
+                              </div>
+                            </div>
+                            <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">{c.priceGroupName || 'Podstawowa'}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
-            <div>
-              <div className="mb-3"><label className="block text-sm font-medium text-gray-700">Produkty <span className="text-red-500">*</span></label></div>
-              <div className="space-y-3">
-                {items.map((item, index) => (
-                  <div key={index} className="bg-gray-50 p-3 rounded-lg">
-                    <div className="grid grid-cols-12 gap-3 items-end">
-                      <div className="col-span-5"><label className="block text-xs text-gray-600 mb-1">Produkt</label><ProductSearchInput products={products} selectedProductId={item.productId} onSelect={(productId, product) => handleProductSelect(index, productId, product)} orderProductIds={items.map(i => i.productId).filter(Boolean)} /></div>
-                      <div className="col-span-2">
-                        <label className="block text-xs text-gray-600 mb-1">{item.inputMode === 'pallets' ? 'Palety' : 'Sztuki'}<button type="button" onClick={() => toggleInputMode(index)} className="ml-1 text-blue-500 text-xs hover:underline">({item.inputMode === 'pallets' ? 'wpisz szt.' : 'wpisz pal.'})</button></label>
-                        {item.inputMode === 'pallets' ? <input type="number" className="input" min="0" value={item.palletCount} onChange={(e) => updateItemPalletCount(index, parseInt(e.target.value))} /> : <input type="number" className="input" min="1" max={(item.product?.totalUnits || 0) + (item.originalQuantity || 0)} value={item.quantity} onChange={(e) => updateItemQuantity(index, parseInt(e.target.value))} />}
-                      </div>
-                      <div className="col-span-2"><label className="block text-xs text-gray-600 mb-1">Szt/paleta</label><input type="text" className="input bg-gray-100" value={item.unitsPerPallet} readOnly /></div>
-                      <div className="col-span-2"><label className="block text-xs text-gray-600 mb-1">Cena jedn.</label><input type="number" className="input" step="0.01" min="0" value={item.price || 0} onChange={(e) => updateItemPrice(index, parseFloat(e.target.value) || 0)} /></div>
-                      <div className="col-span-1"><button type="button" onClick={() => removeItem(index)} className="btn btn-danger w-full">X</button></div>
+            {/* Items header */}
+            <div className="px-4 pt-3 pb-1 text-sm text-gray-500 font-medium">Pozycje zamówienia ({items.length})</div>
+
+            {/* Items list */}
+            <div className="flex-1 overflow-y-auto px-4 pb-2">
+              {items.length === 0 ? (
+                <div className="text-center text-gray-400 py-12 text-sm">Kliknij + przy produkcie z lewej strony</div>
+              ) : items.map((item, index) => {
+                const lineTotal = round2(item.price * item.quantity);
+                const netPrice = round2(item.price / 1.08);
+                return (
+                  <div key={index} className="flex items-center gap-2 py-2.5 border-b border-gray-100">
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium text-gray-900">{item.product?.plantName || 'Produkt'}</span>
+                      {item.product?.potSize && <span className="text-xs text-gray-400 ml-1">{item.product.potSize}</span>}
                     </div>
-                    {item.product && (<div className="mt-2 text-xs text-gray-400 border-t pt-2 flex justify-between"><span>Zaimportowano: {item.product.createdAt ? new Date(item.product.createdAt).toLocaleDateString('pl-PL') : '-'} | Kod: {item.product.barcode || '-'}</span>{item.quantity > 0 && <span className="text-sm text-gray-600"><strong>{item.palletCount}</strong> palet x <strong>{item.unitsPerPallet}</strong> szt/paleta = <strong>{item.quantity}</strong> szt. | <span className="font-semibold text-gray-800">Wartość: {(item.price * item.quantity).toFixed(2)} PLN</span></span>}</div>)}
-                    {item.product && item.quantity > (item.product.totalUnits + (item.originalQuantity || 0)) && <p className="text-xs text-red-500 mt-1">Przekroczono dostepny stan: max {item.product.totalUnits + (item.originalQuantity || 0)} szt.</p>}
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <span className="text-xs text-gray-400">Ilość:</span>
+                      <input type="number" min="1" className="w-14 px-1.5 py-1 border border-gray-300 rounded text-xs text-center"
+                        value={item.quantity} onChange={e => updateItemQty(index, parseInt(e.target.value) || 0)} />
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <span className="text-xs text-gray-400">Netto:</span>
+                      <span className="text-xs w-14 text-right">{netPrice.toFixed(2)}</span>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <span className="text-xs text-gray-400">Brutto:</span>
+                      <input type="text" inputMode="decimal" className="w-16 px-1.5 py-1 border border-gray-300 rounded text-xs text-center"
+                        defaultValue={item.price.toFixed(2)}
+                        key={`price-${index}-${item.productId}`}
+                        onFocus={e => e.target.select()}
+                        onBlur={e => {
+                          const v = parseFloat(e.target.value.replace(',', '.')) || 0;
+                          e.target.value = v.toFixed(2);
+                          updateItemPrice(index, v);
+                        }} />
+                    </div>
+                    <span className="px-1 py-0.5 bg-gray-100 text-gray-500 rounded text-xs flex-shrink-0">VAT 8%</span>
+                    <div className="flex items-center gap-0.5 flex-shrink-0">
+                      <span className="text-xs text-gray-400">-</span>
+                      <input type="text" inputMode="decimal" className="w-10 px-1 py-1 border border-gray-300 rounded text-xs text-center"
+                        defaultValue={item.itemDiscount || ''}
+                        placeholder="0"
+                        key={`disc-${index}-${item.productId}`}
+                        onBlur={e => updateItemDiscount(index, parseFloat(e.target.value) || 0)} />
+                      <span className="text-xs text-gray-400">%</span>
+                    </div>
+                    <div className="font-semibold text-sm text-gray-900 w-20 text-right flex-shrink-0">{lineTotal.toFixed(2)} zł</div>
+                    <div className="text-xs text-blue-600 font-medium w-14 text-right flex-shrink-0">{item.quantity} szt</div>
+                    <button onClick={() => removeItem(index)} className="text-red-400 hover:text-red-600 text-sm flex-shrink-0 ml-1">×</button>
                   </div>
-                ))}
-              </div>
-              {items.length === 0 && <p className="text-sm text-gray-500 italic">Brak produktów</p>}
-              <button type="button" onClick={addItem} className="btn btn-secondary text-sm mt-3">+ Dodaj produkt</button>
+                );
+              })}
             </div>
-            {items.length > 0 && (<div className="bg-gray-50 p-4 rounded-lg"><div className="flex justify-between text-sm text-gray-600 mb-2"><span>Łącznie palet:</span><span className="font-semibold">{items.reduce((sum, item) => sum + item.palletCount, 0)}</span></div><div className="flex justify-between text-sm text-gray-600 mb-2"><span>Łącznie sztuk:</span><span className="font-semibold">{items.reduce((sum, item) => sum + item.quantity, 0)}</span></div><div className="flex justify-between text-lg font-bold border-t pt-2"><span>Suma:</span><span>{calculateTotal().toFixed(2)} PLN</span></div></div>)}
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Notatki klienta (opcjonalnie)</label><textarea className="input" rows={3} placeholder="Dodatkowe uwagi do zamówienia..." value={customerNotes} onChange={(e) => setCustomerNotes(e.target.value)} /></div>
-            <div className="flex gap-3 pt-4"><button type="submit" disabled={loading} className="btn btn-primary flex-1">{loading ? (isEditMode ? 'Aktualizowanie...' : 'Tworzenie...') : (isEditMode ? 'Zaktualizuj zamówienie' : 'Utwórz zamówienie')}</button><button type="button" onClick={onCancel} className="btn btn-secondary flex-1">Anuluj</button></div>
-          </form>
+
+            {/* Footer: totals + submit */}
+            <div className="border-t bg-gray-50 px-4 py-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm text-gray-600">
+                  Netto: <strong>{totalNet.toFixed(2)} zł</strong>
+                  <span className="mx-2">|</span>
+                  VAT: <strong>{totalVat.toFixed(2)} zł</strong>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">Rabat:</span>
+                  <input type="text" inputMode="decimal" className="w-16 px-2 py-1 border border-gray-300 rounded text-sm text-center"
+                    value={orderDiscount || ''} placeholder="0"
+                    onChange={e => setOrderDiscount(parseFloat(e.target.value) || 0)} />
+                  <button onClick={() => setDiscountType(discountType === 'percent' ? 'amount' : 'percent')}
+                    className={`px-2 py-1 rounded text-xs font-medium ${discountType === 'percent' ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-600'}`}>
+                    {discountType === 'percent' ? '%' : 'zł'}
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm text-gray-500">
+                  Pozycji: {items.length} | Sztuk: {totalUnits}
+                </div>
+                <div className="text-xl font-bold text-gray-900">Brutto: {totalGross.toFixed(2)} zł</div>
+              </div>
+              {!isEditMode && (
+                <textarea className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-3" rows={1}
+                  placeholder="Notatki (opcjonalnie)..." value={customerNotes} onChange={e => setCustomerNotes(e.target.value)} />
+              )}
+              <button onClick={handleSubmit} disabled={loading || items.length === 0 || (!selectedCustomerId && !isEditMode)}
+                className="w-full py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 text-sm">
+                {loading ? 'Zapisywanie...' : isEditMode ? 'Zaktualizuj zamówienie' : 'Utwórz zamówienie'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-      {showAddCustomer && (<div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-[60]"><div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto"><div className="p-6"><h3 className="text-xl font-bold text-gray-900 mb-4">Dodaj nowego kontrahenta</h3><div className="space-y-4"><div className="grid grid-cols-2 gap-4"><div><label className="block text-sm font-medium text-gray-700 mb-1">Nazwa firmy</label><input type="text" className="input" value={newCustomer.companyName} onChange={(e) => setNewCustomer({ ...newCustomer, companyName: e.target.value })} placeholder="Opcjonalnie" /></div><div><label className="block text-sm font-medium text-gray-700 mb-1">NIP</label><input type="text" className="input" value={newCustomer.nip} onChange={(e) => setNewCustomer({ ...newCustomer, nip: e.target.value })} placeholder="Opcjonalnie" /></div></div><div className="grid grid-cols-2 gap-4"><div><label className="block text-sm font-medium text-gray-700 mb-1">Imie</label><input type="text" className="input" value={newCustomer.firstName} onChange={(e) => setNewCustomer({ ...newCustomer, firstName: e.target.value })} placeholder="Opcjonalnie" /></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Nazwisko</label><input type="text" className="input" value={newCustomer.lastName} onChange={(e) => setNewCustomer({ ...newCustomer, lastName: e.target.value })} placeholder="Opcjonalnie" /></div></div><div className="grid grid-cols-2 gap-4"><div><label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span></label><input type="email" className="input" value={newCustomer.email} onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })} required /></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Telefon <span className="text-red-500">*</span></label><input type="text" className="input" value={newCustomer.phone} onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })} required /></div></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Ulica <span className="text-red-500">*</span></label><input type="text" className="input" value={newCustomer.street} onChange={(e) => setNewCustomer({ ...newCustomer, street: e.target.value })} required /></div><div className="grid grid-cols-2 gap-4"><div><label className="block text-sm font-medium text-gray-700 mb-1">Kod pocztowy <span className="text-red-500">*</span></label><input type="text" className="input" value={newCustomer.postalCode} onChange={(e) => setNewCustomer({ ...newCustomer, postalCode: e.target.value })} required /></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Miasto <span className="text-red-500">*</span></label><input type="text" className="input" value={newCustomer.city} onChange={(e) => setNewCustomer({ ...newCustomer, city: e.target.value })} required /></div></div></div><div className="flex gap-3 mt-6"><button type="button" onClick={handleAddCustomer} className="btn btn-primary flex-1">Dodaj kontrahenta</button><button type="button" onClick={() => setShowAddCustomer(false)} className="btn btn-secondary flex-1">Anuluj</button></div></div></div></div>)}
+
+      {/* Add Customer Modal */}
+      {showAddCustomer && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <h3 className="text-xl font-bold mb-4">Dodaj kontrahenta</h3>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-sm font-medium mb-1">Nazwa firmy</label><input type="text" className="w-full px-3 py-2 border rounded-lg text-sm" value={newCustomer.companyName} onChange={e => setNewCustomer({ ...newCustomer, companyName: e.target.value })} /></div>
+                <div><label className="block text-sm font-medium mb-1">NIP</label><input type="text" className="w-full px-3 py-2 border rounded-lg text-sm" value={newCustomer.nip} onChange={e => setNewCustomer({ ...newCustomer, nip: e.target.value })} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-sm font-medium mb-1">Imię</label><input type="text" className="w-full px-3 py-2 border rounded-lg text-sm" value={newCustomer.firstName} onChange={e => setNewCustomer({ ...newCustomer, firstName: e.target.value })} /></div>
+                <div><label className="block text-sm font-medium mb-1">Nazwisko</label><input type="text" className="w-full px-3 py-2 border rounded-lg text-sm" value={newCustomer.lastName} onChange={e => setNewCustomer({ ...newCustomer, lastName: e.target.value })} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-sm font-medium mb-1">Email *</label><input type="email" className="w-full px-3 py-2 border rounded-lg text-sm" value={newCustomer.email} onChange={e => setNewCustomer({ ...newCustomer, email: e.target.value })} /></div>
+                <div><label className="block text-sm font-medium mb-1">Telefon *</label><input type="text" className="w-full px-3 py-2 border rounded-lg text-sm" value={newCustomer.phone} onChange={e => setNewCustomer({ ...newCustomer, phone: e.target.value })} /></div>
+              </div>
+              <div><label className="block text-sm font-medium mb-1">Ulica *</label><input type="text" className="w-full px-3 py-2 border rounded-lg text-sm" value={newCustomer.street} onChange={e => setNewCustomer({ ...newCustomer, street: e.target.value })} /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-sm font-medium mb-1">Kod pocztowy *</label><input type="text" className="w-full px-3 py-2 border rounded-lg text-sm" value={newCustomer.postalCode} onChange={e => setNewCustomer({ ...newCustomer, postalCode: e.target.value })} /></div>
+                <div><label className="block text-sm font-medium mb-1">Miasto *</label><input type="text" className="w-full px-3 py-2 border rounded-lg text-sm" value={newCustomer.city} onChange={e => setNewCustomer({ ...newCustomer, city: e.target.value })} /></div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={handleAddCustomer} className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg font-medium">Dodaj</button>
+              <button onClick={() => setShowAddCustomer(false)} className="flex-1 py-2.5 bg-gray-200 text-gray-700 rounded-lg font-medium">Anuluj</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

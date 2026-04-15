@@ -212,16 +212,16 @@ export function BarcodeModal({ product, onClose, onGenerate }: BarcodeModalProps
       '* { margin: 0; padding: 0; box-sizing: border-box; } body { margin: 0; padding: 0; font-family: Arial, sans-serif; }' +
       '.label-container { width: 100%; }' +
       '.template-label { position: relative; page-break-inside: avoid; page-break-after: always; overflow: hidden; }' +
-      '.label { width: ' + paperWidth + 'mm; height: ' + paperHeight + 'mm; padding: 0mm; display: flex; flex-direction: column; align-items: center; justify-content: center; page-break-inside: avoid; page-break-after: always; overflow: hidden; }' +
-      '.product-name { font-size: 10px; font-weight: bold; text-align: center; max-width: ' + (paperWidth - 2) + 'mm; line-height: 1.2; margin-bottom: 0.5mm; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-wrap: break-word; }' +
-      '.barcode-svg { max-width: ' + (paperWidth - 4) + 'mm; height: auto; margin-top: 4mm; margin-left: 2mm; }' +
-      '.units-info { font-size: 6px; font-weight: bold; margin-top: 2.5mm; color: #333; }' +
+      '.label { width: ' + paperWidth + 'mm; height: ' + paperHeight + 'mm; padding: 0.5mm 0; display: flex; flex-direction: column; align-items: center; justify-content: center; page-break-inside: avoid; page-break-after: always; overflow: hidden; max-height: ' + paperHeight + 'mm; }' +
+      '.product-name { font-size: 8px; font-weight: bold; text-align: center; max-width: ' + (paperWidth - 2) + 'mm; max-height: 8mm; line-height: 1.15; margin-bottom: 0mm; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; word-wrap: break-word; text-overflow: ellipsis; }' +
+      '.barcode-svg { max-width: ' + (paperWidth - 4) + 'mm; height: auto; max-height: 15mm; margin-top: 0mm; margin-left: 2mm; }' +
+      '.units-info { font-size: 6px; font-weight: bold; margin-top: 1mm; color: #333; }' +
       '</style></head><body>' +
       '<div class="label-container">' + labelsHtml + '</div>' +
       '<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>' +
       '<script>' +
       'document.querySelectorAll(".template-barcode").forEach(function(svg) { var barcodeValue = svg.getAttribute("data-barcode"); var barcodeWidth = parseFloat(svg.getAttribute("data-width")) || 1.5; var barcodeHeight = parseFloat(svg.getAttribute("data-height")) || 50; if (barcodeValue) { JsBarcode(svg, barcodeValue, { format: "CODE128", width: barcodeWidth, height: barcodeHeight, displayValue: true, fontSize: Math.max(8, Math.min(14, barcodeHeight * 0.2)), margin: 0, textMargin: 1 }); } });' +
-      'document.querySelectorAll("#print-barcode").forEach(function(svg) { JsBarcode(svg, "' + barcode + '", { format: "CODE128", width: 1.5, height: 50, displayValue: true, fontSize: 10, margin: 0, textMargin: 1 }); });' +
+      'document.querySelectorAll("#print-barcode").forEach(function(svg) { JsBarcode(svg, "' + barcode + '", { format: "CODE128", width: 1.5, height: 35, displayValue: true, fontSize: 8, margin: 0, textMargin: 1 }); });' +
       '</script></body></html>';
   };
 

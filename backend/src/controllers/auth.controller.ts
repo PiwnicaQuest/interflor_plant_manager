@@ -117,6 +117,21 @@ export class AuthController {
       // Pobierz uprawnienia użytkownika z profilu
       const permissions = await PermissionProfileModel.getUserPermissions(user.id);
 
+      // Pobierz grupę cenową użytkownika (np. DETAL 1)
+      let userPriceMultiplier = 1;
+      let userPriceGroupName = '';
+      if (user.priceGroupId) {
+        const { query: dbQuery } = require('../models/database');
+        const pgResult = await dbQuery('SELECT name, discount_percentage FROM price_groups WHERE id = $1', [user.priceGroupId]);
+        if (pgResult.rows.length > 0) {
+          const discPct = Number(pgResult.rows[0].discountPercentage) || 0;
+          userPriceMultiplier = 1 - (discPct / 100); // -30% => 1.30
+          userPriceGroupName = pgResult.rows[0].name;
+        }
+      }
+
+      console.log('[AUTH LOGIN]', user.email, 'priceGroupId:', user.priceGroupId, 'defaultCustomerId:', user.defaultCustomerId, 'priceMultiplier:', userPriceMultiplier, 'priceGroupName:', userPriceGroupName);
+
       const token = generateToken({
         firstName: user.firstName,
         login: user.login,
@@ -125,13 +140,16 @@ export class AuthController {
         role: user.role,
         permissions: permissions,
         sessionId: sessionId,
+        priceMultiplier: userPriceMultiplier,
+        priceGroupName: userPriceGroupName,
+        defaultCustomerId: user.defaultCustomerId || null,
       }, tokenExpiration);
 
       const userWithoutPassword = UserModel.stripPassword(user);
 
       return res.json({
         token,
-        user: userWithoutPassword,
+        user: { ...userWithoutPassword, priceMultiplier: userPriceMultiplier, priceGroupName: userPriceGroupName, defaultCustomerId: user.defaultCustomerId || null },
         permissions: permissions,
       });
     } catch (error) {

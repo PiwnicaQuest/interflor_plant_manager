@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const pool = new Pool({
+export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: (process.env.DATABASE_URL?.includes("localhost") || process.env.DATABASE_URL?.includes("127.0.0.1")) ? false : (process.env.NODE_ENV === "production" ? { rejectUnauthorized: true } : false),
   max: 20, // Increase pool size
@@ -73,7 +73,11 @@ export const query = async <T extends QueryResultRow = any>(
   try {
     const res = await pool.query<T>(text, params);
     const duration = Date.now() - start;
-    // console.log(`[QUERY ${queryId}] Completed in ${duration}ms, rows: ${res.rowCount}`);
+
+    // Warn on slow queries (>1s)
+    if (duration > 1000) {
+      console.warn(`[SLOW QUERY ${queryId}] ${duration}ms: ${text.substring(0, 100).replace(/\s+/g, ' ')}`);
+    }
 
     // Convert rows to camelCase
     if (res.rows && res.rows.length > 0) {
@@ -81,8 +85,9 @@ export const query = async <T extends QueryResultRow = any>(
     }
 
     return res;
-  } catch (error) {
-    console.error('Database query error:', error);
+  } catch (error: any) {
+    console.error(`[QUERY ${queryId}] FAILED after ${Date.now() - start}ms: ${error.message}`);
+    console.error(`[QUERY ${queryId}] SQL: ${text.substring(0, 200).replace(/\s+/g, ' ')}`);
     throw error;
   }
 };

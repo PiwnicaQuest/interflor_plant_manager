@@ -13,7 +13,8 @@ export function InvoiceCorrectionsPage() {
   const [selectedCorrection, setSelectedCorrection] = useState<InvoiceCorrectionWithItems | null>(null);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [selectedCorrections, setSelectedCorrections] = useState<number[]>([]);
+  const [ksefSending, setKsefSending] = useState<number | null>(null);
+    const [selectedCorrections, setSelectedCorrections] = useState<number[]>([]);
   const [isExporting, setIsExporting] = useState(false);
 
   const fetchCorrections = async () => {
@@ -36,6 +37,28 @@ export function InvoiceCorrectionsPage() {
     fetchCorrections();
   }, [dateFrom, dateTo]);
 
+  const handleSendToKsef = async (correction: any) => {
+    if (!confirm('Wyslac korekte ' + correction.correctionNumber + ' do KSeF?')) return;
+    setKsefSending(correction.id);
+    try {
+      const token = localStorage.getItem('token');
+      const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
+      const res = await fetch(API_URL + '/ksef/corrections/' + correction.id + '/send', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Blad wysylania');
+      alert('Korekta wyslana do KSeF: ' + (data.ksefReferenceNumber || 'OK'));
+      // Refresh list
+      window.location.reload();
+    } catch (err: any) {
+      alert('Blad: ' + (err.message || 'Nieznany blad'));
+    } finally {
+      setKsefSending(null);
+    }
+  };
+
   const handleViewDetails = async (correction: InvoiceCorrection) => {
     try {
       const fullCorrection = await api.getInvoiceCorrection(correction.id);
@@ -48,13 +71,13 @@ export function InvoiceCorrectionsPage() {
   const handlePrint = (correction: InvoiceCorrection) => {
     const token = localStorage.getItem("token");
     const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4000";
-    window.open(apiUrl + "/invoice-corrections/" + correction.id + "/pdf?token=" + token, "_blank");
+    window.open(apiUrl + "/invoice-corrections/" + correction.id + "/html?token=" + token, "_blank");
   };
 
   const handleDownloadPdf = (correction: InvoiceCorrection) => {
     const token = localStorage.getItem("token");
     const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4000";
-    window.open(`${apiUrl}/invoice-corrections/${correction.id}/pdf?token=${token}`, "_blank");
+    window.open(`${apiUrl}/invoice-corrections/${correction.id}/html?token=${token}`, "_blank");
   };
 
   const formatDate = (dateStr: string) => {
@@ -263,7 +286,7 @@ export function InvoiceCorrectionsPage() {
       setTimeout(() => {
         const token = localStorage.getItem("token");
         const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4000";
-        window.open(`${apiUrl}/invoice-corrections/${id}/pdf?token=${token}`, "_blank");
+        window.open(`${apiUrl}/invoice-corrections/${id}/html?token=${token}`, "_blank");
       }, index * 300);
     });
   };
@@ -440,28 +463,39 @@ export function InvoiceCorrectionsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-center">
-                    <div className="flex justify-center gap-2">
+                    <div className="flex justify-center gap-1">
                       <button
                         onClick={() => handleViewDetails(correction)}
-                        className="text-blue-600 hover:text-blue-800 text-sm"
-                        title="Szczegóły"
+                        className="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 transition-colors"
                       >
-                        👁️
+                        Szczegóły
                       </button>
                       <button
                         onClick={() => handlePrint(correction)}
-                        className="text-gray-600 hover:text-gray-800 text-sm"
-                        title="Drukuj"
+                        className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition-colors"
                       >
-                        🖨️
+                        Drukuj
                       </button>
                       <button
                         onClick={() => handleDownloadPdf(correction)}
-                        className="text-red-600 hover:text-red-800 text-sm"
-                        title="Pobierz PDF"
+                        className="px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded border border-red-200 transition-colors"
                       >
-                        📄
+                        Podgląd
                       </button>
+                      {(!correction.ksefStatus || correction.ksefStatus === 'error') && (
+                        <button
+                          onClick={() => handleSendToKsef(correction)}
+                          disabled={ksefSending === correction.id}
+                          className="px-2 py-1 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded border border-green-200 transition-colors disabled:opacity-50"
+                        >
+                          {ksefSending === correction.id ? 'Wysylanie...' : 'KSeF'}
+                        </button>
+                      )}
+                      {correction.ksefStatus === 'accepted' && (
+                        <span className="px-2 py-1 text-xs font-medium text-green-700 bg-green-50 rounded border border-green-200">
+                          KSeF ✓
+                        </span>
+                      )}
                     </div>
                   </td>
                 </tr>

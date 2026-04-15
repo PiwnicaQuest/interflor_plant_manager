@@ -21,7 +21,7 @@ export class OrderModel {
 
     // Single query to get all order items
     const itemsResult = await query<OrderItem>(
-      `SELECT * FROM order_items WHERE order_id = ANY($1) ORDER BY order_id, product_snapshot->>'plant_name' ASC NULLS LAST, id ASC`,
+      `SELECT * FROM order_items WHERE order_id = ANY($1) ORDER BY order_id, id DESC`,
       [ids]
     );
 
@@ -102,7 +102,9 @@ export class OrderModel {
              COALESCE(c.company_name, CONCAT(c.first_name, ' ', c.last_name)) as customer_name,
              c.customer_code as customer_code,
              c.email as customer_email,
-             (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) as item_count
+             (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) as item_count,
+             (SELECT i.invoice_number FROM invoices i WHERE i.order_id = o.id AND i.invoice_type = 'invoice' ORDER BY i.id DESC LIMIT 1) as invoice_number,
+             (SELECT r.receipt_number FROM receipts r WHERE r.order_id = o.id ORDER BY r.id DESC LIMIT 1) as receipt_number
       FROM orders o
       LEFT JOIN customers c ON o.customer_id = c.id
       WHERE 1=1
@@ -1047,7 +1049,7 @@ export class OrderModel {
         ORDER BY r2.id DESC LIMIT 1
       ) r ON true
       WHERE o.status = 'completed'
-        AND DATE(o.completed_at) = CURRENT_DATE
+        AND DATE((o.completed_at AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Warsaw') = (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Warsaw')::date
       ORDER BY o.completed_at DESC
     `;
 
@@ -1297,7 +1299,7 @@ export class OrderModel {
       const updatedOrder = updatedOrderResult.rows[0];
 
       const updatedItemsResult = await client.query<OrderItem>(
-        `SELECT * FROM order_items WHERE order_id = $1 ORDER BY product_snapshot->>'plant_name' ASC NULLS LAST, id ASC`,
+        `SELECT * FROM order_items WHERE order_id = $1 ORDER BY id DESC`,
         [masterOrderId]
       );
 

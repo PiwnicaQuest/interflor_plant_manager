@@ -7,6 +7,7 @@ import { ProductDetails } from '../components/Inventory/ProductDetails';
 import { ProductForm } from '../components/Inventory/ProductForm';
 import { CSVImportModal } from '../components/Inventory/CSVImportModal';
 import { ExcelImportModal } from '../components/Inventory/ExcelImportModal';
+import { AiImportModal } from '../components/Inventory/AiImportModal';
 import { BarcodeModal } from '../components/Inventory/BarcodeModal';
 import { BatchBarcodeModal } from '../components/Inventory/BatchBarcodeModal';
 import { InventoryFilterValues } from '../components/Inventory/InventoryFilters';
@@ -48,6 +49,7 @@ export function InventoryPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showExcelImportModal, setShowExcelImportModal] = useState<false | 'PLN' | 'EUR'>(false);
+  const [showAiImportModal, setShowAiImportModal] = useState(false);
   const [showPolflorImportModal, setShowPolflorImportModal] = useState(false);
   const [showExcelExportModal, setShowExcelExportModal] = useState(false);
   const [barcodeProduct, setBarcodeProduct] = useState<Product | null>(null);
@@ -501,6 +503,15 @@ export function InventoryPage() {
         if (field === 'totalUnits' && typeof value === 'number') {
           const newPalletCount = Math.floor(value / product.unitsPerPallet);
           optimisticUpdates.palletCount = newPalletCount;
+        }
+
+        // Optimistic recalculation of discount prices when basePriceGross changes
+        if (field === 'basePriceGross' && typeof value === 'number') {
+          optimisticUpdates.priceDiscount10 = Math.round(value * 0.90 * 100) / 100;
+          optimisticUpdates.priceDiscount12 = Math.round(value * 0.88 * 100) / 100;
+          optimisticUpdates.priceDiscount15 = Math.round(value * 0.85 * 100) / 100;
+          optimisticUpdates.priceDiscount20 = Math.round(value * 0.80 * 100) / 100;
+          optimisticUpdates.priceDiscount25 = Math.round(value * 0.75 * 100) / 100;
         }
 
         setAllProducts(prevProducts =>
@@ -1062,6 +1073,12 @@ export function InventoryPage() {
                 >
                   Import Polflor
                 </button>
+                <button
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-purple-50 flex items-center gap-2 text-purple-700 font-medium"
+                  onClick={() => { setShowAiImportModal(true); setShowMoreMenu(false); }}
+                >
+                  Importuj fakturę PDF (AI)
+                </button>
                 <hr className="my-1 border-gray-200" />
                 <button
                   className="w-full px-4 py-2 text-left text-sm hover:bg-primary-50 text-primary-700 flex items-center gap-2 font-medium"
@@ -1411,6 +1428,13 @@ export function InventoryPage() {
           }}
         />
       )}
+
+      {/* AI Import Modal */}
+      <AiImportModal
+        isOpen={showAiImportModal}
+        onClose={() => setShowAiImportModal(false)}
+        onSuccess={() => { fetchProducts(); }}
+      />
 
       {/* Polflor Import Modal */}
       {showPolflorImportModal && (

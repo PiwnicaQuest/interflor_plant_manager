@@ -96,9 +96,9 @@ export function LoginPage() {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Nie masz konta?{' '}
-              <span className="text-pink-600">
+              <a href="https://interflor.pl/kontakt/" target="_blank" rel="noopener noreferrer" className="text-pink-600 hover:text-pink-800 underline">
                 Skontaktuj się z nami, aby założyć konto klienta
-              </span>
+              </a>
             </p>
           </div>
         </div>

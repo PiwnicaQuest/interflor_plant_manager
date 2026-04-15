@@ -77,6 +77,28 @@ class ApiClient {
         return response;
       },
       (error) => {
+        // Log API errors to localStorage for diagnostics
+        try {
+          const errorInfo = {
+            timestamp: new Date().toISOString(),
+            url: error.config?.url || 'unknown',
+            method: (error.config?.method || 'GET').toUpperCase(),
+            status: error.response?.status || 0,
+            statusText: error.response?.statusText || error.code || 'Network error',
+            message: error.message,
+            errorData: error.response?.data ? JSON.stringify(error.response.data).substring(0, 300) : null,
+          };
+          console.error('[API ERROR]', errorInfo);
+          const log = JSON.parse(localStorage.getItem('apiErrorLog') || '[]');
+          log.push(errorInfo);
+          if (log.length > 100) log.shift();
+          localStorage.setItem('apiErrorLog', JSON.stringify(log));
+          // Dispatch global event for UI banners
+          window.dispatchEvent(new CustomEvent('api-error', { detail: errorInfo }));
+        } catch (logErr) {
+          console.error('[API ERROR LOGGER FAILED]', logErr);
+        }
+
         if (error.response?.status === 401) {
           const code = error.response?.data?.code;
           if (code === 'SESSION_INVALIDATED') {
@@ -150,6 +172,31 @@ class ApiClient {
 
   async bulkUpdateTags(productIds: number[], tags: string[], mode: "add" | "replace" | "remove"): Promise<{ success: boolean; message: string; updated: number }> {
     const response = await this.client.post("/inventory/bulk-tags", { productIds, tags, mode });
+    return response.data;
+  }
+
+  async suggestTags(plantName: string, potSize?: string): Promise<{ suggestedTags: string[] }> {
+    const response = await this.client.post("/suggest-tags", { plantName, potSize });
+    return response.data;
+  }
+
+  async getTagKeywords(): Promise<{ tagKeywords: Record<string, Array<{ id: number; keyword: string }>> }> {
+    const response = await this.client.get("/tag-keywords");
+    return response.data;
+  }
+
+  async addTagKeyword(tagName: string, keyword: string): Promise<{ success: boolean; id: number }> {
+    const response = await this.client.post("/tag-keywords", { tagName, keyword });
+    return response.data;
+  }
+
+  async bulkAddTagKeywords(tagName: string, keywords: string[]): Promise<{ success: boolean; added: number }> {
+    const response = await this.client.post("/tag-keywords/bulk", { tagName, keywords });
+    return response.data;
+  }
+
+  async deleteTagKeyword(id: number): Promise<{ success: boolean }> {
+    const response = await this.client.delete(`/tag-keywords/${id}`);
     return response.data;
   }
 
@@ -1489,6 +1536,21 @@ class ApiClient {
 
   async sendBulkToKsef(invoiceIds: number[]): Promise<any> {
     const response = await this.client.post("/ksef/send-bulk", { invoiceIds });
+    return response.data;
+  }
+
+  async uploadKsefCertificate(certificatePem: string, privateKeyPem: string, passphrase?: string): Promise<any> {
+    const response = await this.client.post("/ksef/certificate", { certificatePem, privateKeyPem, passphrase });
+    return response.data;
+  }
+
+  async getKsefCertificateStatus(): Promise<any> {
+    const response = await this.client.get("/ksef/certificate/status");
+    return response.data;
+  }
+
+  async generateKsefCsr(): Promise<any> {
+    const response = await this.client.post("/ksef/certificate/generate-csr");
     return response.data;
   }
 }

@@ -75,6 +75,7 @@ export function OrdersTable({
               <th>Data</th>
               <th>Pozycje</th>
               <th>Kwota</th>
+              <th>Dokument</th>
               <th>Status</th>
               <th>Zrodlo</th>
               <th>Akcje</th>
@@ -97,6 +98,9 @@ export function OrdersTable({
                 <td className="text-sm">{formatDate(order.createdAt)}</td>
                 <td className="text-center">{order.itemCount || '-'}</td>
                 <td className="font-semibold">{(Number(order.totalAmount) || 0).toFixed(2)} PLN</td>
+                <td className="text-sm text-gray-700 font-mono">
+                  {(order as any).invoiceNumber || (order as any).receiptNumber || '-'}
+                </td>
                 <td>
                   <span className={`badge ${statusConfig[order.status].class}`}>
                     {statusConfig[order.status].label}

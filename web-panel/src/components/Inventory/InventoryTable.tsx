@@ -212,12 +212,64 @@ export function InventoryTable({
   const [resizing, setResizing] = useState<string | null>(null);
   const [resizePreviewX, setResizePreviewX] = useState<number | null>(null);
   const [editingTags, setEditingTags] = useState<number | null>(null);
+  const [suggestedTags, setSuggestedTags] = useState<Record<number, string[]>>({});
+  const [acceptedSuggestions, setAcceptedSuggestions] = useState<Set<number>>(new Set());
   const [imageModalProduct, setImageModalProduct] = useState<Product | null>(null);
   const [showTagFilterDropdown, setShowTagFilterDropdown] = useState(false);
   const tagFilterRef = useRef<HTMLDivElement>(null);
   // Use dynamic tags from API
   const { tags: dynamicTags } = useTags();
   const availableTags = dynamicTags.length > 0 ? dynamicTags : FALLBACK_TAGS;
+
+  // Fetch tag suggestions for products with empty tags
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      const emptyTagProducts = products.filter(
+        p => (!p.tags || p.tags.length === 0) && !acceptedSuggestions.has(p.id) && !suggestedTags[p.id]
+      );
+      if (emptyTagProducts.length === 0) return;
+
+      const newSuggestions: Record<number, string[]> = {};
+      for (const product of emptyTagProducts) {
+        try {
+          const result = await api.suggestTags(product.plantName, product.potSize || undefined);
+          if (result.suggestedTags && result.suggestedTags.length > 0) {
+            newSuggestions[product.id] = result.suggestedTags;
+          }
+        } catch (err) {
+          // ignore errors for individual products
+        }
+      }
+      if (Object.keys(newSuggestions).length > 0) {
+        setSuggestedTags(prev => ({ ...prev, ...newSuggestions }));
+      }
+    };
+    fetchSuggestions();
+  }, [products.length]);
+
+  const handleAcceptSuggestions = async (product: Product, tagsToAccept: string[]) => {
+    try {
+      await api.updateProduct(product.id, { tags: tagsToAccept } as any);
+      await onUpdateProduct(product.id, 'tags' as any, tagsToAccept);
+      setAcceptedSuggestions(prev => new Set([...prev, product.id]));
+      setSuggestedTags(prev => {
+        const next = { ...prev };
+        delete next[product.id];
+        return next;
+      });
+    } catch (error) {
+      console.error('Error accepting suggested tags:', error);
+    }
+  };
+
+  const handleRejectSuggestions = (productId: number) => {
+    setAcceptedSuggestions(prev => new Set([...prev, productId]));
+    setSuggestedTags(prev => {
+      const next = { ...prev };
+      delete next[productId];
+      return next;
+    });
+  };
   const rafRef = useRef<number | null>(null);
 
   // Close tag filter dropdown on click outside
@@ -540,7 +592,7 @@ export function InventoryTable({
         return (
           <input
             type="text"
-            placeholder="Cena+"
+            placeholder="Cena+(VAT)"
             value={columnFilters.colPricePlus || ''}
             onChange={(e) => onColumnFilterChange('colPricePlus', e.target.value)}
             className={inputClass}
@@ -711,9 +763,8 @@ export function InventoryTable({
     // Format date for date input
     if (field === 'createdAt') {
       setEditValue(formatDateForInput(value));
-    } else if (field === 'customId') {
-      // For customId, pre-fill with growerPassport if customId is empty
-      const idValue = product.customId || product.growerPassport || '';
+    } else if (field === 'plantPassport') {
+      const idValue = product.plantPassport || '';
       setEditValue(idValue);
     } else {
       setEditValue(value !== null && value !== undefined ? String(value) : '');
@@ -734,9 +785,8 @@ export function InventoryTable({
     // Format date for date input
     if (field === 'createdAt') {
       setEditValue(formatDateForInput(value));
-    } else if (field === 'customId') {
-      // For customId, pre-fill with growerPassport if customId is empty
-      const idValue = product.customId || product.growerPassport || '';
+    } else if (field === 'plantPassport') {
+      const idValue = product.plantPassport || '';
       setEditValue(idValue);
     } else {
       setEditValue(value !== null && value !== undefined ? String(value) : '');
@@ -748,15 +798,22 @@ export function InventoryTable({
       const product = products.find(p => p.id === editingCell.productId);
       const lockableFields = ['priceDiscount10', 'priceDiscount12', 'priceDiscount15', 'priceDiscount20', 'priceDiscount25', 'priceAuchan8'];
       const isLockableField = lockableFields.includes(editingCell.field as string);
-      const originalValue = editingCell.field === 'customId'
-        ? (product?.customId || product?.growerPassport || '')
-        : String(product?.[editingCell.field] ?? '');
+      let originalValue: string;
+      if (editingCell.field === 'plantPassport') {
+        originalValue = product?.plantPassport || '';
+      } else if (editingCell.field === 'pricePlusVat') {
+        const vr = product?.vatRate ?? 8;
+        const grossVal = product?.pricePlus ? Math.round(product.pricePlus * (1 + vr / 100) * 100) / 100 : 0;
+        originalValue = String(grossVal);
+      } else {
+        originalValue = String(product?.[editingCell.field] ?? '');
+      }
       if (product && originalValue !== editValue) {
         let finalValue: any = editValue;
         const numericFields = ['palletCount', 'unitsPerPallet', 'plantHeightCm', 'purchasePricePln',
           'pricePlus', 'basePriceGross', 'priceDiscount10', 'priceDiscount12', 'priceDiscount15', 'priceDiscount20',
           'priceDiscount25',
-  'priceAuchan8', 'vatRate', 'totalUnits'];
+  'priceAuchan8', 'vatRate', 'totalUnits', 'pricePlusVat'];
         // Handle date field - convert YYYY-MM-DD to ISO date string
         if (editingCell.field === 'createdAt') {
           if (editValue) {
@@ -767,7 +824,14 @@ export function InventoryTable({
         } else if (numericFields.includes(editingCell.field as string)) {
           finalValue = parsePrice(editValue);
         }
-        await onUpdateProduct(editingCell.productId, editingCell.field, finalValue);
+        // pricePlusVat -> convert to net pricePlus before saving
+        if (editingCell.field === 'pricePlusVat') {
+          const vatRate = product.vatRate ?? 8;
+          const netValue = Math.round((finalValue / (1 + vatRate / 100)) * 100) / 100;
+          await onUpdateProduct(editingCell.productId, 'pricePlus' as any, netValue);
+        } else {
+          await onUpdateProduct(editingCell.productId, editingCell.field, finalValue);
+        }
       }
       setEditingCell(null);
       // Keep cell selected after editing
@@ -1040,7 +1104,7 @@ export function InventoryTable({
     totalUnits: { label: "Łącznie", style: headerStyles.inventory, title: "Suma sztuk (edytowalne)", borderClass: "border-b-2 border-amber-400" },
     totalSold: { label: "Sprzedane", style: headerStyles.inventory, title: "Sprzedane", borderClass: "border-b-2 border-amber-400" },
     purchasePrice: { label: "Cena zakupu", style: headerStyles.purchase, title: "Cena zakupu", borderClass: "border-b-2 border-blue-400 border-l border-blue-300" },
-    pricePlus: { label: "Cena+", style: headerStyles.pricePlus, title: "Cena+ (zakup + marża)", borderClass: "border-b-2 border-yellow-500 border-l border-yellow-400 font-bold" },
+    pricePlus: { label: "Cena+(VAT)", style: headerStyles.pricePlus, title: "Cena+ z VAT (zakup + koszty + VAT)", borderClass: "border-b-2 border-yellow-500 border-l border-yellow-400 font-bold" },
     basePrice: { label: "Bazowa", style: headerStyles.basePrice, title: "Cena podstawowa (edytowalne)", borderClass: "border-b-2 border-green-500 border-l border-green-400 font-bold" },
     detal1: { label: "Detal 1", style: headerStyles.detal1, title: "Cena Detal 1 (narzut z grupy cenowej)", borderClass: "border-b-2 border-rose-400 border-l border-rose-300 font-bold" },
     discount10: { label: "10", style: headerStyles.discounts, title: "Rabat -10%", borderClass: "border-b-2 border-purple-400 border-l border-purple-300" },
@@ -1154,7 +1218,7 @@ export function InventoryTable({
       case "grower":
         return product.grower || product.grower || "";
       case "passport":
-        return product.growerPassport || product.customId || "";
+        return product.growerPassport || product.plantPassport || "";
       default:
         return undefined;
     }
@@ -1212,8 +1276,11 @@ export function InventoryTable({
       }
       case "purchasePrice":
         return renderEditableCell(product, "purchasePricePln", product.purchasePricePln ? `${product.purchasePricePln.toFixed(2)} zł` : "-");
-      case "pricePlus":
-        return renderEditableCell(product, "pricePlus", product.pricePlus ? `${product.pricePlus.toFixed(2)} zł` : "-", "font-bold");
+      case "pricePlus": {
+        const vatRate = product.vatRate ?? 8;
+        const pricePlusVat = product.pricePlus ? Math.round(product.pricePlus * (1 + vatRate / 100) * 100) / 100 : 0;
+        return renderEditableCell(product, "pricePlusVat" as any, pricePlusVat ? `${pricePlusVat.toFixed(2)} zł` : "-", "font-bold");
+      }
       case "basePrice":
         return renderEditableCell(product, "basePriceGross", product.basePriceGross ? `${product.basePriceGross.toFixed(2)} zł` : "-");
       case "detal1": {
@@ -1245,43 +1312,98 @@ export function InventoryTable({
       case "grower":
         return product.grower || product.grower || "-";
       case "passport":
-        return renderEditableCell(product, "customId" as keyof Product, product.growerPassport || product.customId || "-", "text-center");
-      case "tags":
+        return renderEditableCell(product, "plantPassport" as keyof Product, product.growerPassport || product.plantPassport || "-", "text-center");
+      case "tags": {
+        const hasTags = product.tags && product.tags.length > 0;
+        const suggestions = suggestedTags[product.id];
+        const hasSuggestions = !hasTags && suggestions && suggestions.length > 0;
+
         return (
           <>
-            <div className="flex flex-wrap gap-0.5 items-center">
-              {(product.tags || []).slice(0, 2).map(tag => (
-                <span key={tag} className="bg-pink-200 text-pink-800 px-1 py-0.5 rounded text-[10px] truncate max-w-[50px]" title={tag}>
-                  {tag}
-                </span>
-              ))}
-              {(product.tags || []).length > 2 && (
-                <span className="text-pink-600 text-[10px]">+{(product.tags || []).length - 2}</span>
-              )}
-              <button
-                onClick={(e) => { e.stopPropagation(); setEditingTags(editingTags === product.id ? null : product.id); }}
-                className="ml-1 text-pink-600 hover:text-pink-800 text-xs hover:bg-pink-100 rounded px-1 flex-shrink-0"
-                title="Edytuj tagi"
-              >
-                ✏️
-              </button>
-            </div>
+            {hasTags ? (
+              <div className="flex flex-wrap gap-0.5 items-center">
+                {(product.tags || []).slice(0, 2).map(tag => (
+                  <span key={tag} className="bg-pink-200 text-pink-800 px-1 py-0.5 rounded text-[10px] truncate max-w-[50px]" title={tag}>
+                    {tag}
+                  </span>
+                ))}
+                {(product.tags || []).length > 2 && (
+                  <span className="text-pink-600 text-[10px]">+{(product.tags || []).length - 2}</span>
+                )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); setEditingTags(editingTags === product.id ? null : product.id); }}
+                  className="ml-1 text-pink-600 hover:text-pink-800 text-xs hover:bg-pink-100 rounded px-1 flex-shrink-0"
+                  title="Edytuj tagi"
+                >
+                  ✏️
+                </button>
+              </div>
+            ) : hasSuggestions ? (
+              <div className="flex flex-wrap gap-0.5 items-center">
+                {suggestions.slice(0, 2).map(tag => (
+                  <span key={tag} className="bg-yellow-100 text-yellow-800 px-1 py-0.5 rounded text-[10px] truncate max-w-[50px] border border-dashed border-yellow-400" title={`Sugerowany: ${tag}`}>
+                    {tag}
+                  </span>
+                ))}
+                {suggestions.length > 2 && (
+                  <span className="text-yellow-600 text-[10px]">+{suggestions.length - 2}</span>
+                )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleAcceptSuggestions(product, suggestions); }}
+                  className="ml-0.5 text-green-600 hover:text-green-800 text-sm hover:bg-green-50 rounded px-0.5 flex-shrink-0"
+                  title="Zaakceptuj sugerowane tagi"
+                >
+                  ✅
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setEditingTags(editingTags === product.id ? null : product.id); }}
+                  className="text-pink-600 hover:text-pink-800 text-xs hover:bg-pink-100 rounded px-0.5 flex-shrink-0"
+                  title="Edytuj tagi"
+                >
+                  ✏️
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleRejectSuggestions(product.id); }}
+                  className="text-gray-400 hover:text-gray-600 text-sm hover:bg-gray-50 rounded px-0.5 flex-shrink-0"
+                  title="Odrzucć sugestie"
+                >
+                  ✖
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center">
+                <span className="text-gray-400 text-[10px]">brak</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setEditingTags(editingTags === product.id ? null : product.id); }}
+                  className="ml-1 text-pink-600 hover:text-pink-800 text-xs hover:bg-pink-100 rounded px-1 flex-shrink-0"
+                  title="Edytuj tagi"
+                >
+                  ✏️
+                </button>
+              </div>
+            )}
             {editingTags === product.id && (
               <div className="absolute z-50 top-full left-0 mt-1 bg-white border border-pink-300 rounded-lg shadow-lg p-2 w-64 max-h-48 overflow-y-auto">
                 <div className="flex flex-wrap gap-1">
-                  {availableTags.map(tag => (
-                    <button
-                      key={tag}
-                      onClick={(e) => { e.stopPropagation(); handleToggleTag(product, tag); }}
-                      className={`px-1.5 py-0.5 rounded text-[10px] border ${
-                        (product.tags || []).includes(tag)
-                          ? "bg-pink-500 text-white border-pink-600"
-                          : "bg-white text-gray-700 border-gray-300 hover:bg-pink-50"
-                      }`}
-                    >
-                      {tag}
-                    </button>
-                  ))}
+                  {availableTags.map(tag => {
+                    const isActive = (product.tags || []).includes(tag);
+                    const isSuggested = suggestions && suggestions.includes(tag) && !isActive;
+                    return (
+                      <button
+                        key={tag}
+                        onClick={(e) => { e.stopPropagation(); handleToggleTag(product, tag); }}
+                        className={`px-1.5 py-0.5 rounded text-[10px] border ${
+                          isActive
+                            ? "bg-pink-500 text-white border-pink-600"
+                            : isSuggested
+                              ? "bg-yellow-100 text-yellow-800 border-yellow-400 border-dashed hover:bg-yellow-200"
+                              : "bg-white text-gray-700 border-gray-300 hover:bg-pink-50"
+                        }`}
+                      >
+                        {isSuggested ? "☆ " : ""}{tag}
+                      </button>
+                    );
+                  })}
                 </div>
                 <button
                   onClick={(e) => { e.stopPropagation(); setEditingTags(null); }}
@@ -1293,6 +1415,7 @@ export function InventoryTable({
             )}
           </>
         );
+      }
       case "actions":
         return (
           <div className="flex gap-0.5 flex-nowrap">

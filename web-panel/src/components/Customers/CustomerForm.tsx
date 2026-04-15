@@ -42,9 +42,12 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
     recipientPhone: '',
   });
   const [useRecipient, setUseRecipient] = useState(false);
+  const [recipientNip, setRecipientNip] = useState('');
+  const [lookingUpRecipientNip, setLookingUpRecipientNip] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [lookingUpNIP, setLookingUpNIP] = useState(false);
+  const [nipResults, setNipResults] = useState<any[]>([]);
 
   // Shop account state
   const [shopAccount, setShopAccount] = useState<ShopAccountInfo>({ hasShopAccount: false, shopAccountEmail: null });
@@ -185,44 +188,73 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
     }
   };
 
+  const applyNipResult = (data: any) => {
+    const country = data.country || formData.country;
+    const isNotPoland = country.toLowerCase() !== 'polska' && country.toLowerCase() !== 'poland';
+    // For non-Polish results, set VAT-EU: use DIC (CZxxxxxxxx) if available, otherwise construct CZ+ICO
+    let vatEu = formData.vatEu;
+    if (isNotPoland && data.source === 'ARES') {
+      if (data.nip && /^CZ/i.test(data.nip)) {
+        vatEu = data.nip;
+      } else if (data.regon) {
+        vatEu = 'CZ' + data.regon;
+      }
+    }
+    setFormData({
+      ...formData,
+      companyName: data.companyName || formData.companyName,
+      street: data.street || formData.street,
+      postalCode: data.postalCode || formData.postalCode,
+      city: data.city || formData.city,
+      country: country,
+      vatEu: vatEu,
+      isEuCompany: isNotPoland && !!vatEu,
+    });
+    setNipResults([]);
+  };
+
+  const handleLookupRecipientNip = async () => {
+    if (!recipientNip || recipientNip.replace(/[^0-9]/g, '').length < 8) {
+      return;
+    }
+    setLookingUpRecipientNip(true);
+    try {
+      const data = await api.lookupNip(recipientNip);
+      const result = data.results ? data.results[0] : data;
+      if (result) {
+        setFormData({
+          ...formData,
+          recipientCompanyName: result.companyName || formData.recipientCompanyName,
+          recipientStreet: result.street || formData.recipientStreet,
+          recipientPostalCode: result.postalCode || formData.recipientPostalCode,
+          recipientCity: result.city || formData.recipientCity,
+        });
+      }
+    } catch (err) {
+      console.error('Recipient NIP lookup error:', err);
+    } finally {
+      setLookingUpRecipientNip(false);
+    }
+  };
+
   const handleLookupNIP = async () => {
-    if (!formData.nip || formData.nip.length < 10) {
-      setError('Wprowadź poprawny NIP (10 cyfr)');
+    if (!formData.nip || formData.nip.length < 8) {
+      setError('Wprowadź NIP (10 cyfr), ICO (8 cyfr) lub DIC (CZxxxxxxxx)');
       return;
     }
 
     setLookingUpNIP(true);
     setError('');
+    setNipResults([]);
 
     try {
       const data = await api.lookupNip(formData.nip);
+      const results: any[] = data.results || [data];
 
-      // Składanie pełnego adresu z pól zwróconych przez API
-      const fullStreet = [data.street, data.houseNumber, data.apartmentNumber ? `/${data.apartmentNumber}` : '']
-        .filter(Boolean)
-        .join(' ')
-        .trim();
-
-      setFormData({
-        ...formData,
-        companyName: data.name || formData.companyName,
-        street: fullStreet || formData.street,
-        postalCode: data.postalCode || formData.postalCode,
-        city: data.city || formData.city,
-      });
-
-      // Sprawdź czy to działalność gospodarcza (nazwa to tylko imię i nazwisko)
-      const isIndividualBusiness = data.name && /^[A-ZŁĄĆĘŃÓŚŹŻ]+ [A-ZAŁĄĆĘŃÓŚŹŻ]+$/.test(data.name.trim());
-
-      // Wyświetl informację o sukcesie
-      if (data.name) {
-        let message = `Znaleziono firmę: ${data.name}\nREGON: ${data.regon || "brak"}\nStatus VAT: ${data.statusVat}\nŹródło: ${(data as any).source === "GUS" ? "GUS (BIR)" : "Biała Lista VAT"}`;
-
-        if (isIndividualBusiness) {
-          message += '\n\n⚠️ UWAGA: Dla działalności gospodarczych system zwraca tylko imię i nazwisko właściciela.\nJeśli firma ma pełną nazwę (np. "JAN KOWALSKI KWIACIARNIA"), proszę uzupełnić ją ręcznie w polu "Nazwa firmy".';
-        }
-
-        alert(message);
+      if (results.length > 1) {
+        setNipResults(results);
+      } else if (results.length === 1) {
+        applyNipResult(results[0]);
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Błąd podczas wyszukiwania NIP. Sprawdź czy NIP jest poprawny.');
@@ -274,9 +306,9 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
                 <input
                   type="text"
                   className="input flex-1"
-                  placeholder="1234567890"
+                  placeholder="NIP / ICO / DIC"
                   value={formData.nip}
-                  onChange={(e) => setFormData({ ...formData, nip: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                  onChange={(e) => setFormData({ ...formData, nip: e.target.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12).toUpperCase() })}
                 />
                 <button
                   type="button"
@@ -287,7 +319,7 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
                   {lookingUpNIP ? 'Szukam...' : 'Lookup'}
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">Wyszukaj dane firmy po NIP</p>
+              <p className="text-xs text-gray-500 mt-1">PL: NIP (10 cyfr) | CZ: ICO (8 cyfr) lub DIC (CZxxxxxxxx)</p>
             </div>
 
             {/* Nazwa firmy */}
@@ -306,6 +338,28 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
                 Dla działalności gospodarczych lookup NIP zwraca tylko imię i nazwisko - uzupełnij pełną nazwę ręcznie
               </p>
             </div>
+
+            {/* NIP Results Selection */}
+            {nipResults.length > 1 && (
+              <div className="mt-3 border border-blue-200 rounded-lg bg-blue-50 p-3">
+                <p className="text-sm font-medium text-blue-800 mb-2">
+                  Znaleziono {nipResults.length} firm na tym NIP. Wybierz:
+                </p>
+                <div className="space-y-2">
+                  {nipResults.map((r: any, i: number) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => applyNipResult(r)}
+                      className="w-full text-left p-3 bg-white border border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-400 transition-colors"
+                    >
+                      <div className="font-medium text-gray-900">{r.companyName}</div>
+                      <div className="text-sm text-gray-500">{r.street}, {r.postalCode} {r.city}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Kod kontrahenta */}
             <div>
@@ -546,6 +600,31 @@ export function CustomerForm({ customer, onSave, onCancel }: CustomerFormProps) 
                     Uzupełnij dane odbiórcy jeśli adres dostawy różni się od adresu nabywcy.
                     Te dane będą automatycznie używane na fakturach dla tego kontrahenta.
                   </p>
+
+                  {/* NIP odbiorcy - wyszukiwanie */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      NIP odbiorcy (wyszukaj dane)
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        className="input flex-1"
+                        placeholder="Wpisz NIP odbiorcy"
+                        value={recipientNip}
+                        onChange={(e) => setRecipientNip(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleLookupRecipientNip())}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleLookupRecipientNip}
+                        disabled={lookingUpRecipientNip}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm whitespace-nowrap"
+                      >
+                        {lookingUpRecipientNip ? 'Szukam...' : 'Szukaj NIP'}
+                      </button>
+                    </div>
+                  </div>
 
                   {/* Nazwa firmy odbiórcy */}
                   <div>

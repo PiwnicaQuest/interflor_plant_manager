@@ -116,51 +116,54 @@ export async function generateInvoicePdfDirect(invoice: InvoiceWithItems): Promi
   const LIGHT_GREEN = "#dcfce7";
   const GREEN_BORDER = "#86efac";
 
-  // Seller box
-  roundedRect(doc, ML, y, boxW, boxH, radius);
-  doc.fill(LIGHT_GRAY);
-  roundedRect(doc, ML, y, boxW, boxH, radius);
-  doc.stroke(BORDER);
+  // Helper: render a party box with dynamic name height
+  function renderPartyBox(
+    x: number, topY: number, w: number, minH: number,
+    fillColor: string, borderColor: string,
+    label: string, labelColor: string,
+    nameText: string, nameColor: string, nameFontSize: number,
+    addr: string, city: string,
+    extraLabel?: string, extraValue?: string, extraColor?: string
+  ): number {
+    const nameW = w - 20;
+    const fontSize = nameText.length > 60 ? Math.min(nameFontSize, 9) : nameFontSize;
+    const nameH = doc.font("B").fontSize(fontSize).heightOfString(nameText, { width: nameW });
+    const needed = 10 + 14 + nameH + 6 + 12 + 14 + (extraValue ? 16 : 0) + 8;
+    const h = Math.max(minH, needed);
 
-  doc.font("B").fontSize(9).fillColor(GRAY).text("SPRZEDAWCA", ML + 10, y + 10);
-  doc.font("B").fontSize(hasRecipient ? 10 : 11).fillColor(TEXT).text(seller.name, ML + 10, y + 24, { width: boxW - 20 });
-  doc.font("R").fontSize(9).text(seller.addr, ML + 10, y + 56);
-  doc.text(seller.city, ML + 10, y + 70);
-  doc.text("NIP: ", ML + 10, y + 86, { continued: true }).font("B").text(seller.nip);
+    roundedRect(doc, x, topY, w, h, radius);
+    doc.fill(fillColor);
+    roundedRect(doc, x, topY, w, h, radius);
+    doc.strokeColor(borderColor).lineWidth(1).stroke();
 
-  // Buyer box
-  const bx = ML + boxW + gap;
-  roundedRect(doc, bx, y, boxW, boxH, radius);
-  doc.fill(LIGHT_BLUE);
-  roundedRect(doc, bx, y, boxW, boxH, radius);
-  doc.stroke(BORDER);
-
-  doc.font("B").fontSize(9).fillColor(GRAY).text("NABYWCA", bx + 10, y + 10);
-  doc.font("B").fontSize(hasRecipient ? 10 : 11).fillColor(BLUE).text(buyer.name, bx + 10, y + 24, { width: boxW - 20 });
-  doc.font("R").fontSize(9).fillColor(TEXT).text(buyer.addr, bx + 10, y + 56);
-  doc.text(buyer.city, bx + 10, y + 70);
-  if (buyer.nip) {
-    doc.text("NIP: ", bx + 10, y + 86, { continued: true }).font("B").fillColor(BLUE).text(buyer.nip);
+    let cy = topY + 10;
+    doc.font("B").fontSize(9).fillColor(labelColor).text(label, x + 10, cy);
+    cy += 14;
+    doc.font("B").fontSize(fontSize).fillColor(nameColor).text(nameText, x + 10, cy, { width: nameW });
+    cy += nameH + 6;
+    doc.font("R").fontSize(9).fillColor(TEXT).text(addr, x + 10, cy, { width: nameW });
+    cy += 12;
+    doc.text(city, x + 10, cy, { width: nameW });
+    cy += 14;
+    if (extraValue) {
+      doc.font("R").fontSize(9).fillColor(TEXT).text(extraLabel || "", x + 10, cy, { continued: true });
+      doc.font("B").fillColor(extraColor || TEXT).text(extraValue);
+    }
+    return h;
   }
 
-  // Recipient box (if different from buyer)
+  const sellerH = renderPartyBox(ML, y, boxW, boxH, LIGHT_GRAY, BORDER, "SPRZEDAWCA", GRAY, seller.name, TEXT, hasRecipient ? 10 : 11, seller.addr, seller.city, "NIP: ", seller.nip, TEXT);
+  const bx = ML + boxW + gap;
+  const buyerH = renderPartyBox(bx, y, boxW, boxH, LIGHT_BLUE, BORDER, "NABYWCA", GRAY, buyer.name, BLUE, hasRecipient ? 10 : 11, buyer.addr, buyer.city, buyer.nip ? "NIP: " : undefined, buyer.nip || undefined, BLUE);
+
+  let maxBoxH = Math.max(sellerH, buyerH);
   if (hasRecipient) {
     const rx = bx + boxW + gap;
-    roundedRect(doc, rx, y, boxW, boxH, radius);
-    doc.fill(LIGHT_GREEN);
-    roundedRect(doc, rx, y, boxW, boxH, radius);
-    doc.strokeColor(GREEN_BORDER).lineWidth(1).stroke();
-
-    doc.font("B").fontSize(9).fillColor(GRAY).text("ODBIORCA", rx + 10, y + 10);
-    doc.font("B").fontSize(10).fillColor("#16a34a").text(recipient.name, rx + 10, y + 24, { width: boxW - 20 });
-    doc.font("R").fontSize(9).fillColor(TEXT).text(recipient.addr, rx + 10, y + 56);
-    doc.text(recipient.city, rx + 10, y + 70);
-    if (recipient.phone) {
-      doc.text("Tel: ", rx + 10, y + 86, { continued: true }).font("B").text(recipient.phone);
-    }
+    const recipientH = renderPartyBox(rx, y, boxW, boxH, LIGHT_GREEN, GREEN_BORDER, "ODBIORCA", GRAY, recipient.name, "#16a34a", 10, recipient.addr, recipient.city, recipient.phone ? "Tel: " : undefined, recipient.phone || undefined, TEXT);
+    maxBoxH = Math.max(maxBoxH, recipientH);
   }
 
-  y += boxH + 22;
+  y += maxBoxH + 22;
 
   // === ITEMS TABLE ===
   const cw = [18, 168, 28, 22, 44, 44, 28, 54, 48, 52];
@@ -182,7 +185,7 @@ export async function generateInvoicePdfDirect(invoice: InvoiceWithItems): Promi
 
   // Rows
   let totalQty = 0;
-  const ROW_HEIGHT = 18;
+  const ROW_HEIGHT = 28;
 
   items.forEach((item, idx) => {
     if (y + ROW_HEIGHT > PAGE_H - MB - 30) {
@@ -202,18 +205,20 @@ export async function generateInvoicePdfDirect(invoice: InvoiceWithItems): Promi
     const tVat = Number(item.totalVat) || tNet * item.vatRate / 100;
     const tGross = Number(item.totalGross) || tNet + tVat;
 
-    const cy = y + 5;
+    const cy = y + 9;
 
     // Lp - centered
     doc.font("R").fontSize(7).fillColor(TEXT).text((idx + 1).toString(), cx[0] + 1, cy, { width: cw[0] - 2, align: "center" });
 
-    // Name + passport + PKWiU compact
+    // Name on first line
     const name = item.description || "Produkt";
+    doc.font("R").fontSize(6.5).fillColor(TEXT).text(name, cx[1] + 3, y + 3, { width: cw[1] - 6 });
+
+    // Passport + PKWiU on second line (well separated)
     const passport = (item as any).growerPassport || "";
     const pkwiu = "01.30.10.0";
-    const nameExtra = passport ? " [" + passport + "]" : "";
-    doc.font("R").fontSize(6.5).fillColor(TEXT).text(name + nameExtra, cx[1] + 3, y + 2, { width: cw[1] - 6 });
-    doc.font("R").fontSize(5).fillColor(GRAY).text("PKWiU: " + pkwiu, cx[1] + 3, y + 12, { width: cw[1] - 6 });
+    const extraLine = (passport ? "Paszport: " + passport + "  |  " : "") + "PKWiU: " + pkwiu;
+    doc.font("R").fontSize(5).fillColor(GRAY).text(extraLine, cx[1] + 3, y + 17, { width: cw[1] - 6 });
 
     // Qty - centered
     doc.font("B").fontSize(7).fillColor(BLUE).text(qty.toString(), cx[2] + 1, cy, { width: cw[2] - 2, align: "center" });

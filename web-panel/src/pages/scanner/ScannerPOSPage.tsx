@@ -70,6 +70,67 @@ export function ScannerPOSPage() {
   }, [notification]);
 
   // === Print hook ===
+
+
+  // Print: try ESC/POS (best quality) > PNG (native) > HTML (fallback)
+  const printHtmlDirect = async (fetchUrl: string, title: string, imageUrl?: string, escposUrl?: string) => {
+    // 1. PNG image via native app - high resolution bitmap for TSPL printer
+    if (imageUrl && typeof (window as any).xprintImage === 'function') {
+      (window as any).xprintImage(imageUrl);
+      return;
+    }
+  // 3. Fallback: HTML print via window.open
+    try {
+      setPrintLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch(fetchUrl, {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      if (!response.ok) throw new Error('Blad pobierania dokumentu');
+      const html = await response.text();
+
+      const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:72mm;margin:0;padding:2mm 2mm;font-family:"Courier New",Courier,monospace;font-size:14px;font-weight:bold;color:#000;background:#fff;height:auto!important;overflow:visible!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+*{font-weight:bold!important;-webkit-print-color-adjust:exact!important}
+img{max-width:100%;height:auto;image-rendering:crisp-edges;-webkit-print-color-adjust:exact!important}
+@media print{@page{size:72mm auto;margin:0}html,body{width:72mm;height:auto!important;overflow:visible!important;padding:1mm 2mm;font-size:13px}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}
+</style></head><body>${html}
+<script>
+// Force body to full document height then print
+function doPrint(){
+  document.body.style.height=document.body.scrollHeight+'px';
+  document.documentElement.style.height=document.body.scrollHeight+'px';
+  document.body.style.overflow='visible';
+  document.documentElement.style.overflow='visible';
+  window.scrollTo(0,0);
+  setTimeout(function(){window.print();},500);
+}
+// Wait for images
+var imgs=document.querySelectorAll('img');var loaded=0;var total=imgs.length;
+if(total===0){setTimeout(doPrint,300);}
+else{function chk(){loaded++;if(loaded>=total)setTimeout(doPrint,300);}
+imgs.forEach(function(i){if(i.complete)chk();else{i.onload=chk;i.onerror=chk;}});
+setTimeout(doPrint,4000);}
+</script></body></html>`;
+
+      const blob = new Blob([fullHtml], { type: 'text/html' });
+      const blobUrl = URL.createObjectURL(blob);
+      const w = window.open(blobUrl, '_blank');
+      if (!w) {
+        // Fallback: navigate in same window
+        window.location.href = blobUrl;
+      }
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
+    } catch (err: any) {
+      console.error('Print error:', err);
+      setError(err.message || 'Blad drukowania');
+    } finally {
+      setPrintLoading(false);
+    }
+  };
+
   const { printInvoicePdf, printProformaPdf, printReceipt } = usePrint({
     onError: (err) => {
       console.error('Print error:', err);
@@ -279,8 +340,9 @@ export function ScannerPOSPage() {
       } else if (type === 'proforma') {
         await printProformaPdf(id, { title: `Proforma ${number}` });
       } else {
-        const html = await api.getReceiptHtml(id);
-        await printReceipt(html, { title: `Paragon ${number}` });
+        const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
+        const token2 = localStorage.getItem('token');
+        printHtmlDirect(API_URL + '/receipts/' + id + '/html', 'Paragon ' + number, API_URL + '/receipts/' + id + '/receipt-image?token=' + token2, API_URL + '/receipts/' + id + '/escpos?token=' + token2);
       }
     } catch (err: any) {
       console.error('Print error:', err);
@@ -1020,36 +1082,53 @@ export function ScannerPOSPage() {
             )}
           </div>
           <div className="px-4 pb-6 space-y-2">
-            <button
-              onClick={() => handlePrint()}
-              disabled={printLoading}
-              className="w-full py-3.5 bg-primary-600 text-white rounded-xl font-medium flex items-center justify-center gap-2 active:bg-primary-700"
-            >
-              {printLoading ? (
-                <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
-              ) : (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
-              )}
-              Drukuj
-            </button>
-            {checkoutResult.orderId && (
+            {checkoutResult.documentType === 'invoice' && checkoutResult.documentId && (
             <button
               onClick={async () => {
                 try {
                   setPrintLoading(true);
-                  const html = await api.getOrderConfirmationHtml(checkoutResult.orderId!);
-                  await printReceipt(html, { title: `Potwierdzenie ${checkoutResult.documentNumber}` });
+                  const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
+                  const token = localStorage.getItem('token');
+                  const API_URL2 = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
+                  printHtmlDirect(API_URL2 + '/ksef/invoices/' + checkoutResult.documentId + '/confirmation-html?format=receipt', 'Potwierdzenie KSeF ' + checkoutResult.documentNumber, API_URL2 + '/ksef/invoices/' + checkoutResult.documentId + '/confirmation-image?token=' + token, API_URL2 + '/ksef/invoices/' + checkoutResult.documentId + '/escpos?token=' + token);
                 } catch (err: any) {
-                  console.error('Print confirmation error:', err);
-                  setError(err.message || 'Blad drukowania potwierdzenia');
+                  console.error('Print KSeF confirmation error:', err);
+                  setError(err.message || 'Blad drukowania potwierdzenia KSeF');
                 } finally {
                   setPrintLoading(false);
                 }
               }}
               disabled={printLoading}
-              className="w-full py-3.5 bg-gray-700 text-white rounded-xl font-medium flex items-center justify-center gap-2 active:bg-gray-800"
+              className="w-full py-3.5 bg-green-600 text-white rounded-xl font-medium flex items-center justify-center gap-2 active:bg-green-700"
+            >
+              {printLoading ? (
+                <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
+              ) : (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              )}
+              Drukuj KSeF
+            </button>
+            )}
+            {checkoutResult.documentType === 'invoice' && checkoutResult.documentId && (
+            <button
+              onClick={async () => {
+                try {
+                  setPrintLoading(true);
+                  const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
+                  const token = localStorage.getItem('token');
+                  const API_URL3 = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
+                  printHtmlDirect(API_URL3 + '/invoices/' + checkoutResult.documentId + '/invoice-receipt-html', 'Faktura ' + checkoutResult.documentNumber, API_URL3 + '/invoices/' + checkoutResult.documentId + '/invoice-receipt-image?token=' + token);
+                } catch (err: any) {
+                  console.error('Print invoice receipt error:', err);
+                  setError(err.message || 'Blad drukowania');
+                } finally {
+                  setPrintLoading(false);
+                }
+              }}
+              disabled={printLoading}
+              className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-medium flex items-center justify-center gap-2 active:bg-blue-700"
             >
               {printLoading ? (
                 <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
@@ -1058,19 +1137,29 @@ export function ScannerPOSPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               )}
-              Drukuj potwierdzenie
+              Drukuj fakture
             </button>
             )}
+            {checkoutResult.documentType === 'receipt' && checkoutResult.documentId && (
             <button
-              onClick={() => handleViewDocument()}
-              className="w-full py-3.5 bg-gray-100 text-gray-800 rounded-xl font-medium flex items-center justify-center gap-2 active:bg-gray-200"
+              onClick={() => {
+                const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
+                printHtmlDirect(API_URL + '/receipts/' + checkoutResult.documentId + '/html', 'Paragon ' + checkoutResult.documentNumber, API_URL + '/receipts/' + checkoutResult.documentId + '/receipt-image?token=' + token, API_URL + '/receipts/' + checkoutResult.documentId + '/escpos?token=' + token);
+              }}
+              disabled={printLoading}
+              className="w-full py-3.5 bg-green-600 text-white rounded-xl font-medium flex items-center justify-center gap-2 active:bg-green-700"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              Podgląd dokumentu
+              {printLoading ? (
+                <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
+              ) : (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+              )}
+              Drukuj paragon
             </button>
+            )}
+
             {(checkoutResult.documentType === 'invoice' || checkoutResult.documentType === 'proforma') && (
               <>
               {!emailSent && !checkoutResult.customerHasEmail && (
@@ -1125,26 +1214,38 @@ export function ScannerPOSPage() {
             <div className="space-y-2">
               {showHistoryActions.document && (
                 <>
+                  {/* Drukuj ponownie - for invoices prints KSeF paragon, for receipts/proforma uses standard print */}
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       const tx = showHistoryActions;
                       setShowHistoryActions(null);
-                      handlePrint(tx.document!.type, tx.document!.id, tx.document!.number);
+                      const docType = tx.document!.type;
+                      if (docType === 'invoice') {
+                        // Print KSeF confirmation in paragon form
+                        try {
+                          setPrintLoading(true);
+                          const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
+                          const token = localStorage.getItem('token');
+                          const API_URL4 = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
+                          printHtmlDirect(API_URL4 + '/ksef/invoices/' + tx.document!.id + '/confirmation-html?format=receipt', 'Potwierdzenie KSeF ' + tx.document!.number, API_URL4 + '/ksef/invoices/' + tx.document!.id + '/confirmation-image?token=' + token, API_URL4 + '/ksef/invoices/' + tx.document!.id + '/escpos?token=' + token);
+                        } catch (err: any) {
+                          console.error('Print KSeF error:', err);
+                          setError(err.message || 'Błąd drukowania');
+                        } finally {
+                          setPrintLoading(false);
+                        }
+                      } else {
+                        handlePrint(docType, tx.document!.id, tx.document!.number);
+                      }
                     }}
-                    className="w-full p-4 bg-gray-50 rounded-xl text-left active:bg-gray-100 border border-gray-200 font-medium"
+                    disabled={printLoading}
+                    className="w-full p-4 bg-gray-50 rounded-xl text-left active:bg-gray-100 border border-gray-200 font-medium disabled:opacity-50"
                   >
                     🖨️ Drukuj ponownie
                   </button>
-                  <button
-                    onClick={() => {
-                      const tx = showHistoryActions;
-                      setShowHistoryActions(null);
-                      handleViewDocument(tx.document!.type, tx.document!.id);
-                    }}
-                    className="w-full p-4 bg-gray-50 rounded-xl text-left active:bg-gray-100 border border-gray-200 font-medium"
-                  >
-                    👁️ Podgląd dokumentu
-                  </button>
+
+
+
                   {(showHistoryActions.document.type === 'invoice' || showHistoryActions.document.type === 'proforma') && (
                     <button
                       onClick={async () => {
@@ -1157,25 +1258,47 @@ export function ScannerPOSPage() {
                       ✉️ Wyślij e-mail
                     </button>
                   )}
-                  <button
-                    onClick={async () => {
-                      const tx = showHistoryActions;
-                      setShowHistoryActions(null);
-                      try {
-                        setPrintLoading(true);
-                        const html = await api.getOrderConfirmationHtml(tx.id);
-                        await printReceipt(html, { title: `Potwierdzenie ${tx.document?.number || tx.orderNumber}` });
-                      } catch (err: any) {
-                        console.error('Print confirmation error:', err);
-                        setError(err.message || 'Błąd drukowania potwierdzenia');
-                      } finally {
-                        setPrintLoading(false);
-                      }
-                    }}
-                    className="w-full p-4 bg-gray-50 rounded-xl text-left active:bg-gray-100 border border-gray-200 font-medium"
-                  >
-                    🧾 Drukuj potwierdzenie
-                  </button>
+
+                                    {/* Wyslij potwierdzenie KSeF mailem */}
+                  {showHistoryActions.document.type === 'invoice' && (
+                    <div className="w-full p-4 bg-blue-50 rounded-xl border border-blue-200">
+                      <div className="font-medium text-blue-800 mb-2">Wyślij potwierdzenie KSeF</div>
+                      <div className="flex gap-2">
+                        <input
+                          type="email"
+                          id="history-email-input"
+                          defaultValue={showHistoryActions.customerEmail || ''}
+                          placeholder="Wpisz adres e-mail"
+                          className="flex-1 px-3 py-2 border border-blue-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                          onClick={async () => {
+                            const tx = showHistoryActions;
+                            const emailInput = document.getElementById('history-email-input') as HTMLInputElement;
+                            const email = emailInput?.value?.trim();
+                            if (!email) { setError('Podaj adres e-mail'); return; }
+                            setShowHistoryActions(null);
+                            try {
+                              setEmailSending(true);
+                              await api.sendInvoiceEmail(tx.document!.id, { email });
+                              if ((tx as any).customerId) {
+                                try { await api.updateCustomer((tx as any).customerId, { email }); } catch(e) {}
+                              }
+                              setNotification({ type: 'success', message: 'Potwierdzenie wysłane na ' + email });
+                            } catch (err: any) {
+                              setError(err?.response?.data?.error || err.message || 'Błąd wysyłki');
+                            } finally {
+                              setEmailSending(false);
+                            }
+                          }}
+                          disabled={emailSending}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap"
+                        >
+                          {emailSending ? 'Wysyłam...' : 'Wyślij'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>

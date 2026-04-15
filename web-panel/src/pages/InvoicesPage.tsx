@@ -6,6 +6,7 @@ import { InvoicesTable } from '../components/Invoices/InvoicesTable';
 import { InvoiceDetails } from '../components/Invoices/InvoiceDetails';
 import { PaymentStatusModal } from '../components/Invoices/PaymentStatusModal';
 import { CreateCorrectionModal } from '../components/Invoices/CreateCorrectionModal';
+import { EditInvoiceModal } from '../components/Invoices/EditInvoiceModal';
 import { EmailInputModal } from '../components/Invoices/EmailInputModal';
 import { CreateInvoiceModal } from '../components/Invoices/CreateInvoiceModal';
 
@@ -25,6 +26,7 @@ export function InvoicesPage() {
   const [ksefStatusFilter, setKsefStatusFilter] = useState<string>('');
   const [isSendingKsef, setIsSendingKsef] = useState(false);
   const [correctionInvoice, setCorrectionInvoice] = useState<Invoice | null>(null);
+  const [editInvoiceId, setEditInvoiceId] = useState<number | null>(null);
   const [showCreateInvoice, setShowCreateInvoice] = useState(false);
 
   // New: Search and sort state
@@ -79,7 +81,8 @@ export function InvoicesPage() {
       result = result.filter(invoice =>
         (invoice.customerName || '').toLowerCase().includes(query) ||
         (invoice.invoiceNumber || '').toLowerCase().includes(query) ||
-        String(invoice.buyerSnapshot?.customerCode || '').toLowerCase().includes(query)
+        String(invoice.buyerSnapshot?.customerCode || '').toLowerCase().includes(query) ||
+        String(invoice.buyerSnapshot?.nip || '').includes(query)
       );
     }
 
@@ -535,6 +538,22 @@ export function InvoicesPage() {
               <option value="transfer">Przelew</option>
             </select>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Status KSeF
+            </label>
+            <select
+              className="input"
+              value={ksefStatusFilter}
+              onChange={(e) => setKsefStatusFilter(e.target.value)}
+            >
+              <option value="">Wszystkie</option>
+              <option value="accepted">Przyjęta do KSeF</option>
+              <option value="sending">Wysyłanie</option>
+              <option value="error">Błąd / Odrzucona</option>
+              <option value="none">Nie wysłana</option>
+            </select>
+          </div>
           <div className="flex items-end gap-2">
             <button onClick={handleFilter} className="btn btn-primary">
               Filtruj
@@ -580,6 +599,8 @@ export function InvoicesPage() {
                 onClick={handlePrintSelected}
                 className="btn btn-primary btn-sm"
               >
+                Drukuj ({selectedInvoices.length})
+              </button>
               <button
                 onClick={handleBulkSendKsef}
                 disabled={isSendingKsef}
@@ -596,8 +617,6 @@ export function InvoicesPage() {
                 ) : (
                   <>KSeF ({selectedInvoices.length})</>
                 )}
-              </button>
-                Drukuj ({selectedInvoices.length})
               </button>
               <button
                 onClick={() => setSelectedInvoices([])}
@@ -638,6 +657,7 @@ export function InvoicesPage() {
             onViewDetails={handleViewDetails}
             onUpdatePayment={handleUpdatePayment}
             onSendEmail={handleSendEmail}
+            onEdit={(invoice) => setEditInvoiceId(invoice.id)}
             onCreateCorrection={(invoice) => setCorrectionInvoice(invoice)}
             selectedInvoices={selectedInvoices}
             onSelectInvoice={handleSelectInvoice}
@@ -684,6 +704,16 @@ export function InvoicesPage() {
           onClose={() => setCorrectionInvoice(null)}
           onSuccess={() => { setCorrectionInvoice(null); fetchInvoices(); }}
           preselectedInvoiceId={correctionInvoice.id}
+        />
+      )}
+
+      {/* Edit Invoice Modal */}
+      {editInvoiceId && (
+        <EditInvoiceModal
+          invoiceId={editInvoiceId}
+          isOpen={true}
+          onClose={() => setEditInvoiceId(null)}
+          onSaved={() => { setEditInvoiceId(null); fetchInvoices(); }}
         />
       )}
 

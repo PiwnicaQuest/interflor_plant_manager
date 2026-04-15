@@ -4,16 +4,19 @@ import { SettingsModel } from "../models/Settings";
 
 const KSEF_ENVIRONMENTS = {
   test: {
-    api: "https://api-test.ksef.mf.gov.pl/v2",
+    api: "https://api-test.ksef.mf.gov.pl/api/v2",
     app: "https://ap-test.ksef.mf.gov.pl",
+    qr: "https://qr-test.ksef.mf.gov.pl",
   },
   demo: {
-    api: "https://api-demo.ksef.mf.gov.pl/v2",
+    api: "https://api-demo.ksef.mf.gov.pl/api/v2",
     app: "https://ap-demo.ksef.mf.gov.pl",
+    qr: "https://qr-demo.ksef.mf.gov.pl",
   },
   production: {
-    api: "https://api.ksef.mf.gov.pl/v2",
+    api: "https://api.ksef.mf.gov.pl/api/v2",
     app: "https://ap.ksef.mf.gov.pl",
+    qr: "https://qr.ksef.mf.gov.pl",
   },
 } as const;
 
@@ -104,8 +107,8 @@ export class KsefApiClient {
   async initTokenAuth(ksefToken: string): Promise<{ authToken: string; referenceNumber: string }> {
     const { challenge, timestampMs } = await this.getChallenge();
 
-    // Get MF public key for token encryption
-    const publicKeyPem = await this.getPublicKey();
+    // Get MF public key for token encryption (KsefTokenEncryption cert)
+    const publicKeyPem = await this.getPublicKey("KsefTokenEncryption");
 
     // Encrypt: "token|timestampMs" with RSA-OAEP SHA-256
     const plaintext = `${ksefToken}|${timestampMs}`;
@@ -128,14 +131,40 @@ export class KsefApiClient {
     };
   }
 
-  /** Step 3: POST /auth/token/redeem - exchange auth token for access token */
+  /** Step 3: GET /auth/{referenceNumber} - poll until auth is ready (KSeF 2.0 async auth) */
+  async waitForAuthReady(referenceNumber: string, authToken: string, maxAttempts: number = 20): Promise<void> {
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      try {
+        const response = await this.httpClient.get(`/auth/${referenceNumber}`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        const code = response.data.status?.code || response.data.processingCode;
+        const desc = response.data.status?.description || response.data.processingDescription || "";
+        console.log(`[KSeF] Auth poll ${i + 1}/${maxAttempts}: code=${code} ${desc}`);
+        if (code === 200) {
+          return; // Auth ready
+        }
+        if (code >= 400) {
+          throw new Error(`KSeF auth rejected with code ${code}: ${desc}`);
+        }
+      } catch (error: any) {
+        if (error.response?.status === 200) return; // Sometimes 200 response means ready
+        if (error.message?.includes("rejected")) throw error;
+        console.log(`[KSeF] Auth poll ${i + 1}: ${error.response?.status || error.message}`);
+      }
+    }
+    throw new Error("KSeF auth timeout - nie uzyskano potwierdzenia uwierzytelnienia po " + maxAttempts + " probach");
+  }
+
+  /** Step 4: POST /auth/token/redeem - exchange auth token for access token */
   async redeemTokens(authToken: string): Promise<{ accessToken: string; refreshToken: string }> {
     const response = await this.httpClient.post("/auth/token/redeem", {}, {
       headers: { Authorization: `Bearer ${authToken}` },
     });
     return {
       accessToken: response.data.accessToken.token,
-      refreshToken: response.data.refreshToken.token,
+      refreshToken: response.data.refreshToken?.token || "",
     };
   }
 
@@ -145,8 +174,8 @@ export class KsefApiClient {
     const encryptionKey = crypto.randomBytes(32);
     const encryptionIV = crypto.randomBytes(16);
 
-    // Get MF public key and encrypt symmetric key
-    const publicKeyPem = await this.getPublicKey();
+    // Get MF public key for symmetric key encryption (SymmetricKeyEncryption cert)
+    const publicKeyPem = await this.getPublicKey("SymmetricKeyEncryption");
     const encryptedKey = crypto.publicEncrypt(
       { key: publicKeyPem, padding: crypto.constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" },
       encryptionKey
@@ -218,29 +247,60 @@ export class KsefApiClient {
     return response.data;
   }
 
-  /** GET /security/public-key-certificates - get MF public key */
-  private async getPublicKey(): Promise<string> {
+  /** Cache for public key certificates */
+  private certCache: { certs: any[]; fetchedAt: number } | null = null;
+
+  /** GET /security/public-key-certificates - get MF public keys */
+  private async getCertificates(): Promise<any[]> {
+    // Cache for 5 minutes
+    if (this.certCache && Date.now() - this.certCache.fetchedAt < 300000) {
+      return this.certCache.certs;
+    }
     const response = await this.httpClient.get("/security/public-key-certificates");
     const certs = response.data;
     if (!Array.isArray(certs) || certs.length === 0) {
       throw new Error("Brak certyfikatow klucza publicznego KSeF");
     }
+    this.certCache = { certs, fetchedAt: Date.now() };
+    return certs;
+  }
 
-    // Find valid certificate
+  /**
+   * Get public key for specific usage:
+   * - "KsefTokenEncryption" for encrypting KSeF token during auth
+   * - "SymmetricKeyEncryption" for encrypting AES session key
+   */
+  private async getPublicKey(usage: string = "KsefTokenEncryption"): Promise<string> {
+    const certs = await this.getCertificates();
     const now = new Date();
+
+    // Find cert matching usage and valid dates
     const validCert = certs.find((c: any) => {
+      const matchesUsage = Array.isArray(c.usage) ? c.usage.includes(usage) : c.usage === usage;
       const from = new Date(c.validFrom);
       const to = new Date(c.validTo);
-      return now >= from && now <= to;
-    }) || certs[0];
+      return matchesUsage && now >= from && now <= to;
+    });
 
-    // Convert DER Base64 to PEM
-    const derBase64 = validCert.certificate;
-    const pem = `-----BEGIN CERTIFICATE-----\n${derBase64.match(/.{1,64}/g)!.join("\n")}\n-----END CERTIFICATE-----`;
+    if (!validCert) {
+      // Fallback: find any cert with matching usage (ignore dates)
+      const fallback = certs.find((c: any) =>
+        Array.isArray(c.usage) ? c.usage.includes(usage) : c.usage === usage
+      );
+      if (!fallback) {
+        throw new Error(`Brak certyfikatu KSeF o przeznaczeniu: ${usage}`);
+      }
+      console.warn(`[KSeF] Using expired/future cert for ${usage}`);
+      return this.extractPublicKey(fallback);
+    }
 
-    // Extract public key from certificate
-    const cert = crypto.createPublicKey({ key: Buffer.from(derBase64, "base64"), format: "der", type: "spki" });
-    return cert.export({ type: "spki", format: "pem" }).toString();
+    return this.extractPublicKey(validCert);
+  }
+
+  private extractPublicKey(cert: any): string {
+    const derBuffer = Buffer.from(cert.certificate, "base64");
+    const x509 = new crypto.X509Certificate(derBuffer);
+    return x509.publicKey.export({ type: "spki", format: "pem" }).toString();
   }
 
   /** Test connection to KSeF */
@@ -285,8 +345,9 @@ export async function sendInvoiceToKsef(invoiceXml: string): Promise<{
   const client = new KsefApiClient(settings.environment);
 
   try {
-    // Authenticate
-    const { authToken } = await client.initTokenAuth(settings.token);
+    // Authenticate (KSeF 2.0: async auth with polling)
+    const { authToken, referenceNumber: authRef } = await client.initTokenAuth(settings.token);
+    await client.waitForAuthReady(authRef, authToken);
     const { accessToken } = await client.redeemTokens(authToken);
 
     // Open session, send, close

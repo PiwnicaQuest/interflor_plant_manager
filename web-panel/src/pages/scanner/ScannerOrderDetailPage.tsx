@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { API } from '../../services/api';
 import type { OrderWithItems, Product, OrderStatus, PriceGroup } from '../../types';
@@ -111,6 +111,21 @@ export function ScannerOrderDetailPage() {
 
   // Price groups for dynamic price calculation
   const [priceGroups, setPriceGroups] = useState<PriceGroup[]>([]);
+
+  // User's price multiplier (e.g. DETAL 1 = 1.30)
+  const { userPriceMultiplier, userPriceGroupName } = useMemo(() => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return { userPriceMultiplier: 0, userPriceGroupName: '' };
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return {
+        userPriceMultiplier: payload.priceMultiplier || 0,
+        userPriceGroupName: payload.priceGroupName || '',
+      };
+    } catch {
+      return { userPriceMultiplier: 0, userPriceGroupName: '' };
+    }
+  }, []);
 
   // Edit mode
   const [editMode, setEditMode] = useState(false);
@@ -528,7 +543,9 @@ export function ScannerOrderDetailPage() {
           inputValue: 1,
           unitsPerPallet: product.unitsPerPallet || 1,
           productName: product.plantName,
-          unitPrice: getCustomerPrice(product, order?.customerPriceGroupName, priceGroups.find(pg => pg.name === order?.customerPriceGroupName)?.discountPercentage),
+          unitPrice: userPriceMultiplier > 1
+            ? Math.ceil((product.basePriceGross || 0) * userPriceMultiplier)
+            : getCustomerPrice(product, order?.customerPriceGroupName, priceGroups.find(pg => pg.name === order?.customerPriceGroupName)?.discountPercentage),
           imageUrl: product.imageUrl,
           isSaved: false,
           availableStock: product.totalUnits,
@@ -930,7 +947,7 @@ export function ScannerOrderDetailPage() {
 
                       {/* Stock indicator and action */}
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-blue-600">{product.basePriceGross?.toFixed(2) || "0"} PLN</span>
+                        <span className="text-xs font-medium text-blue-600">{(userPriceMultiplier > 1 ? Math.ceil((product.basePriceGross || 0) * userPriceMultiplier) : (product.basePriceGross || 0)).toFixed(2)} PLN</span>
                         <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
                           isOutOfStock
                             ? 'bg-red-100 text-red-700'

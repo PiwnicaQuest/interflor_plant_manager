@@ -156,7 +156,7 @@ export const ALL_COLUMNS: ColumnDefinition[] = [
   // Price+ column
   {
     key: 'pricePlus',
-    label: 'Cena+',
+    label: 'Cena+(VAT)',
     group: 'pricePlus',
     defaultWidth: 60,
     minWidth: 50,

@@ -118,7 +118,10 @@ export function ScannerAddPlantPage() {
       if (imageFile && result.productId) {
         try {
           await API.uploadProductImage(result.productId, imageFile);
-        } catch {}
+        } catch (imgErr: any) {
+          console.error('Image upload error:', imgErr);
+          setError('Produkt dodany, ale blad uploadu zdjecia: ' + (imgErr?.response?.data?.error || imgErr.message));
+        }
       }
 
       setSuccess(`Dodano: ${plantName} (${pallets * upp} szt.)`);

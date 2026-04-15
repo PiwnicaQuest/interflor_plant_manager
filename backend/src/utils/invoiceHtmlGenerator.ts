@@ -59,6 +59,22 @@ export async function generateInvoiceHtml(invoice: InvoiceWithItems): Promise<st
   const recipient = getRecipient(invoice.recipientSnapshot);
   const items = invoice.items || [];
 
+  // Check if any discount applied
+  const hasDiscount = items.some((item: any) => item.originalUnitPriceNet && Number(item.discountPercent) > 0);
+  const invoiceDiscountPct = Number((invoice as any).discountPercent) || 0;
+  const invoiceDiscountAmt = Number((invoice as any).discountAmount) || 0;
+
+  // Calculate total before discount (for summary)
+  let totalBeforeDiscount = 0;
+  if (hasDiscount) {
+    items.forEach((item: any) => {
+      const origNet = Number(item.originalUnitPriceNet) || Number(item.unitPriceNet);
+      const origGross = origNet * (1 + item.vatRate / 100);
+      totalBeforeDiscount += origGross * (Number(item.quantity) || 0);
+    });
+    totalBeforeDiscount = Math.round(totalBeforeDiscount * 100) / 100;
+  }
+
   // Calculate VAT summary
   const vatMap = new Map<number, { net: number; vat: number; gross: number }>();
   let totalQty = 0;
@@ -84,6 +100,9 @@ export async function generateInvoiceHtml(invoice: InvoiceWithItems): Promise<st
     const tVat = Number(item.totalVat) || tNet * item.vatRate / 100;
     const tGross = Number(item.totalGross) || tNet + tVat;
     const passport = (item as any).growerPassport || '';
+    const discPct = Number((item as any).discountPercent) || 0;
+    const origNet = Number((item as any).originalUnitPriceNet) || 0;
+    const origGross = origNet ? origNet * (1 + item.vatRate / 100) : 0;
 
     return `
       <tr class="${idx % 2 === 0 ? 'even' : 'odd'}">
@@ -95,6 +114,8 @@ export async function generateInvoiceHtml(invoice: InvoiceWithItems): Promise<st
         </td>
         <td class="center qty">${qty}</td>
         <td class="center">szt.</td>
+        ${hasDiscount ? `<td class="right" style="text-decoration:line-through;color:#9ca3af;font-size:11px">${origNet ? fmtNum(origGross) : ''}</td>` : ''}
+        ${hasDiscount ? `<td class="center discount">${discPct > 0 ? '-' + fmtNum(discPct) + '%' : ''}</td>` : ''}
         <td class="right">${fmtNum(uNet)}</td>
         <td class="right">${fmtNum(uGross)}</td>
         <td class="center">${item.vatRate}%</td>
@@ -116,6 +137,28 @@ export async function generateInvoiceHtml(invoice: InvoiceWithItems): Promise<st
   `).join('');
 
   const remain = Number(invoice.totalGross) - Number(invoice.paidAmount);
+
+  // Generate discount summary HTML (outside template literal to avoid nesting issues)
+  const discountSummaryHtml = hasDiscount ? `
+    <div style="margin-bottom:16px;padding:10px 12px;background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;">
+      <div style="font-size:12px;font-weight:bold;color:#92400e;margin-bottom:6px;">UDZIELONY RABAT</div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+        <span>Wartosc przed rabatem:</span>
+        <span style="font-weight:bold">${fmtNum(totalBeforeDiscount)} zl</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+        <span>Rabat${invoiceDiscountPct > 0 ? ' (' + fmtNum(invoiceDiscountPct) + '%)' : ''}:</span>
+        <span style="font-weight:bold;color:#dc2626">-${fmtNum(invoiceDiscountAmt)} zl</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;border-top:1px solid #f59e0b;padding-top:4px;margin-top:4px">
+        <span>Wartosc po rabacie:</span>
+        <span style="font-weight:bold;color:#2563eb">${fmtNum(invoice.totalGross)} zl</span>
+      </div>
+    </div>` : '';
+
+  // Generate discount table headers
+  const discountThHtml = hasDiscount ? '<th style="width:55px">Cena przed</th><th style="width:45px">Rabat</th>' : '';
+  const discountTdEmptyHtml = hasDiscount ? '<td></td><td></td>' : '';
 
   const html = `<!DOCTYPE html>
 <html lang="pl">
@@ -254,6 +297,9 @@ export async function generateInvoiceHtml(invoice: InvoiceWithItems): Promise<st
     .summary-total .label { font-size: 12px; color: #6b7280; }
     .summary-total .amount { font-size: 19px; font-weight: bold; color: #2563eb; }
 
+    /* Discount */
+    .items-table .discount { color: #dc2626; font-weight: bold; font-size: 11px; }
+
     /* Signatures */
     .signatures {
       display: flex;
@@ -317,6 +363,7 @@ export async function generateInvoiceHtml(invoice: InvoiceWithItems): Promise<st
           <th>Nazwa towaru/usługi</th>
           <th style="width: 35px;">Ilość</th>
           <th style="width: 30px;">J.m.</th>
+          ${discountThHtml}
           <th style="width: 55px;">Cena netto</th>
           <th style="width: 55px;">Cena brutto</th>
           <th style="width: 35px;">VAT%</th>
@@ -333,6 +380,7 @@ export async function generateInvoiceHtml(invoice: InvoiceWithItems): Promise<st
           <td colspan="2" class="right">RAZEM:</td>
           <td class="center blue">${totalQty}</td>
           <td></td>
+          ${discountTdEmptyHtml}
           <td></td>
           <td></td>
           <td></td>
@@ -370,6 +418,7 @@ export async function generateInvoiceHtml(invoice: InvoiceWithItems): Promise<st
           </table>
         </div>
 
+        ${discountSummaryHtml}
         <div class="payment-section">
           <h3>PŁATNOŚĆ</h3>
           <div class="payment-row">Forma: <span>${payMethodLabel(invoice.paymentMethod)}</span></div>

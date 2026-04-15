@@ -9,6 +9,8 @@ import { InventoryMovementsPage } from "./pages/InventoryMovementsPage";
 import { OrdersPage } from "./pages/OrdersPage";
 import { POSPage } from "./pages/POSPage";
 import { InvoicesPage } from "./pages/InvoicesPage";
+import PurchaseInvoicesPage from './pages/PurchaseInvoicesPage';
+import JpkPage from './pages/JpkPage';
 import { InvoiceCorrectionsPage } from "./pages/InvoiceCorrectionsPage";
 import { ProformaPage } from "./pages/ProformaPage";
 import { ReceiptsPage } from "./pages/ReceiptsPage";
@@ -24,6 +26,8 @@ import { PrintProformaPage } from "./pages/PrintProformaPage";
 import { PrintReceiptPage } from "./pages/PrintReceiptPage";
 import { PrintReceiptA4Page } from "./pages/PrintReceiptA4Page";
 import { BulkPrintOrdersPage } from "./pages/BulkPrintOrdersPage";
+import { PrintKsefConfirmationPage } from "./pages/PrintKsefConfirmationPage";
+import { DiagnosticPage } from "./pages/DiagnosticPage";
 
 // Scanner app components
 import {
@@ -101,11 +105,14 @@ function App() {
           <Route path="/" element={<Layout />}>
             <Route index element={<DefaultRedirect />} />
             <Route path="dashboard" element={<AdminGuard><DashboardPage /></AdminGuard>} />
+            <Route path="diagnostic" element={<AdminGuard><DiagnosticPage /></AdminGuard>} />
             <Route path="inventory" element={<InventoryPage />} />
             <Route path="inventory-movements" element={<InventoryMovementsPage />} />
             <Route path="orders" element={<OrdersPage />} />
             <Route path="pos" element={<POSPage />} />
             <Route path="invoices" element={<InvoicesPage />} />
+            <Route path="purchase-invoices" element={<PurchaseInvoicesPage />} />
+            <Route path="jpk" element={<AdminGuard><JpkPage /></AdminGuard>} />
             <Route path="invoice-corrections" element={<InvoiceCorrectionsPage />} />
             <Route path="proforma" element={<ProformaPage />} />
             <Route path="receipts" element={<ReceiptsPage />} />
@@ -138,6 +145,7 @@ function App() {
           <Route path="/print/receipt/:id" element={<PrintReceiptPage />} />
           <Route path="/print/receipt-a4/:id" element={<PrintReceiptA4Page />} />
           <Route path="/print/orders/bulk" element={<BulkPrintOrdersPage />} />
+          <Route path="/print/ksef-confirmation/:id" element={<PrintKsefConfirmationPage />} />
         </Routes>
       </AuthGuard>
     </NotificationProvider>

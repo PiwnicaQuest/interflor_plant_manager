@@ -22,7 +22,9 @@ const SIZE_CONFIGS: Record<ImageSize, SizeConfig> = {
 const ALLOWED_DOMAINS = [
   'photo.freshportal.delivery',
   'beeldbankfotos.royalfloraholland.com',
-  'p2.1ps.nl'
+  'p2.1ps.nl',
+  'pm.polflor.wroclaw.pl',
+  'encrypted-tbn0.gstatic.com'
 ];
 
 // Cache directory

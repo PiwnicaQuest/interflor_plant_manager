@@ -145,39 +145,104 @@ export class GusService {
   }
 
   /**
-   * Parse XML response to company data
+   * Parse XML response to company data (single - first match)
    */
   private static parseCompanyData(xml: string): GusCompanyData | null {
+    const results = this.parseAllCompanyData(xml);
+    return results.length > 0 ? results[0] : null;
+  }
+
+  /**
+   * Parse XML response to ALL company data entries
+   */
+  private static parseAllCompanyData(xml: string): GusCompanyData[] {
     if (!xml || xml.trim() === "") {
-      return null;
+      return [];
     }
 
-    const getValue = (tag: string): string => {
-      const match = xml.match(new RegExp(`<${tag}>([^<]*)</${tag}>`));
-      return match ? match[1].trim() : "";
-    };
+    const results: GusCompanyData[] = [];
+    const daneBlocks = xml.match(/<dane>[\s\S]*?<\/dane>/g);
 
-    const nip = getValue("Nip");
-    if (!nip) {
-      return null;
+    if (!daneBlocks) {
+      return [];
     }
 
-    return {
-      nip: nip,
-      regon: getValue("Regon"),
-      nazwa: getValue("Nazwa"),
-      wojewodztwo: getValue("Wojewodztwo"),
-      powiat: getValue("Powiat"),
-      gmina: getValue("Gmina"),
-      miejscowosc: getValue("Miejscowosc"),
-      kodPocztowy: getValue("KodPocztowy"),
-      ulica: getValue("Ulica"),
-      nrNieruchomosci: getValue("NrNieruchomosci"),
-      nrLokalu: getValue("NrLokalu"),
-      typ: getValue("Typ"),
-      statusNip: getValue("StatusNip"),
-      dataZakonczeniaDzialalnosci: getValue("DataZakonczeniaDzialalnosci") || null,
-    };
+    for (const block of daneBlocks) {
+      const getValue = (tag: string): string => {
+        const match = block.match(new RegExp(`<${tag}>([^<]*)</${tag}>`));
+        return match ? match[1].trim() : "";
+      };
+
+      const nip = getValue("Nip");
+      if (!nip) continue;
+
+      results.push({
+        nip: nip,
+        regon: getValue("Regon"),
+        nazwa: getValue("Nazwa"),
+        wojewodztwo: getValue("Wojewodztwo"),
+        powiat: getValue("Powiat"),
+        gmina: getValue("Gmina"),
+        miejscowosc: getValue("Miejscowosc"),
+        kodPocztowy: getValue("KodPocztowy"),
+        ulica: getValue("Ulica"),
+        nrNieruchomosci: getValue("NrNieruchomosci"),
+        nrLokalu: getValue("NrLokalu"),
+        typ: getValue("Typ"),
+        statusNip: getValue("StatusNip"),
+        dataZakonczeniaDzialalnosci: getValue("DataZakonczeniaDzialalnosci") || null,
+      });
+    }
+
+    return results;
+  }
+
+  /**
+   * Look up ALL companies by NIP (returns array)
+   */
+  static async lookupAllByNip(nip: string): Promise<GusLookupResult[]> {
+    const cleanNip = nip.replace(/[-\s]/g, "");
+
+    if (!/^\d{10}$/.test(cleanNip)) {
+      throw new Error("Nieprawidłowy format NIP. Wymagane 10 cyfr.");
+    }
+
+    let sessionId: string | null = null;
+
+    try {
+      sessionId = await this.login();
+      const searchResult = await this.searchByNip(sessionId, cleanNip);
+
+      if (!searchResult) {
+        return [];
+      }
+
+      const allData = this.parseAllCompanyData(searchResult);
+
+      return allData.map((companyData) => ({
+        nip: companyData.nip,
+        regon: companyData.regon,
+        name: companyData.nazwa,
+        street: companyData.ulica,
+        houseNumber: companyData.nrNieruchomosci,
+        apartmentNumber: companyData.nrLokalu,
+        city: companyData.miejscowosc,
+        postalCode: companyData.kodPocztowy,
+        voivodeship: companyData.wojewodztwo,
+        county: companyData.powiat,
+        commune: companyData.gmina,
+        type: companyData.typ === "F" ? "Osoba fizyczna" : "Osoba prawna",
+        isActive: !companyData.dataZakonczeniaDzialalnosci,
+        endDate: companyData.dataZakonczeniaDzialalnosci,
+      }));
+    } catch (error: any) {
+      console.error("[GUS] Error:", error.message);
+      throw error;
+    } finally {
+      if (sessionId) {
+        await this.logout(sessionId);
+      }
+    }
   }
 
   /**

@@ -35,7 +35,7 @@ export class InvoiceController {
       return res.json({ invoices });
     } catch (error) {
       console.error('Get invoices error:', error);
-      return res.status(500).json({ error: 'Błąd serwera' });
+      return res.status(500).json({ error: (error as any).message || 'Błąd serwera' });
     }
   }
 
@@ -52,7 +52,7 @@ export class InvoiceController {
       return res.json({ invoice });
     } catch (error) {
       console.error('Get invoice error:', error);
-      return res.status(500).json({ error: 'Błąd serwera' });
+      return res.status(500).json({ error: (error as any).message || 'Błąd serwera' });
     }
   }
 
@@ -109,7 +109,7 @@ export class InvoiceController {
         // Create recipient snapshot if customer has recipient data
         const recipientSnapshot = InvoiceController.createRecipientSnapshot(customer);
 
-        const deadline = paymentDeadline ? new Date(paymentDeadline) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+        const deadline = paymentDeadline ? new Date(paymentDeadline) : (paymentMethod === 'cash' ? new Date() : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000));
 
         const invoice = await InvoiceModel.createFromOrder(
           orderId,
@@ -154,7 +154,7 @@ export class InvoiceController {
         };
 
         const recipientSnapshot = InvoiceController.createRecipientSnapshot(customer);
-        const deadline = paymentDeadline ? new Date(paymentDeadline) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+        const deadline = paymentDeadline ? new Date(paymentDeadline) : (paymentMethod === 'cash' ? new Date() : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000));
 
         // Create order from invoice items so it appears in POS history
         const orderItems = items.filter((i: any) => i.productId).map((i: any) => ({
@@ -186,6 +186,7 @@ export class InvoiceController {
           }
         }
 
+        const { discountPercent: reqDiscPct, discountType: reqDiscType, discountAmount: reqDiscAmt } = req.body;
         const invoice = await InvoiceModel.create(
           customerId,
           buyerSnapshot,
@@ -194,7 +195,9 @@ export class InvoiceController {
           deadline,
           req.user?.userId,
           recipientSnapshot,
-          createdOrderId
+          createdOrderId,
+          !!createdOrderId,  // skip stock deduction if order already deducted it
+          reqDiscPct ? { discountPercent: reqDiscPct, discountType: reqDiscType, discountAmount: reqDiscAmt } : undefined
         );
 
         return res.status(201).json({
@@ -205,7 +208,43 @@ export class InvoiceController {
       }
     } catch (error) {
       console.error('Create invoice error:', error);
-      return res.status(500).json({ error: 'Błąd serwera' });
+      return res.status(500).json({ error: (error as any).message || 'Błąd serwera' });
+    }
+  }
+
+  /** GET /invoices/:id/edit - get invoice data for editing */
+  static async getForEdit(req: any, res: any) {
+    try {
+      const { id } = req.params;
+      const data = await InvoiceModel.getForEdit(Number(id));
+      if (!data) return res.status(404).json({ error: 'Faktura nie znaleziona' });
+      return res.json(data);
+    } catch (error: any) {
+      console.error('getForEdit error:', error);
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  /** PUT /invoices/:id - update invoice items with stock adjustment */
+  static async updateInvoice(req: any, res: any) {
+    try {
+      const { id } = req.params;
+      const { items } = req.body;
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: 'Faktura musi miec co najmniej jedna pozycje' });
+      }
+      const userId = req.user?.userId;
+      const result = await InvoiceModel.updateInvoice(Number(id), items, userId);
+      return res.json({ success: true, invoice: result });
+    } catch (error: any) {
+      console.error('updateInvoice error:', error);
+      if (error.message.includes('KSeF') || error.message.includes('ksef')) {
+        return res.status(403).json({ error: error.message });
+      }
+      if (error.message.includes('Niewystarczajacy')) {
+        return res.status(400).json({ error: error.message });
+      }
+      return res.status(500).json({ error: error.message });
     }
   }
 
@@ -266,7 +305,7 @@ export class InvoiceController {
       });
     } catch (error) {
       console.error('Update payment status error:', error);
-      return res.status(500).json({ error: 'Błąd serwera' });
+      return res.status(500).json({ error: (error as any).message || 'Błąd serwera' });
     }
   }
 
@@ -392,7 +431,7 @@ export class InvoiceController {
       });
     } catch (error) {
       console.error('Update payment method error:', error);
-      return res.status(500).json({ error: 'Błąd serwera' });
+      return res.status(500).json({ error: (error as any).message || 'Błąd serwera' });
     }
   }
 
@@ -409,7 +448,7 @@ export class InvoiceController {
       return res.json({ auditLog });
     } catch (error) {
       console.error('Get audit log error:', error);
-      return res.status(500).json({ error: 'Błąd serwera' });
+      return res.status(500).json({ error: (error as any).message || 'Błąd serwera' });
     }
   }
 }

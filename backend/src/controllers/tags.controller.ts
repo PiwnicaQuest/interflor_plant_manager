@@ -178,4 +178,164 @@ export class TagsController {
       return res.status(500).json({ error: 'Błąd serwera' });
     }
   }
+
+  /**
+   * Suggest tags for a product based on plant name and pot size
+   * Reads keywords from tag_keywords table
+   */
+  static async suggestTags(req: AuthRequest, res: Response) {
+    try {
+      const { plantName, potSize } = req.body;
+
+      if (!plantName) {
+        return res.json({ suggestedTags: [] });
+      }
+
+      const name = plantName.toLowerCase();
+      const suggested: string[] = [];
+
+      // Load all keyword rules from DB
+      const result = await query<{ tagName: string; keyword: string }>(
+        "SELECT tag_name, keyword FROM tag_keywords ORDER BY tag_name"
+      );
+
+      // Group keywords by tag
+      const rules: Record<string, string[]> = {};
+      for (const row of result.rows) {
+        if (!rules[row.tagName]) rules[row.tagName] = [];
+        rules[row.tagName].push(row.keyword.toLowerCase());
+      }
+
+      // Match keywords against product name
+      for (const [tagName, keywords] of Object.entries(rules)) {
+        if (keywords.some(kw => name.includes(kw))) {
+          suggested.push(tagName);
+        }
+      }
+
+      // Size-based tags from pot size ("P.20" -> 20cm pot)
+      if (potSize) {
+        const s = String(potSize);
+        // Strip letter prefix (P., p., C., K.) before parsing
+        const cleaned = s.replace(/^[pPcCkK]\.?/, '').replace(',','.');
+        const numericSize = parseFloat(cleaned);
+        if (!isNaN(numericSize) && numericSize > 0) {
+          // Detect liters (containers): "Lt", "L", "liter"
+          const isLiters = /\d\s*(?:lt|l\b|liter)/i.test(s);
+          if (isLiters) {
+            if (numericSize <= 3) suggested.push('Małe');
+            else if (numericSize >= 10) suggested.push('Duże');
+          } else {
+            if (numericSize <= 10) suggested.push('Małe');
+            else if (numericSize >= 17) suggested.push('Duże');
+          }
+        }
+      }
+
+      return res.json({ suggestedTags: suggested });
+    } catch (error) {
+      console.error('Error suggesting tags:', error);
+      return res.status(500).json({ error: 'B\u0142\u0105d serwera' });
+    }
+  }
+
+  /**
+   * Get all tag keywords grouped by tag
+   */
+  static async getTagKeywords(req: AuthRequest, res: Response) {
+    try {
+      const result = await query<{ id: number; tagName: string; keyword: string }>(
+        "SELECT id, tag_name, keyword FROM tag_keywords ORDER BY tag_name, keyword"
+      );
+
+      // Group by tag_name
+      const grouped: Record<string, Array<{ id: number; keyword: string }>> = {};
+      for (const row of result.rows) {
+        if (!grouped[row.tagName]) grouped[row.tagName] = [];
+        grouped[row.tagName].push({ id: row.id, keyword: row.keyword });
+      }
+
+      return res.json({ tagKeywords: grouped });
+    } catch (error) {
+      console.error('Error fetching tag keywords:', error);
+      return res.status(500).json({ error: 'B\u0142\u0105d serwera' });
+    }
+  }
+
+  /**
+   * Add a keyword for a tag
+   */
+  static async addTagKeyword(req: AuthRequest, res: Response) {
+    try {
+      const { tagName, keyword } = req.body;
+
+      if (!tagName || !keyword) {
+        return res.status(400).json({ error: 'Nazwa tagu i s\u0142owo kluczowe s\u0105 wymagane' });
+      }
+
+      const trimmedKeyword = keyword.trim().toLowerCase();
+      if (!trimmedKeyword) {
+        return res.status(400).json({ error: 'S\u0142owo kluczowe nie mo\u017ce by\u0107 puste' });
+      }
+
+      const result = await query<{ id: number }>(
+        "INSERT INTO tag_keywords (tag_name, keyword) VALUES ($1, $2) ON CONFLICT (tag_name, keyword) DO NOTHING RETURNING id",
+        [tagName, trimmedKeyword]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(400).json({ error: 'To s\u0142owo kluczowe ju\u017c istnieje dla tego tagu' });
+      }
+
+      return res.json({ success: true, id: result.rows[0].id });
+    } catch (error) {
+      console.error('Error adding tag keyword:', error);
+      return res.status(500).json({ error: 'B\u0142\u0105d serwera' });
+    }
+  }
+
+  /**
+   * Delete a keyword by id
+   */
+  static async deleteTagKeyword(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+
+      await query("DELETE FROM tag_keywords WHERE id = $1", [id]);
+
+      return res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting tag keyword:', error);
+      return res.status(500).json({ error: 'B\u0142\u0105d serwera' });
+    }
+  }
+
+  /**
+   * Bulk add keywords for a tag
+   */
+  static async bulkAddTagKeywords(req: AuthRequest, res: Response) {
+    try {
+      const { tagName, keywords } = req.body;
+
+      if (!tagName || !keywords || !Array.isArray(keywords)) {
+        return res.status(400).json({ error: 'Nazwa tagu i lista s\u0142\u00f3w kluczowych s\u0105 wymagane' });
+      }
+
+      let added = 0;
+      for (const kw of keywords) {
+        const trimmed = kw.trim().toLowerCase();
+        if (!trimmed) continue;
+        const result = await query(
+          "INSERT INTO tag_keywords (tag_name, keyword) VALUES ($1, $2) ON CONFLICT (tag_name, keyword) DO NOTHING RETURNING id",
+          [tagName, trimmed]
+        );
+        if (result.rows.length > 0) added++;
+      }
+
+      return res.json({ success: true, added });
+    } catch (error) {
+      console.error('Error bulk adding tag keywords:', error);
+      return res.status(500).json({ error: 'B\u0142\u0105d serwera' });
+    }
+  }
 }

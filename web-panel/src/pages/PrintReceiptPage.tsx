@@ -106,6 +106,13 @@ export function PrintReceiptPage() {
   } : undefined;
 
   return (
-    <ReceiptTemplate data={receiptData} companyInfo={companyInfo} />
+    <>
+      <div className="no-print" style={{textAlign:'center',padding:'12px',background:'#f3f4f6',position:'sticky',top:0,zIndex:50}}>
+        <button onClick={() => window.print()} style={{padding:'12px 32px',fontSize:'16px',background:'#16a34a',color:'#fff',border:'none',borderRadius:'8px',cursor:'pointer',marginRight:'8px'}}>Drukuj</button>
+        <button onClick={() => window.history.back()} style={{padding:'12px 32px',fontSize:'16px',background:'#6b7280',color:'#fff',border:'none',borderRadius:'8px',cursor:'pointer'}}>Wróć</button>
+      </div>
+      <style dangerouslySetInnerHTML={{__html: '@media print { .no-print { display: none !important; } }'}} />
+      <ReceiptTemplate data={receiptData} companyInfo={companyInfo} />
+    </>
   );
 }

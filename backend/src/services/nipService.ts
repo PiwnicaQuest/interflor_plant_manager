@@ -203,6 +203,68 @@ export class NipService {
   }
 
   /**
+   * Wyszukuje WSZYSTKIE firmy po NIP (zwraca tablice)
+   */
+  static async lookupAllByNip(nip: string): Promise<NipLookupResult[]> {
+    const cleanNip = nip.replace(/[-\s]/g, '');
+
+    if (!/^\d{10}$/.test(cleanNip)) {
+      throw new Error('Nieprawidłowy format NIP. Wymagane 10 cyfr.');
+    }
+
+    try {
+      console.log('[NIP] Trying GUS API (all) for NIP:', cleanNip);
+      const gusResults = await GusService.lookupAllByNip(cleanNip);
+
+      if (gusResults.length > 0) {
+        console.log(`[NIP] Found ${gusResults.length} results in GUS`);
+
+        let vatStatus = 'Nieznany';
+        let accountNumbers: string[] = [];
+        let hasVirtualAccounts = false;
+
+        try {
+          const vatResult = await this.checkVatStatusOnly(cleanNip);
+          if (vatResult) {
+            vatStatus = vatResult.statusVat;
+            accountNumbers = vatResult.accountNumbers || [];
+            hasVirtualAccounts = vatResult.hasVirtualAccounts || false;
+          }
+        } catch (vatError) {
+          console.log('[NIP] Could not get VAT status');
+        }
+
+        return gusResults.map(r => ({
+          nip: r.nip,
+          name: r.name,
+          regon: r.regon,
+          street: r.street,
+          houseNumber: r.houseNumber,
+          apartmentNumber: r.apartmentNumber,
+          city: r.city,
+          postalCode: r.postalCode,
+          country: 'Polska',
+          accountNumbers: accountNumbers,
+          statusVat: vatStatus,
+          hasVirtualAccounts: hasVirtualAccounts,
+          voivodeship: r.voivodeship,
+          county: r.county,
+          commune: r.commune,
+          companyType: r.type,
+          isActive: r.isActive,
+          source: 'GUS' as const,
+        }));
+      }
+    } catch (gusError: any) {
+      console.error('[NIP] GUS API error:', gusError.message);
+    }
+
+    // Fallback - single result from MF
+    const mfResult = await this.lookupByNipFromMF(cleanNip);
+    return mfResult ? [mfResult] : [];
+  }
+
+  /**
    * Sprawdza czy NIP jest aktywny w VAT
    */
   static async isActiveVat(nip: string): Promise<boolean> {

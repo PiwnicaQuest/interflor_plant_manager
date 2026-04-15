@@ -806,12 +806,17 @@ export class InvoiceModel {
       unitPriceGross?: number;
       vatRate: number;
       growerPassport?: string;
+      originalUnitPriceNet?: number;
+      originalUnitPriceGross?: number;
+      discountPercent?: number;
     }>,
     paymentMethod: PaymentMethod,
     paymentDeadline: Date | null,
     createdByUserId?: number,
     recipientSnapshot?: CustomerSnapshot,
-    orderId?: number
+    orderId?: number,
+    skipStockDeduction?: boolean,
+    discountInfo?: { discountPercent?: number; discountType?: string; discountAmount?: number }
   ): Promise<InvoiceWithItems> {
     return transaction(async (client) => {
       // Generate invoice number
@@ -861,8 +866,9 @@ export class InvoiceModel {
           invoice_number, customer_id, buyer_snapshot,
           issue_date, sale_date, payment_deadline, payment_method,
           payment_status, paid_amount,
-          subtotal_net, total_vat, total_gross, created_by_user_id, invoice_type, transaction_type, order_id
-        ) VALUES ($1, $2, $3, CURRENT_DATE, CURRENT_DATE, $4, $5, $6::payment_status, $7, $8, $9, $10, $11, 'invoice'::invoice_type, $12::transaction_type, $13)
+          subtotal_net, total_vat, total_gross, created_by_user_id, invoice_type, transaction_type, order_id,
+          discount_percent, discount_type, discount_amount
+        ) VALUES ($1, $2, $3, CURRENT_DATE, CURRENT_DATE, $4, $5, $6::payment_status, $7, $8, $9, $10, $11, 'invoice'::invoice_type, $12::transaction_type, $13, $14, $15, $16)
         RETURNING *`,
         [
           invoiceNumber,
@@ -878,6 +884,9 @@ export class InvoiceModel {
           createdByUserId,
           transactionType,
           orderId || null,
+          discountInfo?.discountPercent || 0,
+          discountInfo?.discountType || 'percent',
+          discountInfo?.discountAmount || 0,
         ]
       );
 
@@ -888,8 +897,9 @@ export class InvoiceModel {
       for (const item of adjustedItems) {
         const itemResult = await client.query<InvoiceItem>(
           `INSERT INTO invoice_items (
-            invoice_id, product_id, description, quantity, unit_price_net, unit_price_gross, vat_rate, grower_passport
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            invoice_id, product_id, description, quantity, unit_price_net, unit_price_gross, vat_rate, grower_passport,
+            discount_percent, original_unit_price_net, original_unit_price_gross
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
           RETURNING *`,
           [
             invoice.id,
@@ -900,14 +910,17 @@ export class InvoiceModel {
             (item.unitPriceGross ?? Number((item.unitPriceNet * (1 + item.vatRate / 100)).toFixed(2))),
             item.vatRate,
             item.growerPassport,
+            item.discountPercent || 0,
+            item.originalUnitPriceNet || null,
+            item.originalUnitPriceGross || null,
           ]
         );
 
         insertedItems.push(itemResult.rows[0]);
       }
 
-      // Deduct stock for items with productId
-      for (const item of adjustedItems) {
+      // Deduct stock for items with productId (skip if order already deducted)
+      if (!skipStockDeduction) for (const item of adjustedItems) {
         if (!item.productId) continue;
 
         // Get current stock
@@ -1328,6 +1341,252 @@ export class InvoiceModel {
    * Update payment method for an invoice
    * If changing to cash/card, automatically marks as paid
    */
+  /** Get invoice data for editing - includes items with current stock levels */
+  static async getForEdit(invoiceId: number): Promise<any> {
+    const invoiceResult = await query(
+      `SELECT i.*, i.ksef_status FROM invoices i WHERE i.id = $1`,
+      [invoiceId]
+    );
+    if (invoiceResult.rows.length === 0) return null;
+    const invoice = invoiceResult.rows[0];
+
+    const canEdit = !invoice.ksefStatus || invoice.ksefStatus === 'not_sent' || invoice.ksefStatus === 'offline_saved';
+
+    const itemsResult = await query(
+      `SELECT ii.*, p.plant_name, p.pot_size, p.total_units as available_stock, p.barcode, p.grower_passport as product_passport
+       FROM invoice_items ii
+       LEFT JOIN products p ON p.id = ii.product_id
+       WHERE ii.invoice_id = $1
+       ORDER BY ii.id`,
+      [invoiceId]
+    );
+
+    return {
+      invoice,
+      items: itemsResult.rows,
+      canEdit,
+    };
+  }
+
+  /** Update invoice items with stock adjustment, order sync, KSeF guard */
+  static async updateInvoice(
+    invoiceId: number,
+    updatedItems: Array<{
+      id?: number;
+      productId?: number;
+      description: string;
+      quantity: number;
+      unitPriceNet: number;
+      unitPriceGross?: number;
+      vatRate: number;
+      growerPassport?: string;
+      discountPercent?: number;
+      originalUnitPriceNet?: number;
+      originalUnitPriceGross?: number;
+    }>,
+    userId: number
+  ): Promise<InvoiceWithItems> {
+    return transaction(async (client) => {
+      // 1. Lock invoice and check KSeF status
+      const invResult = await client.query(
+        `SELECT * FROM invoices WHERE id = $1 FOR UPDATE`,
+        [invoiceId]
+      );
+      if (invResult.rows.length === 0) throw new Error('Faktura nie istnieje');
+      const invoice = invResult.rows[0];
+
+      const ksefStatus = invoice.ksef_status;
+      if (ksefStatus && ksefStatus !== 'not_sent' && ksefStatus !== 'offline_saved') {
+        throw new Error('Nie mozna edytowac faktury wystanej do KSeF (status: ' + ksefStatus + ')');
+      }
+
+      // 2. Get current items
+      const oldItemsResult = await client.query(
+        `SELECT * FROM invoice_items WHERE invoice_id = $1`,
+        [invoiceId]
+      );
+      const oldItems = oldItemsResult.rows;
+
+      // 3. Build diff sets
+      const updatedIds = new Set(updatedItems.filter(i => i.id).map(i => i.id));
+      const removedItems = oldItems.filter((oi: any) => !updatedIds.has(oi.id));
+      const modifiedItems = updatedItems.filter(i => i.id);
+      const newItems = updatedItems.filter(i => !i.id);
+
+      // 4. Process REMOVED items - return stock
+      for (const item of removedItems) {
+        if (item.product_id) {
+          await client.query(
+            `UPDATE products SET total_units = total_units + $1, is_archived = false WHERE id = $2`,
+            [item.quantity, item.product_id]
+          );
+          await client.query(
+            `INSERT INTO inventory_movements (product_id, user_id, movement_type, delta_units, delta_pallets, reason, reference_type, reference_id)
+             VALUES ($1, $2, 'return', $3, 0, $4, 'invoice_edit', $5)`,
+            [item.product_id, userId, item.quantity, 'Edycja faktury - usunieto pozycje: ' + (item.description || ''), invoiceId]
+          );
+        }
+        await client.query(`DELETE FROM invoice_items WHERE id = $1`, [item.id]);
+      }
+
+      // 5. Process MODIFIED items - adjust stock delta
+      for (const newItem of modifiedItems) {
+        const oldItem = oldItems.find((oi: any) => oi.id === newItem.id);
+        if (!oldItem) continue;
+
+        const delta = (oldItem.quantity || 0) - (newItem.quantity || 0); // positive = return to stock
+        const productId = newItem.productId || oldItem.product_id;
+
+        if (delta !== 0 && productId) {
+          // Check stock availability if taking more
+          if (delta < 0) {
+            const stockResult = await client.query(
+              `SELECT total_units FROM products WHERE id = $1`,
+              [productId]
+            );
+            const available = stockResult.rows[0]?.total_units || 0;
+            if (available < Math.abs(delta)) {
+              throw new Error('Niewystarczajacy stan magazynowy dla: ' + (newItem.description || '') + ' (dostepne: ' + available + ', potrzebne: ' + Math.abs(delta) + ')');
+            }
+          }
+
+          await client.query(
+            `UPDATE products SET total_units = total_units + $1, is_archived = false WHERE id = $2`,
+            [delta, productId]
+          );
+          await client.query(
+            `INSERT INTO inventory_movements (product_id, user_id, movement_type, delta_units, delta_pallets, reason, reference_type, reference_id)
+             VALUES ($1, $2, $3, $4, 0, $5, 'invoice_edit', $6)`,
+            [productId, userId, delta > 0 ? 'return' : 'sale', Math.abs(delta),
+             'Edycja faktury ' + invoice.invoice_number + ' - zmiana ilosci z ' + oldItem.quantity + ' na ' + newItem.quantity,
+             invoiceId]
+          );
+        }
+
+        // Update the item
+        const uGross = newItem.unitPriceGross || round2(newItem.unitPriceNet * (1 + newItem.vatRate / 100));
+        await client.query(
+          `UPDATE invoice_items SET
+            description = $1, quantity = $2, unit_price_net = $3, unit_price_gross = $4,
+            vat_rate = $5, grower_passport = $6,
+            discount_percent = $7, original_unit_price_net = $8, original_unit_price_gross = $9
+           WHERE id = $10`,
+          [
+            newItem.description, newItem.quantity, newItem.unitPriceNet, uGross,
+            newItem.vatRate, newItem.growerPassport || null,
+            newItem.discountPercent || 0, newItem.originalUnitPriceNet || null, newItem.originalUnitPriceGross || null,
+            newItem.id,
+          ]
+        );
+      }
+
+      // 6. Process NEW items - deduct stock
+      for (const item of newItems) {
+        if (item.productId) {
+          const stockResult = await client.query(
+            `SELECT total_units FROM products WHERE id = $1`,
+            [item.productId]
+          );
+          const available = stockResult.rows[0]?.total_units || 0;
+          if (available < item.quantity) {
+            throw new Error('Niewystarczajacy stan magazynowy dla: ' + (item.description || '') + ' (dostepne: ' + available + ', potrzebne: ' + item.quantity + ')');
+          }
+
+          await client.query(
+            `UPDATE products SET total_units = total_units - $1 WHERE id = $2`,
+            [item.quantity, item.productId]
+          );
+          await client.query(
+            `INSERT INTO inventory_movements (product_id, user_id, movement_type, delta_units, delta_pallets, reason, reference_type, reference_id)
+             VALUES ($1, $2, 'sale', $3, 0, $4, 'invoice_edit', $5)`,
+            [item.productId, userId, item.quantity, 'Edycja faktury ' + invoice.invoice_number + ' - dodano pozycje: ' + (item.description || ''), invoiceId]
+          );
+        }
+
+        const uGross = item.unitPriceGross || round2(item.unitPriceNet * (1 + item.vatRate / 100));
+        await client.query(
+          `INSERT INTO invoice_items (invoice_id, product_id, description, quantity, unit_price_net, unit_price_gross, vat_rate, grower_passport, discount_percent, original_unit_price_net, original_unit_price_gross)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          [
+            invoiceId, item.productId || null, item.description, item.quantity,
+            item.unitPriceNet, uGross, item.vatRate, item.growerPassport || null,
+            item.discountPercent || 0, item.originalUnitPriceNet || null, item.originalUnitPriceGross || null,
+          ]
+        );
+      }
+
+      // 7. Recalculate totals
+      const totals = await recalculateInvoiceTotals(client, invoiceId);
+      await client.query(
+        `UPDATE invoices SET subtotal_net = $1, total_vat = $2, total_gross = $3, updated_at = NOW() WHERE id = $4`,
+        [totals.subtotalNet, totals.totalVat, totals.totalGross, invoiceId]
+      );
+
+      // 8. Update payment status if needed (for cash/card - update paid_amount)
+      const pm = invoice.payment_method;
+      if (pm === 'cash' || pm === 'card') {
+        await client.query(
+          `UPDATE invoices SET paid_amount = $1, payment_status = 'paid'::payment_status WHERE id = $2`,
+          [totals.totalGross, invoiceId]
+        );
+      }
+
+      // 9. Sync linked order if exists
+      if (invoice.order_id) {
+        // Delete old order items and recreate from invoice items
+        await client.query(`DELETE FROM order_items WHERE order_id = $1`, [invoice.order_id]);
+
+        const finalItems = await client.query(
+          `SELECT * FROM invoice_items WHERE invoice_id = $1`, [invoiceId]
+        );
+        for (const fi of finalItems.rows) {
+          if (fi.product_id) {
+            // Get product snapshot
+            const prodResult = await client.query(
+              `SELECT id, plant_name, pot_size, plant_height_cm, barcode, image_url, base_price_gross, vat_rate
+               FROM products WHERE id = $1`, [fi.product_id]
+            );
+            const prod = prodResult.rows[0];
+            if (prod) {
+              const snapshot = JSON.stringify({
+                id: prod.id, plantName: prod.plant_name, potSize: prod.pot_size,
+                barcode: prod.barcode, imageUrl: prod.image_url,
+              });
+              await client.query(
+                `INSERT INTO order_items (order_id, product_id, product_snapshot, quantity, unit_price_gross)
+                 VALUES ($1, $2, $3, $4, $5)`,
+                [invoice.order_id, fi.product_id, snapshot, fi.quantity, fi.unit_price_gross]
+              );
+            }
+          }
+        }
+
+        // Update order totals
+        const orderTotals = await client.query(
+          `SELECT COALESCE(SUM(total_price), 0) as total FROM order_items WHERE order_id = $1`,
+          [invoice.order_id]
+        );
+        await client.query(
+          `UPDATE orders SET total_amount = $1, updated_at = NOW() WHERE id = $2`,
+          [orderTotals.rows[0].total, invoice.order_id]
+        );
+      }
+
+      // 10. Return updated invoice
+      const updatedInvoice = await client.query(
+        `SELECT * FROM invoices WHERE id = $1`, [invoiceId]
+      );
+      const updatedItemsList = await client.query(
+        `SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY id`, [invoiceId]
+      );
+
+      return {
+        ...updatedInvoice.rows[0],
+        items: updatedItemsList.rows,
+      } as InvoiceWithItems;
+    });
+  }
+
   static async updatePaymentMethod(
     invoiceId: number,
     newPaymentMethod: PaymentMethod,

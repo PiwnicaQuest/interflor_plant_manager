@@ -66,17 +66,28 @@ export function QuickCustomerModal({ onClose, onCustomerCreated, editCustomer }:
     setError(null);
 
     try {
-      const result = await API.lookupNip(formData.nip);
-      if (result.name) {
-        const fullStreet = result.street
-          ? `${result.street}${result.houseNumber ? ' ' + result.houseNumber : ''}${result.apartmentNumber ? '/' + result.apartmentNumber : ''}`
-          : '';
+      const data = await API.lookupNip(formData.nip);
+      const results: any[] = data.results || [data];
+
+      let chosen = results[0];
+      if (results.length > 1) {
+        const options = results.map((r: any, i: number) =>
+          `${i + 1}. ${r.companyName} - ${r.street}, ${r.postalCode} ${r.city}`
+        ).join('\n');
+        const choice = prompt(`Znaleziono ${results.length} firm:\n${options}\n\nWybierz (1-${results.length}):`, '1');
+        if (choice) {
+          const idx = parseInt(choice) - 1;
+          if (idx >= 0 && idx < results.length) chosen = results[idx];
+        }
+      }
+
+      if (chosen.companyName) {
         setFormData(prev => ({
           ...prev,
-          companyName: result.name || prev.companyName,
-          street: fullStreet || prev.street,
-          postalCode: result.postalCode || prev.postalCode,
-          city: result.city || prev.city,
+          companyName: chosen.companyName || prev.companyName,
+          street: chosen.street || prev.street,
+          postalCode: chosen.postalCode || prev.postalCode,
+          city: chosen.city || prev.city,
         }));
       }
     } catch (err: any) {

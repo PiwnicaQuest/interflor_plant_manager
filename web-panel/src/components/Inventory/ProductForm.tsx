@@ -656,13 +656,12 @@ export function ProductForm({ onClose, onSubmit, initialData, isAdmin = false }:
                   </label>
                   <input
                     type="text"
-                    className="input bg-gray-100"
+                    className="input"
                     value={formData.plantPassport || formData.growerPassport || ''}
-                    readOnly
-                    placeholder="Uzupełniany automatycznie po wyborze ogrodnika"
-                    title="Pole uzupełniane automatycznie na podstawie wybranego ogrodnika"
+                    onChange={(e) => setFormData({ ...formData, plantPassport: e.target.value })}
+                    placeholder="Wpisz numer paszportu lub wybierz ogrodnika"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Uzupełniany automatycznie po wyborze ogrodnika</p>
+                  <p className="text-xs text-gray-500 mt-1">Wpisz ręcznie lub zostanie uzupełniony po wyborze ogrodnika</p>
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">

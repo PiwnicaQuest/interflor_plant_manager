@@ -142,6 +142,7 @@ export function Layout() {
     const dokumentyItems: NavItem[] = [];
     if (hasPermission('invoices:view')) {
       dokumentyItems.push({ path: '/invoices', label: 'Faktury' });
+      dokumentyItems.push({ path: '/purchase-invoices', label: 'Faktury zakupowe' });
       dokumentyItems.push({ path: '/invoice-corrections', label: 'Korekty faktur' });
       dokumentyItems.push({ path: '/proforma', label: 'Pro Forma' });
     }
@@ -161,11 +162,21 @@ export function Layout() {
     if (hasPermission('customers:view')) {
       daneItems.push({ path: '/customers', label: 'Kontrahenci' });
     }
-    if (hasPermission('reports:view')) {
-      daneItems.push({ path: '/reports', label: 'Raporty' });
-    }
     if (daneItems.length > 0) {
       groups.push(daneItems);
+    }
+
+    // Raporty - jako dropdown
+    if (hasPermission('reports:view')) {
+      const raportyItems: NavItem[] = [
+        { path: '/reports', label: 'Raporty sprzedaży' },
+        { path: '/jpk', label: 'Rejestr sprzedaży' },
+      ];
+      groups.push({
+        type: 'dropdown',
+        label: 'Raporty',
+        items: raportyItems,
+      });
     }
 
     // Administracja

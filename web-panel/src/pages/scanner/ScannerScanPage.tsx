@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { API } from '../../services/api';
 import type { Product, InventoryMovement } from '../../types';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
@@ -20,8 +20,68 @@ export function ScannerScanPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Admin detection - only admins see edit options
+  const isAdmin = useMemo(() => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return false;
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.role === 'admin';
+    } catch {
+      return false;
+    }
+  }, []);
+
+  // Price multiplier from user's price group (e.g. DETAL 1 = 1.30)
+  const { priceMultiplier, priceGroupName } = useMemo(() => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return { priceMultiplier: 1, priceGroupName: '' };
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return {
+        priceMultiplier: payload.priceMultiplier || 1,
+        priceGroupName: payload.priceGroupName || '',
+      };
+    } catch {
+      return { priceMultiplier: 1, priceGroupName: '' };
+    }
+  }, []);
+
+  // Helper: apply price multiplier (ceil for DETAL)
+  const applyPrice = (basePrice: number) => {
+    if (priceMultiplier === 1) return basePrice;
+    return Math.ceil(basePrice * priceMultiplier);
+  };
+
+  // Edit mode state
+  const [editMode, setEditMode] = useState(false);
+  const [editForm, setEditForm] = useState<{
+    plantName: string;
+    totalUnits: string;
+    palletCount: string;
+    unitsPerPallet: string;
+    basePriceGross: string;
+    potSize: string;
+    barcode: string;
+    plantPassport: string;
+    tags: string[];
+  }>({ plantName: '', totalUnits: '', palletCount: '', unitsPerPallet: '', basePriceGross: '', potSize: '', barcode: '', plantPassport: '', tags: [] });
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [savingEdit, setSavingEdit] = useState(false);
+
   // Obsługa skanera kodów kreskowych z prefiksem [barcode]
+  // In edit mode: writes scanned barcode to the barcode field
+  // Otherwise: searches for product
+  const editModeRef = useRef(editMode);
+  useEffect(() => { editModeRef.current = editMode; }, [editMode]);
+
   const handleBarcodeScan = useCallback(async (barcode: string) => {
+    // If currently editing a product, put barcode into edit form instead of searching
+    if (editModeRef.current) {
+      setEditForm(prev => ({ ...prev, barcode }));
+      return;
+    }
+
     setSearchLoading(true);
     setError(null);
     setSearchResults([]);
@@ -40,7 +100,69 @@ export function ScannerScanPage() {
 
   useBarcodeScanner({ onScan: handleBarcodeScan });
 
+  // Enter edit mode with current product values
+  const handleEnterEdit = useCallback(() => {
+    if (!selectedProduct) return;
+    setEditForm({
+      plantName: selectedProduct.plantName || '',
+      totalUnits: String(selectedProduct.totalUnits || 0),
+      palletCount: String(selectedProduct.palletCount || 0),
+      unitsPerPallet: String(selectedProduct.unitsPerPallet || 1),
+      basePriceGross: String(selectedProduct.basePriceGross || ''),
+      potSize: selectedProduct.potSize || '',
+      barcode: selectedProduct.barcode || '',
+      plantPassport: (selectedProduct as any).plantPassport || (selectedProduct as any).growerPassport || '',
+      tags: selectedProduct.tags || [],
+    });
+    setEditMode(true);
+  }, [selectedProduct]);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditMode(false);
+  }, []);
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!selectedProduct) return;
+    setSavingEdit(true);
+    try {
+      const updates: any = {
+        plantName: editForm.plantName,
+        basePriceGross: parseFloat(editForm.basePriceGross) || 0,
+        potSize: editForm.potSize,
+        barcode: editForm.barcode || null,
+        plantPassport: editForm.plantPassport || null,
+      };
+      // Stock update: recalculate from totalUnits using unitsPerPallet
+      const newTotalUnits = parseInt(editForm.totalUnits) || 0;
+      const newUnitsPerPallet = parseInt(editForm.unitsPerPallet) || 1;
+      // Recalculate pallets and loose from total
+      updates.unitsPerPallet = newUnitsPerPallet;
+      updates.palletCount = newUnitsPerPallet > 1 ? Math.floor(newTotalUnits / newUnitsPerPallet) : 0;
+      updates.looseUnits = newUnitsPerPallet > 1 ? newTotalUnits % newUnitsPerPallet : newTotalUnits;
+      await API.updateProduct(selectedProduct.id, updates);
+
+      // Update tags (replace mode with all selected tags)
+      await API.bulkUpdateTags([selectedProduct.id], editForm.tags, 'replace');
+
+      // Refresh product
+      const refreshed = await API.getProduct(selectedProduct.id);
+      setSelectedProduct(refreshed.product || refreshed);
+      setEditMode(false);
+    } catch (err: any) {
+      alert(err?.response?.data?.error || err?.message || 'Błąd zapisu');
+    } finally {
+      setSavingEdit(false);
+    }
+  }, [selectedProduct, editForm]);
+
   useEffect(() => {
+    // Load available tags for dropdown
+    API.getTagKeywords()
+      .then((data: any) => {
+        const tagNames = Object.keys(data.tagKeywords || {});
+        setAvailableTags(tagNames);
+      })
+      .catch(() => setAvailableTags([]));
   }, []);
 
   useEffect(() => {
@@ -292,7 +414,7 @@ export function ScannerScanPage() {
                       <div className="text-xs text-gray-500">szt.</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-bold text-blue-600 text-sm">{product.basePriceGross?.toFixed(2) || "0"}</div>
+                      <div className="font-bold text-blue-600 text-sm">{applyPrice(product.basePriceGross || 0).toFixed(2)}</div>
                       <div className="text-xs text-gray-500">PLN</div>
                     </div>
                   </div>
@@ -324,7 +446,7 @@ export function ScannerScanPage() {
               {/* Product Image - clickable to open upload modal */}
               {selectedProduct.imageUrl && !imageError ? (
                 <div
-                  className="relative w-full h-32 bg-gray-100 cursor-pointer"
+                  className="relative w-full h-56 bg-gray-100 cursor-pointer"
                   onClick={() => setShowImageModal(true)}
                 >
                   <img
@@ -342,7 +464,7 @@ export function ScannerScanPage() {
                 </div>
               ) : (
                 <div
-                  className="w-full h-24 bg-gray-100 flex items-center justify-center cursor-pointer"
+                  className="w-full h-56 bg-gray-100 flex items-center justify-center cursor-pointer"
                   onClick={() => setShowImageModal(true)}
                 >
                   <div className="text-center">
@@ -358,7 +480,16 @@ export function ScannerScanPage() {
               {/* Header with name - COMPACT */}
               <div className="bg-primary-600 text-white p-3">
                 <div className="flex justify-between items-start">
-                  <h2 className="text-base font-bold flex-1">{selectedProduct.plantName}</h2>
+                  {editMode ? (
+                    <input
+                      type="text"
+                      value={editForm.plantName}
+                      onChange={(e) => setEditForm({ ...editForm, plantName: e.target.value })}
+                      className="flex-1 text-base font-bold bg-primary-700 text-white border border-primary-400 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-white"
+                    />
+                  ) : (
+                    <h2 className="text-base font-bold flex-1">{selectedProduct.plantName}</h2>
+                  )}
                   <button
                     onClick={handleClear}
                     className="ml-2 p-1.5 hover:bg-primary-700 rounded transition-colors"
@@ -374,93 +505,143 @@ export function ScannerScanPage() {
                 {/* Main Stats - COMPACT */}
                 <div className="grid grid-cols-2 gap-3 mb-3">
                   <div className="bg-green-50 rounded-lg p-3 text-center">
-                    <div className="text-2xl font-bold text-primary-600">{selectedProduct.totalUnits}</div>
+                    {editMode ? (
+                      <input
+                        type="number"
+                        min="0"
+                        value={editForm.totalUnits}
+                        onChange={(e) => {
+                          const total = parseInt(e.target.value) || 0;
+                          const upp = parseInt(editForm.unitsPerPallet) || 1;
+                          setEditForm({
+                            ...editForm,
+                            totalUnits: e.target.value,
+                            palletCount: String(upp > 1 ? Math.floor(total / upp) : 0),
+                          });
+                        }}
+                        className="w-full text-2xl font-bold text-primary-600 text-center bg-white border border-blue-300 rounded px-1"
+                      />
+                    ) : (
+                      <div className="text-2xl font-bold text-primary-600">{selectedProduct.totalUnits}</div>
+                    )}
                     <div className="text-xs text-gray-600">Stan magazynowy</div>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-3 text-center">
-                    <div className="text-2xl font-bold text-gray-900">{selectedProduct.basePriceGross?.toFixed(2)}</div>
-                    <div className="text-xs text-gray-600">Cena PLN</div>
+                    {editMode ? (
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={editForm.basePriceGross}
+                        onChange={(e) => setEditForm({ ...editForm, basePriceGross: e.target.value })}
+                        className="w-full text-2xl font-bold text-gray-900 text-center bg-white border border-blue-300 rounded px-1"
+                      />
+                    ) : (
+                      <div className="text-2xl font-bold text-gray-900">{applyPrice(selectedProduct.basePriceGross || 0).toFixed(2)}</div>
+                    )}
+                    <div className="text-xs text-gray-600">{priceGroupName ? `Cena ${priceGroupName}` : 'Cena PLN'}</div>
                   </div>
                 </div>
 
-                {/* Details - COMPACT */}
+                {/* Details */}
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  {selectedProduct.potSize && (
-                    <div className="flex justify-between py-1.5 border-b border-gray-100">
-                      <span className="text-gray-500">Doniczka</span>
-                      <span className="font-medium">{selectedProduct.potSize}</span>
-                    </div>
-                  )}
+                  <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
+                    <span className="text-gray-500">Doniczka</span>
+                    {editMode ? (
+                      <input
+                        type="text"
+                        value={editForm.potSize}
+                        onChange={(e) => setEditForm({ ...editForm, potSize: e.target.value })}
+                        className="w-20 px-2 py-0.5 border border-blue-300 rounded text-xs text-right"
+                      />
+                    ) : (
+                      <span className="font-medium">{selectedProduct.potSize || '-'}</span>
+                    )}
+                  </div>
                   {selectedProduct.plantHeightCm && (
                     <div className="flex justify-between py-1.5 border-b border-gray-100">
                       <span className="text-gray-500">Wysokość</span>
                       <span className="font-medium">{selectedProduct.plantHeightCm} cm</span>
                     </div>
                   )}
-                  <div className="flex justify-between py-1.5 border-b border-gray-100">
+                  <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
                     <span className="text-gray-500">Palety</span>
-                    <span className="font-medium">{selectedProduct.palletCount}</span>
+                    {editMode ? (
+                      <input
+                        type="number"
+                        min="0"
+                        value={editForm.palletCount}
+                        onChange={(e) => {
+                          const pallets = parseInt(e.target.value) || 0;
+                          const upp = parseInt(editForm.unitsPerPallet) || 1;
+                          const currentTotal = parseInt(editForm.totalUnits) || 0;
+                          const currentLoose = upp > 1 ? currentTotal % upp : currentTotal;
+                          const newTotal = (pallets * upp) + currentLoose;
+                          setEditForm({
+                            ...editForm,
+                            palletCount: e.target.value,
+                            totalUnits: String(newTotal),
+                          });
+                        }}
+                        className="w-20 px-2 py-0.5 border border-blue-300 rounded text-xs text-right"
+                      />
+                    ) : (
+                      <span className="font-medium">{selectedProduct.palletCount}</span>
+                    )}
                   </div>
-                  <div className="flex justify-between py-1.5 border-b border-gray-100">
+                  <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
                     <span className="text-gray-500">Szt/paleta</span>
-                    <span className="font-medium">{selectedProduct.unitsPerPallet}</span>
+                    {editMode ? (
+                      <input
+                        type="number"
+                        min="1"
+                        value={editForm.unitsPerPallet}
+                        onChange={(e) => {
+                          const upp = parseInt(e.target.value) || 1;
+                          const total = parseInt(editForm.totalUnits) || 0;
+                          setEditForm({
+                            ...editForm,
+                            unitsPerPallet: e.target.value,
+                            palletCount: String(upp > 1 ? Math.floor(total / upp) : 0),
+                          });
+                        }}
+                        className="w-20 px-2 py-0.5 border border-blue-300 rounded text-xs text-right"
+                      />
+                    ) : (
+                      <span className="font-medium">{selectedProduct.unitsPerPallet}</span>
+                    )}
                   </div>
-                  {selectedProduct.looseUnits !== undefined && selectedProduct.looseUnits > 0 && (
-                    <div className="flex justify-between py-1.5 border-b border-gray-100">
-                      <span className="text-gray-500">Luzne szt</span>
-                      <span className="font-medium">{selectedProduct.looseUnits}</span>
-                    </div>
-                  )}
+                  {/* Barcode */}
                   <div className="col-span-2 flex justify-between items-center py-1.5 border-b border-gray-100">
-                      <span className="text-gray-500">Kod</span>
-                      {editingBarcode ? (
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="text"
-                            value={editBarcodeValue}
-                            onChange={(e) => setEditBarcodeValue(e.target.value)}
-                            className="w-36 px-2 py-1 border border-blue-300 rounded text-xs font-mono focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                            autoFocus
-                          />
-                          <button
-                            onClick={async () => {
-                              if (!editBarcodeValue.trim() || !selectedProduct) return;
-                              setSavingBarcode(true);
-                              try {
-                                await API.updateProduct(selectedProduct.id, { barcode: editBarcodeValue.trim() });
-                                setSelectedProduct({ ...selectedProduct, barcode: editBarcodeValue.trim() });
-                                setEditingBarcode(false);
-                              } catch (err: any) {
-                                alert(err?.response?.data?.error || 'Blad zapisu');
-                              } finally {
-                                setSavingBarcode(false);
-                              }
-                            }}
-                            disabled={savingBarcode}
-                            className="p-1 text-green-600 hover:text-green-800"
-                          >
-                            {savingBarcode ? (
-                              <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-green-600 border-t-transparent" />
-                            ) : (
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                            )}
-                          </button>
-                          <button onClick={() => setEditingBarcode(false)} className="p-1 text-gray-400 hover:text-gray-600">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-mono text-xs">{selectedProduct.barcode || '-'}</span>
-                          <button
-                            onClick={() => { setEditBarcodeValue(selectedProduct.barcode || ''); setEditingBarcode(true); }}
-                            className="p-0.5 text-blue-500 hover:text-blue-700"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    <span className="text-gray-500">Kod kreskowy</span>
+                    {editMode ? (
+                      <input
+                        type="text"
+                        value={editForm.barcode}
+                        onChange={(e) => setEditForm({ ...editForm, barcode: e.target.value })}
+                        placeholder="Zeskanuj lub wpisz"
+                        className="w-48 px-2 py-0.5 border border-blue-300 rounded text-xs font-mono text-right"
+                      />
+                    ) : (
+                      <span className="font-mono text-xs">{selectedProduct.barcode || '-'}</span>
+                    )}
+                  </div>
+
+                  {/* Plant Passport - ABOVE Data dodania */}
+                  <div className="col-span-2 flex justify-between items-center py-1.5 border-b border-gray-100">
+                    <span className="text-gray-500">Paszport rośliny</span>
+                    {editMode ? (
+                      <input
+                        type="text"
+                        value={editForm.plantPassport}
+                        onChange={(e) => setEditForm({ ...editForm, plantPassport: e.target.value })}
+                        placeholder="np. PL-30-DW2/0001/2024"
+                        className="w-48 px-2 py-0.5 border border-blue-300 rounded text-xs text-right"
+                      />
+                    ) : (
+                      <span className="font-mono text-xs">{(selectedProduct as any).plantPassport || (selectedProduct as any).growerPassport || '-'}</span>
+                    )}
+                  </div>
+
                   {selectedProduct.createdAt && (
                     <div className="col-span-2 flex justify-between py-1.5 border-b border-gray-100">
                       <span className="text-gray-500">Data dodania</span>
@@ -473,7 +654,95 @@ export function ScannerScanPage() {
                       </span>
                     </div>
                   )}
+
+                  {/* Tags - BELOW Data dodania */}
+                  <div className="col-span-2 flex justify-between items-center py-1.5 border-b border-gray-100">
+                    <span className="text-gray-500">Tag</span>
+                    {editMode ? (
+                      <div className="flex flex-wrap gap-1 justify-end max-w-[75%]">
+                        {availableTags.map((tag) => {
+                          const selected = editForm.tags.includes(tag);
+                          return (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => {
+                                setEditForm(prev => ({
+                                  ...prev,
+                                  tags: selected
+                                    ? prev.tags.filter(t => t !== tag)
+                                    : [...prev.tags, tag]
+                                }));
+                              }}
+                              className={`px-2 py-0.5 rounded-full text-xs font-medium border transition-colors ${
+                                selected
+                                  ? 'bg-primary-600 text-white border-primary-600'
+                                  : 'bg-white text-gray-600 border-gray-300 hover:border-primary-400'
+                              }`}
+                            >
+                              {selected && '✓ '}{tag}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-1 justify-end">
+                        {selectedProduct.tags && selectedProduct.tags.length > 0 ? (
+                          selectedProduct.tags.map((tag) => (
+                            <span key={tag} className="px-2 py-0.5 bg-primary-100 text-primary-700 rounded-full text-xs font-medium">
+                              {tag}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-gray-400">brak</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
+
+                {/* Edit / Save buttons - admin only */}
+                {isAdmin && (
+                  <div className="mt-3 flex gap-2">
+                    {!editMode ? (
+                      <button
+                        onClick={handleEnterEdit}
+                        className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm flex items-center justify-center gap-2 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                        Edytuj
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={handleCancelEdit}
+                          disabled={savingEdit}
+                          className="flex-1 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg text-sm transition-colors disabled:opacity-50"
+                        >
+                          Anuluj
+                        </button>
+                        <button
+                          onClick={handleSaveEdit}
+                          disabled={savingEdit}
+                          className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                        >
+                          {savingEdit ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                              Zapisz
+                            </>
+                          )}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

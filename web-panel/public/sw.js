@@ -1,4 +1,4 @@
-const CACHE_NAME = 'scanner-cache-v3';
+const CACHE_NAME = 'scanner-cache-v22';
 const STATIC_ASSETS = [
   '/scanner/scan',
   '/scanner/orders',

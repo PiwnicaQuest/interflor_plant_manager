@@ -79,6 +79,8 @@ export interface User {
   role: UserRole;
   isActive: boolean;
   profileId?: number;
+  priceGroupId?: number;
+  defaultCustomerId?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -395,6 +397,9 @@ export interface JWTPayload {
   permissions?: string[];
   login?: string;
   sessionId?: string;
+  priceMultiplier?: number;
+  priceGroupName?: string;
+  defaultCustomerId?: number;
   iat?: number;
   exp?: number;
 }

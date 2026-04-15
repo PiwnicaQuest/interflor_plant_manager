@@ -31,7 +31,7 @@ export class UserModel {
     const result = await query<any>(
       `SELECT id, email, login, first_name as "firstName", last_name as "lastName",
        password_hash as "passwordHash", role, is_active as "isActive",
-       profile_id as "profileId",
+       profile_id as "profileId", price_group_id as "priceGroupId", default_customer_id as "defaultCustomerId",
        created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE id = $1`,
       [id]
     );
@@ -42,7 +42,7 @@ export class UserModel {
     const result = await query<any>(
       `SELECT id, email, login, first_name as "firstName", last_name as "lastName",
        password_hash as "passwordHash", role, is_active as "isActive",
-       profile_id as "profileId",
+       profile_id as "profileId", price_group_id as "priceGroupId", default_customer_id as "defaultCustomerId",
        created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE email = $1`,
       [email]
     );
@@ -53,7 +53,7 @@ export class UserModel {
     const result = await query<any>(
       `SELECT id, email, login, first_name as "firstName", last_name as "lastName",
        password_hash as "passwordHash", role, is_active as "isActive",
-       profile_id as "profileId",
+       profile_id as "profileId", price_group_id as "priceGroupId", default_customer_id as "defaultCustomerId",
        created_at as "createdAt", updated_at as "updatedAt" FROM users WHERE LOWER(login) = LOWER($1)`,
       [login]
     );

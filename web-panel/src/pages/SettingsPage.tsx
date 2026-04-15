@@ -13,6 +13,7 @@ import PermissionProfilesTab from '../components/settings/PermissionProfilesTab'
 import { LoginHistoryTab } from '../components/Settings/LoginHistoryTab';
 import { WebsiteSettingsTab } from '../components/Settings/WebsiteSettingsTab';
 import { KsefSettingsTab } from '../components/Settings/KsefSettingsTab';
+import { AiImportSettingsTab } from '../components/Settings/AiImportSettingsTab';
 
 interface PricingSettings {
   costPercentage: number;
@@ -57,7 +58,7 @@ interface SmtpSendSettings {
   smtpSecurity: 'none' | 'ssl' | 'starttls';
 }
 
-type TabType = 'company' | 'pricing' | 'email-import' | 'smtp-send' | 'users' | 'login-history' | 'price-groups' | 'printers' | 'grower-passports' | 'tags' | 'profiles' | 'website' | 'ksef';
+type TabType = 'company' | 'pricing' | 'email-import' | 'smtp-send' | 'users' | 'login-history' | 'price-groups' | 'printers' | 'grower-passports' | 'tags' | 'profiles' | 'website' | 'ksef' | 'ai-import';
 
 export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('company');
@@ -484,6 +485,7 @@ export function SettingsPage() {
     { id: 'tags' as TabType, label: 'Tagi' },
     { id: 'profiles' as TabType, label: 'Profile uprawnień' },
     { id: 'ksef' as TabType, label: 'KSeF' },
+    { id: 'ai-import' as TabType, label: 'Import AI' },
     { id: 'website' as TabType, label: 'Strona internetowa' },
   ];
 
@@ -1393,6 +1395,7 @@ export function SettingsPage() {
 
       {/* KSeF Tab */}
       {activeTab === 'ksef' && <KsefSettingsTab />}
+      {activeTab === 'ai-import' && <AiImportSettingsTab />}
 
       {activeTab === 'website' && (
         <WebsiteSettingsTab />

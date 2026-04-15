@@ -16,6 +16,7 @@ interface InvoiceItemRow {
   quantity: number;
   unitPriceNet: number;
   unitPriceGross: number;
+  itemDiscount: number; // per-item discount %
   vatRate: number;
   growerPassport?: string;
 }
@@ -168,7 +169,7 @@ function InvoiceSuccessModal({ invoiceId, invoiceNumber, customerEmail, onClose,
           <button onClick={handlePrint} disabled={printing}
             className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-            {printing ? 'Drukowanie...' : 'Drukuj fakture'}
+            {printing ? 'Drukowanie...' : 'Drukuj fakturę'}
           </button>
 
           <div className="border rounded-lg p-3">
@@ -177,7 +178,7 @@ function InvoiceSuccessModal({ invoiceId, invoiceNumber, customerEmail, onClose,
                 placeholder="Email klienta..." value={emailInput} onChange={e => setEmailInput(e.target.value)} />
               <button onClick={handleEmail} disabled={sending || sent || !emailInput}
                 className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap ${sent ? 'bg-green-100 text-green-700' : 'bg-orange-500 text-white hover:bg-orange-600'} disabled:opacity-50`}>
-                {sent ? 'Wyslano!' : sending ? 'Wysylanie...' : 'Wyslij email'}
+                {sent ? 'Wysłano!' : sending ? 'Wysyłanie...' : 'Wyślij email'}
               </button>
             </div>
           </div>
@@ -207,6 +208,8 @@ export function CreateInvoiceModal({ isOpen, onClose, onSuccess }: CreateInvoice
   const [selectedPayment, setSelectedPayment] = useState('');
   const [transferDays, setTransferDays] = useState(14);
   const [productSearch, setProductSearch] = useState('');
+  const [invoiceDiscount, setInvoiceDiscount] = useState<number>(0);
+  const [discountType, setDiscountType] = useState<'percent' | 'amount'>('percent');
 
   // Quantity/unit inputs per product (temporary, before adding)
   const [productQty, setProductQty] = useState<Record<number, number>>({});
@@ -229,7 +232,7 @@ export function CreateInvoiceModal({ isOpen, onClose, onSuccess }: CreateInvoice
         setProducts(prodData.products);
         setPriceGroups(pgData.priceGroups || []);
       } catch {
-        setError('Blad ladowania danych');
+        setError('Błąd ładowania danych');
       } finally {
         setLoading(false);
       }
@@ -245,17 +248,33 @@ export function CreateInvoiceModal({ isOpen, onClose, onSuccess }: CreateInvoice
     setProductQty({});
     setProductUnit({});
     setSuccessData(null);
+    setInvoiceDiscount(0);
+    setDiscountType('percent');
   }, [isOpen]);
+
+  // Auto-clear invalid payment when total exceeds 15k
+  useEffect(() => {
+    if (items.length === 0) return;
+    const total = items.reduce((s, i) => s + round2(i.unitPriceNet * i.quantity * (1 + i.vatRate / 100)), 0);
+    const discAmt = discountType === 'percent' ? total * (invoiceDiscount / 100) : invoiceDiscount;
+    if ((total - discAmt) > 15000 && selectedPayment && selectedPayment !== 'transfer') {
+      setSelectedPayment('');
+    }
+  }, [items, invoiceDiscount, discountType, selectedPayment]);
 
   // ─── Handlers ──────────────────────
 
   const handleCustomerSelect = useCallback((id: number, customer: Customer) => {
     setSelectedCustomerId(id);
     setSelectedCustomer(customer);
+    const isEuCustomer = customer?.isEuCompany && !!customer?.vatEu;
     setItems(prev => prev.map(item => {
       const gross = getProductPrice(item.product, customer, priceGroups);
-      const net = grossToNet(gross, item.vatRate);
-      return { ...item, unitPriceGross: gross, unitPriceNet: net };
+      const originalVat = item.product.vatRate || 8;
+      const vatRate = isEuCustomer ? 0 : originalVat;
+      const net = grossToNet(gross, originalVat);
+      const finalGross = isEuCustomer ? net : gross;
+      return { ...item, unitPriceGross: finalGross, unitPriceNet: net, vatRate };
     }));
   }, [priceGroups]);
 
@@ -264,8 +283,11 @@ export function CreateInvoiceModal({ isOpen, onClose, onSuccess }: CreateInvoice
     const unit = productUnit[product.id] || 'szt';
     const finalQty = unit === 'pal' && product.unitsPerPallet ? qty * product.unitsPerPallet : qty;
     const gross = getProductPrice(product, selectedCustomer, priceGroups);
-    const vatRate = product.vatRate || 8;
-    const net = grossToNet(gross, vatRate);
+    const isEuCustomer = selectedCustomer?.isEuCompany && !!selectedCustomer?.vatEu;
+    const originalVat = product.vatRate || 8;
+    const vatRate = isEuCustomer ? 0 : originalVat;
+    const net = grossToNet(gross, originalVat);
+    const finalGross = isEuCustomer ? net : gross;
     setItems(prev => {
       const existing = prev.findIndex(i => i.productId === product.id);
       if (existing >= 0) {
@@ -277,7 +299,8 @@ export function CreateInvoiceModal({ isOpen, onClose, onSuccess }: CreateInvoice
         description: product.plantName + (product.potSize ? ' ' + product.potSize : ''),
         quantity: finalQty,
         unitPriceNet: net,
-        unitPriceGross: gross,
+        unitPriceGross: finalGross,
+        itemDiscount: 0,
         vatRate,
         growerPassport: product.growerPassport || undefined,
       }];
@@ -304,10 +327,21 @@ export function CreateInvoiceModal({ isOpen, onClose, onSuccess }: CreateInvoice
 
   // ─── Calculations ──────────────────
 
-  const subtotalNet = items.reduce((s, i) => s + round2(i.unitPriceNet * i.quantity), 0);
-  const totalVat = items.reduce((s, i) => s + round2(round2(i.unitPriceNet * i.quantity) * (i.vatRate / 100)), 0);
-  const totalGross = round2(subtotalNet + totalVat);
-  const canSubmit = selectedCustomerId && items.length > 0 && selectedPayment && items.every(i => i.quantity > 0 && i.unitPriceNet > 0);
+  const rawSubtotalNet = items.reduce((s, i) => s + round2(i.unitPriceNet * i.quantity), 0);
+  const rawTotalVat = items.reduce((s, i) => s + round2(round2(i.unitPriceNet * i.quantity) * (i.vatRate / 100)), 0);
+  const rawTotalGross = round2(rawSubtotalNet + rawTotalVat);
+
+  // Apply discount proportionally to net and vat
+  const discountAmount = discountType === 'percent'
+    ? round2(rawTotalGross * (invoiceDiscount / 100))
+    : round2(invoiceDiscount);
+  const discountRatio = rawTotalGross > 0 ? (rawTotalGross - discountAmount) / rawTotalGross : 1;
+  const subtotalNet = round2(rawSubtotalNet * discountRatio);
+  const totalVat = round2(rawTotalVat * discountRatio);
+  const totalGross = round2(rawTotalGross - discountAmount);
+
+  const requiresTransfer = totalGross > 15000;
+  const canSubmit = selectedCustomerId && items.length > 0 && selectedPayment && items.every(i => i.quantity > 0 && i.unitPriceNet > 0) && !(requiresTransfer && selectedPayment !== 'transfer');
 
   // ─── Submit ────────────────────────
 
@@ -318,19 +352,31 @@ export function CreateInvoiceModal({ isOpen, onClose, onSuccess }: CreateInvoice
       setError('');
       const deadlineDate = new Date();
       deadlineDate.setDate(deadlineDate.getDate() + transferDays);
+      // Apply discount proportionally to each item if set
+      const itemsToSend = items.map(i => {
+        const adjustedNet = round2(i.unitPriceNet * discountRatio);
+        const adjustedGross = round2(i.unitPriceGross * discountRatio);
+        return {
+          productId: i.productId,
+          description: i.description,
+          quantity: i.quantity,
+          unitPriceNet: adjustedNet,
+          unitPriceGross: adjustedGross,
+          vatRate: i.vatRate,
+          growerPassport: i.growerPassport,
+          originalUnitPriceNet: invoiceDiscount > 0 ? i.unitPriceNet : undefined,
+          originalUnitPriceGross: invoiceDiscount > 0 ? i.unitPriceGross : undefined,
+          discountPercent: invoiceDiscount > 0 ? (discountType === 'percent' ? invoiceDiscount : round2((1 - discountRatio) * 100)) : 0,
+        };
+      });
       const result = await api.createInvoice({
         customerId: selectedCustomerId!,
         paymentMethod: selectedPayment,
         paymentDeadline: selectedPayment === 'transfer' ? deadlineDate.toISOString().split('T')[0] : undefined,
-        items: items.map(i => ({
-          productId: i.productId,
-          description: i.description,
-          quantity: i.quantity,
-          unitPriceNet: i.unitPriceNet,
-          unitPriceGross: i.unitPriceGross,
-          vatRate: i.vatRate,
-          growerPassport: i.growerPassport,
-        })),
+        items: itemsToSend,
+        discountPercent: invoiceDiscount > 0 ? invoiceDiscount : undefined,
+        discountType: invoiceDiscount > 0 ? discountType : undefined,
+        discountAmount: invoiceDiscount > 0 ? discountAmount : undefined,
       });
       setSuccessData({
         id: result.invoiceId || result.id,
@@ -339,7 +385,7 @@ export function CreateInvoiceModal({ isOpen, onClose, onSuccess }: CreateInvoice
       });
       onSuccess();
     } catch (err: any) {
-      setError(err?.response?.data?.error || err?.message || 'Blad tworzenia faktury');
+      setError(err?.response?.data?.error || err?.message || 'Błąd tworzenia faktury');
     } finally {
       setSubmitting(false);
     }
@@ -366,7 +412,7 @@ export function CreateInvoiceModal({ isOpen, onClose, onSuccess }: CreateInvoice
   const filteredProducts = productSearch.trim() === '' ? availableProducts : availableProducts.filter(p =>
     p.plantName.toLowerCase().includes(productSearch.toLowerCase()) ||
     (p.potSize && String(p.potSize).toLowerCase().includes(productSearch.toLowerCase())) ||
-    (p.barcode && p.barcode.includes(productSearch))
+    (p.barcode && String(p.barcode).toLowerCase().includes(productSearch.toLowerCase()))
   );
 
   if (!isOpen) return null;
@@ -374,7 +420,7 @@ export function CreateInvoiceModal({ isOpen, onClose, onSuccess }: CreateInvoice
   return (
     <>
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6">
-        <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl flex flex-col" style={{ height: 'calc(100vh - 48px)' }}>
+        <div className="bg-white rounded-xl shadow-2xl w-full flex flex-col" style={{ width: "calc(100vw - 48px)", maxWidth: "1600px", height: "calc(100vh - 48px)" }}>
           {/* Header */}
           <div className="flex justify-between items-center px-6 py-3 border-b bg-gray-50 rounded-t-xl">
             <h2 className="text-lg font-bold text-gray-900">Nowa faktura</h2>
@@ -382,20 +428,22 @@ export function CreateInvoiceModal({ isOpen, onClose, onSuccess }: CreateInvoice
           </div>
 
           {loading ? (
-            <div className="flex-1 flex items-center justify-center text-gray-500">Ladowanie danych...</div>
+            <div className="flex-1 flex items-center justify-center text-gray-500">Ładowanie danych...</div>
           ) : (
             <div className="flex flex-1 overflow-hidden">
               {/* ═══ LEFT: Product Catalog ═══ */}
               <div className="w-[45%] border-r flex flex-col">
                 <div className="p-3 border-b bg-gray-50">
                   <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
-                    placeholder="Szukaj produkt..." value={productSearch} onChange={e => setProductSearch(e.target.value)} />
+                    placeholder="Szukaj produktów..." value={productSearch} onChange={e => setProductSearch(e.target.value)} />
                 </div>
                 <div className="flex-1 overflow-y-auto p-2 space-y-1">
                   {filteredProducts.length === 0 ? (
-                    <div className="text-center text-gray-400 py-8 text-sm">Brak produktow</div>
+                    <div className="text-center text-gray-400 py-8 text-sm">Brak produktów</div>
                   ) : filteredProducts.map(p => {
                     const price = getProductPrice(p, selectedCustomer, priceGroups);
+                    const isEuCust = selectedCustomer?.isEuCompany && !!selectedCustomer?.vatEu;
+                    const displayPrice = isEuCust ? grossToNet(price, p.vatRate || 8) : price;
                     const qty = productQty[p.id] || 1;
                     const unit = productUnit[p.id] || 'szt';
                     const isAdded = items.some(i => i.productId === p.id);
@@ -419,8 +467,8 @@ export function CreateInvoiceModal({ isOpen, onClose, onSuccess }: CreateInvoice
                         </div>
                         {/* Price */}
                         <div className="text-right flex-shrink-0 w-16">
-                          <div className="font-bold text-sm text-green-700">{price.toFixed(2)}</div>
-                          <div className="text-xs text-gray-400">zl brutto</div>
+                          <div className="font-bold text-sm text-green-700">{displayPrice.toFixed(2)}</div>
+                          <div className="text-xs text-gray-400">{isEuCust ? 'zł netto' : 'zł brutto'}</div>
                         </div>
                         {/* Unit + Qty + Add */}
                         <div className="flex items-center gap-1 flex-shrink-0">
@@ -457,6 +505,9 @@ export function CreateInvoiceModal({ isOpen, onClose, onSuccess }: CreateInvoice
                     <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
                       {selectedCustomer.nip && <span>NIP: {selectedCustomer.nip}</span>}
                       {selectedCustomer.city && <span>| {selectedCustomer.street}, {selectedCustomer.postalCode} {selectedCustomer.city}</span>}
+                      {selectedCustomer.isEuCompany && selectedCustomer.vatEu && (
+                        <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-xs font-medium">VAT-EU: {selectedCustomer.vatEu} (0%)</span>
+                      )}
                       <span className="ml-auto px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">{selectedCustomer.priceGroupName || 'Podstawowa'}</span>
                     </div>
                   )}
@@ -474,77 +525,146 @@ export function CreateInvoiceModal({ isOpen, onClose, onSuccess }: CreateInvoice
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {items.map((item, index) => (
-                        <div key={item.productId} className="border rounded-lg p-2.5 bg-white hover:shadow-sm transition-shadow">
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="font-medium text-sm text-gray-800 truncate flex-1">{item.description}</div>
+                      {items.map((item, index) => {
+                        const lineTotalGross = round2(item.unitPriceGross * item.quantity);
+                        return (
+                        <div key={item.productId} className="border rounded-lg px-2 py-1.5 bg-white hover:shadow-sm transition-shadow">
+                          <div className="flex items-center gap-2 text-xs">
+                            <div className="font-medium text-sm text-gray-800 flex-1 min-w-0 leading-tight" style={{display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", wordBreak: "break-word"}} title={item.description}>{item.description}</div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <span className="text-gray-400">Ilość:</span>
+                              <input type="number" className="w-12 px-1 py-1 border border-gray-300 rounded text-xs text-center" min="1"
+                                value={item.quantity || ''} onChange={e => updateItemQty(index, parseInt(e.target.value) || 0)} />
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <span className="text-gray-400">Netto:</span>
+                              <input type="text" inputMode="decimal" className="w-16 px-1 py-1 border border-gray-300 rounded text-xs text-center"
+                                defaultValue={(item.unitPriceNet || 0).toFixed(2)}
+                                key={`net-${index}-${item.productId}`}
+                                onFocus={e => e.target.select()}
+                                onBlur={e => {
+                                  const val = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
+                                  const num = parseFloat(val) || 0;
+                                  e.target.value = num.toFixed(2);
+                                  updateItemNet(index, num);
+                                }} />
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <span className="text-gray-400">Brutto:</span>
+                              <input type="text" inputMode="decimal" className="w-16 px-1 py-1 border border-gray-300 rounded text-xs text-center"
+                                defaultValue={(item.unitPriceGross || 0).toFixed(2)}
+                                key={`gross-${index}-${item.productId}`}
+                                onFocus={e => e.target.select()}
+                                onBlur={e => {
+                                  const val = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
+                                  const num = parseFloat(val) || 0;
+                                  e.target.value = num.toFixed(2);
+                                  updateItemGross(index, num);
+                                }} />
+                            </div>
+                            <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs font-medium flex-shrink-0">VAT {item.vatRate}%</span>
+                            <div className="flex items-center gap-0.5 flex-shrink-0">
+                              <span className="text-gray-400 text-xs">-</span>
+                              <input type="text" inputMode="decimal" className="w-10 px-1 py-1 border border-gray-300 rounded text-xs text-center"
+                                defaultValue={item.itemDiscount || ''}
+                                placeholder="0"
+                                key={`disc-${index}-${item.productId}`}
+                                onBlur={e => {
+                                  const pct = parseFloat(e.target.value.replace(',', '.')) || 0;
+                                  if (pct === item.itemDiscount) return;
+                                  setItems(prev => prev.map((it, i) => {
+                                    if (i !== index) return it;
+                                    if (pct > 0 && item.itemDiscount === 0) {
+                                      const discountedNet = round2(it.unitPriceNet * (1 - pct / 100));
+                                      return { ...it, itemDiscount: pct, unitPriceNet: discountedNet, unitPriceGross: netToGross(discountedNet, it.vatRate) };
+                                    } else if (pct === 0 && item.itemDiscount > 0) {
+                                      const originalNet = round2(it.unitPriceNet / (1 - item.itemDiscount / 100));
+                                      return { ...it, itemDiscount: 0, unitPriceNet: originalNet, unitPriceGross: netToGross(originalNet, it.vatRate) };
+                                    } else {
+                                      const originalNet = round2(it.unitPriceNet / (1 - (item.itemDiscount || 0) / 100));
+                                      const discountedNet = round2(originalNet * (1 - pct / 100));
+                                      return { ...it, itemDiscount: pct, unitPriceNet: discountedNet, unitPriceGross: netToGross(discountedNet, it.vatRate) };
+                                    }
+                                  }));
+                                }} />
+                              <span className="text-gray-400 text-xs">%</span>
+                            </div>
+                            <div className="font-semibold text-sm text-gray-900 flex-shrink-0 w-20 text-right">{lineTotalGross.toFixed(2)} zł</div>
                             <button onClick={() => removeItem(index)}
-                              className="ml-2 w-6 h-6 flex items-center justify-center text-red-400 hover:text-white hover:bg-red-500 rounded transition-colors text-sm">
+                              className="w-5 h-5 flex items-center justify-center text-red-400 hover:text-white hover:bg-red-500 rounded transition-colors text-xs flex-shrink-0">
                               &times;
                             </button>
                           </div>
-                          <div className="grid grid-cols-4 gap-2 items-end">
-                            <div>
-                              <label className="text-xs text-gray-400">Ilosc</label>
-                              <input type="number" className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-center" min="1"
-                                value={item.quantity || ''} onChange={e => updateItemQty(index, parseInt(e.target.value) || 0)} />
-                            </div>
-                            <div>
-                              <label className="text-xs text-gray-400">Netto</label>
-                              <input type="number" className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-center" step="0.01" min="0"
-                                value={item.unitPriceNet || ''} onChange={e => updateItemNet(index, parseFloat(e.target.value) || 0)} />
-                            </div>
-                            <div>
-                              <label className="text-xs text-gray-400">Brutto</label>
-                              <input type="number" className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-center" step="0.01" min="0"
-                                value={item.unitPriceGross || ''} onChange={e => updateItemGross(index, parseFloat(e.target.value) || 0)} />
-                            </div>
-                            <div>
-                              <label className="text-xs text-gray-400">VAT</label>
-                              <select className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
-                                value={item.vatRate} onChange={e => {
-                                  const vat = parseInt(e.target.value);
-                                  setItems(prev => prev.map((it, i) => i === index ? { ...it, vatRate: vat, unitPriceGross: netToGross(it.unitPriceNet, vat) } : it));
-                                }}>
-                                <option value={8}>8%</option>
-                                <option value={23}>23%</option>
-                                <option value={0}>0%</option>
-                              </select>
-                            </div>
-                          </div>
-                          <div className="mt-1 text-xs text-right text-gray-400">
-                            = {round2(item.unitPriceNet * item.quantity).toFixed(2)} netto / {round2(item.unitPriceGross * item.quantity).toFixed(2)} brutto
-                          </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
 
                 {/* Totals + Payment + Submit */}
                 <div className="border-t bg-gray-50 p-3 space-y-3 rounded-br-xl">
-                  {/* Totals */}
+                  {/* Totals + Discount in one row */}
                   {items.length > 0 && (
-                    <div className="flex justify-between items-center text-sm">
-                      <div className="text-gray-500">
-                        Netto: <span className="font-medium text-gray-700">{round2(subtotalNet).toFixed(2)} zl</span>
-                        <span className="mx-2">|</span>
-                        VAT: <span className="font-medium text-gray-700">{round2(totalVat).toFixed(2)} zl</span>
+                    <div className="flex items-center gap-3 flex-wrap text-sm">
+                      <div className="text-gray-500 flex items-center gap-2">
+                        <span>Netto: <span className="font-medium text-gray-700">{round2(subtotalNet).toFixed(2)} zł</span></span>
+                        <span className="text-gray-300">|</span>
+                        <span>VAT: <span className="font-medium text-gray-700">{round2(totalVat).toFixed(2)} zł</span></span>
                       </div>
-                      <div className="text-lg font-bold text-gray-900">
-                        {totalGross.toFixed(2)} zl
+                      <div className="flex items-center gap-1.5 ml-auto">
+                        <label className="text-xs font-medium text-gray-500 whitespace-nowrap">Rabat:</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="w-16 px-2 py-1 border border-gray-300 rounded-lg text-xs text-right"
+                          value={invoiceDiscount || ''}
+                          onChange={e => setInvoiceDiscount(Math.max(0, parseFloat(e.target.value) || 0))}
+                        />
+                        <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+                          <button type="button" onClick={() => setDiscountType('percent')}
+                            className={`px-2 py-1 text-xs font-medium ${discountType === 'percent' ? 'bg-blue-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                            %
+                          </button>
+                          <button type="button" onClick={() => setDiscountType('amount')}
+                            className={`px-2 py-1 text-xs font-medium ${discountType === 'amount' ? 'bg-blue-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                            zł
+                          </button>
+                        </div>
+                        {invoiceDiscount > 0 && (
+                          <span className="text-xs text-gray-500 whitespace-nowrap">
+                            (-{discountAmount.toFixed(2)} zł)
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-lg font-bold text-gray-900 w-full text-right border-t pt-2">
+                        Brutto: {totalGross.toFixed(2)} zł
+                      </div>
+                    </div>
+                  )}
+
+                  {/* >15k Warning - obowiazek platnosci przelewem */}
+                  {requiresTransfer && (
+                    <div className="bg-amber-50 border border-amber-300 rounded-lg px-3 py-2 text-xs text-amber-800 flex items-start gap-2">
+                      <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                      </svg>
+                      <div>
+                        <strong>Obowiązek płatności przelewem</strong><br/>
+                        Transakcje powyżej 15 000 zł brutto pomiędzy przedsiębiorcami muszą być rozliczane przelewem bankowym (art. 19 ustawy Prawo przedsiębiorców).
                       </div>
                     </div>
                   )}
 
                   {/* Payment */}
                   <div className="grid grid-cols-3 gap-2">
-                    <button type="button" onClick={() => setSelectedPayment('cash')}
-                      className={`py-2.5 rounded-lg font-medium text-sm border-2 transition-all ${selectedPayment === 'cash' ? 'bg-green-500 border-green-500 text-white shadow-md' : 'bg-white border-gray-200 text-gray-600 hover:border-green-300'}`}>
+                    <button type="button" onClick={() => !requiresTransfer && setSelectedPayment('cash')} disabled={requiresTransfer}
+                      className={`py-2.5 rounded-lg font-medium text-sm border-2 transition-all ${selectedPayment === 'cash' ? 'bg-green-500 border-green-500 text-white shadow-md' : 'bg-white border-gray-200 text-gray-600 hover:border-green-300'} ${requiresTransfer ? 'opacity-40 cursor-not-allowed' : ''}`}>
                       Gotowka
                     </button>
-                    <button type="button" onClick={() => setSelectedPayment('card')}
-                      className={`py-2.5 rounded-lg font-medium text-sm border-2 transition-all ${selectedPayment === 'card' ? 'bg-blue-500 border-blue-500 text-white shadow-md' : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300'}`}>
+                    <button type="button" onClick={() => !requiresTransfer && setSelectedPayment('card')} disabled={requiresTransfer}
+                      className={`py-2.5 rounded-lg font-medium text-sm border-2 transition-all ${selectedPayment === 'card' ? 'bg-blue-500 border-blue-500 text-white shadow-md' : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300'} ${requiresTransfer ? 'opacity-40 cursor-not-allowed' : ''}`}>
                       Karta
                     </button>
                     <button type="button" onClick={() => setSelectedPayment('transfer')}
@@ -572,7 +692,7 @@ export function CreateInvoiceModal({ isOpen, onClose, onSuccess }: CreateInvoice
                   {/* Submit */}
                   <button onClick={handleSubmit} disabled={!canSubmit || submitting}
                     className="w-full py-3 bg-rose-600 text-white rounded-lg font-bold text-base hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                    {submitting ? 'Tworzenie faktury...' : 'Wystaw fakture'}
+                    {submitting ? 'Tworzenie faktury...' : 'Wystaw fakturę'}
                   </button>
                 </div>
               </div>

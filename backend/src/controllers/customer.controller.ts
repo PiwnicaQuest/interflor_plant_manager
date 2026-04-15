@@ -117,14 +117,14 @@ export class CustomerController {
       }
 
       // Wyszukaj dane w API Białej Listy Podatników VAT
-      const result = await NipService.lookupByNip(nip);
+      const results = await NipService.lookupAllByNip(nip);
 
-      if (!result) {
+      if (!results || results.length === 0) {
         return res.status(404).json({ error: 'Nie znaleziono firmy o podanym numerze NIP' });
       }
 
       // Mapuj dane z NipService do formatu oczekiwanego przez frontend
-      const responseData = {
+      const mappedResults = results.map(result => ({
         companyName: result.name,
         nip: result.nip,
         regon: result.regon || '',
@@ -134,9 +134,14 @@ export class CustomerController {
         country: result.country || 'Polska',
         statusVat: result.statusVat,
         accountNumbers: result.accountNumbers || [],
-      };
+      }));
 
-      return res.json(responseData);
+      // Return single object for backward compatibility if only one result,
+      // but also include 'results' array for multiple
+      return res.json({
+        ...mappedResults[0],
+        results: mappedResults,
+      });
     } catch (error: any) {
       console.error('Lookup NIP error:', error);
       return res.status(500).json({ error: error.message || 'Błąd podczas wyszukiwania NIP' });

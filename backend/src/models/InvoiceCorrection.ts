@@ -154,9 +154,10 @@ export const InvoiceCorrectionModel = {
           buyer_snapshot,
           original_subtotal_net, original_total_vat, original_total_gross,
           corrected_subtotal_net, corrected_total_vat, corrected_total_gross,
+          difference_net, difference_vat, difference_gross,
           issue_date, original_invoice_date, original_invoice_number,
           created_by_user_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_DATE, $11, $12, $13)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_DATE, $14, $15, $16)
         RETURNING id`,
         [
           correctionNumber,
@@ -169,6 +170,9 @@ export const InvoiceCorrectionModel = {
           correctedSubtotalNet,
           correctedTotalVat,
           correctedTotalGross,
+          round2(correctedSubtotalNet - parseFloat(String(invoice.subtotalNet || '0'))),
+          round2(correctedTotalVat - parseFloat(String(invoice.totalVat || '0'))),
+          round2(correctedTotalGross - parseFloat(String(invoice.totalGross || '0'))),
           invoice.issueDate,
           invoice.invoiceNumber,
           data.createdByUserId
@@ -337,28 +341,43 @@ export const InvoiceCorrectionModel = {
 
   // Helper: Map DB row to InvoiceCorrectionItem
   mapRowToItem(row: Record<string, unknown>): InvoiceCorrectionItem {
+    const correctedQty = Number(row.correctedQuantity) || 0;
+    const correctedUnitNet = parseFloat(row.correctedUnitPriceNet as string) || 0;
+    const correctedUnitGross = parseFloat(row.correctedUnitPriceGross as string) || 0;
+    const correctedVatRate = parseFloat(row.correctedVatRate as string) || 0;
+
+    // Compute corrected totals from stored unit values
+    const correctedTotalGross = round2(correctedQty * correctedUnitGross);
+    const correctedTotalNet = round2(correctedTotalGross / (1 + correctedVatRate / 100));
+    const correctedTotalVat = round2(correctedTotalGross - correctedTotalNet);
+
+    const originalQty = Number(row.originalQuantity) || 0;
+    const originalTotalNet = parseFloat(row.originalTotalNet as string) || 0;
+    const originalTotalVat = parseFloat(row.originalTotalVat as string) || 0;
+    const originalTotalGross = parseFloat(row.originalTotalGross as string) || 0;
+
     return {
       id: row.id as number,
       correctionId: row.correctionId as number,
       originalItemId: row.originalItemId as number | undefined,
       description: row.description as string,
-      originalQuantity: row.originalQuantity as number,
-      originalUnitPriceNet: parseFloat(row.originalUnitPriceNet as string),
-      originalVatRate: parseFloat(row.originalVatRate as string),
-      originalTotalNet: parseFloat(row.originalTotalNet as string),
-      originalTotalVat: parseFloat(row.originalTotalVat as string),
-      originalTotalGross: parseFloat(row.originalTotalGross as string),
-      correctedQuantity: row.correctedQuantity as number,
-      correctedUnitPriceNet: parseFloat(row.correctedUnitPriceNet as string),
-      correctedUnitPriceGross: parseFloat(row.correctedUnitPriceGross as string),
-      correctedVatRate: parseFloat(row.correctedVatRate as string),
-      correctedTotalNet: parseFloat(row.correctedTotalNet as string),
-      correctedTotalVat: parseFloat(row.correctedTotalVat as string),
-      correctedTotalGross: parseFloat(row.correctedTotalGross as string),
-      differenceQuantity: row.differenceQuantity as number,
-      differenceNet: parseFloat(row.differenceNet as string),
-      differenceVat: parseFloat(row.differenceVat as string),
-      differenceGross: parseFloat(row.differenceGross as string),
+      originalQuantity: originalQty,
+      originalUnitPriceNet: parseFloat(row.originalUnitPriceNet as string) || 0,
+      originalVatRate: parseFloat(row.originalVatRate as string) || 0,
+      originalTotalNet,
+      originalTotalVat,
+      originalTotalGross,
+      correctedQuantity: correctedQty,
+      correctedUnitPriceNet: correctedUnitNet,
+      correctedUnitPriceGross: correctedUnitGross,
+      correctedVatRate,
+      correctedTotalNet,
+      correctedTotalVat,
+      correctedTotalGross,
+      differenceQuantity: correctedQty - originalQty,
+      differenceNet: round2(correctedTotalNet - originalTotalNet),
+      differenceVat: round2(correctedTotalVat - originalTotalVat),
+      differenceGross: round2(correctedTotalGross - originalTotalGross),
       createdAt: row.createdAt as Date
     };
   }

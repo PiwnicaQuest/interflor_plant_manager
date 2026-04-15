@@ -1,11 +1,42 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API } from '../../services/api';
 import type { Customer } from '../../types';
 import { QuickCustomerModal } from '../../components/Scanner/QuickCustomerModal';
 
 export function ScannerNewOrderPage() {
+  // Check if user has a fixed customer (e.g. DETAL user)
+  const defaultCustomerId = useMemo(() => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return null;
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.defaultCustomerId || null;
+    } catch { return null; }
+  }, []);
+
   const navigate = useNavigate();
+
+  // If user has default customer, auto-create order and skip selection
+  useEffect(() => {
+    if (defaultCustomerId) {
+      (async () => {
+        try {
+          setSubmitting(true);
+          const result = await API.createOrder({
+            customerId: defaultCustomerId,
+            items: [],
+            source: 'scanner' as const,
+          });
+          navigate(`/scanner/orders/${result.orderId}`, { replace: true });
+        } catch (err: any) {
+          setError(err.response?.data?.error || 'Blad tworzenia zamowienia');
+          setSubmitting(false);
+        }
+      })();
+    }
+  }, [defaultCustomerId, navigate]);
+
 
   // Customer selection
   const [customers, setCustomers] = useState<Customer[]>([]);
